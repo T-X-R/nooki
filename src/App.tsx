@@ -91,10 +91,6 @@ const useWorkbench = create<WorkbenchState>()(
   ),
 )
 
-function viewLabel(t: TFunction, view: View, capabilityName?: string) {
-  return view === 'today' ? t('today') : view === 'library' ? t('library') : view === 'capabilities' ? t('capabilities') : view === 'settings' ? t('settings') : capabilityName ?? t('capabilities')
-}
-
 function capabilityCopy(capability: { manifest: import('./capability-host').CapabilityManifest }, language: Language) {
   const translation = capability.manifest.locales?.[language]
   return {
@@ -211,7 +207,7 @@ function App() {
       <div className="app-workspace">
         <Sidebar activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
-          <Topbar view={view} capabilityName={activeCapabilityId ? capabilityCopy(getCapabilityModule(activeCapabilityId)!, language).name : undefined} onOpenCommand={() => setCommandOpen(true)} />
+          <Topbar onOpenCommand={() => setCommandOpen(true)} />
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
@@ -278,11 +274,6 @@ function WindowTitlebar() {
         <button type="button" className="window-control window-control-minimize" aria-label={t('minimizeWindow')} onClick={() => void appWindow.minimize()} />
         <button type="button" className="window-control window-control-maximize" aria-label={t('maximizeWindow')} onClick={() => void appWindow.toggleMaximize()} />
       </div>
-      <div className="window-titlebar-title" data-tauri-drag-region>
-        <img src={workbenchIcon} alt="" aria-hidden="true" />
-        <span>Workbench</span>
-      </div>
-      <div className="window-titlebar-balance" aria-hidden="true" />
     </header>
   )
 }
@@ -340,14 +331,19 @@ function Sidebar({ activeView, activeCapabilityId, installed, onNavigate, onOpen
   )
 }
 
-function Topbar({ view, capabilityName, onOpenCommand }: { view: View; capabilityName?: string; onOpenCommand: () => void }) {
+function Topbar({ onOpenCommand }: { onOpenCommand: () => void }) {
   const { t } = useTranslation()
-  const label = viewLabel(t, view, capabilityName)
   return (
-    <header className="topbar">
-      <div className="breadcrumbs"><span>Workbench</span><ChevronRightIcon /><strong>{label}</strong></div>
+    <header
+      className="topbar"
+      data-tauri-drag-region
+      onDoubleClick={(event) => {
+        if (!window.__TAURI_INTERNALS__ || (event.target as HTMLElement).closest('button')) return
+        void getCurrentWindow().toggleMaximize()
+      }}
+    >
       <div className="topbar-actions">
-        <button className="topbar-search" onClick={onOpenCommand}><MagnifyingGlassIcon /><span>{t('searchWorkbench')}</span><kbd>⌘ K</kbd></button>
+        <button className="topbar-search" aria-label={`${t('searchWorkbench')} (⌘ K)`} onClick={onOpenCommand}><MagnifyingGlassIcon /><kbd>⌘ K</kbd></button>
       </div>
     </header>
   )
@@ -366,7 +362,6 @@ function TodayPage({ installed, onNavigate, onOpenCapability, onNotice, provider
         <div>
           <div className="eyebrow">{today}</div>
           <h1>{t('todayHeadingFirst')}<br /><em>{t('todayHeadingSecond')}</em></h1>
-          <p className="intro-copy">{t('todayIntro')}</p>
         </div>
         <div className="intro-actions">
           {primaryCapability && primaryCapabilityName
@@ -478,7 +473,7 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
   return (
     <div className="content-column library-page">
       <div className="page-header-row">
-        <div><span className="eyebrow">DOCUMENT LIBRARY</span><h1>{t('library')}</h1><p>{t('libraryIntro')}</p></div>
+        <div><h1>{t('library')}</h1></div>
         <span className="library-total">{documents.length} {t('libraryDocuments')}</span>
       </div>
 
@@ -517,9 +512,10 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
                         </button>
                         {capabilityExpanded && capability.collections.map((collection) => {
                           const collectionId = `${capability.capabilityId}/${collection.key}`
-                          const collectionExpanded = searching || !collapsedCollections.has(collectionId)
-                          return <div className="library-collection-node" key={collection.key}>
-                            <button
+                          const showCollection = capability.collections.length > 1
+                          const collectionExpanded = !showCollection || searching || !collapsedCollections.has(collectionId)
+                          return <div className={`library-collection-node ${showCollection ? '' : 'is-flat'}`} key={collection.key}>
+                            {showCollection && <button
                               type="button"
                               className="library-collection-heading"
                               aria-expanded={collectionExpanded}
@@ -528,7 +524,7 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
                             >
                               <ChevronRightIcon className={`library-tree-chevron ${collectionExpanded ? 'is-expanded' : ''}`} />
                               <strong>{collection.name}</strong><span>{collection.documentCount}</span>
-                            </button>
+                            </button>}
                             {collectionExpanded && collection.months.map((month) => {
                               const monthId = `${collectionId}/${month.key}`
                               const monthExpanded = searching || !collapsedMonths.has(monthId)
@@ -578,6 +574,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
   const { t } = useTranslation()
   const { language } = useWorkbench()
   const [importOpen, setImportOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [filter, setFilter] = useState<CapabilityFilter>('all')
   const available = listAvailableCapabilities()
   const installedById = new Map(installed.map((capability) => [capability.manifest.id, capability]))
@@ -635,7 +632,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
           {filters.map((option) => <button key={option.id} className={`filter-chip ${filter === option.id ? 'active' : ''}`} aria-pressed={filter === option.id} onClick={() => setFilter(option.id)}>{option.label} <span>{option.count}</span></button>)}
         </div>
         <div className="toolbar-spacer" />
-        <button className="quiet-button" onClick={() => onNotice(t('hostValidationRequired'))}><CodeIcon />{t('developerGuide')}</button>
+        <button className="quiet-button" onClick={() => setGuideOpen(true)}><CodeIcon />{t('developerGuide')}</button>
       </div>
 
       {installed.length === 0 && filter === 'all' && <section className="capability-empty">
@@ -644,7 +641,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
       </section>}
 
       <section className="capability-catalog" aria-label={t('availableCapabilities')}>
-        <div className="section-heading-row"><div><span className="section-kicker">AVAILABLE PACKAGES</span><h2>{t('availableCapabilities')}</h2></div><span className="muted-label">{t('notInstalledYet')}</span></div>
+        <div className="section-heading-row"><div><span className="section-kicker">AVAILABLE PACKAGES</span><h2>{t('availableCapabilities')}</h2></div></div>
         <div className="capability-cards">
           {filteredCapabilities.map((capability) => {
             const current = installedById.get(capability.manifest.id)
@@ -659,7 +656,33 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
         </div>
       </section>
 
-      <AnimatePresence>{importOpen && <ImportModal onClose={() => setImportOpen(false)} onNotice={onNotice} />}</AnimatePresence>
+      <AnimatePresence>
+        {guideOpen && <DeveloperGuideModal onClose={() => setGuideOpen(false)} />}
+        {importOpen && <ImportModal onClose={() => setImportOpen(false)} onNotice={onNotice} />}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function DeveloperGuideModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
+  const sections = [
+    { title: t('developerGuideStructure'), copy: t('developerGuideStructureCopy') },
+    { title: t('developerGuideHost'), copy: t('developerGuideHostCopy') },
+    { title: t('developerGuideLifecycle'), copy: t('developerGuideLifecycleCopy') },
+  ]
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <motion.section className="modal developer-guide-modal" role="dialog" aria-modal="true" aria-labelledby="developer-guide-title" initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 6 }}>
+        <div className="modal-header"><div><span className="section-kicker">CAPABILITY DEVELOPMENT</span><h2 id="developer-guide-title">{t('developerGuideTitle')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('close')}><Cross2Icon /></button></div>
+        <p className="modal-copy">{t('developerGuideIntro')}</p>
+        <div className="developer-guide-list">
+          {sections.map((section, index) => <section className="developer-guide-item" key={section.title}><span>{index + 1}</span><div><h3>{section.title}</h3><p>{section.copy}</p></div></section>)}
+        </div>
+        <p className="developer-guide-reference">{t('developerGuideReference')}</p>
+        <div className="modal-footer"><button className="primary-button" onClick={onClose}>{t('understood')}</button></div>
+      </motion.section>
     </div>
   )
 }
