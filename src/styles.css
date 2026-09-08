@@ -538,3 +538,17 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .nav-conversation-history p { padding: 4px 8px; margin: 0; font-size: 9px; line-height: 1.6; color: var(--ink-soft); overflow-wrap: anywhere; }
 .activity-section .activity-heading { align-items: baseline; margin-top: 8px; }
 .activity-section .activity-heading h2 { margin: 0; }
+
+.task-group { display: block; padding: 0; }
+.task-group-summary { display: flex; align-items: center; gap: 10px; padding: 14px 12px; list-style: none; cursor: pointer; }
+.task-group-summary::-webkit-details-marker { display: none; }
+.task-group-summary > svg { flex: none; width: 14px; height: 14px; color: var(--ink-muted); transition: transform .18s ease; }
+.task-group[open] > .task-group-summary > svg { transform: rotate(90deg); }
+.task-group-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 11px; }
+.task-group-summary .capability-card-title { flex-wrap: wrap; }
+.task-group-summary h3 { overflow-wrap: anywhere; }
+.task-group-summary > button { flex: none; }
+.task-group-entries { margin: 0 12px 12px 36px; border-top: 1px solid var(--line); }
+.task-group-entry { padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.task-group-entry:last-child { border-bottom: 0; }
+.task-group-entry .task-entry-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
