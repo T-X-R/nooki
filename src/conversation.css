@@ -13,8 +13,7 @@
 .conversation-turn { max-width: 720px; margin: 0 auto 30px; }
 .conversation-user { width: fit-content; max-width: 85%; margin: 0 0 24px auto; padding: 12px 16px; border-radius: 12px 12px 3px 12px; background: var(--accent-wash); color: var(--ink); font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .conversation-answer { margin: 22px 0; }
-.conversation-speaker { display: flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 650; }
-.conversation-speaker small { color: var(--ink-soft); font-size: 9px; font-weight: 400; }
+.conversation-speaker { color: var(--ink-soft); font-size: 9px; font-weight: 400; }
 .conversation-markdown { margin-top: 10px; font-size: 12px; line-height: 1.9; overflow-wrap: anywhere; }
 .conversation-markdown p { margin: 10px 0; }
 .conversation-markdown h1 { margin: 20px 0 12px; font-size: 23px; font-weight: 650; }
