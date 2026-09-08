@@ -68,7 +68,7 @@ export function TaskPage({ language, installed, selectedId, onOpenCapability, on
     </article>
   }
   return <div className="content-column">
-    <div className="page-header-row"><div><h1 className="task-intro-title"><span>{zh ? '接住每一次开始，' : 'Give every beginning'}</span><em><span className="task-intro-accent">{zh ? '继续' : 'a way'}</span>{zh ? '未完的事。' : ' to continue.'}</em></h1><p>{zh ? '查看执行进度，从中断或失败处继续。' : 'Follow ongoing work and resume interrupted or failed tasks.'}</p></div></div>
+    <div className="page-header-row"><div><h1 className="task-intro-title"><span>{zh ? '每一步，' : 'Every step'}</span><em>{zh ? '都' : ''}<span className="task-intro-accent">{zh ? '有迹可循' : 'leaves a trace'}</span>{zh ? '。' : '.'}</em></h1><p>{zh ? '查看执行进度与结果，处理失败或中断的任务。' : 'Review progress and results, and resume failed or interrupted tasks.'}</p></div></div>
     {error && <p role="alert">{error}</p>}
     {!records.length && <div className="surface activity-empty">{zh ? '暂无任务。开始一段对话，或运行一个能力。' : 'No tasks yet. Start a conversation or run a capability.'}</div>}
 
