@@ -552,11 +552,16 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
       </div>
 
       <div className="library-selection-bar">
-        <label><input type="checkbox" checked={thisWeek} onChange={(event) => setThisWeek(event.target.checked)} />{language === 'zh' ? '仅本周资料' : 'This week'}</label>
-        <span>{language === 'zh' ? `已选 ${selectedInputs.size} 篇` : `${selectedInputs.size} selected`}</span>
-        {!!selectedInputs.size && <button className="quiet-button" onClick={() => setSelectedInputs(new Set())}>{language === 'zh' ? '清空选择' : 'Clear selection'}</button>}
-        <button className="primary-button" disabled={!selectedInputs.size || selectedInputs.size > 50} onClick={() => onAddToConversation([...selectedInputs])}><ChatBubbleIcon />{language === 'zh' ? '添加到对话' : 'Add to conversation'}</button>
-        {!!recipients.length && <button className="quiet-button" disabled={!selectedInputs.size} onClick={() => { setRecipient(recipients[0]?.manifest.id ?? ''); setGrantError(null); setGrantOpen(true) }}>{language === 'zh' ? '授权能力读取…' : 'Authorize a capability…'}</button>}
+        <div className="library-period-filter" role="group" aria-label={language === 'zh' ? '资料日期范围' : 'Document date range'}>
+          <button aria-pressed={!thisWeek} onClick={() => setThisWeek(false)}>{language === 'zh' ? '全部资料' : 'All documents'}</button>
+          <button aria-pressed={thisWeek} onClick={() => setThisWeek(true)}><CalendarIcon />{language === 'zh' ? '本周' : 'This week'}</button>
+        </div>
+        <div className="library-selection-actions">
+          <span className="library-selection-count" aria-live="polite">{selectedInputs.size ? (language === 'zh' ? `已选 ${selectedInputs.size} 篇` : `${selectedInputs.size} selected`) : (language === 'zh' ? '选择资料加入对话' : 'Select documents to discuss')}</span>
+          {!!selectedInputs.size && <button className="icon-button" aria-label={language === 'zh' ? '清空选择' : 'Clear selection'} onClick={() => setSelectedInputs(new Set())}><Cross2Icon /></button>}
+          {!!recipients.length && <button className="library-grant-action" disabled={!selectedInputs.size} onClick={() => { setRecipient(recipients[0]?.manifest.id ?? ''); setGrantError(null); setGrantOpen(true) }}>{language === 'zh' ? '授权能力读取…' : 'Authorize a capability…'}</button>}
+          <button className="library-conversation-action" disabled={!selectedInputs.size || selectedInputs.size > 50} onClick={() => onAddToConversation([...selectedInputs])}><ChatBubbleIcon />{language === 'zh' ? '添加到对话' : 'Add to conversation'}</button>
+        </div>
       </div>
       {searchError && <p role="alert">{searchError}</p>}
       {grantOpen && <div className="modal-backdrop"><section className="modal grant-modal" role="dialog" aria-modal="true" aria-labelledby="grant-title"><div className="modal-header"><div><span className="section-kicker">DOCUMENT ACCESS</span><h2 id="grant-title">{language === 'zh' ? '确认资料授权' : 'Confirm document access'}</h2></div><button className="icon-button" disabled={grantBusy} onClick={() => setGrantOpen(false)} aria-label={t('close')}><Cross2Icon /></button></div>
