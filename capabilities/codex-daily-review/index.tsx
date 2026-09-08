@@ -1,4 +1,4 @@
-import { CheckCircledIcon, ClockIcon, ExclamationTriangleIcon, FileTextIcon, ReloadIcon } from '@radix-ui/react-icons'
+import { CheckCircledIcon, ClockIcon, Cross2Icon, ExclamationTriangleIcon, FileTextIcon, ReloadIcon } from '@radix-ui/react-icons'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -131,10 +131,6 @@ function CodexDailyReviewPage({ host }: CapabilityPageProps) {
         </button>
       </header>
 
-      {(busy || (task && ['failed', 'interrupted', 'cancelled'].includes(task.status))) && <div className="codex-review-date">
-        {busy && <button className="quiet-button" onClick={() => void act(() => host.tasks.cancel(task!.id))}>{copy.cancel}</button>}
-        {!busy && task && <button className="quiet-button" onClick={() => void act(() => host.tasks.retry(task.id))}>{copy.retry}</button>}
-      </div>}
       {actionError && <p role="alert">{actionError}</p>}
       <div className="codex-review-date"><ClockIcon />{formatToday(date, environment.locale)}</div>
 
@@ -143,6 +139,8 @@ function CodexDailyReviewPage({ host }: CapabilityPageProps) {
           {phase === 'error' ? <ExclamationTriangleIcon /> : phase === 'ready' ? <CheckCircledIcon /> : <ReloadIcon className={busy ? 'codex-review-spin' : ''} />}
         </span>
         <div><strong>{statusText}</strong>{phase === 'error' && <small>{error}<br />{copy.retryHint}</small>}</div>
+        {busy && <button className="codex-review-status-action" onClick={() => void act(() => host.tasks.cancel(task!.id))}><Cross2Icon aria-hidden="true" />{copy.cancel}</button>}
+        {task && ['failed', 'interrupted', 'cancelled'].includes(task.status) && <button className="codex-review-status-action" onClick={() => void act(() => host.tasks.retry(task.id))}><ReloadIcon aria-hidden="true" />{copy.retry}</button>}
       </section>
 
       <div className="codex-review-stats">
