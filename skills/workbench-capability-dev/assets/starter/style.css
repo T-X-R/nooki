@@ -1,0 +1,2 @@
+.wb-cap-page.quick-notes textarea { display: block; width: 100%; min-height: 220px; resize: vertical; margin: 10px 0 16px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-strong); color: var(--ink); font: inherit; line-height: 1.7; }
+.wb-cap-page.quick-notes label { font-size: 12px; font-weight: 600; }

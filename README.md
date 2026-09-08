@@ -27,6 +27,16 @@ Installation saves the package and its registry entry; uninstallation removes it
 
 ## Tasks and independent packages
 
+In **Capability Center → Developer center**, install the official `workbench-capability-dev` skill into Codex or Claude Code. Workbench detects local tool/configuration directories and installs the complete development kit only when you click **Integrate**. Codex uses `~/.agents/skills`; Claude Code uses `~/.claude/skills` (or `CLAUDE_CONFIG_DIR/skills`). Detection is a local availability hint, not proof that the tool has loaded the skill.
+
+The kit is bundled with the app, so integration works offline and targets the displayed Workbench version. The UI supports updates and preserves edited, unowned, linked or newer skills. It lists changed files rather than overwriting them. **Download kit** saves a portable ZIP in the user's Downloads directory for other development tools or custom skills directories. Extract the ZIP and place the entire `workbench-capability-dev` folder in your skills directory. These actions do not modify tool credentials or install capabilities.
+
+After integration, copy the development prompt into your coding tool. The skill includes the Host contract, matching UI primitives, a standalone starter, a simulated browser preview, checks and a packaging command. Development happens outside Workbench; import the resulting `.capability.zip` and manually confirm installation. New projects require Node.js 22.12+ (or a Vite-compatible newer release), npm dependencies and Python 3 for packaging. Only skill integration is offline; an initial `npm install` needs dependency access.
+
+Maintain the source skill in `skills/workbench-capability-dev` and UI primitives in `packages/capability-ui`. Run `npm run capability:kit` to export `dist/workbench-capability-dev.zip`. Kit assembly copies canonical Host types and contract documentation, and derives preview theme tokens from the platform. Rust builds invoke the same Node assembler to embed the kit; installed users do not need Node to integrate. Increment the kit version when releasing changed development resources. Static checks enforce supported declarations, selected forbidden imports and scoped CSS; they do not sandbox code or replace native testing.
+
+Tool directory conventions: [Codex skills](https://learn.chatgpt.com/docs/build-skills), [Claude Code skills](https://code.claude.com/docs/en/skills), and [Claude configuration directory](https://code.claude.com/docs/en/claude-directory).
+
 Workbench 0.2 provides platform-owned task execution with persisted checkpoints, cancellation, explicit retry and interrupted-task recovery. Codex Daily Review uses this shared runner. Capability updates, disablement and uninstallation stop its running work before changing lifecycle state.
 
 Build reviewed local packages with `npm run capability:pack -- <directory>` and import them through Capability Center. Installation checks compatibility and requested permissions, validates the executable before activation, and retains the previous external version for rollback. These packages execute trusted code in the host realm; untrusted-code isolation is not part of package format v1.

@@ -1,0 +1,13 @@
+{
+  "id": "com.example.notes",
+  "name": "Quick notes",
+  "description": "A small place to keep a note.",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.3.0",
+  "entrypoints": ["page"],
+  "permissions": ["storage"],
+  "locales": {
+    "zh": { "name": "随手记", "description": "保存一段自己的记录。" },
+    "en": { "name": "Quick notes", "description": "A small place to keep a note." }
+  }
+}

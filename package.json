@@ -15,7 +15,8 @@
     "desktop:open": "open src-tauri/target/release/bundle/macos/Workbench.app",
     "desktop:install": "ditto src-tauri/target/release/bundle/macos/Workbench.app /Applications/Workbench.app",
     "desktop:update": "npm run desktop:build && npm run desktop:install",
-    "capability:pack": "node scripts/package-capability.mjs"
+    "capability:pack": "node scripts/package-capability.mjs",
+    "capability:kit": "node scripts/build-capability-kit.mjs"
   },
   "dependencies": {
     "@radix-ui/react-icons": "1.3.2",
