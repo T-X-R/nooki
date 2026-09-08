@@ -10,6 +10,15 @@
 .weekly-select { position: relative; max-width: 100%; }
 .weekly-select select { width: 100%; min-height: 36px; padding: 8px 34px 8px 12px; appearance: none; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-strong); color: var(--ink); font: inherit; font-size: 11px; cursor: pointer; }
 .weekly-select > svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink-muted); }
+/* Keep selection history secondary to the documents it authorizes. */
+.weekly-selection-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--ink-soft); font-size: 10px; }
+.weekly-selection-snapshot { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.weekly-selection-snapshot svg { width: 12px; height: 12px; }
+.weekly-grant-select { width: fit-content; }
+.weekly-grant-select select { min-height: 30px; padding: 6px 28px; border-color: transparent; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 10px; font-variant-numeric: tabular-nums; transition: border-color .16s ease, color .16s ease; }
+.weekly-grant-select select:hover { border-color: var(--line); color: var(--ink); }
+.weekly-grant-select > svg { right: 9px; width: 12px; height: 12px; }
+.weekly-grant-select > .weekly-selection-clock { left: 9px; right: auto; }
 .weekly-page button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-strong); color: var(--ink-muted); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: background .16s ease, color .16s ease; }
 .weekly-page button:hover { color: var(--accent); background: var(--accent-wash); }
 .weekly-page button:disabled { opacity: .45; cursor: default; }

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckCircledIcon, ChevronDownIcon, ChevronRightIcon, FileTextIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, CheckCircledIcon, ClockIcon, ChevronDownIcon, ChevronRightIcon, FileTextIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -46,9 +46,11 @@ function WeeklyReviewPage({ host }: CapabilityPageProps) {
     {error && <p className="weekly-error" role="alert">{error}</p>}
     <section className="weekly-scope"><div className="weekly-section-heading"><div><span className="weekly-eyebrow">INPUT</span><h2>{zh ? '确认输入范围' : 'Confirm input scope'}</h2></div>{grant && <span className="weekly-count">{grant.documents.length} {zh ? '篇资料' : 'documents'}</span>}</div>
       {!grants.length ? <div className="weekly-empty"><span className="weekly-empty-icon"><FileTextIcon /></span><h3>{zh ? '从这一周的资料开始' : 'Start with this week’s documents'}</h3><p>{zh ? '在资料库选择日记、每日总结等资料，再授权“每周回顾”读取。' : 'Choose journals, daily summaries or other documents in the Library, then authorize Weekly Review.'}</p><div className="weekly-empty-steps"><span>{zh ? '选择资料' : 'Select documents'}</span><ChevronRightIcon /><span>{zh ? '确认授权' : 'Authorize access'}</span><ChevronRightIcon /><span>{zh ? '生成回顾' : 'Generate review'}</span></div></div> : <>
-        <div className="weekly-select"><select aria-label={zh ? '授权范围' : 'Authorized selection'} value={grantId} onChange={(event) => { setGrantId(event.target.value); setConfirmed(false) }}>
-          {grants.map((item) => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString(environment.locale)} · {item.documents.length} {zh ? '篇资料' : 'documents'}</option>)}
-        </select><ChevronDownIcon /></div>
+        <div className="weekly-selection-toolbar"><span>{zh ? '资料选择' : 'Document selection'}</span>
+          {grants.length === 1 ? <span className="weekly-selection-snapshot" title={new Date(grants[0].createdAt).toLocaleString(environment.locale)}><ClockIcon />{new Date(grants[0].createdAt).toLocaleString(environment.locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span> : <div className="weekly-select weekly-grant-select"><ClockIcon className="weekly-selection-clock" /><select aria-label={zh ? '授权范围' : 'Authorized selection'} value={grantId} onChange={(event) => { setGrantId(event.target.value); setConfirmed(false) }}>
+            {grants.map((item, index) => <option key={item.id} value={item.id}>{zh ? `选择 ${index + 1}` : `Selection ${index + 1}`} · {new Date(item.createdAt).toLocaleString(environment.locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</option>)}
+          </select><ChevronDownIcon /></div>}
+        </div>
         <ul className="weekly-source-list">{grant?.documents.map((doc) => <li key={doc.reference.documentId}><button onClick={() => host.documents.open(doc.reference)}><FileTextIcon /><span><strong>{doc.reference.title}</strong><small>{doc.documentDate}</small></span><ChevronRightIcon /></button></li>)}</ul>
         <label className="weekly-confirmation"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{zh ? '确认仅使用以上资料快照，并发送给当前平台 AI Provider' : 'Use only these snapshots and send them to the selected platform AI Provider'}</label>
         <button className="weekly-primary" disabled={!confirmed || busy || tasks.some((item) => item.job === 'generate' && item.status === 'running')} onClick={() => void act(async () => {
