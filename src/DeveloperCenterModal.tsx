@@ -60,9 +60,8 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
   const refresh = () => perform('refresh', async () => { setItems(await invoke<Integration[]>('developer_integrations')) })
   useEffect(() => { if (desktop) void refresh() }, [desktop])
 
-  const copyPrompt = (item?: Integration) => perform('copy', async () => {
-    const skill = item ? `${item.directory}/SKILL.md` : 'workbench-capability-dev'
-    const prompt = t('developerPrompt', { lng: language, skill })
+  const copyPrompt = () => perform('copy', async () => {
+    const prompt = t('developerPrompt', { lng: language, skill: 'workbench-capability-dev' })
     await navigator.clipboard.writeText(prompt)
     setNotice(zh ? '开发指令已复制，请粘贴到你的开发工具中并填写需求。' : 'Prompt copied. Paste it into your coding tool and add your requirements.')
   })
@@ -79,11 +78,10 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
   const row = (item: Integration) => <section className="integration-tool" key={item.tool}>
     <div className="integration-tool-header">
       <div className="integration-tool-heading"><CodeIcon /><strong>{item.tool === 'codex' ? 'Codex' : 'Claude Code'}</strong><span className={`integration-badge ${item.status === 'current' ? 'ready' : ''}`}>{statusText(item)}</span></div>
-      <div className="integration-tool-actions">
-        {(item.status === 'current' || item.status === 'newer') ? <button className="secondary-button" disabled={Boolean(busy)} onClick={() => void copyPrompt(item)}>{zh ? '复制开发指令' : 'Copy prompt'}</button>
-          : item.status === 'modified' ? <span className="integration-preserved">{zh ? '下载开发包进行比较' : 'Download kit to compare'}</span>
+      {item.status !== 'current' && item.status !== 'newer' && <div className="integration-tool-actions">
+        {item.status === 'modified' ? <span className="integration-preserved">{zh ? '下载开发包进行比较' : 'Download kit to compare'}</span>
             : <button className="primary-button" disabled={Boolean(busy)} onClick={() => void install(item)}>{busy === item.tool ? (zh ? '处理中…' : 'Working…') : item.status === 'update' ? (zh ? '更新' : 'Update') : item.status === 'recovery' ? (zh ? '恢复之前的版本' : 'Restore previous version') : (zh ? '集成' : 'Integrate')}</button>}
-      </div>
+      </div>}
     </div>
     <p>{item.detected ? (zh ? '已检测到' : 'Detected') : (zh ? '未检测到，可先集成 Skill' : 'Not detected. You can still integrate the skill.')}{item.installedVersion && ` · v${item.installedVersion}`}</p>
     <code className="integration-path">{item.directory}</code>

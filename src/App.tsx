@@ -734,7 +734,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
           {filters.map((option) => <button key={option.id} className={`filter-chip ${filter === option.id ? 'active' : ''}`} aria-pressed={filter === option.id} onClick={() => setFilter(option.id)}>{option.label} <span>{option.count}</span></button>)}
         </div>
         <div className="toolbar-spacer" />
-        <button className="quiet-button" onClick={() => setIntegrationOpen(true)}><CodeIcon />{t('developerCenter')}</button>
+        <button className="quiet-button developer-center-trigger" onClick={() => setIntegrationOpen(true)}><CodeIcon />{t('developerCenter')}</button>
       </div>
 
       {installed.length === 0 && filter === 'all' && <section className="capability-empty">
