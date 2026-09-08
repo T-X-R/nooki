@@ -1,4 +1,4 @@
-.conversation-page { height: 100%; min-height: 0; padding: 0 clamp(22px, 3vw, 38px) 8px; display: flex; flex-direction: column; color: var(--ink); }
+.conversation-page { --conversation-width: clamp(720px, 52vw, 960px); height: 100%; min-height: 0; padding: 0 clamp(22px, 3vw, 38px) 8px; display: flex; flex-direction: column; color: var(--ink); }
 .conversation-toolbar { display: flex; align-items: center; gap: 12px; min-height: 42px; flex: none; }
 .conversation-thread-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--ink-muted); }
 .conversation-runtime { margin-left: auto; white-space: nowrap; color: var(--ink-soft); font-size: 10px; }
@@ -12,7 +12,7 @@
 .conversation-empty h2 em { font-style: normal; font-weight: 600; }
 
 .conversation-empty > p { color: var(--ink-muted); font-size: 12px; line-height: 1.8; margin: 0; }
-.conversation-turn { max-width: 720px; margin: 0 auto 30px; }
+.conversation-turn { max-width: var(--conversation-width); margin: 0 auto 30px; }
 .conversation-user { width: fit-content; max-width: 85%; margin: 0 0 24px auto; padding: 12px 16px; border-radius: 12px 12px 3px 12px; background: var(--accent-wash); color: var(--ink); font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .conversation-answer { margin: 22px 0; }
 .conversation-speaker { color: var(--ink-soft); font-size: 9px; font-weight: 400; }
@@ -42,7 +42,7 @@
 .conversation-process[open] summary svg { transform: rotate(0); }
 .conversation-process summary small { margin-left: auto; color: var(--ink-soft); font-size: 9px; }
 .conversation-process pre { margin: 10px 0; max-height: 240px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 11px; line-height: 1.8; }
-.conversation-composer-area { position: relative; flex: none; width: min(100%, 752px); margin: 0 auto; padding: 0 16px; }
+.conversation-composer-area { position: relative; flex: none; width: min(100%, calc(var(--conversation-width) + 32px)); margin: 0 auto; padding: 0 16px; }
 .conversation-composer { border: 1px solid var(--line-strong, var(--line)); border-radius: 16px; padding: 16px 18px 12px; background: var(--surface-strong); box-shadow: 0 3px 14px color-mix(in srgb, var(--ink) 3%, transparent); }
 .conversation-composer:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .conversation-composer textarea { display: block; width: 100%; min-height: 62px; max-height: 180px; resize: none; field-sizing: content; padding: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 12px; line-height: 1.8; }

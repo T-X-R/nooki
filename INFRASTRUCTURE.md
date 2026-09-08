@@ -134,3 +134,9 @@ Conversation history now expands under the main sidebar entry, including new-con
 Today groups activities by document identity and stable source-scoped keys, with a compatibility alias for pre-key diary entry IDs. It shows the newest fact in each group before applying task suppression, so a pending update cannot reveal a stale duplicate. Titles are never used as identity, and persisted history is retained. The count reflects the consolidated feed and sits on the heading baseline.
 
 The refinement passed 19 platform and 13 Capability behavior tests, frontend/macOS builds, and synthetic browser checks for sidebar expansion, collapse, session selection, new-message sending and refreshed session titles. New regression tests cover legacy diary edits, renamed documents, same-title distinct documents and pending-update suppression.
+
+### Desktop window resizing (2026-09-08)
+
+Platform page containers now expand up to 1800px; Library uses the available workspace width and remaining window height instead of a 620px height cap. Its directory column adapts between 220px and 360px, while the reader retains a bounded line length and independent scrolling. Conversation messages and the composer share a responsive width, with the composer anchored near the bottom during an active conversation. Settings keeps its narrower form layout.
+
+Headless browser checks with synthetic data passed at 980x680, 1240x820, 1920x1080 and 2560x1415, including resizing back down and changing height independently. Checks covered horizontal overflow, reading-area growth, independent document scrolling, body search, document selection and conversation handoff, active-conversation composer positioning, and Today/Tasks/Capabilities page bounds. No appearance screenshots were taken.
