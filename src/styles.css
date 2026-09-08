@@ -511,3 +511,17 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .grant-modal .modal-footer { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
 
 .library-reader-content a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Conversation history belongs to the main workspace navigation. */
+.primary-nav { min-height: 0; overflow-y: auto; flex-shrink: 1; }
+.nav-conversations > .nav-item > svg { width: 13px; height: 13px; transition: transform .15s; }
+.nav-conversations > .nav-item[aria-expanded="true"] > svg { transform: rotate(90deg); }
+.nav-conversation-history { display: grid; gap: 2px; margin: 5px 0 7px 17px; padding-left: 10px; border-left: 1px solid var(--line); }
+.nav-conversation-history > button { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; padding: 6px 8px; border-radius: 6px; text-align: left; color: var(--ink-muted); background: transparent; font-size: 10px; line-height: 1.5; }
+.nav-conversation-history > button:hover { background: var(--surface-muted); color: var(--ink); }
+.nav-conversation-history > button[aria-current="page"] { background: var(--accent-soft); color: var(--accent-strong); }
+.nav-conversation-history button > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nav-conversation-history button > svg { width: 12px; height: 12px; }
+.nav-conversation-history p { padding: 4px 8px; margin: 0; font-size: 9px; line-height: 1.6; color: var(--ink-soft); overflow-wrap: anywhere; }
+.activity-section .activity-heading { align-items: baseline; margin-top: 8px; }
+.activity-section .activity-heading h2 { margin: 0; }

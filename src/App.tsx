@@ -51,6 +51,7 @@ import { TaskPage } from './TaskPage'
 import { PackageImportModal } from './PackageImportModal'
 import { taskRunner } from './tasks'
 import { ConversationPage } from './ConversationPage'
+import { ConversationNavigation } from './ConversationNavigation'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from './conversation-model'
 import workbenchIcon from './assets/workbench-icon.png'
 
@@ -127,6 +128,7 @@ function App() {
   const { t } = useTranslation()
   const { view, theme, language, setView, setTheme, providerKind, setProviderKind } = useWorkbench()
   const [conversationTarget, setConversationTarget] = useState<string | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [conversationDocuments, setConversationDocuments] = useState<string[]>([])
   const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
   const [taskTarget, setTaskTarget] = useState<string | null>(null)
@@ -231,7 +233,7 @@ function App() {
     <div className="app-shell">
       <WindowTitlebar />
       <div className="app-workspace">
-        <Sidebar activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
+        <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
           <Topbar onOpenCommand={() => setCommandOpen(true)} />
           <AnimatePresence mode="wait">
@@ -244,7 +246,7 @@ function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} providerStatus={providerStatus} />}
-              {view === 'conversations' && <ConversationPage language={language} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
+              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
               {view === 'library' && <LibraryPage onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
@@ -306,7 +308,7 @@ function WindowTitlebar() {
   )
 }
 
-function Sidebar({ activeView, activeCapabilityId, installed, onNavigate, onOpenCapability }: { activeView: View; activeCapabilityId: string | null; installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void }) {
+function Sidebar({ activeConversationId, onOpenConversation, activeView, activeCapabilityId, installed, onNavigate, onOpenCapability }: { activeConversationId: string | null; onOpenConversation(id: string | null): void; activeView: View; activeCapabilityId: string | null; installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void }) {
   const { t } = useTranslation()
   const { theme, setTheme, language } = useWorkbench()
   const enabledCapabilities = installed.filter((capability) => capability.enabled && capability.manifest.id !== LEGACY_REVIEW)
@@ -328,9 +330,7 @@ function Sidebar({ activeView, activeCapabilityId, installed, onNavigate, onOpen
           <span className="nav-item-main"><ArchiveIcon />{t('library')}</span>
           <span className="nav-hint">02</span>
         </button>
-        <button className={`nav-item ${activeView === 'conversations' ? 'is-active' : ''}`} aria-current={activeView === 'conversations' ? 'page' : undefined} onClick={() => onNavigate('conversations')}>
-          <span className="nav-item-main"><ChatBubbleIcon />{language === 'zh' ? '对话' : 'Conversations'}</span><span className="nav-hint">03</span>
-        </button>
+        <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
         <button className={`nav-item ${activeView === 'tasks' ? 'is-active' : ''}`} aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}>
           <span className="nav-item-main"><ClockIcon />{language === 'zh' ? '任务' : 'Tasks'}</span>
         </button>

@@ -125,3 +125,12 @@ Verification includes a deterministic App Server subprocess fixture for first-me
 - Browser behavior checks used synthetic native-command fixtures: Library handoff without authorization, navigation during generation, history after reload, original-source snapshot navigation, explicit save confirmation, publication failure and independent retry, saved-answer navigation and one coalesced Today event. Styling is left for the user to inspect in the installed App.
 - Cancellation, failed-turn retry, connection loss and restart reconciliation are covered by native subprocess tests. Public reasoning summary rendering is covered by deterministic event tests; the short live Codex responses did not emit reasoning summary items.
 - The signed local App was replaced and reopened after checking that no tasks were running. The previous bundle was retained; installed binary hashes and the code signature were verified.
+
+
+### Sidebar history and activity consolidation
+
+Conversation history now expands under the main sidebar entry, including new-conversation and pagination actions. Selection still reads Codex history and reflects the active session; no additional conversation persistence is introduced. The chat canvas has no separate processing row, while the stop button and shared task center continue to expose running work. Reduced bottom padding gives messages more vertical space.
+
+Today groups activities by document identity and stable source-scoped keys, with a compatibility alias for pre-key diary entry IDs. It shows the newest fact in each group before applying task suppression, so a pending update cannot reveal a stale duplicate. Titles are never used as identity, and persisted history is retained. The count reflects the consolidated feed and sits on the heading baseline.
+
+The refinement passed 19 platform and 13 Capability behavior tests, frontend/macOS builds, and synthetic browser checks for sidebar expansion, collapse, session selection, new-message sending and refreshed session titles. New regression tests cover legacy diary edits, renamed documents, same-title distinct documents and pending-update suppression.

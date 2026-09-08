@@ -33,3 +33,23 @@ test('attention tasks suppress their own activity, completed tasks leave only th
   }
   assert.deepEqual(todayFeed([event], [{ id: 'task', status: 'completed' } as TaskRecord]), { tasks: [], events: [event] })
 })
+
+
+test('legacy diary edits coalesce by entry ID across renamed titles and new event keys after reload', () => {
+  const old = { id: 'old', title: 'Original title', type: 'diary.entry.saved', source: 'com.personal.diary', payload: { entryId: 'entry-1' }, occurredAt: '2026-09-01' }
+  const updated = { ...old, id: 'updated', title: 'Renamed', key: 'diary-entry-1', occurredAt: '2026-09-02' }
+  const other = { ...old, id: 'other', title: 'Renamed', payload: { entryId: 'entry-2' } }
+  const store = createActivityStore({ getItem: () => JSON.stringify([old, updated, other]), setItem: () => undefined }); store.load()
+  assert.deepEqual(todayFeed(store.getSnapshot(), []).events, [updated, other])
+  assert.equal(store.getSnapshot().length, 3, 'retains persisted history')
+})
+
+test('document identity joins different event keys and keeps only the latest visible fact', () => {
+  const target = { kind: 'library-document' as const, documentId: 'cap/collection/2026/09/doc', title: 'Same title' }
+  const first = { id: 'first', key: 'created', target, title: 'Same title', type: 'created', source: 'cap', occurredAt: '2026-09-01' }
+  const second = { ...first, id: 'second', key: 'updated', type: 'saved', occurredAt: '2026-09-02' }
+  const latest = { ...second, id: 'latest', target: undefined, taskId: 'task', occurredAt: '2026-09-03' }
+  const unrelated = { ...first, id: 'other', key: undefined, target: { ...target, documentId: 'cap/collection/2026/09/other' } }
+  assert.deepEqual(todayFeed([first, latest, unrelated, second], []).events, [latest, unrelated])
+  assert.deepEqual(todayFeed([first, latest, unrelated, second], [{ id: 'task', status: 'running' } as TaskRecord]).events, [unrelated])
+})

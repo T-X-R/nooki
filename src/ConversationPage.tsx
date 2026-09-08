@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { ArrowUpIcon, ChatBubbleIcon, CheckIcon, ChevronDownIcon, Cross2Icon, FileTextIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, StopIcon } from '@radix-ui/react-icons'
+import { ArrowUpIcon, CheckIcon, ChevronDownIcon, Cross2Icon, FileTextIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, StopIcon } from '@radix-ui/react-icons'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { DocumentReference, SelectedDocument, TaskRecord } from '../packages/capability-contract/src'
 import { parseReferenceHref } from '../packages/capability-contract/src/references'
 import { taskRunner } from './tasks'
 import { conversationClient } from './conversation-client'
-import { CONVERSATION_OWNER, LEGACY_REVIEW, type Conversation, type ConversationInput, type ConversationItem, type SaveAnswerInput } from './conversation-model'
+import { CONVERSATION_OWNER, LEGACY_REVIEW, type ConversationInput, type ConversationItem, type SaveAnswerInput } from './conversation-model'
 import { listLibraryDocuments, searchLibraryContent, type LibraryDocumentMetadata } from './document-library'
 import './conversation.css'
 
@@ -25,13 +25,11 @@ function ProcessItem({ item, zh }: { item: ConversationItem; zh: boolean }) {
   return <details className="conversation-process"><summary><ChevronDownIcon /><span>{label}</span>{item.status && <small>{item.status}</small>}</summary>{summary && <pre>{summary}</pre>}{item.type === 'fileChange' && <pre>{JSON.stringify(item.changes, null, 2)}</pre>}{item.result != null && <pre>{JSON.stringify(item.result, null, 2)}</pre>}{item.error != null && <pre>{JSON.stringify(item.error, null, 2)}</pre>}</details>
 }
 
-export function ConversationPage({ language, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument }: { language: 'zh' | 'en'; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
+export function ConversationPage({ onSelected, language, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
   const zh = language === 'zh'
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const cache = useSyncExternalStore(conversationClient.subscribe, conversationClient.getSnapshot, conversationClient.getSnapshot)
-  const [sessions, setSessions] = useState<Conversation[]>([])
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [selected, setSelected] = useState<string | null>(targetId ?? currentSession)
+  const [selected, setSelected] = useState<string | null>(targetId === 'new' ? null : targetId ?? currentSession)
   const [text, setText] = useState(() => drafts.get(targetId ?? currentSession ?? 'new')?.text ?? '')
   const [ids, setIds] = useState<string[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.ids ?? [])
   const [documents, setDocuments] = useState<LibraryDocumentMetadata[]>([])
@@ -40,10 +38,8 @@ export function ConversationPage({ language, incomingIds, onConsumed, targetId, 
   const [matches, setMatches] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<SaveAnswerInput | null>(null)
   const [showLegacy, setShowLegacy] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const scroll = useRef<HTMLDivElement>(null)
   const follow = useRef(true)
   const composer = useRef<HTMLTextAreaElement>(null)
@@ -56,28 +52,23 @@ export function ConversationPage({ language, incomingIds, onConsumed, targetId, 
   const act = async (action: () => Promise<unknown>) => { setBusy(true); setError(null); try { await action() } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   const select = (id: string | null) => {
     drafts.set(selected ?? 'new', { text, ids }); currentSession = id; setSelected(id)
-    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setPicker(false); setShowLegacy(false); setHistoryOpen(false); follow.current = true
-  }
-  const refreshSessions = async (more = false) => {
-    const page = await conversationClient.list(more ? cursor : null)
-    setSessions((previous) => more ? [...previous, ...page.data.filter((item) => !previous.some((p) => p.id === item.id))] : page.data)
-    setCursor(page.nextCursor)
+    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setPicker(false); setShowLegacy(false); follow.current = true
   }
   useEffect(() => {
     let current = true
-    void Promise.all([refreshSessions(), listLibraryDocuments().then((docs) => { if (current) setDocuments(docs) })]).catch((e) => { if (current) setError(String(e)) }).finally(() => { if (current) setLoading(false) })
+    void listLibraryDocuments().then((docs) => { if (current) setDocuments(docs) }).catch((e) => { if (current) setError(String(e)) })
     return () => { current = false }
   }, [])
-  useEffect(() => { if (targetId) { if (targetId !== selected) select(targetId); onTargetConsumed() } }, [targetId])
+  useEffect(() => { if (targetId) { if (targetId === 'new') select(null); else if (targetId !== selected) select(targetId); onTargetConsumed() } }, [targetId])
   useEffect(() => {
     if (incomingIds.length) { setIds((previous) => [...new Set([...previous, ...incomingIds])]); onConsumed() }
   }, [incomingIds])
+  useEffect(() => { onSelected(selected) }, [selected, onSelected])
   useEffect(() => { drafts.set(selected ?? 'new', { text, ids }) }, [selected, text, ids])
   const taskStatus = conversationTasks.map((t) => `${t.id}:${t.status}`).join(',')
   useEffect(() => {
     if (!selected) return
     void conversationClient.read(selected).catch((e) => setError(String(e)))
-    if (conversationTasks.some((t) => t.status === 'completed')) void refreshSessions().catch((e) => setError(String(e)))
   }, [selected, taskStatus])
   useEffect(() => {
     if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight
@@ -93,7 +84,7 @@ export function ConversationPage({ language, incomingIds, onConsumed, targetId, 
     if (!text.trim() || running || thread?.turns.some((t) => t.status === 'inProgress')) return
     if (ids.length > 50) throw new Error(zh ? '每次最多引用 50 篇资料' : 'Select at most 50 documents')
     let id = selected
-    if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id); setSessions((previous) => [created, ...previous.filter((session) => session.id !== created.id)]) }
+    if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id) }
     const input: ConversationInput = { threadId: id, message: text.trim(), documentIds: ids, snapshotId: crypto.randomUUID() }
     await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
     setText(''); drafts.set(id, { text: '', ids }); drafts.delete('new'); follow.current = true
@@ -110,27 +101,20 @@ export function ConversationPage({ language, incomingIds, onConsumed, targetId, 
   }
   const taskHint = (task: TaskRecord) => task.status === 'interrupted' ? (zh ? '上次执行已中断，可从 Codex 会话继续。' : 'Execution was interrupted. Continue from the Codex session.') : task.status === 'cancelled' ? (zh ? '已停止生成。' : 'Response stopped.') : task.error
   const empty = !showLegacy && !thread?.turns.length && !running
-  return <div className="conversation-page" onKeyDown={(event) => { if (event.key === 'Escape') setHistoryOpen(false) }}>
+  return <div className="conversation-page">
     <header className="conversation-toolbar">
-      <div className="conversation-toolbar-actions"><button className="conversation-toolbar-button" aria-expanded={historyOpen} aria-controls="conversation-history" onClick={() => setHistoryOpen(!historyOpen)}><ChatBubbleIcon />{zh ? '历史对话' : 'History'}<ChevronDownIcon /></button><button className="conversation-toolbar-button" onClick={() => select(null)}><PlusIcon />{zh ? '新对话' : 'New conversation'}</button></div>
       {selected && <span className="conversation-thread-title">{thread?.name || thread?.preview}</span>}
-      <span className="conversation-runtime">{loading ? (zh ? '连接 Codex…' : 'Connecting to Codex…') : 'Codex'}</span>
+      <span className="conversation-runtime">Codex</span>
+      {!!legacy.length && <button className="quiet-button" onClick={() => setShowLegacy(!showLegacy)}>{zh ? '以前的回顾草稿' : 'Previous review drafts'}</button>}
       {selected && <button className="icon-button" aria-label={zh ? '刷新对话' : 'Refresh conversation'} onClick={() => void act(() => conversationClient.read(selected))}><ReloadIcon /></button>}
     </header>
     <div className="conversation-layout">
-      {historyOpen && <><button className="conversation-history-dismiss" aria-label={zh ? '关闭历史对话' : 'Close conversation history'} onClick={() => setHistoryOpen(false)} /><aside className="conversation-sidebar" id="conversation-history"><div className="conversation-sidebar-label">{zh ? '最近对话' : 'Recent conversations'}</div>
-        <nav aria-label={zh ? '对话列表' : 'Conversation history'}>{sessions.map((session) => <button key={session.id} className={`conversation-session ${selected === session.id ? 'is-active' : ''}`} onClick={() => select(session.id)}><ChatBubbleIcon /><span><strong>{session.name || session.preview || (zh ? '新对话' : 'New conversation')}</strong><small>{new Date(session.updatedAt * 1000).toLocaleDateString(zh ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' })}</small></span></button>)}</nav>
-        {loading && <p className="conversation-sidebar-note">{zh ? '正在连接 Codex…' : 'Connecting to Codex…'}</p>}{!loading && !sessions.length && <p className="conversation-sidebar-note">{zh ? '发送第一条消息，开始积累你的对话。' : 'Send your first message to begin.'}</p>}
-        {cursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => refreshSessions(true))}>{zh ? '更早的对话' : 'Older conversations'}</button>}
-        {!!legacy.length && <button className="quiet-button conversation-legacy-link" onClick={() => { setShowLegacy(!showLegacy); setHistoryOpen(false) }}>{zh ? '以前的回顾草稿' : 'Previous review drafts'}</button>}
-      </aside></>}
       <section className={`conversation-main ${empty ? 'is-empty' : ''}`} aria-label={zh ? '当前对话' : 'Current conversation'}>
 
         <div className="conversation-messages" ref={scroll} onScroll={() => { const el = scroll.current!; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 70 }}>
           {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : !thread?.turns.length && !running ? <div className="conversation-empty"><h2>{zh ? '今天想聊些什么？' : 'What’s on your mind?'}</h2><p>{zh ? '提一个问题，整理一个想法，或引用资料继续探索。' : 'Ask a question, shape an idea, or explore your Library.'}</p></div> : <>
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
             {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.map((item) => item.type === 'userMessage' ? <article className="conversation-user" key={item.id}>{item.content?.filter((part) => part.type === 'text').map((part) => part.text).join('\n')}{!!attachments(item).length && <div className="conversation-message-sources">{attachments(item).map((doc) => <button key={doc.reference.documentId} onClick={() => onDocument(doc.reference)}><FileTextIcon />{doc.reference.title}</button>)}</div>}</article> : item.type === 'agentMessage' ? <article className={`conversation-answer ${item.phase === 'commentary' ? 'is-commentary' : ''}`} key={item.id}><span className="conversation-speaker">Codex{item.phase === 'commentary' && <small>{zh ? '进展' : 'Progress'}</small>}</span><div className="conversation-markdown"><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} /></div>{turn.status === 'completed' && item.phase !== 'commentary' && item.text && <div className="conversation-answer-actions">{saveAction(item)}</div>}</article> : ['reasoning', 'plan', 'commandExecution', 'fileChange', 'mcpToolCall', 'dynamicToolCall', 'webSearch', 'contextCompaction', 'collabAgentToolCall'].includes(item.type) ? <ProcessItem key={item.id} item={item} zh={zh} /> : null)}{turn.error && <p className="conversation-error" role="alert">{turn.error.message}</p>}</div>)}
-            {running && <div className="conversation-working" role="status"><span />{zh ? 'Codex 正在处理…' : 'Codex is working…'}</div>}
           </>}
         </div>
         <div className="conversation-composer-area">
