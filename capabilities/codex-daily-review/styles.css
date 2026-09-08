@@ -10,9 +10,12 @@
 .codex-review-date { display: flex; align-items: center; gap: 7px; margin-top: 27px; color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
 .codex-review-date svg { width: 12px; height: 12px; }
 .codex-review-status { display: flex; align-items: center; gap: 9px; min-height: 44px; margin-top: 8px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
-.codex-review-status-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); }
+.codex-review-status-icon { display: grid; flex: none; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); }
 .codex-review-status-icon svg { width: 13px; height: 13px; }
-.codex-review-status > div { display: grid; gap: 2px; }
+.codex-review-status > div { display: grid; flex: 1; min-width: 0; gap: 2px; overflow-wrap: anywhere; }
+.codex-review-status-action { display: inline-flex; flex: none; align-items: center; gap: 5px; min-height: 28px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink-muted); font-size: 10px; white-space: nowrap; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+.codex-review-status-action:hover { border-color: var(--line-strong); background: var(--surface-muted); color: var(--ink); }
+.codex-review-status-action svg { width: 12px; height: 12px; }
 .codex-review-status strong { font-size: 11px; font-weight: 650; }
 .codex-review-status small { color: var(--ink-muted); font-size: 9px; line-height: 1.55; }
 .codex-review-status-ready .codex-review-status-icon { background: color-mix(in srgb, var(--positive) 12%, transparent); color: var(--positive); }

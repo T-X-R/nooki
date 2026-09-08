@@ -37,6 +37,45 @@ export type CapabilityManifest = {
 export type InstalledCapability = {
   manifest: CapabilityManifest
   enabled: boolean
+  packageVersion?: string
+  previousPackageVersion?: string
+}
+
+export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
+export type TaskRecord = Readonly<{
+  id: string
+  capabilityId: string
+  capabilityVersion: string
+  job: string
+  input: unknown
+  status: TaskStatus
+  stage: string | null
+  attempt: number
+  checkpoints: Record<string, unknown>
+  result: unknown
+  error: string | null
+  createdAt: string
+  updatedAt: string
+}>
+
+export type CapabilityTasks = {
+  getSnapshot(): readonly TaskRecord[]
+  subscribe(listener: () => void): () => void
+  start(job: string, input: unknown): Promise<string>
+  cancel(id: string): Promise<void>
+  retry(id: string): Promise<void>
+}
+
+export type CapabilityTaskContext = {
+  host: Omit<CapabilityHost, 'tasks'>
+  signal: AbortSignal
+  // Completed steps are reused on retry. Side effects must be idempotent:
+  // an app exit can occur between the side effect and checkpoint persistence.
+  step<T>(key: string, operation: () => Promise<T>): Promise<T>
+}
+
+export type CapabilityJob = {
+  run(input: unknown, context: CapabilityTaskContext): Promise<unknown>
 }
 
 export type ActivityEventInput = {
@@ -73,6 +112,7 @@ export type DocumentPublication = {
 }
 
 export type CapabilityHost = {
+  tasks: CapabilityTasks
   environment: {
     getSnapshot(): CapabilityEnvironment
     subscribe(listener: () => void): () => void
@@ -101,4 +141,5 @@ export type CapabilityPageProps = {
 export type CapabilityModule = {
   manifest: CapabilityManifest
   Page: ComponentType<CapabilityPageProps>
+  jobs?: Record<string, CapabilityJob>
 }

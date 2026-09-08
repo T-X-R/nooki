@@ -1,6 +1,6 @@
 {
   "id": "com.personal.codex-daily-review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "Codex 每日总结",
   "icon": "magic-wand",
   "description": "扫描当天的本地 Codex 会话，用 AI 汇总任务进展。",
@@ -14,7 +14,7 @@
       "description": "Summarize today's local Codex sessions with AI."
     }
   },
-  "entrypoints": ["page", "widget"],
+  "entrypoints": ["page", "job"],
   "permissions": ["storage", "ai.invoke", "codex.sessions.read", "documents.publish"],
-  "minPlatformVersion": "0.1.0"
+  "minPlatformVersion": "0.2.0"
 }

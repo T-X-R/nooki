@@ -12,6 +12,8 @@ import type {
   InstalledCapability,
 } from '../packages/capability-contract/src'
 import { publishCapabilityDocument } from './document-library'
+import { capabilityTasks } from './tasks'
+import { getRuntimeInstalledCapability } from './capability-runtime'
 
 export type {
   ActivityEventInput,
@@ -79,9 +81,10 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
-function createStorage(capabilityId: string, permissions?: CapabilityPermission[]): CapabilityStorage {
+function createStorage(capabilityId: string, permissions: CapabilityPermission[] | undefined, assertActive: () => void): CapabilityStorage {
   const prefix = `personal-workbench:capability:${capabilityId}:`
   const assertPermission = () => {
+    assertActive()
     if (permissions && !permissions.includes('storage')) throw new Error('能力未获得 storage 权限')
   }
   return Object.freeze({
@@ -110,10 +113,11 @@ function createStorage(capabilityId: string, permissions?: CapabilityPermission[
   })
 }
 
-function createActivityWriter(capabilityId: string, permissions?: CapabilityPermission[]) {
+function createActivityWriter(capabilityId: string, permissions: CapabilityPermission[] | undefined, assertActive: () => void) {
   const key = 'personal-workbench:activity-events'
   return {
     async write(event: ActivityEventInput) {
+      assertActive()
       if (permissions && !permissions.includes('activity.write')) throw new Error('能力未获得 activity.write 权限')
       const raw = readStorage(key)
       let events: Array<ActivityEventInput & { id: string; occurredAt: string; source: string }> = []
@@ -137,24 +141,31 @@ function createActivityWriter(capabilityId: string, permissions?: CapabilityPerm
   }
 }
 
-export function createCapabilityHost(capabilityId: string, permissions?: CapabilityPermission[], capabilityName = capabilityId): CapabilityHost {
+export function createCapabilityHost(capabilityId: string, permissions?: CapabilityPermission[], capabilityName = capabilityId, execution?: { id: string; signal: AbortSignal }): CapabilityHost {
   if (!capabilityId.trim()) throw new Error('Capability ID is required')
+  const assertActive = () => {
+    execution?.signal.throwIfAborted()
+    if (!getRuntimeInstalledCapability(capabilityId)?.enabled) throw new Error('Capability is not installed or enabled')
+  }
 
   return Object.freeze({
     environment: capabilityEnvironment,
-    storage: createStorage(capabilityId, permissions),
+    tasks: capabilityTasks(capabilityId),
+    storage: createStorage(capabilityId, permissions, assertActive),
     documents: Object.freeze({
       async publish(document: DocumentPublication): Promise<void> {
+        assertActive()
         if (permissions && !permissions.includes('documents.publish')) {
           throw new Error('能力未获得 documents.publish 权限')
         }
         await publishCapabilityDocument(capabilityId, capabilityName, document)
       },
     }),
-    activity: Object.freeze(createActivityWriter(capabilityId, permissions)),
+    activity: Object.freeze(createActivityWriter(capabilityId, permissions, assertActive)),
     codex: Object.freeze({
       sessions: Object.freeze({
         async readTodayFiles() {
+          assertActive()
           if (permissions && !permissions.includes('codex.sessions.read')) {
             throw new Error('能力未获得 codex.sessions.read 权限')
           }
@@ -170,9 +181,10 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     }),
     ai: Object.freeze({
       async invoke(input: string) {
+        assertActive()
         try {
           return await invoke<AiInvocationResult>('capability_ai_invoke', {
-            request: { capabilityId, input },
+            request: { capabilityId, input, executionId: execution?.id },
           })
         } catch (error) {
           throw new Error(typeof error === 'string' ? error : '能力调用 AI 失败')

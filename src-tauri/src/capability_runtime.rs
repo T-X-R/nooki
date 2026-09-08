@@ -66,6 +66,10 @@ pub enum CapabilityPermission {
 pub struct InstalledCapability {
   pub manifest: CapabilityManifest,
   pub enabled: bool,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub package_version: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub previous_package_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -153,6 +157,8 @@ impl PlatformState {
     let installed = InstalledCapability {
       manifest,
       enabled: true,
+      package_version: None,
+      previous_package_version: None,
     };
     let mut next = registry.clone();
     next.capabilities.push(installed.clone());
@@ -186,6 +192,9 @@ impl PlatformState {
       .iter_mut()
       .find(|capability| capability.manifest.id == manifest.id)
       .ok_or_else(|| "能力尚未安装".to_string())?;
+    if capability.package_version.is_some() {
+      return Err("外部能力包必须通过安装器更新".into());
+    }
     capability.manifest = manifest;
     let updated = capability.clone();
     persist_json(
@@ -232,7 +241,70 @@ impl PlatformState {
       &next,
     )?;
     *registry = next;
+    // Only package executables are removed; namespaced data and documents stay.
+    let packages = self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(id);
+    if packages.is_dir() { let _ = fs::remove_dir_all(packages); }
     Ok(())
+  }
+
+  pub fn read_tasks(&self) -> Result<Vec<serde_json::Value>, String> {
+    load_json(&self.data_dir.join("tasks.json"))
+  }
+
+  pub fn write_tasks(&self, records: &[serde_json::Value]) -> Result<(), String> {
+    persist_json(&self.data_dir.join("tasks.json"), &records)
+  }
+
+  pub fn package_payload(&self, id: &str, previous: bool) -> Result<crate::package_installer::PackagePayload, String> {
+    let registry = self.registry.read().map_err(|_| "能力注册表暂时不可用")?;
+    let installed = registry.capabilities.iter().find(|item| item.manifest.id == id).ok_or("能力尚未安装")?;
+    let version = if previous { &installed.previous_package_version } else { &installed.package_version };
+    let version = version.as_ref().ok_or("没有可加载的独立能力包")?;
+    self.read_package(id, version)
+  }
+
+  fn read_package(&self, id: &str, version: &str) -> Result<crate::package_installer::PackagePayload, String> {
+    let path = self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(id).join(format!("{version}.json"));
+    let bytes = fs::read(path).map_err(|_| "无法读取能力包")?;
+    serde_json::from_slice(&bytes).map_err(|_| "能力包损坏".into())
+  }
+
+  pub fn activate_package(&self, package: crate::package_installer::PackagePayload, expected_version: Option<String>, rollback: bool) -> Result<InstalledCapability, String> {
+    validate_manifest(&package.manifest)?;
+    let mut registry = self.registry.write().map_err(|_| "能力注册表暂时不可用")?;
+    let previous = registry.capabilities.iter().find(|item| item.manifest.id == package.manifest.id);
+    if previous.map(|item| &item.manifest.version) != expected_version.as_ref() {
+      return Err("能力版本已改变，请重新检查安装包".into());
+    }
+    if let Some(previous) = previous {
+      if rollback {
+        if previous.previous_package_version.as_ref() != Some(&package.manifest.version) { return Err("没有可回退的版本".into()); }
+      } else if semver::Version::parse(&package.manifest.version).map_err(|_| "版本无效")?
+        <= semver::Version::parse(&previous.manifest.version).map_err(|_| "版本无效")? {
+        return Err("更新包版本必须高于当前版本".into());
+      }
+    }
+    let installed = InstalledCapability {
+      manifest: package.manifest.clone(),
+      enabled: previous.map(|item| item.enabled).unwrap_or(true),
+      package_version: Some(package.manifest.version.clone()),
+      previous_package_version: previous.and_then(|item| item.package_version.clone()),
+    };
+    // Write the immutable package before switching the registry pointer. If
+    // either write fails, the previous registry remains authoritative.
+    let path = self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(&package.manifest.id).join(format!("{}.json", package.manifest.version));
+    if path.exists() {
+      let existing = self.read_package(&package.manifest.id, &package.manifest.version)?;
+      if existing != package { return Err("同一版本的能力包内容不能改变".into()); }
+    } else {
+      persist_json(&path, &package)?;
+    }
+    let mut next = registry.clone();
+    next.capabilities.retain(|item| item.manifest.id != package.manifest.id);
+    next.capabilities.push(installed.clone());
+    persist_json(&self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE), &next)?;
+    *registry = next;
+    Ok(installed)
   }
 
   pub fn publish_document(
@@ -327,7 +399,7 @@ fn validate_provider(provider: &str) -> Result<(), String> {
   }
 }
 
-fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
+pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   let id = manifest.id.as_str();
   if !id.contains('.')
     || id.split('.').any(|part| {
@@ -348,6 +420,10 @@ fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   if manifest.entrypoints.is_empty() {
     return Err("能力 Manifest 至少需要一个入口".into());
   }
+  semver::Version::parse(&manifest.version).map_err(|_| "能力版本必须是有效的 SemVer")?;
+  let minimum = semver::Version::parse(&manifest.min_platform_version).map_err(|_| "最低平台版本无效")?;
+  let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).map_err(|_| "平台版本无效")?;
+  if minimum > current { return Err(format!("此能力需要 Workbench {minimum} 或更新版本")); }
   Ok(())
 }
 

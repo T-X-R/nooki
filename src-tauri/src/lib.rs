@@ -2,6 +2,8 @@ pub mod capability_runtime;
 pub mod codex_session_source;
 pub mod document_library;
 pub mod managed_provider;
+pub mod package_installer;
+pub mod task_execution;
 
 use capability_runtime::{CapabilityManifest, InstalledCapability, PlatformState};
 use codex_session_source::{read_daily_files, CodexDailySessionFiles};
@@ -26,6 +28,8 @@ struct CapabilityAiRequest {
   #[serde(rename = "capabilityId")]
   capability_id: String,
   input: String,
+  #[serde(rename = "executionId")]
+  execution_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -391,6 +395,7 @@ async fn test_selected_provider(
 #[tauri::command]
 async fn capability_ai_invoke(
   request: CapabilityAiRequest,
+  executions: tauri::State<'_, task_execution::TaskExecutions>,
   state: tauri::State<'_, PlatformState>,
 ) -> Result<ModelResult, String> {
   let started = std::time::Instant::now();
@@ -410,7 +415,15 @@ async fn capability_ai_invoke(
     target: "workbench::capability",
     "ai.start capability_id={capability_id} provider_kind={provider_kind} input_bytes={input_bytes}"
   );
-  let result = invoke_with_provider(request.input, &provider_kind).await;
+  let token = match request.execution_id {
+    Some(id) => executions.token(&id)?,
+    None => tokio_util::sync::CancellationToken::new(),
+  };
+  let result = tokio::select! {
+    biased;
+    _ = token.cancelled() => Err("Task cancelled".into()),
+    result = invoke_with_provider(request.input, &provider_kind) => result,
+  };
   match &result {
     Ok(output) => log::info!(
       target: "workbench::capability",
@@ -493,9 +506,10 @@ async fn invoke_with_provider(input: String, provider_kind: &str) -> Result<Mode
   }
 
   let codex_bin = codex_binary();
-  let mut command = std::process::Command::new(codex_bin);
+  let mut command = tokio::process::Command::new(codex_bin);
+  command.kill_on_drop(true);
   command.arg("exec");
-  let output = command
+  let output = tokio::time::timeout(std::time::Duration::from_secs(600), command
     .args([
       "--ephemeral",
       "--json",
@@ -504,7 +518,8 @@ async fn invoke_with_provider(input: String, provider_kind: &str) -> Result<Mode
       "--skip-git-repo-check",
     ])
     .arg(input)
-    .output()
+    .output()).await
+    .map_err(|_| "Codex execution timed out".to_string())?
     .map_err(|_| "Unable to start codex exec".to_string())?;
 
   if !output.status.success() {
@@ -534,6 +549,42 @@ fn extract_codex_output(stdout: &str) -> Option<String> {
   }).next_back()
 }
 
+#[tauri::command]
+fn tasks_read(state: tauri::State<'_, PlatformState>) -> Result<Vec<serde_json::Value>, String> {
+  state.read_tasks()
+}
+
+#[tauri::command]
+fn tasks_write(records: Vec<serde_json::Value>, state: tauri::State<'_, PlatformState>) -> Result<(), String> {
+  state.write_tasks(&records)
+}
+
+#[tauri::command]
+fn task_cancel_invocation(id: String, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<(), String> {
+  executions.cancel(&id)
+}
+
+#[tauri::command]
+fn capability_package_inspect(bytes: Vec<u8>) -> Result<package_installer::PackagePayload, String> {
+  package_installer::inspect_archive(&bytes)
+}
+
+#[tauri::command]
+fn capability_package_install(bytes: Vec<u8>, expected_version: Option<String>, state: tauri::State<'_, PlatformState>) -> Result<InstalledCapability, String> {
+  state.activate_package(package_installer::inspect_archive(&bytes)?, expected_version, false)
+}
+
+#[tauri::command]
+fn capability_package_read(id: String, previous: bool, state: tauri::State<'_, PlatformState>) -> Result<package_installer::PackagePayload, String> {
+  state.package_payload(&id, previous)
+}
+
+#[tauri::command]
+fn capability_package_rollback(id: String, expected_version: String, state: tauri::State<'_, PlatformState>) -> Result<InstalledCapability, String> {
+  let package = state.package_payload(&id, true)?;
+  state.activate_package(package, Some(expected_version), true)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -556,9 +607,17 @@ pub fn run() {
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
+      app.manage(task_execution::TaskExecutions::default());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
+      tasks_read,
+      tasks_write,
+      task_cancel_invocation,
+      capability_package_inspect,
+      capability_package_install,
+      capability_package_read,
+      capability_package_rollback,
       provider_status,
       provider_health_check,
       get_selected_provider,

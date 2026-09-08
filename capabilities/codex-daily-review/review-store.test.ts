@@ -1,130 +1,62 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { AiInvocationResult, CapabilityHost, CodexDailySessionFiles } from '../../packages/capability-contract/src/index.ts'
-import { createDailyReviewStore } from './review-store.ts'
+import type { CapabilityTaskContext, TaskRecord } from '../../packages/capability-contract/src/index.ts'
+import { createTaskRunner } from '../../src/task-runner.ts'
+import { dailyReviewJob, dailyReviewSnapshot } from './review-store.ts'
 
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((nextResolve, nextReject) => {
-    resolve = nextResolve
-    reject = nextReject
-  })
-  return { promise, resolve, reject }
-}
-
-function sessionFiles(): CodexDailySessionFiles {
-  return {
-    date: '2026-09-04',
-    files: [{
-      name: 'root.jsonl',
-      archived: false,
-      content: [
-        JSON.stringify({ timestamp: '2026-09-04T01:00:00.000Z', type: 'session_meta', payload: { id: 'root', cwd: '/work/project', source: 'cli' } }),
-        JSON.stringify({ timestamp: '2026-09-04T01:01:00.000Z', type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '修复导航后总结丢失' }] } }),
-        JSON.stringify({ timestamp: '2026-09-04T01:02:00.000Z', type: 'event_msg', payload: { type: 'task_complete', last_agent_message: '已完成' } }),
-      ].join('\n'),
-    }],
-  }
-}
-
-function createHost(
-  aiResult: Promise<AiInvocationResult>,
-  calls: { read: number; ai: number; documents: number },
-  storedValues = new Map<string, string>(),
-): CapabilityHost {
-  return {
-    environment: {
-      getSnapshot: () => ({ language: 'zh', locale: 'zh-CN', theme: 'light' }),
-      subscribe: () => () => undefined,
-    },
-    ai: {
-      invoke: async () => {
-        calls.ai += 1
-        return aiResult
-      },
-    },
-    codex: {
-      sessions: {
-        readTodayFiles: async () => {
-          calls.read += 1
-          return sessionFiles()
-        },
-      },
-    },
-    storage: {
-      get: async <T>(key: string) => {
-        const value = storedValues.get(key)
-        return value === undefined ? null : JSON.parse(value) as T
-      },
-      set: async <T>(key: string, value: T) => {
-        storedValues.set(key, JSON.stringify(value))
-      },
-      remove: async (key: string) => {
-        storedValues.delete(key)
-      },
-    },
-    documents: {
-      publish: async () => {
-        calls.documents += 1
-      },
-    },
-    activity: { write: async () => undefined },
-  }
-}
-
-test('continues a manual review after the page unsubscribes and restores its result', async () => {
-  const ai = deferred<AiInvocationResult>()
+function fixture(empty = false) {
   const calls = { read: 0, ai: 0, documents: 0 }
-  const store = createDailyReviewStore(() => new Date('2026-09-04T12:00:00+08:00'))
-  const host = createHost(ai.promise, calls)
+  let failPublication = false
+  let saved: TaskRecord[] = []
+  const host: CapabilityTaskContext['host'] = {
+    environment: { getSnapshot: () => ({ language: 'zh', locale: 'zh-CN', theme: 'light' }), subscribe: () => () => {} },
+    ai: { invoke: async () => { calls.ai++; return { output: 'report', provider: 'fake', model: 'fake' } } },
+    codex: { sessions: { readTodayFiles: async () => {
+      calls.read++
+      return { date: '2026-09-08', files: empty ? [] : [{ name: 'root.jsonl', archived: false, content: [
+        { type: 'session_meta', payload: { id: 'root', cwd: '/work/project', source: 'cli' } },
+        { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Fix navigation' }] } },
+        { type: 'event_msg', payload: { type: 'task_complete', last_agent_message: 'Completed' } },
+      ].map((event) => JSON.stringify(event)).join('\n') }] }
+    } } },
+    storage: { get: async () => null, set: async () => {}, remove: async () => {} },
+    documents: { publish: async () => { calls.documents++; if (failPublication) throw new Error('publication failed') } },
+    activity: { write: async () => {} },
+  }
+  const runner = createTaskRunner({
+    read: async () => saved, write: async (records) => { saved = structuredClone([...records]) },
+    resolve: () => ({ manifest: { id: 'test.review', version: '0.3.0', name: 'Review', entrypoints: ['page', 'job'], permissions: [], minPlatformVersion: '0.2.0' }, definition: dailyReviewJob }),
+    host: () => host, cancelInvocation: async () => {},
+  })
+  return { runner, calls, failPublication: (fail: boolean) => { failPublication = fail } }
+}
 
-  assert.equal(store.getSnapshot().phase, 'idle')
-  assert.deepEqual(calls, { read: 0, ai: 0, documents: 0 })
-
-  const unsubscribe = store.subscribe(() => undefined)
-  const run = store.runReview(host, 'zh')
-  await Promise.resolve()
-  await Promise.resolve()
-  assert.equal(store.getSnapshot().phase, 'summarizing')
-  assert.equal(store.runReview(host, 'zh'), run)
-
-  unsubscribe()
-  const remountedSnapshots: string[] = []
-  const unsubscribeRemounted = store.subscribe(() => remountedSnapshots.push(store.getSnapshot().phase))
-  assert.equal(store.getSnapshot().phase, 'summarizing')
-
-  ai.resolve({ output: '导航后仍可看到的总结', provider: 'test', model: 'test-model' })
-  await run
-
-  assert.equal(store.getSnapshot().phase, 'ready')
-  assert.equal(store.getSnapshot().summary?.output, '导航后仍可看到的总结')
-  assert.deepEqual(remountedSnapshots, ['ready'])
-  assert.deepEqual(calls, { read: 1, ai: 1, documents: 1 })
-  unsubscribeRemounted()
+test('daily review uses platform checkpoints and retries publication without rescanning or regenerating', async () => {
+  const { runner, calls, failPublication } = fixture()
+  failPublication(true)
+  const id = await runner.start('test.review', 'daily-review', { date: '2026-09-08', language: 'zh' })
+  await runner.settled(id)
+  assert.equal(runner.getSnapshot()[0].status, 'failed')
+  assert.equal(dailyReviewSnapshot(runner.getSnapshot()[0], null).summary?.output, 'report')
+  failPublication(false)
+  await runner.retry(id)
+  await runner.settled(id)
+  assert.deepEqual(calls, { read: 1, ai: 1, documents: 2 })
+  assert.equal(dailyReviewSnapshot(runner.getSnapshot()[0], null).phase, 'ready')
 })
 
-test('restores today\'s completed report after the app store is recreated', async () => {
-  const storedValues = new Map<string, string>()
-  const calls = { read: 0, ai: 0, documents: 0 }
-  const host = createHost(
-    Promise.resolve({ output: '重启后仍然保留的总结', provider: 'test', model: 'test-model' }),
-    calls,
-    storedValues,
-  )
-  const now = () => new Date('2026-09-04T12:00:00+08:00')
-  const firstStore = createDailyReviewStore(now)
+test('empty source completes without invoking AI or publishing', async () => {
+  const { runner, calls } = fixture(true)
+  const id = await runner.start('test.review', 'daily-review', { date: '2026-09-08', language: 'zh' })
+  await runner.settled(id)
+  assert.equal(dailyReviewSnapshot(runner.getSnapshot()[0], null).phase, 'empty')
+  assert.deepEqual(calls, { read: 1, ai: 0, documents: 0 })
+})
 
-  await firstStore.restore(host)
-  await firstStore.runReview(host, 'zh')
-
-  const restartedStore = createDailyReviewStore(now)
-  assert.equal(restartedStore.getSnapshot().phase, 'idle')
-
-  await restartedStore.restore(host)
-
-  assert.equal(restartedStore.getSnapshot().phase, 'ready')
-  assert.equal(restartedStore.getSnapshot().summary?.output, '重启后仍然保留的总结')
-  assert.equal(restartedStore.getSnapshot().source?.sessions.length, 1)
-  assert.deepEqual(calls, { read: 1, ai: 1, documents: 1 })
+test('an interrupted old-date scan cannot silently summarize a new day', async () => {
+  const { runner, calls } = fixture()
+  const id = await runner.start('test.review', 'daily-review', { date: '2026-09-07', language: 'zh' })
+  await runner.settled(id)
+  assert.equal(runner.getSnapshot()[0].status, 'failed')
+  assert.equal(calls.ai, 0)
 })
