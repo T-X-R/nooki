@@ -17,13 +17,21 @@ The initial release includes the React interface and a Tauri 2 desktop host. The
 - Direct Responses-compatible requests for managed API key Providers.
 - Codex CLI execution for Codex subscription tasks.
 
-The first production Capability lives at `capabilities/diary`. Its editor, storage, and activity-event logic are package-owned. The Workbench discovers package entry points without importing Diary business code into the shell. Local `.capability.zip` extraction remains a later installer boundary; browser preview and the desktop registry both keep install state independent from the catalog.
+The first production Capability lives at `capabilities/diary`. Its editor, storage, and activity-event logic are package-owned. The Workbench discovers package entry points without importing Diary business code into the shell. The desktop app also installs trusted local `.capability.zip` packages without rebuilding Workbench; browser preview and the desktop registry both keep install state independent from the catalog.
 
 Codex Daily Review lives at `capabilities/codex-daily-review`. It owns session parsing, task extraction, prompt construction, and presentation. The platform only provides permission-checked access to raw files from today's Codex session partition and the shared AI Provider interface.
 
 Capabilities that generate long-lived documents declare `documents.publish` and call `host.documents.publish()`. The Document Gateway assigns the source namespace, validates stable collection and document keys, and sends the Markdown to the platform-owned Document Library. Capabilities never provide arbitrary filesystem paths or depend on library UI and persistence code. Publishing the same key again updates the existing document; uninstalling a Capability retains its published documents.
 
-Installing or uninstalling a Capability changes only its registry entry. Capability data is namespaced by Capability ID and is retained on uninstall, so the platform and other installed Capabilities continue to work unchanged. The checked-in `installed-capabilities/` directory documents the separate installed-package boundary used by the desktop data directory.
+Installation saves the package and its registry entry; uninstallation removes its executable package and registry entry. Capability data is namespaced by Capability ID and is retained on uninstall, so the platform and other installed Capabilities continue to work unchanged. The checked-in `installed-capabilities/` directory documents the separate installed-package boundary used by the desktop data directory.
+
+## Tasks and independent packages
+
+Workbench 0.2 provides platform-owned task execution with persisted checkpoints, cancellation, explicit retry and interrupted-task recovery. Codex Daily Review uses this shared runner. Capability updates, disablement and uninstallation stop its running work before changing lifecycle state.
+
+Build reviewed local packages with `npm run capability:pack -- <directory>` and import them through Capability Center. Installation checks compatibility and requested permissions, validates the executable before activation, and retains the previous external version for rollback. These packages execute trusted code in the host realm; untrusted-code isolation is not part of package format v1.
+
+See [INFRASTRUCTURE.md](INFRASTRUCTURE.md) for the contract, persistence and cancellation semantics, package format, and a standalone example.
 
 ## Run the development shell
 
@@ -52,9 +60,7 @@ Development and release builds write operational logs to `~/Library/Logs/com.per
 A Capability declares the `ai.invoke` permission in its manifest and calls only the Capability Host:
 
 ```ts
-import { createCapabilityHost } from './capability-host'
-
-const host = createCapabilityHost(manifest.id)
+// Workbench supplies host through CapabilityPageProps or the job context.
 const result = await host.ai.invoke('Summarize today\'s activity')
 ```
 

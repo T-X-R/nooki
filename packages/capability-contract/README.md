@@ -69,3 +69,9 @@ await host.documents.publish({
 `key` and `collectionKey` are lowercase stable identifiers, not paths. The Gateway handles permission checks, assigns the Capability namespace, validates the publication, and passes it to platform persistence and indexing. Reusing the same key for the same date updates the document in place. Disablement and uninstallation block new publications but do not delete published documents.
 
 The Document Gateway is separate from `host.ai`. Workbench never assumes that every model response is a durable document; the Capability decides when a result is ready to publish without knowing how the platform stores or displays it.
+
+## Run a task
+
+Declare `job` in manifest entrypoints and export a `jobs` map of `CapabilityJob` definitions. Pages submit with `host.tasks.start(job, input)`, observe `getSnapshot` / `subscribe`, and can `cancel(id)` or `retry(id)` within their own Capability. The job context provides a cancellation signal, a scoped Host and `step(key, operation)` for persisted checkpoints. Do not keep a separate execution state machine in each page.
+
+Use JSON-serializable data and idempotent sequential steps. Explicit retry reuses completed steps; startup marks unfinished runs interrupted without invoking business code. Package version changes invalidate checkpoint retry. See [INFRASTRUCTURE.md](../../INFRASTRUCTURE.md) for the complete behavior and a working standalone example.

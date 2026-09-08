@@ -11,6 +11,11 @@ function createHost() {
   const stored = new Map<string, unknown>()
   const documents: DocumentPublication[] = []
   const host: CapabilityHost = {
+    tasks: {
+      getSnapshot: () => [], subscribe: () => () => {},
+      start: async () => { throw new Error('Diary does not start tasks') },
+      cancel: async () => {}, retry: async () => {},
+    },
     environment: {
       getSnapshot: () => ({ language: 'zh', locale: 'zh-CN', theme: 'light' }),
       subscribe: () => () => undefined,

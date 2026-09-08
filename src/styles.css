@@ -424,3 +424,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
   .library-reader-content { padding-left: 0; }
   .library-reader-meta { justify-items: start; text-align: left; }
 }
+
+.package-review { padding: 16px 24px; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+.package-review p + p { margin-top: 8px; }
+.package-review label { display: block; margin-top: 14px; }
+.package-review input { vertical-align: middle; margin-right: 6px; }

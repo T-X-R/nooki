@@ -1,0 +1,13 @@
+{
+  "id": "com.example.checkpoint-demo",
+  "version": "1.0.0",
+  "name": "检查点示例",
+  "description": "验证独立安装、任务取消和发布重试，不调用 AI。",
+  "locales": {
+    "zh": { "name": "检查点示例", "description": "验证独立安装、任务取消和发布重试，不调用 AI。" },
+    "en": { "name": "Checkpoint demo", "description": "Test independent installation, cancellation and retry without AI." }
+  },
+  "entrypoints": ["page", "job"],
+  "permissions": ["storage", "documents.publish"],
+  "minPlatformVersion": "0.2.0"
+}

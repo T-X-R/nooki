@@ -1,6 +1,6 @@
 {
   "name": "@personal-workbench/capability-codex-daily-review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "workbench": {
     "manifest": "./manifest.json",

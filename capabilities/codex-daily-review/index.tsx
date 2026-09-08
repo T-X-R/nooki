@@ -1,10 +1,10 @@
 import { CheckCircledIcon, ClockIcon, ExclamationTriangleIcon, FileTextIcon, ReloadIcon } from '@radix-ui/react-icons'
-import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { CapabilityLanguage, CapabilityManifest, CapabilityModule, CapabilityPageProps } from '../../packages/capability-contract/src'
 import manifestJson from './manifest.json'
-import { codexDailyReviewStore } from './review-store'
+import { dailyReviewJob, dailyReviewSnapshot, REVIEW_STORAGE_KEY, type PersistedDailyReview } from './review-store'
 import './styles.css'
 
 const manifest: CapabilityManifest = manifestJson
@@ -16,6 +16,11 @@ const messages = {
     subtitle: '从今天的会话里，还原真正推进过的工作。',
     run: '扫描并总结',
     refresh: '重新扫描并总结',
+    publishing: '正在保存并发布总结…',
+    cancelled: '任务已取消',
+    interrupted: '上次执行已中断，可从检查点继续',
+    cancel: '取消任务',
+    retry: '从检查点重试',
     scanning: '正在扫描今天的 Codex sessions…',
     summarizing: '已提取任务，AI 正在生成总结…',
     ready: '今日总结已生成',
@@ -39,6 +44,11 @@ const messages = {
     subtitle: 'Reconstruct the work that actually moved forward in today’s sessions.',
     run: 'Scan and summarize',
     refresh: 'Scan and summarize again',
+    publishing: 'Saving and publishing the review…',
+    cancelled: 'Task cancelled',
+    interrupted: 'Previous execution interrupted; resume from checkpoints',
+    cancel: 'Cancel task',
+    retry: 'Retry from checkpoints',
     scanning: 'Scanning today’s Codex sessions…',
     summarizing: 'Tasks extracted. AI is writing the review…',
     ready: 'Today’s review is ready',
@@ -69,12 +79,22 @@ function workspaceName(cwd: string) {
 
 function CodexDailyReviewPage({ host }: CapabilityPageProps) {
   const environment = useSyncExternalStore(host.environment.subscribe, host.environment.getSnapshot, host.environment.getSnapshot)
-  const review = useSyncExternalStore(codexDailyReviewStore.subscribe, codexDailyReviewStore.getSnapshot, codexDailyReviewStore.getSnapshot)
+  const tasks = useSyncExternalStore(host.tasks.subscribe, host.tasks.getSnapshot, host.tasks.getSnapshot)
+  const [legacy, setLegacy] = useState<PersistedDailyReview | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const date = new Date().toLocaleDateString('en-CA')
+  const task = [...tasks].reverse().find((item) => item.job === 'daily-review' && (item.input as { date: string }).date === date)
   const copy = messages[environment.language]
-  const { date, phase, source, summary, error } = review
+  const { phase, source, summary, error } = dailyReviewSnapshot(task, legacy?.date === date ? legacy : null)
+  const act = async (action: () => Promise<unknown>) => {
+    setActionError(null)
+    try { await action() } catch (reason) { setActionError(String(reason)) }
+  }
 
   useEffect(() => {
-    void codexDailyReviewStore.restore(host)
+    let current = true
+    host.storage.get<PersistedDailyReview>(REVIEW_STORAGE_KEY).then((saved) => { if (current) setLegacy(saved) }).catch((reason) => { if (current) setActionError(String(reason)) })
+    return () => { current = false }
   }, [host])
 
   const stats = useMemo(() => {
@@ -86,8 +106,11 @@ function CodexDailyReviewPage({ host }: CapabilityPageProps) {
     }
   }, [source])
 
-  const busy = phase === 'scanning' || phase === 'summarizing'
-  const statusText = phase === 'scanning' ? copy.scanning
+  const busy = task?.status === 'running'
+  const statusText = phase === 'publishing' ? copy.publishing
+    : phase === 'cancelled' ? copy.cancelled
+    : phase === 'interrupted' ? copy.interrupted
+    : phase === 'scanning' ? copy.scanning
     : phase === 'summarizing' ? copy.summarizing
       : phase === 'ready' ? copy.ready
         : phase === 'empty' ? copy.empty
@@ -102,12 +125,17 @@ function CodexDailyReviewPage({ host }: CapabilityPageProps) {
           <h1>{copy.title}</h1>
           <p>{copy.subtitle}</p>
         </div>
-        <button className="codex-review-refresh" onClick={() => void codexDailyReviewStore.runReview(host, environment.language)} disabled={busy}>
+        <button className="codex-review-refresh" onClick={() => void act(() => host.tasks.start('daily-review', { date, language: environment.language }))} disabled={busy}>
           <ReloadIcon className={busy ? 'codex-review-spin' : ''} />
           {phase === 'idle' ? copy.run : copy.refresh}
         </button>
       </header>
 
+      {(busy || (task && ['failed', 'interrupted', 'cancelled'].includes(task.status))) && <div className="codex-review-date">
+        {busy && <button className="quiet-button" onClick={() => void act(() => host.tasks.cancel(task!.id))}>{copy.cancel}</button>}
+        {!busy && task && <button className="quiet-button" onClick={() => void act(() => host.tasks.retry(task.id))}>{copy.retry}</button>}
+      </div>}
+      {actionError && <p role="alert">{actionError}</p>}
       <div className="codex-review-date"><ClockIcon />{formatToday(date, environment.locale)}</div>
 
       <section className={`codex-review-status codex-review-status-${phase}`} aria-live="polite">
@@ -152,6 +180,7 @@ function CodexDailyReviewPage({ host }: CapabilityPageProps) {
 
 const codexDailyReviewCapability: CapabilityModule = {
   manifest,
+  jobs: { 'daily-review': dailyReviewJob },
   Page: (props: CapabilityPageProps) => <CodexDailyReviewPage {...props} />,
 }
 
