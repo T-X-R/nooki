@@ -7,7 +7,7 @@ export type AiInvocationResult = {
 }
 
 export type CapabilityEntrypoint = 'page' | 'command' | 'widget' | 'job'
-export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish'
+export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected'
 export type CapabilityLanguage = 'zh' | 'en'
 export type CapabilityTheme = 'light' | 'dark'
 
@@ -43,6 +43,9 @@ export type InstalledCapability = {
 
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
 export type TaskRecord = Readonly<{
+  // Missing ownerKind denotes a legacy Capability task. Existing wire names remain compatible.
+  ownerKind?: 'platform'
+  scope?: string
   id: string
   capabilityId: string
   capabilityVersion: string
@@ -81,6 +84,8 @@ export type CapabilityJob = {
 export type ActivityEventInput = {
   type: string
   title: string
+  key?: string
+  target?: DocumentReference
   payload?: unknown
   sensitivity?: 'normal' | 'private'
 }
@@ -102,7 +107,42 @@ export type CodexDailySessionFiles = {
   files: CodexSessionTextFile[]
 }
 
+// Snapshot identity is independent of the producing Capability's private storage.
+// Future evidence can add a quote locator without changing the document identity.
+export type DocumentReference = {
+  kind: 'library-document'
+  documentId: string
+  title: string
+  grantId?: string
+  snapshotId?: string
+  revision?: string
+  locator?: { quote: string }
+}
+
+export type SelectedDocument = {
+  reference: DocumentReference
+  documentDate: string
+  content: string
+}
+
+export type DocumentGrant = {
+  id: string
+  capabilityId: string
+  capabilityVersion: string
+  createdAt: string
+  documents: Omit<SelectedDocument, 'content'>[]
+}
+
+export type ActivityEvent = ActivityEventInput & {
+  id: string
+  source: string
+  occurredAt: string
+  taskId?: string
+}
+
 export type DocumentPublication = {
+  activity?: { type: string; title: string; key?: string }
+
   key: string
   title: string
   collectionKey: string
@@ -128,6 +168,9 @@ export type CapabilityHost = {
   storage: CapabilityStorage
   documents: {
     publish(document: DocumentPublication): Promise<void>
+    listGrants(): Promise<DocumentGrant[]>
+    readSelected(grantId: string, documentId: string): Promise<SelectedDocument>
+    open(reference: DocumentReference): void
   }
   activity: {
     write(event: ActivityEventInput): Promise<void>

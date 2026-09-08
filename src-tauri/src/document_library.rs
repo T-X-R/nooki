@@ -213,3 +213,14 @@ fn validate_text(value: &str, max_len: usize, message: &str) -> Result<(), Strin
     Err(message.into())
   }
 }
+
+// Metadata filtering stays in the platform tree; this scan only adds body matches.
+pub fn search_content(data_dir: &Path, query: &str) -> Result<Vec<String>, String> {
+  let query = query.trim().to_lowercase();
+  if query.is_empty() { return Ok(Vec::new()); }
+  let mut ids = Vec::new();
+  for metadata in list_documents(data_dir)? {
+    if read_document(data_dir, &metadata.id)?.content.to_lowercase().contains(&query) { ids.push(metadata.id); }
+  }
+  Ok(ids)
+}

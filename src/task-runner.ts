@@ -1,10 +1,11 @@
-import type { CapabilityJob, CapabilityManifest, CapabilityTaskContext, TaskRecord } from '../packages/capability-contract/src/index.ts'
+import type { CapabilityTaskContext, TaskRecord } from '../packages/capability-contract/src/index.ts'
 
+export type TaskContext = Pick<CapabilityTaskContext, 'signal' | 'step'> & { executionId: string }
+export type TaskJob = { run(input: unknown, context: TaskContext): Promise<unknown> }
 export type TaskRunnerDependencies = {
   read(): Promise<TaskRecord[]>
   write(records: readonly TaskRecord[]): Promise<void>
-  resolve(capabilityId: string, job: string): { manifest: CapabilityManifest; definition: CapabilityJob }
-  host(capabilityId: string, execution: { id: string; signal: AbortSignal }): CapabilityTaskContext['host']
+  resolve(ownerId: string, job: string): { version: string; definition: TaskJob; ownerKind?: 'platform'; scope?(input: unknown): string }
   cancelInvocation(id: string): Promise<void>
 }
 
@@ -46,11 +47,11 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
   const resolve = (record: Pick<TaskRecord, 'capabilityId' | 'capabilityVersion' | 'job'>) => {
     if (pausedCapabilities.has(record.capabilityId)) throw new Error('Capability lifecycle change in progress')
     const resolved = dependencies.resolve(record.capabilityId, record.job)
-    if (resolved.manifest.version !== record.capabilityVersion) throw new Error('Task belongs to a different capability version. Start a new task.')
+    if (resolved.version !== record.capabilityVersion) throw new Error('Task belongs to a different capability version. Start a new task.')
     return resolved.definition
   }
 
-  const execute = (record: TaskRecord, definition: CapabilityJob) => {
+  const execute = (record: TaskRecord, definition: TaskJob) => {
     const controller = new AbortController()
     const signal = controller.signal
     const assertActive = () => {
@@ -65,7 +66,7 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
         assertActive()
         let stepActive = false
         const result = await definition.run(structuredClone(record.input), {
-          host: dependencies.host(record.capabilityId, { id: `${record.id}:${record.attempt}`, signal }),
+          executionId: `${record.id}:${record.attempt}`,
           signal,
           async step<T>(key: string, operation: () => Promise<T>): Promise<T> {
             assertActive()
@@ -125,17 +126,17 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     async start(capabilityId: string, job: string, input: unknown) {
       await initialize()
-      const { manifest } = dependencies.resolve(capabilityId, job)
+      const resolved = dependencies.resolve(capabilityId, job)
       const now = new Date().toISOString()
       const record: TaskRecord = {
-        id: crypto.randomUUID(), capabilityId, capabilityVersion: manifest.version, job,
+        id: crypto.randomUUID(), capabilityId, capabilityVersion: resolved.version, job, ownerKind: resolved.ownerKind, scope: resolved.scope?.(input),
         input: structuredClone(input), status: 'running', stage: null, attempt: 1,
         checkpoints: {}, result: null, error: null, createdAt: now, updatedAt: now,
       }
       const definition = resolve(record)
       await commit((current) => {
         resolve(record)
-        if (current.some((item) => item.capabilityId === capabilityId && item.job === job && item.status === 'running')) throw new Error('This job is already running')
+        if (current.some((item) => item.capabilityId === capabilityId && item.job === job && item.scope === record.scope && item.status === 'running')) throw new Error('This job is already running')
         return [...current, record]
       })
       execute(record, definition)
@@ -150,7 +151,7 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
       const next = { ...record, status: 'running' as const, attempt: record.attempt + 1, error: null }
       await commit((current) => {
         resolve(record)
-        if (current.some((item) => item.capabilityId === record.capabilityId && item.job === record.job && item.status === 'running')) throw new Error('This job is already running')
+        if (current.some((item) => item.capabilityId === record.capabilityId && item.job === record.job && item.scope === record.scope && item.status === 'running')) throw new Error('This job is already running')
         return current.map((item) => item.id === id ? next : item)
       })
       execute(next, definition)

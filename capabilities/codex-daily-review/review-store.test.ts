@@ -20,13 +20,13 @@ function fixture(empty = false) {
       ].map((event) => JSON.stringify(event)).join('\n') }] }
     } } },
     storage: { get: async () => null, set: async () => {}, remove: async () => {} },
-    documents: { publish: async () => { calls.documents++; if (failPublication) throw new Error('publication failed') } },
+    documents: { listGrants: async () => [], readSelected: async () => { throw new Error('not granted') }, open: () => {}, publish: async () => { calls.documents++; if (failPublication) throw new Error('publication failed') } },
     activity: { write: async () => {} },
   }
   const runner = createTaskRunner({
     read: async () => saved, write: async (records) => { saved = structuredClone([...records]) },
-    resolve: () => ({ manifest: { id: 'test.review', version: '0.3.0', name: 'Review', entrypoints: ['page', 'job'], permissions: [], minPlatformVersion: '0.2.0' }, definition: dailyReviewJob }),
-    host: () => host, cancelInvocation: async () => {},
+    resolve: () => ({ version: '0.3.0', definition: { run: (input, context) => dailyReviewJob.run(input, { ...context, host }) } }),
+    cancelInvocation: async () => {},
   })
   return { runner, calls, failPublication: (fail: boolean) => { failPublication = fail } }
 }

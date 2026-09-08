@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { CapabilityTasks, TaskRecord } from '../packages/capability-contract/src'
 import { createTaskRunner } from './task-runner'
 import { createCapabilityHost } from './capability-host'
+import { resolveConversationJob, CONVERSATION_OWNER } from './conversation-jobs'
 import { getCapabilityModule, getRuntimeInstalledCapability } from './capability-runtime'
 
 const browserKey = 'personal-workbench-tasks-v1'
@@ -14,15 +15,14 @@ export const taskRunner = createTaskRunner({
     else localStorage.setItem(browserKey, JSON.stringify(records))
   },
   resolve(capabilityId, job) {
+    if (capabilityId === CONVERSATION_OWNER) return resolveConversationJob(job)
     const installed = getRuntimeInstalledCapability(capabilityId)
     const module = getCapabilityModule(capabilityId)
     if (!installed?.enabled || !module) throw new Error('Capability is not installed or enabled')
     if (!module.manifest.entrypoints.includes('job') || !module.jobs?.[job]) throw new Error('Capability job not found')
-    return { manifest: module.manifest, definition: module.jobs[job] }
-  },
-  host(capabilityId, execution) {
-    const module = getCapabilityModule(capabilityId)!
-    return createCapabilityHost(capabilityId, module.manifest.permissions, module.manifest.name, execution)
+    return { version: module.manifest.version, definition: { run: (input, context) => module.jobs![job].run(input, {
+      ...context, host: createCapabilityHost(capabilityId, module.manifest.permissions, module.manifest.name, { id: context.executionId, signal: context.signal }),
+    }) } }
   },
   cancelInvocation: async (id) => {
     if (window.__TAURI_INTERNALS__) await invoke('task_cancel_invocation', { id })

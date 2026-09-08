@@ -85,3 +85,10 @@ test('filters titles, source capabilities, collections and dates without crossin
   assert.deepEqual(dateMatch.map((item) => item.capabilityId), ['review', 'diary'])
   assert.deepEqual(dateMatch.map((item) => item.documentCount), [1, 1])
 })
+
+test('body search adds matching documents while retaining metadata matches', () => {
+  const docs = [document('com.personal.diary/diary/2026/09/day-1', 'com.personal.diary', 'Diary', 'diary', 'Journal', '2026-09-08', 'Body only')]
+  const tree = buildLibraryTree(docs, new Map())
+  assert.equal(filterLibraryTree(tree, 'needle').length, 0)
+  assert.equal(filterLibraryTree(tree, 'needle', new Set([docs[0].id]))[0].documentCount, 1)
+})

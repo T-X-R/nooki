@@ -81,7 +81,7 @@ export function buildLibraryTree(
     }))
 }
 
-export function filterLibraryTree(tree: LibraryCapabilityNode[], query: string): LibraryCapabilityNode[] {
+export function filterLibraryTree(tree: LibraryCapabilityNode[], query: string, contentMatches: ReadonlySet<string> = new Set()): LibraryCapabilityNode[] {
   const normalizedQuery = query.trim().toLocaleLowerCase()
   if (!normalizedQuery) return tree
   const matches = (value: string) => value.toLocaleLowerCase().includes(normalizedQuery)
@@ -94,7 +94,7 @@ export function filterLibraryTree(tree: LibraryCapabilityNode[], query: string):
         const includeMonth = capabilityMatches || collectionMatches || matches(month.key)
         const documents = includeMonth
           ? month.documents
-          : month.documents.filter((document) => matches(document.title) || matches(document.documentDate))
+          : month.documents.filter((document) => matches(document.title) || matches(document.documentDate) || contentMatches.has(document.id))
         return documents.length > 0 ? [{ ...month, documents }] : []
       })
       const documentCount = months.reduce((total, month) => total + month.documents.length, 0)

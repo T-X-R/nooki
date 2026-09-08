@@ -78,3 +78,67 @@ Provider tests bind a local fake HTTP endpoint; no real model is invoked. Task t
 ## Desktop acceptance (2026-09-08)
 
 A debug bundle with a separate `com.personal.workbench.infrastructure-qa` identifier was built. The checkpoint demo was packaged afterward, imported through the native file picker, approved and opened without another Workbench build. The first run failed at the intended publication step with one saved checkpoint; retry completed with two checkpoints and its Markdown was verified in the Document Library. A second run was interrupted by quitting the app; after relaunch its persisted status was `interrupted` with attempt 1 and no automatic rerun. The installed package and the earlier completed task both survived relaunch. Provider calls were not used in this acceptance flow.
+
+## Today, selected documents and legacy review compatibility (0.3)
+
+Today reads the shared task runner directly for `running`, `failed` and `interrupted` work. Completed and cancelled tasks remain in the task center. Business events are independent facts submitted by Capabilities; task completion alone creates no activity. While an event's task needs attention, Today shows only that task. Stable Capability-scoped activity keys coalesce repeated diary saves and document updates. Weekly publication replaces its earlier draft activity with the published document link.
+
+Activity history retains the existing `personal-workbench:activity-events` local-storage key in the desktop WebView and browser preview. This avoids dropping existing records and survives app restart. The platform now provides reactive read/write access without the old 200-record eviction or an in-memory success fallback. Corrupt or unwritable history is surfaced as an error. This local history is separate from `tasks.json`; it is not a new task framework. Activity payloads can contain private facts and are not written to operational logs.
+
+Library body search scans published Markdown on demand; metadata filtering still supports title, source, collection and date, including localized source names. Search returns matching document IDs to the Workbench UI, never to a Capability. No embedding service, vector database or background indexing process is introduced.
+
+The Library selection dialog creates immutable authorization snapshots under `document-grants/<id>.json` (browser preview uses `personal-workbench-document-grants-v1`). Each grant binds document IDs to one recipient Capability version. Native grant reads enforce permissions, recipient identity, version and enablement before returning any body. The platform-only source reader serves retained citations after uninstallation. Updates do not extend old grants to a new version; users select and authorize again. These checks enforce the supported Host contract; the trusted same-realm package model from 0.2 remains unchanged and is not an untrusted-code sandbox.
+
+Weekly Review remains registered only for existing task and draft compatibility; it is hidden from new installation and navigation. Its legacy generation task reads authorized sources, invokes platform AI, validates source IDs, records a business activity, and returns the draft as its durable task result. Model output with missing or unknown citations fails before becoming a checkpoint. Source links are assembled from validated platform references, not model-provided URLs. Existing drafts remain readable in Conversations and require an explicit save action to publish. Publication receives the user-confirmed draft as its durable task input; its retry path contains no generation or model step. Page navigation, cancellation, failure and startup interruption use the existing runner unchanged.
+
+The citation structure is shared and permits a future quote locator. Weekly citations open the exact document snapshots used for generation and provide a separate action to view the current document. This release does not change Codex Daily Review scanning or retrofit its evidence model.
+
+### Verification before the Conversations refactor (2026-09-08)
+
+- `npm run test:platform`: 14 tests passed.
+- `npm run test:capabilities`: 13 tests passed, including generation/publication separation, restart publication retry, unauthorized inputs, invalid citations and cancellation of late model results.
+- `cargo test --offline`: 22 tests passed. The existing fake HTTP Provider test requires permission to bind a loopback port.
+- `cargo clippy --offline -- -D warnings`: passed.
+- `npm run build`, `npm run desktop:build`, and packaging `capabilities/weekly-review`: passed. Vite still reports its large-bundle advisory.
+
+Browser UI acceptance used a temporary test-only Provider alias outside the repository. It made no real model calls. Verified diary save → Today activity → exact Library document, persistence across reload, body-only keyword search, selection and recipient confirmation, draft input confirmation, navigation during generation, failed-task retry through the shared task center, citations from draft and published Markdown, explicit publication, activity coalescing, startup interruption without automatic rerun, and manual resume/cancel. Native authorization, restart retention and snapshot immutability were verified by Rust tests; UI acceptance used browser preview. That initial verification preceded the subsequent local App updates.
+
+## Platform conversations and Codex sessions
+
+Conversations are a platform feature. `codex_conversations.rs` maintains a multiplexed JSONL App Server connection: initialize, thread/start, thread/list, thread/read, thread/resume, thread/turns/list, turn/start and turn/interrupt. Codex stores all message history. The frontend keeps an in-memory rendering cache and unsent UI drafts only. It reloads authoritative history from Codex when returning to a session. New empty Codex sessions are live-only until their first message and must not be resumed or paged before that point.
+
+The shared task runner now resolves versioned jobs without depending on a Capability manifest or Host. Capability adapters still construct their scoped Host at execution time. Platform jobs use owner `workbench.conversations` and `ownerKind: platform`; old records without ownerKind remain Capability tasks. The historical `capabilityId` and `capabilityVersion` JSON fields carry owner identity and execution schema version for compatibility. Per-session task scopes allow different conversations to run independently without concurrent sends in one session. The task center groups platform executions by input threadId, using Codex session titles with persisted message text as an offline fallback. Group summaries show the latest update and execution/attention counts; individual task IDs, checkpoints, cancellation and retries remain unchanged. Today task links expand the containing group and selected execution. Capability tasks and historical tasks without a session ID remain standalone. The reserved workbench namespace cannot be installed as a Capability.
+
+A response task checkpoints immutable source snapshots and a Codex turn receipt. It sends the user's actual message as user input and Library text as untrusted additional context. Codex client message IDs and receipts link the shared task to its native turn. Retrying checks that turn first: a completed turn is reused, a running turn is observed, and a failed/interrupted turn can be explicitly resubmitted. Unknown receipt/history mismatches fail visibly rather than sending a duplicate request. Transport loss fails the task; there is no background model replay.
+
+`source-snapshots/<id>.json` retains platform document snapshots independently of capability grants. `DocumentReference.snapshotId` addresses them; existing grantId citations remain readable. Conversations may reference any Library document without a grant. This does not widen CapabilityHost permissions. The existing trusted same-realm package boundary remains unchanged.
+
+Saving an answer is a separate platform job with stable publication identity and a coalesced activity event. Published answers use the reserved workbench.conversations provenance namespace and the answers collection. Neither ordinary replies nor intermediate reasoning/tool events automatically publish documents or flood Today.
+
+Verification includes a deterministic App Server subprocess fixture for first-message handling, streaming, persisted history, cancellation, failure retry, reconnection and receipt recovery. No model is called by these tests. Native source tests cover immutable captures, selection membership and path validation. A separate live check against Codex CLI 0.153.4 completed two short synthetic turns, verified attached context, follow-up context, persisted client IDs, session listing and history after reconnect, and archived its test session. No user documents were sent. The installed CLI reports these sessions as `vscode`; listing scopes by the dedicated Workbench workspace rather than assuming an `appServer` source kind.
+
+
+### Conversations verification (2026-09-08)
+
+- 17 platform JavaScript tests, 13 Capability tests and 26 native Rust tests passed.
+- Clippy with warnings denied, frontend build and macOS App bundle passed. Vite retains its existing bundle-size advisory.
+- Browser behavior checks used synthetic native-command fixtures: Library handoff without authorization, navigation during generation, history after reload, original-source snapshot navigation, explicit save confirmation, publication failure and independent retry, saved-answer navigation and one coalesced Today event. Styling is left for the user to inspect in the installed App.
+- Cancellation, failed-turn retry, connection loss and restart reconciliation are covered by native subprocess tests. Public reasoning summary rendering is covered by deterministic event tests; the short live Codex responses did not emit reasoning summary items.
+- The signed local App was replaced and reopened after checking that no tasks were running. The previous bundle was retained; installed binary hashes and the code signature were verified.
+
+
+### Sidebar history and activity consolidation
+
+Conversation history now expands under the main sidebar entry, including new-conversation and pagination actions. Selection still reads Codex history and reflects the active session; no additional conversation persistence is introduced. The chat canvas has no separate processing row, while the stop button and shared task center continue to expose running work. Reduced bottom padding gives messages more vertical space.
+
+Today groups activities by document identity and stable source-scoped keys, with a compatibility alias for pre-key diary entry IDs. It shows the newest fact in each group before applying task suppression, so a pending update cannot reveal a stale duplicate. Titles are never used as identity, and persisted history is retained. The count reflects the consolidated feed and sits on the heading baseline.
+
+The refinement passed 19 platform and 13 Capability behavior tests, frontend/macOS builds, and synthetic browser checks for sidebar expansion, collapse, session selection, new-message sending and refreshed session titles. New regression tests cover legacy diary edits, renamed documents, same-title distinct documents and pending-update suppression.
+
+### Desktop window resizing (2026-09-08)
+
+All visible platform pages and the bundled Journal and Codex Daily Review pages use shared page-width, gutter and vertical-spacing CSS tokens. Page widths expand up to 1800px, while document text retains a separate 1000px reading limit. Library keeps its title, toolbar and columns in one bounded workspace; the document title and body share the same alignment and reading width. Its directory column adapts between 220px and 320px, and the reader uses the remaining window height with independent scrolling.
+
+Journal uses the remaining height for its editor and scrollable entry list, keeping save controls visible and preserving unsaved text across resizes. Daily Review grows its output and source panels with the window, with separate scroll regions instead of fixed 420px cards. Settings participates in the shared page width. Conversations retain their responsive message/composer width and bottom-aligned composer. Modals constrain their height to the viewport and scroll internally. Narrow layouts retain their existing single-column fallbacks. Capability execution versions and task semantics are unchanged by these presentation changes.
+
+Headless browser checks with synthetic data passed for all eight visible pages at 980x680, 1240x820, 1920x1080 and 2560x1415, including resizing back down and changing height independently. Checks covered horizontal overflow, reading title/body alignment at every size, panel growth and scrolling, body search, document selection and conversation handoff, active-composer positioning, unsaved Journal draft retention and saving, and import-dialog bounds. All 23 platform tests and 13 Capability tests passed. No appearance screenshots were taken.

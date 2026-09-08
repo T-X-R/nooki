@@ -1,6 +1,6 @@
 # Personal Workbench
 
-Personal Workbench is a local-first desktop host for installable capabilities. Reports, tables, journals, and future agents enter through a stable platform contract instead of being built into the shell.
+Personal Workbench is a local-first desktop host for installable capabilities. Business-specific reports, tables and journals enter through a stable platform contract. Conversations and the Document Library are built-in tools for using the knowledge those capabilities produce.
 
 The initial release includes the React interface and a Tauri 2 desktop host. The host persists the selected AI Provider, manages Capability manifests and lifecycle state, enforces permissions, and keeps API credentials outside Capability code.
 
@@ -111,3 +111,25 @@ cargo clippy --offline -- -D warnings
 Provider contract tests use a local fake HTTP endpoint and never invoke a real model. All Rust tests live under `src-tauri/tests/` and use the `*_test.rs` naming convention.
 
 See [CONTEXT.md](CONTEXT.md) for the project language and domain definitions.
+
+## Review real activity and reuse selected documents
+
+Workbench 0.3 connects Today to saved journal entries, generated documents and tasks that need attention. Activity links open the corresponding Library document or task details and remain available after restarting.
+
+In **Library**, search by body text as well as title, source, collection and date. Select documents and choose **Add to conversation**, or use the document picker inside a conversation. Documents are attached when you send the message; there is no platform-conversation grant dialog or additional confirmation checkbox. Independent Capability packages still require explicit grants through their existing Host boundary.
+
+## Conversations powered by Codex
+
+Open **Conversations** to ask questions, extract information, compare sources, write, and continue with follow-up messages. Workbench launches the installed `codex app-server` over stdio using the local Codex configuration and login. This is a persistent Codex session, not a second Workbench chat database or a sequence of stateless Provider calls. The AI Provider setting continues to serve Capability invocations; Conversations use the Codex runtime directly.
+
+- Codex owns session creation, listing, history, context and turns. Workbench shows reply deltas, public reasoning summaries and tool progress. Raw internal reasoning is not displayed.
+- Workbench conversations use a dedicated working directory under the app data directory. The list does not import or mutate unrelated Codex sessions.
+- The initial conversation surface supports text and read-only tools. Requests for interactive tool approvals or unsupported actions are not silently approved. It is not a replacement for the full Codex coding interface.
+- Attach Library documents from any source, including uninstalled capabilities. The attached content becomes untrusted additional context for that Codex turn. Previously sent material remains in Codex session context even if you remove it from later attachments.
+- Source links open immutable document snapshots. The original document can change without changing the evidence used by an earlier reply.
+- Click **Save to Library**, review the title, and confirm to keep an answer. Saving is an independent task and can be retried without another Codex turn.
+- Task execution continues across navigation. Stop interrupts the Codex turn. On restart, interrupted Workbench tasks require an explicit retry; execution receipts reconcile already completed Codex turns before starting work again.
+
+The former Weekly Review entry is retired from navigation and the installation catalog. Existing task records, source grants and published documents remain available. Completed old drafts are accessible through **Previous review drafts** in Conversations; the old jobs remain only for backward-compatible task recovery.
+
+Install and sign in to Codex before using Conversations. The App Server adapter was checked against locally installed Codex CLI 0.153.4 and its generated protocol schema. See [Codex App Server documentation](https://learn.chatgpt.com/docs/app-server) for the protocol. Browser preview can display the interface, but session operations require the desktop host.

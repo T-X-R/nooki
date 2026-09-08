@@ -1,3 +1,4 @@
+import { publicationReference } from '../../packages/capability-contract/src/references.ts'
 import type { CapabilityHost, CapabilityLanguage } from '../../packages/capability-contract/src'
 
 export type DiaryEntry = {
@@ -32,14 +33,14 @@ export async function persistDiaryEntry(
   const nextEntries = [entry, ...entries.filter((item) => item.id !== entry.id)]
   await host.storage.set('entries', nextEntries)
   const language = host.environment.getSnapshot().language
-  await Promise.all([
-    host.activity.write({
-      type: 'diary.entry.saved',
-      title: entry.title || untitled,
-      payload: { entryId: entry.id, date: entry.date },
-    }),
-    host.documents.publish(diaryDocument(entry, language)),
-  ])
+  await host.documents.publish(diaryDocument(entry, language))
+  await host.activity.write({
+    key: `diary-${entry.id}`,
+    target: publicationReference('com.personal.diary', diaryDocument(entry, language)),
+    type: 'diary.entry.saved',
+    title: entry.title || untitled,
+    payload: { entryId: entry.id, date: entry.date },
+  })
   return nextEntries
 }
 

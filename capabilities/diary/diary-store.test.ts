@@ -28,6 +28,7 @@ function createHost() {
       remove: async (key: string) => { stored.delete(key) },
     },
     documents: {
+      listGrants: async () => [], readSelected: async () => { throw new Error('not granted') }, open: () => {},
       publish: async (document) => {
         documents.push(document)
       },

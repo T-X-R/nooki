@@ -59,6 +59,8 @@ pub enum CapabilityPermission {
   CodexSessionsRead,
   #[serde(rename = "documents.publish")]
   DocumentsPublish,
+  #[serde(rename = "documents.read-selected")]
+  DocumentsReadSelected,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -115,6 +117,8 @@ impl PlatformState {
       registry: RwLock::new(registry),
     })
   }
+
+  pub fn data_dir(&self) -> &Path { &self.data_dir }
 
   pub fn selected_provider(&self) -> Result<String, String> {
     self.settings
@@ -322,6 +326,22 @@ impl PlatformState {
     )
   }
 
+  pub fn grant_documents(&self, capability_id: &str, ids: Vec<String>, id: &str) -> Result<crate::document_grants::DocumentGrant, String> {
+    crate::document_grants::grant(self, &self.data_dir, capability_id, ids, id)
+  }
+  pub fn document_grants(&self, capability_id: &str) -> Result<Vec<crate::document_grants::DocumentGrant>, String> {
+    crate::document_grants::list(self, &self.data_dir, capability_id)
+  }
+  pub fn read_selected_document(&self, capability_id: &str, grant_id: &str, document_id: &str) -> Result<crate::document_grants::SelectedDocument, String> {
+    crate::document_grants::read_selected(self, &self.data_dir, capability_id, grant_id, document_id)
+  }
+  pub fn read_document_source(&self, grant_id: &str, document_id: &str) -> Result<crate::document_grants::SelectedDocument, String> {
+    crate::document_grants::read_source(&self.data_dir, grant_id, document_id)
+  }
+  pub fn search_library_content(&self, query: &str) -> Result<Vec<String>, String> {
+    document_library::search_content(&self.data_dir, query)
+  }
+
   pub fn list_library_documents(&self) -> Result<Vec<LibraryDocumentMetadata>, String> {
     document_library::list_documents(&self.data_dir)
   }
@@ -388,6 +408,7 @@ impl CapabilityPermission {
       Self::AiInvoke => "ai.invoke",
       Self::CodexSessionsRead => "codex.sessions.read",
       Self::DocumentsPublish => "documents.publish",
+      Self::DocumentsReadSelected => "documents.read-selected",
     }
   }
 }
@@ -401,6 +422,7 @@ fn validate_provider(provider: &str) -> Result<(), String> {
 
 pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   let id = manifest.id.as_str();
+  if id.starts_with("workbench.") { return Err("The workbench namespace is reserved for platform features".into()); }
   if !id.contains('.')
     || id.split('.').any(|part| {
       part.is_empty()

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createTaskRunner } from '../src/task-runner.ts'
-import type { CapabilityJob, CapabilityTaskContext, TaskRecord } from '../packages/capability-contract/src/index.ts'
+import { createTaskRunner, type TaskJob } from '../src/task-runner.ts'
+import type { TaskRecord } from '../packages/capability-contract/src/index.ts'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -9,7 +9,7 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function fixture(definition: CapabilityJob, initial: TaskRecord[] = []) {
+function fixture(definition: TaskJob, initial: TaskRecord[] = []) {
   let saved = initial
   let enabled = true
   let version = '0.1.0'
@@ -19,9 +19,8 @@ function fixture(definition: CapabilityJob, initial: TaskRecord[] = []) {
     write: async (records) => { saved = structuredClone([...records]) },
     resolve: () => {
       if (!enabled) throw new Error('Disabled')
-      return { manifest: { id: 'test.job', name: 'test', version, minPlatformVersion: '0.1.0', permissions: [], entrypoints: ['job'] }, definition }
+      return { version, definition }
     },
-    host: () => ({}) as CapabilityTaskContext['host'],
     cancelInvocation: async (id) => { cancelled.push(id) },
   })
   return { runner, saved: () => saved, cancelled, disable: () => { enabled = false }, upgrade: () => { version = '0.2.0' } }
@@ -104,7 +103,7 @@ test('a failure to persist the initial task prevents all execution', async () =>
   const runner = createTaskRunner({
     read: async () => [], write: async () => { throw new Error('disk full') },
     resolve: () => { called = true; throw new Error('must not execute') },
-    host: () => ({}) as CapabilityTaskContext['host'], cancelInvocation: async () => {},
+    cancelInvocation: async () => {},
   })
   await assert.rejects(runner.start('test.job', 'review', {}), /disk full/)
   assert.equal(called, false)
