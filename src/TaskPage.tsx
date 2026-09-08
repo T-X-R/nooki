@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { InstalledCapability } from '../packages/capability-contract/src'
 import { taskRunner } from './tasks'
@@ -26,7 +27,7 @@ export function TaskPage({ language, installed, selectedId, onOpenCapability }: 
         <div className="capability-card-copy">
           <div className="capability-card-title"><h3>{capability?.manifest.locales?.[language]?.name ?? capability?.manifest.name ?? record.capabilityId}</h3><span className="capability-status">{statuses[record.status]}</span></div>
           <p>{new Date(record.createdAt).toLocaleString(zh ? 'zh-CN' : 'en-US')} · {zh ? `已保存 ${Object.keys(record.checkpoints).length} 个步骤 · 第 ${record.attempt} 次执行` : `${Object.keys(record.checkpoints).length} saved steps · Attempt ${record.attempt}`}</p>
-          <details open={selectedId === record.id}><summary>{zh ? '任务详情' : 'Task details'}</summary><p>{record.job} · {record.stage ?? '—'}<br />{record.id}</p><p>{Object.keys(record.checkpoints).join(' → ')}</p></details>
+          <details className="task-details" open={selectedId === record.id}><summary><ChevronRightIcon aria-hidden="true" />{zh ? '任务详情' : 'Task details'}</summary><dl><div><dt>{zh ? '任务类型' : 'Job'}</dt><dd>{record.job}</dd></div><div><dt>{zh ? '当前步骤' : 'Current step'}</dt><dd>{record.stage ?? '—'}</dd></div><div><dt>{zh ? '任务编号' : 'Task ID'}</dt><dd>{record.id}</dd></div><div><dt>{zh ? '已保存步骤' : 'Saved steps'}</dt><dd>{Object.keys(record.checkpoints).join(' → ') || '—'}</dd></div></dl></details>
           {record.error && <p role="alert">{record.error}</p>}
           {!canRetry && ['failed', 'cancelled', 'interrupted'].includes(record.status) && <small>{zh ? '需要启用原版本能力才能继续；更新后请启动新任务。' : 'Enable the original capability version to resume; start a new task after an update.'}</small>}
         </div>
