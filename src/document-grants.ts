@@ -50,6 +50,13 @@ export async function readSelectedDocument(capabilityId: string, grantId: string
 
 // The user can follow a retained citation even after uninstalling its Capability.
 export async function readSourceReference(reference: DocumentReference): Promise<SelectedDocument> {
+  if (reference.snapshotId) {
+    if (window.__TAURI_INTERNALS__) return invoke('library_read_snapshot', { id: reference.snapshotId, documentId: reference.documentId })
+    const documents: SelectedDocument[] = JSON.parse(localStorage.getItem(`workbench-source-snapshot:${reference.snapshotId}`) ?? '[]')
+    const source = documents.find((doc) => doc.reference.documentId === reference.documentId)
+    if (!source) throw new Error('Source snapshot not found')
+    return source
+  }
   if (!reference.grantId) {
     const doc = await readLibraryDocument(reference.documentId)
     return { reference, documentDate: doc.documentDate, content: doc.content }

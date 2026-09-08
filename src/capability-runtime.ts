@@ -53,7 +53,7 @@ export function listAvailableCapabilities(): CapabilityModule[] {
     if (installed.packageVersion) catalog.set(installed.manifest.id, externalModules.get(installed.manifest.id)
       ?? { manifest: installed.manifest, Page: () => null })
   }
-  return [...catalog.values()]
+  return [...catalog.values()].filter((module) => module.manifest.id !== 'com.personal.weekly-review')
 }
 
 export function getCapabilityModule(id: string): CapabilityModule | undefined {

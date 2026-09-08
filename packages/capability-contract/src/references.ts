@@ -13,6 +13,7 @@ export function parseReferenceHref(href: string): DocumentReference | null {
   try {
     const value = JSON.parse(decodeURIComponent(href.slice('#workbench-source='.length)))
     return value?.kind === 'library-document' && typeof value.documentId === 'string' && typeof value.title === 'string'
-      && (value.grantId === undefined || typeof value.grantId === 'string') ? value : null
+      && (value.grantId === undefined || typeof value.grantId === 'string')
+      && (value.snapshotId === undefined || typeof value.snapshotId === 'string') ? value : null
   } catch { return null }
 }

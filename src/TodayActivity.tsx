@@ -4,6 +4,7 @@ import type { DocumentReference, InstalledCapability } from '../packages/capabil
 import { activityStore } from './activity'
 import { todayFeed } from './activity-store'
 import { taskRunner } from './tasks'
+import { CONVERSATION_OWNER } from './conversation-model'
 
 export function TodayActivity({ language, installed, onDocument, onTask, onCapability }: {
   language: 'zh' | 'en'; installed: InstalledCapability[]
@@ -16,7 +17,7 @@ export function TodayActivity({ language, installed, onDocument, onTask, onCapab
   const zh = language === 'zh'
   useEffect(() => { try { activityStore.load() } catch (reason) { setError(String(reason)) } }, [])
   const feed = todayFeed(events, tasks)
-  const name = (id: string) => { const item = installed.find((cap) => cap.manifest.id === id); return item?.manifest.locales?.[language]?.name ?? item?.manifest.name ?? id }
+  const name = (id: string) => { if (id === CONVERSATION_OWNER) return zh ? '对话' : 'Conversations'; const item = installed.find((cap) => cap.manifest.id === id); return item?.manifest.locales?.[language]?.name ?? item?.manifest.name ?? id }
   const timestamp = (date: string) => new Intl.DateTimeFormat(zh ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(date))
   const statuses = zh ? { running: '执行中', failed: '失败，待处理', interrupted: '已中断，待恢复', completed: '已完成', cancelled: '已取消' } : { running: 'Running', failed: 'Failed · action needed', interrupted: 'Interrupted · resume', completed: 'Completed', cancelled: 'Cancelled' }
   return <section className="activity-section">

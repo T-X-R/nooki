@@ -28,7 +28,7 @@ tauri-plugin-log = "2"
 toml = "0.9.12"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 semver = "1"
-tokio = { version = "1", features = ["process", "time", "macros"] }
+tokio = { version = "1", features = ["process", "time", "macros", "io-util", "sync"] }
 tokio-util = "0.7"
 
 [dev-dependencies]

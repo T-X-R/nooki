@@ -1,3 +1,5 @@
+pub mod codex_conversations;
+pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;
 pub mod codex_session_source;
@@ -11,7 +13,7 @@ use codex_session_source::{read_daily_files, CodexDailySessionFiles};
 use document_library::{DocumentPublication, LibraryDocument, LibraryDocumentMetadata};
 use managed_provider::{invoke, load_codex_api_profile, ModelResult};
 use serde::{Deserialize, Serialize};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 const MAX_LOG_FILE_SIZE: u128 = 2_000_000;
 const LOG_FILES_TO_KEEP: usize = 3;
@@ -368,6 +370,38 @@ fn capability_documents_publish(
 }
 
 #[tauri::command]
+async fn conversation_list(cursor: Option<String>, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
+  bridge.list(cursor).await
+}
+#[tauri::command]
+async fn conversation_create(bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
+  bridge.create().await
+}
+#[tauri::command]
+async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
+  bridge.read(&id, cursor).await
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String }
+#[tauri::command]
+async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, codex_conversations::CodexConversations>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  bridge.run(&request.thread_id, &request.message, &request.context, &request.request_id, executions.token(&request.execution_id)?).await
+}
+#[tauri::command]
+fn library_capture_sources(id: String, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<Vec<source_snapshots::SnapshotDocument>, String> {
+  source_snapshots::capture(state.data_dir(), &id, &ids)
+}
+#[tauri::command]
+fn library_read_snapshot(id: String, document_id: String, state: tauri::State<'_, PlatformState>) -> Result<source_snapshots::SnapshotDocument, String> {
+  source_snapshots::source(state.data_dir(), &id, &document_id)
+}
+#[tauri::command]
+fn conversation_publish(document: DocumentPublication, state: tauri::State<'_, PlatformState>) -> Result<(), String> {
+  document_library::publish_document(state.data_dir(), "workbench.conversations", "Conversations", document).map(|_| ())
+}
+
+#[tauri::command]
 fn library_grant_documents(capability_id: String, ids: Vec<String>, id: String, state: tauri::State<'_, PlatformState>) -> Result<document_grants::DocumentGrant, String> {
   state.grant_documents(&capability_id, ids, &id)
 }
@@ -626,6 +660,8 @@ pub fn run() {
         env!("CARGO_PKG_VERSION"),
       );
       let data_dir = app.path().app_data_dir()?;
+      let event_app = app.handle().clone();
+      app.manage(codex_conversations::CodexConversations::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:codex-event", event); })));
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
@@ -633,6 +669,8 @@ pub fn run() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
+      conversation_list, conversation_create, conversation_read, conversation_run, conversation_publish,
+      library_capture_sources, library_read_snapshot,
       tasks_read,
       tasks_write,
       task_cancel_invocation,

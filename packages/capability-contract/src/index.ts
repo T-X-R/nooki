@@ -43,6 +43,9 @@ export type InstalledCapability = {
 
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
 export type TaskRecord = Readonly<{
+  // Missing ownerKind denotes a legacy Capability task. Existing wire names remain compatible.
+  ownerKind?: 'platform'
+  scope?: string
   id: string
   capabilityId: string
   capabilityVersion: string
@@ -111,6 +114,7 @@ export type DocumentReference = {
   documentId: string
   title: string
   grantId?: string
+  snapshotId?: string
   revision?: string
   locator?: { quote: string }
 }

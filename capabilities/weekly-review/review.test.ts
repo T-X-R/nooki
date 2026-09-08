@@ -22,8 +22,8 @@ function fixture() {
   } as unknown as CapabilityTaskContext['host']
   const runner = () => createTaskRunner({
     read: async () => structuredClone(saved), write: async (records) => { saved = structuredClone([...records]) },
-    resolve: (_, job) => ({ manifest: { id: 'com.personal.weekly-review', version: '0.1.0', name: 'Weekly Review', entrypoints: ['job'], permissions: [], minPlatformVersion: '0.3.0' }, definition: job === 'generate' ? generateReview : publishReview }),
-    host: () => host, cancelInvocation: async () => {},
+    resolve: (_, job) => ({ version: '0.1.0', definition: { run: (input, context) => (job === 'generate' ? generateReview : publishReview).run(input, { ...context, host }) } }),
+    cancelInvocation: async () => {},
   })
   return { runner, calls, allowPublication: () => { failPublication = false }, setAi: (next: typeof ai) => { ai = next } }
 }

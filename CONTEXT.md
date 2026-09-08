@@ -59,7 +59,7 @@ The runtime that executes agent tasks through the local Codex CLI and its subscr
 The personal context shared by Capabilities and Activity Events. The first release has one default Workspace without coupling Capabilities to specific pages.
 
 **Document Library**:
-The Workbench-owned, long-lived space for documents published by Capabilities. Documents remain available when their Source Capability is disabled or uninstalled.
+The Workbench-owned, long-lived space for documents published by Capabilities or saved from Conversations. Documents remain available when their Source Capability is disabled or uninstalled.
 _Avoid_: Capability storage, file dump
 
 **Document Gateway**:
@@ -71,7 +71,7 @@ A Capability's request to create or update a durable Markdown document using a s
 _Avoid_: AI response, file path
 
 **Library Document**:
-A named Markdown artifact created from a Document Publication and retained by the Document Library under a Source Capability and Document Collection.
+A named Markdown artifact retained by the Document Library with its source and Document Collection.
 _Avoid_: Activity Event, attachment
 
 **Document Collection**:
@@ -86,10 +86,22 @@ _Avoid_: Owner
 An explicit user authorization allowing one Capability version to read only selected Library Document snapshots through the Capability Host. It is created by Workbench, never by the receiving Capability.
 
 **Source Snapshot**:
-The immutable document content captured when a Document Grant is confirmed. Its retention keeps a generated document's citations stable when the current Library Document changes or its source Capability is uninstalled.
+The immutable document content captured when a document is attached to a Conversation turn or a Document Grant is confirmed. Its retention keeps a generated document's citations stable when the current Library Document changes or its source Capability is uninstalled.
 
 **Document Reference**:
 A provenance link to a Library Document, optionally identifying a Source Snapshot and a specific passage.
 
 **Review Draft**:
 A generated, locally retained result that the user must inspect before a Capability requests Document Publication. Completing generation does not imply publication.
+
+**Conversation**:
+The platform workspace for interacting with a persistent Codex session. Codex owns its message history and context; Workbench presents the interaction and connects it to Library documents.
+
+**Conversation Turn**:
+One user message and the Codex work that follows, including replies, public thinking summaries and tool progress.
+
+**Conversation Answer**:
+A Codex reply the user can keep in the Conversation or explicitly save as a Library Document with its source references.
+
+**Document Source**:
+The platform feature or Source Capability recorded as the producer of a Library Document. Provenance is independent of installation and document retention.

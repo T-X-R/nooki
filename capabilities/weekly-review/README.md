@@ -1,3 +1,5 @@
+> Compatibility-only: Weekly Review is retired from the built-in installation catalog and navigation. Use platform Conversations for new work. This source remains to recover existing tasks; existing drafts, grants and published documents are retained.
+
 # Weekly Review
 
 An independent Capability that generates a cited review from explicitly authorized Library documents. It does not scan Capability storage, read all Library content, schedule work, or implement a separate task runner.

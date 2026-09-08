@@ -118,6 +118,8 @@ impl PlatformState {
     })
   }
 
+  pub fn data_dir(&self) -> &Path { &self.data_dir }
+
   pub fn selected_provider(&self) -> Result<String, String> {
     self.settings
       .read()
@@ -420,6 +422,7 @@ fn validate_provider(provider: &str) -> Result<(), String> {
 
 pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   let id = manifest.id.as_str();
+  if id.starts_with("workbench.") { return Err("The workbench namespace is reserved for platform features".into()); }
   if !id.contains('.')
     || id.split('.').any(|part| {
       part.is_empty()

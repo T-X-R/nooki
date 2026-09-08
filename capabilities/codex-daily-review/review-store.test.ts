@@ -25,8 +25,8 @@ function fixture(empty = false) {
   }
   const runner = createTaskRunner({
     read: async () => saved, write: async (records) => { saved = structuredClone([...records]) },
-    resolve: () => ({ manifest: { id: 'test.review', version: '0.3.0', name: 'Review', entrypoints: ['page', 'job'], permissions: [], minPlatformVersion: '0.2.0' }, definition: dailyReviewJob }),
-    host: () => host, cancelInvocation: async () => {},
+    resolve: () => ({ version: '0.3.0', definition: { run: (input, context) => dailyReviewJob.run(input, { ...context, host }) } }),
+    cancelInvocation: async () => {},
   })
   return { runner, calls, failPublication: (fail: boolean) => { failPublication = fail } }
 }
