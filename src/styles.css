@@ -353,7 +353,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .modal-header { display: flex; align-items: flex-start; justify-content: space-between; }
 .modal h2 { margin: 9px 0 0; font-size: 21px; font-weight: 650; letter-spacing: -.04em; }
 .modal-copy { margin: 19px 0; color: var(--ink-muted); font-size: 11px; line-height: 1.7; }
-.developer-center-trigger { padding: 8px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 650; }
+.developer-center-trigger { padding: 8px 12px; border-radius: 8px; background: transparent; color: var(--accent); font-size: 12px; font-weight: 650; }
 .developer-center-trigger:hover { color: var(--accent-strong); }
 .developer-center-trigger svg { width: 15px; height: 15px; }
 .developer-center-tabs { display: flex; gap: 4px; margin-top: 16px; padding: 4px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
