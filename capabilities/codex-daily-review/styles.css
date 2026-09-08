@@ -1,6 +1,6 @@
-.codex-review-page { width: min(100%, 1080px); margin: 0 auto; padding: 20px clamp(22px, 3.5vw, 44px) 54px; color-scheme: light; }
+.codex-review-page { display: flex; flex-direction: column; height: 100%; min-height: 600px; width: min(100%, var(--workbench-page-width, 1800px)); margin: 0 auto; padding: var(--workbench-page-top, 20px) var(--workbench-page-gutter, 32px) var(--workbench-page-bottom, 20px); color-scheme: light; }
 .codex-review-page[data-theme="dark"] { color-scheme: dark; }
-.codex-review-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; }
+.codex-review-header { display: flex; flex: none; align-items: flex-end; justify-content: space-between; gap: 28px; }
 .codex-review-eyebrow, .codex-review-section-heading span { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
 .codex-review-header h1 { margin: 10px 0 6px; font-size: 39px; font-weight: 650; letter-spacing: -.065em; }
 .codex-review-header p { margin: 0; color: var(--ink-muted); font-size: 12px; }
@@ -9,7 +9,7 @@
 .codex-review-refresh svg { width: 13px; height: 13px; }
 .codex-review-date { display: flex; align-items: center; gap: 7px; margin-top: 27px; color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
 .codex-review-date svg { width: 12px; height: 12px; }
-.codex-review-status { display: flex; align-items: center; gap: 9px; min-height: 44px; margin-top: 8px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.codex-review-status { display: flex; flex: none; align-items: center; gap: 9px; min-height: 44px; margin-top: 8px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .codex-review-status-icon { display: grid; flex: none; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); }
 .codex-review-status-icon svg { width: 13px; height: 13px; }
 .codex-review-status > div { display: grid; flex: 1; min-width: 0; gap: 2px; overflow-wrap: anywhere; }
@@ -20,24 +20,24 @@
 .codex-review-status small { color: var(--ink-muted); font-size: 9px; line-height: 1.55; }
 .codex-review-status-ready .codex-review-status-icon { background: color-mix(in srgb, var(--positive) 12%, transparent); color: var(--positive); }
 .codex-review-status-error .codex-review-status-icon { background: color-mix(in srgb, var(--negative) 12%, transparent); color: var(--negative); }
-.codex-review-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 8px; }
+.codex-review-stats { display: grid; flex: none; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 8px; }
 .codex-review-stats > div { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: color-mix(in srgb, var(--surface) 78%, transparent); }
 .codex-review-stats span { color: var(--ink-muted); font-size: 9px; }
 .codex-review-stats strong { color: var(--ink); font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
-.codex-review-layout { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(245px, .75fr); gap: 12px; margin-top: 10px; }
-.codex-review-summary, .codex-review-sources { display: flex; min-width: 0; height: 420px; flex-direction: column; overflow: hidden; padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-small); }
-.codex-review-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+.codex-review-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(245px, 28%, 400px); flex: 1; min-height: 260px; gap: 12px; margin-top: 10px; }
+.codex-review-summary, .codex-review-sources { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-small); }
+.codex-review-section-heading { display: flex; flex: none; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
 .codex-review-section-heading h2 { margin: 7px 0 0; color: var(--ink); font-size: 15px; font-weight: 650; letter-spacing: -.035em; }
 .codex-review-section-heading small { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; text-align: right; }
-.codex-review-output { min-height: 0; overflow-y: auto; padding: 15px 4px 6px 3px; color: var(--ink); font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; scrollbar-gutter: stable; }
+.codex-review-output { flex: 1; min-height: 0; overflow-y: auto; padding: 15px 4px 6px 3px; color: var(--ink); font-size: clamp(11px, .7vw, 14px); line-height: 1.75; overflow-wrap: anywhere; scrollbar-gutter: stable; }
 .codex-review-output > :first-child { margin-top: 0; }
 .codex-review-output > :last-child { margin-bottom: 0; }
 .codex-review-output h1, .codex-review-output h2, .codex-review-output h3 { max-width: 68ch; margin: 21px 0 10px; color: var(--ink); font-weight: 650; line-height: 1.35; letter-spacing: -.025em; }
 .codex-review-output h1 { font-size: 17px; }
 .codex-review-output h2 { font-size: 15px; }
 .codex-review-output h3 { font-size: 13px; }
-.codex-review-output p { max-width: 72ch; margin: 0 0 10px; }
-.codex-review-output ul, .codex-review-output ol { max-width: 72ch; margin: 0 0 16px; padding-left: 18px; }
+.codex-review-output p { max-width: var(--workbench-reading-width, 1000px); margin: 0 0 10px; }
+.codex-review-output ul, .codex-review-output ol { max-width: var(--workbench-reading-width, 1000px); margin: 0 0 16px; padding-left: 18px; }
 .codex-review-output ul { list-style: disc; }
 .codex-review-output ol { list-style: decimal; }
 .codex-review-output ul ul { margin: 6px 0 8px; list-style: circle; }
@@ -70,4 +70,4 @@
 .codex-review-source em { flex: none; color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7px; font-style: normal; text-transform: uppercase; }
 .codex-review-spin { animation: codex-review-spin 1s linear infinite; }
 @keyframes codex-review-spin { to { transform: rotate(360deg); } }
-@media (max-width: 760px) { .codex-review-page { padding-top: 20px; } .codex-review-header { align-items: flex-start; flex-direction: column; } .codex-review-layout { grid-template-columns: 1fr; } .codex-review-sources { min-height: 0; } }
+@media (max-width: 760px) { .codex-review-page { height: auto; min-height: 100%; } .codex-review-header { align-items: flex-start; flex-direction: column; } .codex-review-layout { flex: none; grid-template-columns: 1fr; } .codex-review-summary, .codex-review-sources { height: 420px; } .codex-review-sources { min-height: 0; } }

@@ -39,6 +39,8 @@ When the platform language or theme changes, `subscribe` immediately notifies ev
 .capability-page[data-theme="dark"] { color-scheme: dark; }
 ```
 
+For responsive pages, the Host also exposes `--workbench-page-width`, `--workbench-page-gutter`, `--workbench-page-top`, `--workbench-page-bottom`, and `--workbench-reading-width`. Use these CSS tokens with local fallback values to keep package layouts aligned with platform pages. The page entry fills the available content height; editor and reader pages can use a flex column with `height: 100%`, a remaining-space panel, and independently scrollable content. Retain a usable minimum height and a narrow-window fallback. Resizing must not remount the page or reset in-progress edits or tasks.
+
 A Capability Package should also provide a name and description under `locales.zh` and `locales.en` in `manifest.json`. The platform uses these values in the capability catalog, Today entry point, and top bar. If a localized field is missing, the platform falls back to the top-level Manifest `name` or `description`.
 
 ## Read today's Codex session source

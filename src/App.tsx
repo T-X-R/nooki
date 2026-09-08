@@ -652,12 +652,12 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
                 </nav>
 
                 <article className="library-reader">
-                  {source ? <><header className="library-reader-header"><span>{language === 'zh' ? '引用原文 · 使用时保存的快照' : 'Cited source · snapshot captured when used'}</span><h2>{source.reference.title}</h2><small>{source.documentDate} · {source.reference.revision}</small><button className="quiet-button" onClick={() => { setSourceTarget(null); setSelectedId(source.reference.documentId) }}>{language === 'zh' ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></> : selectedDocument ? <>
+                  {source ? <><header className="library-reader-header"><span>{language === 'zh' ? '引用原文 · 使用时保存的快照' : 'Cited source · snapshot captured when used'}</span><h2>{source.reference.title}</h2><small>{source.documentDate} · {source.reference.revision}</small><button className="quiet-button" onClick={() => { setSourceTarget(null); setSelectedId(source.reference.documentId) }}>{language === 'zh' ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><div className="library-reader-document"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></div></> : selectedDocument ? <>
                     <header className="library-reader-header">
                       <div><span>{selectedDocument.collectionName}</span><h2>{selectedDocument.title}</h2></div>
                       <div className="library-reader-meta"><span>{installedNames.get(selectedDocument.capabilityId) ?? selectedDocument.capabilityName}</span><small>{t('libraryUpdated')} {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedDocument.updatedAt))}</small></div>
                     </header>
-                    <div className="library-reader-content"><LibraryMarkdown content={selectedDocument.content} onDocument={onDocument} /></div>
+                    <div className="library-reader-content"><div className="library-reader-document"><LibraryMarkdown content={selectedDocument.content} onDocument={onDocument} /></div></div>
                   </> : documentError ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{documentError}</span></div> : <div className="library-state"><FileTextIcon /><span>{t('librarySelectDocument')}</span></div>}
                 </article>
               </>}
