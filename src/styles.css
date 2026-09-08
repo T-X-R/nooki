@@ -60,7 +60,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 button:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 2px; }
 svg { flex: none; }
 
-.app-shell { position: relative; display: flex; height: 100dvh; min-height: 0; flex-direction: column; overflow: hidden; border-radius: 12px; background: var(--bg); background-clip: padding-box; }
+.app-shell { position: relative; display: flex; height: 100dvh; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--bg); background-clip: padding-box; }
 .window-titlebar { position: absolute; z-index: 2; inset: 0 auto auto 0; display: flex; width: 228px; height: 44px; align-items: center; user-select: none; }
 .window-controls { display: flex; width: 100%; height: 100%; align-items: center; gap: 7px; padding-left: 14px; }
 .window-control { width: 12px; height: 12px; padding: 0; border: 1px solid color-mix(in srgb, #27303c 18%, transparent); border-radius: 50%; box-shadow: inset 0 1px rgba(255, 255, 255, .35); transition: filter .15s ease, transform .15s ease; }
