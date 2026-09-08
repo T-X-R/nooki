@@ -724,7 +724,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
   return (
     <div className="content-column capabilities-page">
       <div className="page-header-row">
-        <div><div className="eyebrow">MODULES</div><h1>{t('capabilities')}</h1><p>{t('capabilitiesIntro')}</p></div>
+        <div><h1 className="capabilities-intro-title">{t('capabilitiesHeadline')}</h1><p>{t('capabilitiesIntro')}</p></div>
         <button className="primary-button" onClick={() => setImportOpen(true)}><PlusIcon />{t('importCapability')}</button>
       </div>
 
