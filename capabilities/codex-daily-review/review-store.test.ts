@@ -20,7 +20,7 @@ function fixture(empty = false) {
       ].map((event) => JSON.stringify(event)).join('\n') }] }
     } } },
     storage: { get: async () => null, set: async () => {}, remove: async () => {} },
-    documents: { publish: async () => { calls.documents++; if (failPublication) throw new Error('publication failed') } },
+    documents: { listGrants: async () => [], readSelected: async () => { throw new Error('not granted') }, open: () => {}, publish: async () => { calls.documents++; if (failPublication) throw new Error('publication failed') } },
     activity: { write: async () => {} },
   }
   const runner = createTaskRunner({

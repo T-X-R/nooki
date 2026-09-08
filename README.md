@@ -111,3 +111,11 @@ cargo clippy --offline -- -D warnings
 Provider contract tests use a local fake HTTP endpoint and never invoke a real model. All Rust tests live under `src-tauri/tests/` and use the `*_test.rs` naming convention.
 
 See [CONTEXT.md](CONTEXT.md) for the project language and domain definitions.
+
+## Review real activity and reuse selected documents
+
+Workbench 0.3 connects Today to saved journal entries, generated documents and tasks that need attention. Activity links open the corresponding Library document or task details and remain available after restarting.
+
+In **Library**, search by body text as well as title, source, collection and date. Select individual documents, optionally filter to the current Monday–Sunday week, and choose **Authorize a capability**. Review the exact document list and recipient before confirming. Authorization is limited to immutable snapshots of those documents for that Capability version.
+
+Install **Weekly Review** from Capability Center (or build `capabilities/weekly-review` as a standalone package). Open an authorized selection, confirm the AI input scope, and manually generate a draft. Every section includes clickable source citations. Review the draft before confirming publication to Library; failed publication can be retried independently without another model invocation.

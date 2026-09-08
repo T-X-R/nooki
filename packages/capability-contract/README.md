@@ -75,3 +75,29 @@ The Document Gateway is separate from `host.ai`. Workbench never assumes that ev
 Declare `job` in manifest entrypoints and export a `jobs` map of `CapabilityJob` definitions. Pages submit with `host.tasks.start(job, input)`, observe `getSnapshot` / `subscribe`, and can `cancel(id)` or `retry(id)` within their own Capability. The job context provides a cancellation signal, a scoped Host and `step(key, operation)` for persisted checkpoints. Do not keep a separate execution state machine in each page.
 
 Use JSON-serializable data and idempotent sequential steps. Explicit retry reuses completed steps; startup marks unfinished runs interrupted without invoking business code. Package version changes invalidate checkpoint retry. See [INFRASTRUCTURE.md](../../INFRASTRUCTURE.md) for the complete behavior and a working standalone example.
+
+## Record a business activity
+
+`host.activity.write({ type, title, key?, target? })` requires `activity.write`. Workbench assigns the source, timestamp and, inside a job, task ID. A stable `key` updates one fact within that Capability rather than appending duplicate rows. `target` is a `DocumentReference`; omit it for job activities that should open their task details. Legacy events remain readable and fall back to their source Capability when no exact target was recorded.
+
+A publication may opt into a document activity with `activity: { type, title, key? }`. This uses the existing `documents.publish` authorization, always targets the successfully published document, and never grants arbitrary activity writes. Publication and activity persistence are separate effects; a failed activity write rejects the publication call, so an idempotent retry repairs it without duplicating the document.
+
+## Read an explicitly selected document
+
+Declare `documents.read-selected` with `minPlatformVersion: "0.3.0"`. The **Workbench Library UI** creates the authorization after the user reviews the selected titles and recipient. CapabilityHost intentionally has no grant-creation, full-library listing, search, or private cross-Capability storage interface.
+
+```ts
+const grants = await host.documents.listGrants()
+const grant = grants.at(-1)
+if (grant) {
+  const selected = await host.documents.readSelected(
+    grant.id,
+    grant.documents[0].reference.documentId,
+  )
+  // selected.content is the authorized snapshot, never an arbitrary live file.
+}
+```
+
+Grants bind an immutable selection to a Capability ID and version. Both native and preview Hosts reject documents outside that grant. Native checks also reject missing permissions, disabled or uninstalled recipients, and version mismatches. A grant contains up to 50 documents and 8 MB of UTF-8 content. The Capability still decides when to call AI and must explain the input scope before generation.
+
+`DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Workbench to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.

@@ -1,3 +1,4 @@
+pub mod document_grants;
 pub mod capability_runtime;
 pub mod codex_session_source;
 pub mod document_library;
@@ -367,6 +368,27 @@ fn capability_documents_publish(
 }
 
 #[tauri::command]
+fn library_grant_documents(capability_id: String, ids: Vec<String>, id: String, state: tauri::State<'_, PlatformState>) -> Result<document_grants::DocumentGrant, String> {
+  state.grant_documents(&capability_id, ids, &id)
+}
+#[tauri::command]
+fn capability_document_grants(capability_id: String, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentGrant>, String> {
+  state.document_grants(&capability_id)
+}
+#[tauri::command]
+fn capability_read_selected_document(capability_id: String, grant_id: String, document_id: String, state: tauri::State<'_, PlatformState>) -> Result<document_grants::SelectedDocument, String> {
+  state.read_selected_document(&capability_id, &grant_id, &document_id)
+}
+#[tauri::command]
+fn library_read_source(grant_id: String, document_id: String, state: tauri::State<'_, PlatformState>) -> Result<document_grants::SelectedDocument, String> {
+  state.read_document_source(&grant_id, &document_id)
+}
+#[tauri::command]
+fn library_search_content(query: String, state: tauri::State<'_, PlatformState>) -> Result<Vec<String>, String> {
+  state.search_library_content(&query)
+}
+
+#[tauri::command]
 fn library_list_documents(
   state: tauri::State<'_, PlatformState>,
 ) -> Result<Vec<LibraryDocumentMetadata>, String> {
@@ -631,6 +653,11 @@ pub fn run() {
       capability_ai_invoke,
       capability_codex_sessions_read_daily_files,
       capability_documents_publish,
+      library_grant_documents,
+      capability_document_grants,
+      capability_read_selected_document,
+      library_read_source,
+      library_search_content,
       library_list_documents,
       library_read_document,
     ])

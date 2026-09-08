@@ -1,6 +1,6 @@
 {
   "id": "com.personal.diary",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "name": "日记",
   "icon": "pencil-2",
   "description": "记录每天值得留下的事情。",

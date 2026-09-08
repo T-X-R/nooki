@@ -78,3 +78,27 @@ Provider tests bind a local fake HTTP endpoint; no real model is invoked. Task t
 ## Desktop acceptance (2026-09-08)
 
 A debug bundle with a separate `com.personal.workbench.infrastructure-qa` identifier was built. The checkpoint demo was packaged afterward, imported through the native file picker, approved and opened without another Workbench build. The first run failed at the intended publication step with one saved checkpoint; retry completed with two checkpoints and its Markdown was verified in the Document Library. A second run was interrupted by quitting the app; after relaunch its persisted status was `interrupted` with attempt 1 and no automatic rerun. The installed package and the earlier completed task both survived relaunch. Provider calls were not used in this acceptance flow.
+
+## Today, selected documents and Weekly Review (0.3)
+
+Today reads the shared task runner directly for `running`, `failed` and `interrupted` work. Completed and cancelled tasks remain in the task center. Business events are independent facts submitted by Capabilities; task completion alone creates no activity. While an event's task needs attention, Today shows only that task. Stable Capability-scoped activity keys coalesce repeated diary saves and document updates. Weekly publication replaces its earlier draft activity with the published document link.
+
+Activity history retains the existing `personal-workbench:activity-events` local-storage key in the desktop WebView and browser preview. This avoids dropping existing records and survives app restart. The platform now provides reactive read/write access without the old 200-record eviction or an in-memory success fallback. Corrupt or unwritable history is surfaced as an error. This local history is separate from `tasks.json`; it is not a new task framework. Activity payloads can contain private facts and are not written to operational logs.
+
+Library body search scans published Markdown on demand; metadata filtering still supports title, source, collection and date, including localized source names. Search returns matching document IDs to the Workbench UI, never to a Capability. No embedding service, vector database or background indexing process is introduced.
+
+The Library selection dialog creates immutable authorization snapshots under `document-grants/<id>.json` (browser preview uses `personal-workbench-document-grants-v1`). Each grant binds document IDs to one recipient Capability version. Native grant reads enforce permissions, recipient identity, version and enablement before returning any body. The platform-only source reader serves retained citations after uninstallation. Updates do not extend old grants to a new version; users select and authorize again. These checks enforce the supported Host contract; the trusted same-realm package model from 0.2 remains unchanged and is not an untrusted-code sandbox.
+
+Weekly Review is an independently packaged Capability. Its generation task reads authorized sources, invokes platform AI, validates source IDs, records a business activity, and returns the draft as its durable task result. Model output with missing or unknown citations fails before becoming a checkpoint. Source links are assembled from validated platform references, not model-provided URLs. The UI previews the full draft and requires a separate confirmation button to start a publication task. Publication receives the user-confirmed draft as its durable task input; its retry path contains no generation or model step. Page navigation, cancellation, failure and startup interruption use the existing runner unchanged.
+
+The citation structure is shared and permits a future quote locator. Weekly citations open the exact document snapshots used for generation and provide a separate action to view the current document. This release does not change Codex Daily Review scanning or retrofit its evidence model.
+
+### Verification of 0.3 (2026-09-08)
+
+- `npm run test:platform`: 14 tests passed.
+- `npm run test:capabilities`: 13 tests passed, including generation/publication separation, restart publication retry, unauthorized inputs, invalid citations and cancellation of late model results.
+- `cargo test --offline`: 22 tests passed. The existing fake HTTP Provider test requires permission to bind a loopback port.
+- `cargo clippy --offline -- -D warnings`: passed.
+- `npm run build`, `npm run desktop:build`, and packaging `capabilities/weekly-review`: passed. Vite still reports its large-bundle advisory.
+
+Browser UI acceptance used a temporary test-only Provider alias outside the repository. It made no real model calls. Verified diary save → Today activity → exact Library document, persistence across reload, body-only keyword search, selection and recipient confirmation, draft input confirmation, navigation during generation, failed-task retry through the shared task center, citations from draft and published Markdown, explicit publication, activity coalescing, startup interruption without automatic rerun, and manual resume/cancel. Native authorization, restart retention and snapshot immutability were verified by Rust tests; UI acceptance used browser preview. The installed desktop App was not replaced.

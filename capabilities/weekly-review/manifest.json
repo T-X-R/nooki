@@ -1,0 +1,14 @@
+{
+  "id": "com.personal.weekly-review",
+  "version": "0.1.0",
+  "name": "每周回顾",
+  "icon": "magic-wand",
+  "description": "选择资料，生成带来源引用的每周回顾，确认后发布。",
+  "locales": {
+    "zh": { "name": "每周回顾", "description": "选择资料，生成带来源引用的每周回顾，确认后发布。" },
+    "en": { "name": "Weekly Review", "description": "Review selected documents with source citations, then confirm publication." }
+  },
+  "entrypoints": ["page", "job"],
+  "permissions": ["ai.invoke", "activity.write", "documents.read-selected", "documents.publish"],
+  "minPlatformVersion": "0.3.0"
+}

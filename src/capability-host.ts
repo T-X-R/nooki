@@ -11,6 +11,9 @@ import type {
   DocumentPublication,
   InstalledCapability,
 } from '../packages/capability-contract/src'
+import { activityStore } from './activity'
+import { listDocumentGrants, readSelectedDocument } from './document-grants'
+import { publicationReference } from '../packages/capability-contract/src/references'
 import { publishCapabilityDocument } from './document-library'
 import { capabilityTasks } from './tasks'
 import { getRuntimeInstalledCapability } from './capability-runtime'
@@ -113,34 +116,6 @@ function createStorage(capabilityId: string, permissions: CapabilityPermission[]
   })
 }
 
-function createActivityWriter(capabilityId: string, permissions: CapabilityPermission[] | undefined, assertActive: () => void) {
-  const key = 'personal-workbench:activity-events'
-  return {
-    async write(event: ActivityEventInput) {
-      assertActive()
-      if (permissions && !permissions.includes('activity.write')) throw new Error('能力未获得 activity.write 权限')
-      const raw = readStorage(key)
-      let events: Array<ActivityEventInput & { id: string; occurredAt: string; source: string }> = []
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw)
-          events = Array.isArray(parsed) ? parsed as typeof events : []
-        } catch {
-          events = []
-        }
-      }
-      events.push({
-        ...event,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        occurredAt: new Date().toISOString(),
-        source: capabilityId,
-        sensitivity: event.sensitivity ?? 'normal',
-      })
-      writeStorage(key, JSON.stringify(events.slice(-200)))
-    },
-  }
-}
-
 export function createCapabilityHost(capabilityId: string, permissions?: CapabilityPermission[], capabilityName = capabilityId, execution?: { id: string; signal: AbortSignal }): CapabilityHost {
   if (!capabilityId.trim()) throw new Error('Capability ID is required')
   const assertActive = () => {
@@ -153,15 +128,32 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     tasks: capabilityTasks(capabilityId),
     storage: createStorage(capabilityId, permissions, assertActive),
     documents: Object.freeze({
+      async listGrants() { assertActive(); return listDocumentGrants(capabilityId) },
+      async readSelected(grantId: string, documentId: string) { assertActive(); return readSelectedDocument(capabilityId, grantId, documentId) },
+      open(reference: import('../packages/capability-contract/src').DocumentReference) {
+        assertActive()
+        window.dispatchEvent(new CustomEvent('workbench:open-document', { detail: reference }))
+      },
       async publish(document: DocumentPublication): Promise<void> {
         assertActive()
         if (permissions && !permissions.includes('documents.publish')) {
           throw new Error('能力未获得 documents.publish 权限')
         }
         await publishCapabilityDocument(capabilityId, capabilityName, document)
+        assertActive()
+        if (document.activity) activityStore.write(capabilityId, {
+          ...document.activity, key: document.activity.key ?? publicationReference(capabilityId, document).documentId,
+          target: publicationReference(capabilityId, document),
+        }, execution?.id.split(':')[0])
       },
     }),
-    activity: Object.freeze(createActivityWriter(capabilityId, permissions, assertActive)),
+    activity: Object.freeze({
+      async write(event: ActivityEventInput) {
+        assertActive()
+        if (!permissions?.includes('activity.write')) throw new Error('Capability requires activity.write')
+        activityStore.write(capabilityId, event, execution?.id.split(':')[0])
+      },
+    }),
     codex: Object.freeze({
       sessions: Object.freeze({
         async readTodayFiles() {

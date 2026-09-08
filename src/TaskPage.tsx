@@ -1,11 +1,12 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { InstalledCapability } from '../packages/capability-contract/src'
 import { taskRunner } from './tasks'
 
-export function TaskPage({ language, installed }: { language: 'zh' | 'en'; installed: InstalledCapability[] }) {
+export function TaskPage({ language, installed, selectedId, onOpenCapability }: { selectedId?: string | null; onOpenCapability?: (id: string) => void; language: 'zh' | 'en'; installed: InstalledCapability[] }) {
   const records = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  useEffect(() => { if (selectedId) document.getElementById(`task-${selectedId}`)?.scrollIntoView({ block: 'center' }) }, [selectedId, records])
   const zh = language === 'zh'
   const statuses = zh
     ? { running: '执行中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断' }
@@ -21,14 +22,16 @@ export function TaskPage({ language, installed }: { language: 'zh' | 'en'; insta
     <div className="capability-cards">{[...records].reverse().map((record) => {
       const capability = installed.find((item) => item.manifest.id === record.capabilityId)
       const canRetry = capability?.enabled && capability.manifest.version === record.capabilityVersion
-      return <article className="capability-card" key={record.id}>
+      return <article className={`capability-card ${selectedId === record.id ? 'task-selected' : ''}`} id={`task-${record.id}`} key={record.id}>
         <div className="capability-card-copy">
           <div className="capability-card-title"><h3>{capability?.manifest.locales?.[language]?.name ?? capability?.manifest.name ?? record.capabilityId}</h3><span className="capability-status">{statuses[record.status]}</span></div>
           <p>{new Date(record.createdAt).toLocaleString(zh ? 'zh-CN' : 'en-US')} · {zh ? `已保存 ${Object.keys(record.checkpoints).length} 个步骤 · 第 ${record.attempt} 次执行` : `${Object.keys(record.checkpoints).length} saved steps · Attempt ${record.attempt}`}</p>
+          <details open={selectedId === record.id}><summary>{zh ? '任务详情' : 'Task details'}</summary><p>{record.job} · {record.stage ?? '—'}<br />{record.id}</p><p>{Object.keys(record.checkpoints).join(' → ')}</p></details>
           {record.error && <p role="alert">{record.error}</p>}
           {!canRetry && ['failed', 'cancelled', 'interrupted'].includes(record.status) && <small>{zh ? '需要启用原版本能力才能继续；更新后请启动新任务。' : 'Enable the original capability version to resume; start a new task after an update.'}</small>}
         </div>
         <div className="capability-card-actions">
+          {capability?.enabled && onOpenCapability && <button className="quiet-button" onClick={() => onOpenCapability(record.capabilityId)}>{zh ? '打开能力' : 'Open capability'}</button>}
           {record.status === 'running' && <button className="quiet-button" disabled={busy === record.id} onClick={() => void act(record.id, () => taskRunner.cancel(record.id))}>{zh ? '取消' : 'Cancel'}</button>}
           {['failed', 'cancelled', 'interrupted'].includes(record.status) && <button className="quiet-button" disabled={!canRetry || busy === record.id} onClick={() => void act(record.id, () => taskRunner.retry(record.id))}>{zh ? '从检查点重试' : 'Retry from checkpoints'}</button>}
         </div>

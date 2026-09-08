@@ -1,6 +1,6 @@
 {
   "id": "com.personal.codex-daily-review",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "name": "Codex 每日总结",
   "icon": "magic-wand",
   "description": "扫描当天的本地 Codex 会话，用 AI 汇总任务进展。",

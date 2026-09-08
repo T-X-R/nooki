@@ -81,3 +81,15 @@ _Avoid_: Folder path, directory string
 **Source Capability**:
 The Capability identity recorded as the producer of a Library Document. It is provenance only; uninstalling the Capability does not delete its documents.
 _Avoid_: Owner
+
+**Document Grant**:
+An explicit user authorization allowing one Capability version to read only selected Library Document snapshots through the Capability Host. It is created by Workbench, never by the receiving Capability.
+
+**Source Snapshot**:
+The immutable document content captured when a Document Grant is confirmed. Its retention keeps a generated document's citations stable when the current Library Document changes or its source Capability is uninstalled.
+
+**Document Reference**:
+A provenance link to a Library Document, optionally identifying a Source Snapshot and a specific passage.
+
+**Review Draft**:
+A generated, locally retained result that the user must inspect before a Capability requests Document Publication. Completing generation does not imply publication.

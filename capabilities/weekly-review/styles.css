@@ -1,0 +1,21 @@
+.weekly-page { max-width: 1100px; margin: 0 auto; padding: 36px 40px 60px; color: var(--ink); }
+.weekly-page header > span { color: var(--accent); font-size: 11px; letter-spacing: .16em; }
+.weekly-page h1 { font-size: 32px; margin: 12px 0; }
+.weekly-page p, .weekly-page small { color: var(--ink-muted); line-height: 1.7; }
+.weekly-scope, .weekly-draft { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; margin-top: 24px; }
+.weekly-page h2 { font-size: 18px; margin: 0 0 16px; }
+.weekly-page select { max-width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.weekly-page button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.weekly-page button:disabled { opacity: .45; cursor: default; }
+.weekly-page .weekly-primary { background: var(--ink); color: var(--surface); display: block; margin-top: 18px; }
+.weekly-scope ul { list-style: none; padding: 0; max-height: 220px; overflow: auto; }
+.weekly-scope li { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 8px 0; }
+.weekly-scope li button { text-align: left; border: 0; padding-left: 0; }
+.weekly-scope label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.weekly-status, .weekly-draft-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+.weekly-status { padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.weekly-status small { display: block; overflow-wrap: anywhere; }
+.weekly-output { line-height: 1.9; overflow-wrap: anywhere; }
+.weekly-output h2 { margin-top: 26px; }
+.weekly-output a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.weekly-publish { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 24px; }

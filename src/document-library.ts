@@ -81,3 +81,9 @@ export async function readLibraryDocument(id: string): Promise<LibraryDocument> 
   if (!document) throw new Error('资料库文档不存在')
   return document
 }
+
+export async function searchLibraryContent(query: string): Promise<string[]> {
+  if (!query.trim()) return []
+  if (window.__TAURI_INTERNALS__) return invoke('library_search_content', { query })
+  return readBrowserLibrary().filter((doc) => doc.content.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).map((doc) => doc.id)
+}

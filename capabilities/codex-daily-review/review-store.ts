@@ -17,6 +17,7 @@ export const dailyReviewJob: CapabilityJob = {
     const summary = await step('summarize', () => host.ai.invoke(buildSummaryPrompt(date, source.sessions, language)))
     await step('save', () => host.storage.set(REVIEW_STORAGE_KEY, { date, source, summary }))
     await step('publish', () => host.documents.publish({
+      activity: { type: 'daily-review.generated', title: language === 'zh' ? `${date} 每日总结已生成` : `${date} Daily review generated` },
       key: date,
       title: language === 'zh' ? `${date} Codex 每日总结` : `${date} Codex daily review`,
       collectionKey: 'daily-reviews',

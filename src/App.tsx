@@ -39,7 +39,11 @@ import {
 import { checkProviderHealth, getProviderStatus, getSelectedProvider, setSelectedProvider, testSelectedProvider, type ProviderKind, type ProviderStatus } from './platform'
 import { createCapabilityHost, type InstalledCapability } from './capability-host'
 import { getCapabilityModule, getInstalledCapabilityPackagesWithState, installCapabilityPackage, listAvailableCapabilities, setCapabilityPackageEnabled, uninstallCapabilityPackage, rollbackCapabilityPackage, getCapabilityLoadError } from './capability-runtime'
-import { listLibraryDocuments, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from './document-library'
+import type { DocumentReference, SelectedDocument } from '../packages/capability-contract/src'
+import { parseReferenceHref } from '../packages/capability-contract/src/references'
+import { grantSelectedDocuments, readSourceReference } from './document-grants'
+import { TodayActivity } from './TodayActivity'
+import { searchLibraryContent, listLibraryDocuments, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from './document-library'
 import { buildLibraryTree, filterLibraryTree } from './library-tree'
 import i18n, { type Language } from './i18n'
 import { TaskPage } from './TaskPage'
@@ -119,6 +123,8 @@ function providerStateLabel(t: TFunction, state: ProviderStatus['state'] | undef
 function App() {
   const { t } = useTranslation()
   const { view, theme, language, setView, setTheme, providerKind, setProviderKind } = useWorkbench()
+  const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
+  const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -196,6 +202,16 @@ function App() {
     navigate('capability')
   }
 
+  const openDocument = (reference: DocumentReference) => {
+    setDocumentTarget(reference)
+    navigate('library')
+  }
+  useEffect(() => {
+    const open = (event: Event) => openDocument((event as CustomEvent<DocumentReference>).detail)
+    window.addEventListener('workbench:open-document', open)
+    return () => window.removeEventListener('workbench:open-document', open)
+  }, [])
+
   const selectProvider = async (kind: ProviderKind) => {
     try {
       await setSelectedProvider(kind)
@@ -221,9 +237,9 @@ function App() {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
-              {view === 'today' && <TodayPage installed={installedCapabilities} onNavigate={navigate} onOpenCapability={openCapability} onNotice={showNotice} providerStatus={providerStatus} />}
-              {view === 'tasks' && <TaskPage language={language} installed={installedCapabilities} />}
-              {view === 'library' && <LibraryPage installed={installedCapabilities} />}
+              {view === 'today' && <TodayPage installed={installedCapabilities} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} providerStatus={providerStatus} />}
+              {view === 'tasks' && <TaskPage language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
+              {view === 'library' && <LibraryPage installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
               {view === 'settings' && <SettingsPage onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} />}
@@ -333,7 +349,7 @@ function Sidebar({ activeView, activeCapabilityId, installed, onNavigate, onOpen
         <button className="icon-button" aria-label={theme === 'light' ? t('switchDark') : t('switchLight')} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
           {theme === 'light' ? <MoonIcon /> : <SunIcon />}
         </button>
-        <span className="version-label">v0.2.0 · {t('localVersion')}</span>
+        <span className="version-label">v0.3.0 · {t('localVersion')}</span>
       </div>
     </aside>
   )
@@ -357,7 +373,7 @@ function Topbar({ onOpenCommand }: { onOpenCommand: () => void }) {
   )
 }
 
-function TodayPage({ installed, onNavigate, onOpenCapability, onNotice, providerStatus }: { installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void; onNotice: (message: string) => void; providerStatus: ProviderStatus | null }) {
+function TodayPage({ installed, onNavigate, onOpenCapability, onDocument, onTask, providerStatus }: { installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void; onDocument: (reference: DocumentReference) => void; onTask: (id: string) => void; providerStatus: ProviderStatus | null }) {
   const { t } = useTranslation()
   const { language, providerKind } = useWorkbench()
   const enabled = installed.filter((capability) => capability.enabled)
@@ -406,10 +422,7 @@ function TodayPage({ installed, onNavigate, onOpenCapability, onNotice, provider
         </section>
       </div>
 
-      <section className="activity-section">
-        <div className="section-heading-row"><div><span className="section-kicker">ACTIVITY</span><h2>{t('recentActivity')}</h2></div><span className="muted-label">{t('waitingFirstEvent')}</span></div>
-        <div className="activity-empty"><ClockIcon /><span>{t('activityWillAppear')}</span><button className="quiet-button" onClick={() => onNotice(t('activityWritten'))}>{t('learnMore')}</button></div>
-      </section>
+      <TodayActivity language={language} installed={installed} onDocument={onDocument} onTask={onTask} onCapability={onOpenCapability} />
     </div>
   )
 }
@@ -428,7 +441,14 @@ function CapabilityPage({ module }: { module: import('./capability-runtime').Cap
   return <Page host={host} />
 }
 
-function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
+function LibraryMarkdown({ content, onDocument }: { content: string; onDocument: (reference: DocumentReference) => void }) {
+  return <Markdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => {
+    const reference = parseReferenceHref(href ?? '')
+    return reference ? <a href={href} onClick={(event) => { event.preventDefault(); onDocument(reference) }}>{children}</a> : <a href={href}>{children}</a>
+  } }}>{content}</Markdown>
+}
+
+function LibraryPage({ installed, target, onOpenCapability, onDocument }: { installed: InstalledCapability[]; target: DocumentReference | null; onOpenCapability: (id: string) => void; onDocument: (reference: DocumentReference) => void }) {
   const { t } = useTranslation()
   const { language } = useWorkbench()
   const [documents, setDocuments] = useState<LibraryDocumentMetadata[]>([])
@@ -438,6 +458,31 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
   const [error, setError] = useState<string | null>(null)
   const [documentError, setDocumentError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [contentMatches, setContentMatches] = useState<Set<string>>(new Set())
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [selectedInputs, setSelectedInputs] = useState<Set<string>>(new Set())
+  const [grantOpen, setGrantOpen] = useState(false)
+  const [recipient, setRecipient] = useState('')
+  const [grantBusy, setGrantBusy] = useState(false)
+  const [grantError, setGrantError] = useState<string | null>(null)
+  const [thisWeek, setThisWeek] = useState(false)
+  const [sourceTarget, setSourceTarget] = useState<DocumentReference | null>(null)
+  const [source, setSource] = useState<SelectedDocument | null>(null)
+  const recipients = installed.filter((cap) => cap.enabled && cap.manifest.permissions.includes('documents.read-selected'))
+  const monday = new Date(); monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7)
+  const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6)
+  const inWeek = (date: string) => date >= monday.toLocaleDateString('en-CA') && date <= sunday.toLocaleDateString('en-CA')
+  useEffect(() => {
+    let current = true
+    setContentMatches(new Set()); setSearchError(null)
+    const timer = window.setTimeout(() => { void searchLibraryContent(query).then((ids) => { if (current) setContentMatches(new Set(ids)) }).catch((reason) => { if (current) setSearchError(String(reason)) }) }, 150)
+    return () => { current = false; window.clearTimeout(timer) }
+  }, [query, documents])
+  useEffect(() => {
+    if (!target) return
+    setSourceTarget(target.grantId ? target : null)
+    setSelectedId(target.documentId)
+  }, [target])
   const [collapsedCapabilities, setCollapsedCapabilities] = useState<Set<string>>(() => new Set())
   const [collapsedCollections, setCollapsedCollections] = useState<Set<string>>(() => new Set())
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(() => new Set())
@@ -445,8 +490,8 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
     capability.manifest.id,
     capabilityCopy(capability, language).name,
   ])), [installed, language])
-  const tree = useMemo(() => buildLibraryTree(documents, installedNames), [documents, installedNames])
-  const filteredTree = useMemo(() => filterLibraryTree(tree, query), [tree, query])
+  const tree = useMemo(() => buildLibraryTree(thisWeek ? documents.filter((doc) => inWeek(doc.documentDate)) : documents, installedNames), [documents, installedNames, thisWeek])
+  const filteredTree = useMemo(() => filterLibraryTree(tree, query, contentMatches), [tree, query, contentMatches])
   const searching = query.trim().length > 0
 
   const toggleKey = (current: Set<string>, key: string) => {
@@ -463,7 +508,7 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
       .then((next) => {
         if (!current) return
         setDocuments(next)
-        setSelectedId((previous) => previous && next.some((item) => item.id === previous) ? previous : next[0]?.id ?? null)
+        setSelectedId((previous) => previous ?? target?.documentId ?? next[0]?.id ?? null)
         setError(null)
       })
       .catch(() => current && setError(t('libraryLoadFailed')))
@@ -474,13 +519,16 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
   useEffect(() => {
     let current = true
     setSelectedDocument(null)
+    setSource(null)
     setDocumentError(null)
     if (!selectedId) return () => { current = false }
-    readLibraryDocument(selectedId)
-      .then((document) => current && setSelectedDocument(document))
+    const read = sourceTarget
+      ? readSourceReference(sourceTarget).then((doc) => { if (current) setSource(doc) })
+      : readLibraryDocument(selectedId).then((doc) => { if (current) setSelectedDocument(doc) })
+    read
       .catch(() => current && setDocumentError(t('libraryDocumentLoadFailed')))
     return () => { current = false }
-  }, [selectedId, t])
+  }, [selectedId, sourceTarget, t])
 
   const locale = language === 'zh' ? 'zh-CN' : 'en-US'
   const monthLabel = (month: string) => new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' })
@@ -493,6 +541,21 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
         <span className="library-total">{documents.length} {t('libraryDocuments')}</span>
       </div>
 
+      <div className="library-selection-bar">
+        <label><input type="checkbox" checked={thisWeek} onChange={(event) => setThisWeek(event.target.checked)} />{language === 'zh' ? '仅本周资料' : 'This week'}</label>
+        <span>{language === 'zh' ? `已选 ${selectedInputs.size} 篇` : `${selectedInputs.size} selected`}</span>
+        {!!selectedInputs.size && <button className="quiet-button" onClick={() => setSelectedInputs(new Set())}>{language === 'zh' ? '清空选择' : 'Clear selection'}</button>}
+        <button className="primary-button" disabled={!selectedInputs.size} onClick={() => { setRecipient(recipients[0]?.manifest.id ?? ''); setGrantError(null); setGrantOpen(true) }}>{language === 'zh' ? '授权能力读取…' : 'Authorize a capability…'}</button>
+      </div>
+      {searchError && <p role="alert">{searchError}</p>}
+      {grantOpen && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="grant-title"><div className="modal-header"><h2 id="grant-title">{language === 'zh' ? '确认资料授权' : 'Confirm document access'}</h2><button className="icon-button" disabled={grantBusy} onClick={() => setGrantOpen(false)} aria-label={t('close')}><Cross2Icon /></button></div>
+        <p className="modal-copy">{language === 'zh' ? '只授权读取以下资料的当前快照。能力可将这些内容用于 AI 生成；不会获得全库或其他能力私有数据的访问权。' : 'Authorize only the current snapshots listed below. The capability may use them for AI generation; this does not grant access to the entire Library or private capability storage.'}</p>
+        <ul className="grant-document-list">{documents.filter((doc) => selectedInputs.has(doc.id)).map((doc) => <li key={doc.id}>{doc.title}<small>{doc.documentDate}</small></li>)}</ul>
+        <select aria-label={language === 'zh' ? '接收能力' : 'Recipient capability'} value={recipient} disabled={grantBusy} onChange={(event) => setRecipient(event.target.value)}>{recipients.map((cap) => <option key={cap.manifest.id} value={cap.manifest.id}>{capabilityCopy(cap, language).name}</option>)}</select>
+        {!recipients.length && <p>{language === 'zh' ? '请先安装并启用“每周回顾”等支持所选文档读取的能力。' : 'Install and enable a capability such as Weekly Review that supports selected documents.'}</p>}
+        {grantError && <p role="alert">{grantError}</p>}
+        <div className="modal-footer"><button className="primary-button" disabled={grantBusy || !recipient} onClick={() => { setGrantBusy(true); void grantSelectedDocuments(recipient, [...selectedInputs]).then(() => { setGrantOpen(false); onOpenCapability(recipient) }).catch((reason) => setGrantError(String(reason))).finally(() => setGrantBusy(false)) }}>{language === 'zh' ? '确认授权并打开能力' : 'Authorize and open capability'}</button></div>
+      </section></div>}
       <div className="library-workspace">
         {loading ? <div className="library-state"><ReloadIcon className="spin" /><span>{t('libraryLoading')}</span></div>
           : error && documents.length === 0 ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{error}</span></div>
@@ -505,7 +568,7 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
                       type="search"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
-                      placeholder={t('librarySearchPlaceholder')}
+                      placeholder={language === 'zh' ? '搜索标题、正文、来源、集合或日期' : 'Search title, content, source, collection or date'}
                       aria-label={t('librarySearch')}
                     />
                   </label>
@@ -555,14 +618,14 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
                                   <ChevronRightIcon className={`library-tree-chevron ${monthExpanded ? 'is-expanded' : ''}`} />
                                   <span>{monthLabel(month.key)}</span>
                                 </button>
-                                {monthExpanded && month.documents.map((document) => <button
+                                {monthExpanded && month.documents.map((document) => <div className="library-selectable-document" key={document.id}><input type="checkbox" aria-label={`${language === 'zh' ? '选择' : 'Select'} ${document.title}`} checked={selectedInputs.has(document.id)} onChange={() => setSelectedInputs((current) => toggleKey(current, document.id))} /><button
                                   type="button"
                                   key={document.id}
                                   className={`library-document-link ${selectedId === document.id ? 'is-active' : ''}`}
-                                  onClick={() => setSelectedId(document.id)}
+                                  onClick={() => { setSourceTarget(null); setSelectedId(document.id) }}
                                 >
                                   <FileTextIcon /><span><strong>{document.title}</strong><small>{document.documentDate}</small></span>
-                                </button>)}
+                                </button></div>)}
                               </div>
                             })}
                           </div>
@@ -572,12 +635,12 @@ function LibraryPage({ installed }: { installed: InstalledCapability[] }) {
                 </nav>
 
                 <article className="library-reader">
-                  {selectedDocument ? <>
+                  {source ? <><header className="library-reader-header"><span>{language === 'zh' ? '引用原文 · 授权时保存的快照' : 'Cited source · snapshot captured at authorization'}</span><h2>{source.reference.title}</h2><small>{source.documentDate} · {source.reference.revision}</small><button className="quiet-button" onClick={() => { setSourceTarget(null); setSelectedId(source.reference.documentId) }}>{language === 'zh' ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></> : selectedDocument ? <>
                     <header className="library-reader-header">
                       <div><span>{selectedDocument.collectionName}</span><h2>{selectedDocument.title}</h2></div>
                       <div className="library-reader-meta"><span>{installedNames.get(selectedDocument.capabilityId) ?? selectedDocument.capabilityName}</span><small>{t('libraryUpdated')} {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedDocument.updatedAt))}</small></div>
                     </header>
-                    <div className="library-reader-content"><Markdown remarkPlugins={[remarkGfm]}>{selectedDocument.content}</Markdown></div>
+                    <div className="library-reader-content"><LibraryMarkdown content={selectedDocument.content} onDocument={onDocument} /></div>
                   </> : documentError ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{documentError}</span></div> : <div className="library-state"><FileTextIcon /><span>{t('librarySelectDocument')}</span></div>}
                 </article>
               </>}
