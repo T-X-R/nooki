@@ -18,7 +18,7 @@ export function TaskPage({ language, installed, selectedId, onOpenCapability, on
     try { await action() } catch (reason) { setError(String(reason)) } finally { setBusy(null) }
   }
   return <div className="content-column">
-    <div className="page-header-row"><div><div className="eyebrow">TASKS</div><h1>{zh ? '任务' : 'Tasks'}</h1><p>{zh ? '查看执行进度，从中断或失败处继续。' : 'Follow ongoing work and resume interrupted or failed tasks.'}</p></div></div>
+    <div className="page-header-row"><div><h1 className="task-intro-title"><span>{zh ? '接住每一次开始，' : 'Give every beginning'}</span><em><span className="task-intro-accent">{zh ? '继续' : 'a way'}</span>{zh ? '未完的事。' : ' to continue.'}</em></h1><p>{zh ? '查看执行进度，从中断或失败处继续。' : 'Follow ongoing work and resume interrupted or failed tasks.'}</p></div></div>
     {error && <p role="alert">{error}</p>}
     {!records.length && <div className="surface activity-empty">{zh ? '暂无任务。开始一段对话，或运行一个能力。' : 'No tasks yet. Start a conversation or run a capability.'}</div>}
     <div className="capability-cards">{[...records].reverse().map((record) => {
