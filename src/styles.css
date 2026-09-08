@@ -466,6 +466,12 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .task-details dt { color: var(--ink-soft); }
 .task-details dd { margin: 0; color: var(--ink-muted); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .task-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+.task-status { --task-status-color: var(--ink-muted); display: inline-flex; align-items: center; flex: none; min-height: 20px; padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--task-status-color) 18%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--task-status-color) 10%, var(--surface)); color: color-mix(in srgb, var(--task-status-color) 85%, var(--ink)); font-family: inherit; font-size: 9px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+.task-status-completed { --task-status-color: var(--positive); }
+.task-status-running { --task-status-color: var(--accent); }
+.task-status-failed { --task-status-color: var(--negative); }
+.task-status-interrupted { --task-status-color: var(--warning); }
+
 .library-selection-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 18px 0 12px; font-size: 11px; color: var(--ink-muted); }
 .library-period-filter { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 8px; background: var(--surface-muted); }
 .library-period-filter button { display: inline-flex; align-items: center; gap: 6px; min-height: 27px; padding: 4px 11px; border-radius: 5px; background: transparent; color: var(--ink-muted); font-size: 11px; font-weight: 500; line-height: 1.4; transition: background .15s, color .15s; }
