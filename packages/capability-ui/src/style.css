@@ -1,0 +1,13 @@
+.wb-cap-page { box-sizing: border-box; width: min(100%, var(--workbench-page-width, 1800px)); min-height: 100%; margin: 0 auto; padding: var(--workbench-page-top, 28px) var(--workbench-page-gutter, 32px) var(--workbench-page-bottom, 24px); color: var(--ink, #1a1d23); font-family: "Avenir Next", "SF Pro Display", "Helvetica Neue", Arial, sans-serif; font-size: 13px; color-scheme: light; }
+.wb-cap-page[data-theme="dark"] { color-scheme: dark; }
+.wb-cap-page * { box-sizing: border-box; }
+.wb-cap-page .wb-cap-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.wb-cap-page .wb-cap-header h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: -.04em; }
+.wb-cap-page .wb-cap-header p { margin: 8px 0 0; color: var(--ink-muted); line-height: 1.7; }
+.wb-cap-page .wb-cap-panel { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-strong); }
+.wb-cap-page .wb-cap-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 0 14px; border: 0; border-radius: 9px; background: var(--accent); color: #fff; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.wb-cap-page .wb-cap-button:hover { background: var(--accent-strong); }
+.wb-cap-page .wb-cap-button:disabled { opacity: .5; cursor: not-allowed; }
+.wb-cap-page :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 2px; }
+.wb-cap-page .wb-cap-state { margin: 12px 0 0; color: var(--ink-muted); font-size: 12px; line-height: 1.7; }
+.wb-cap-page .wb-cap-state[role="alert"] { color: var(--negative); }

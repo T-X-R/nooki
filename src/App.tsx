@@ -49,6 +49,7 @@ import { buildLibraryTree, filterLibraryTree } from './library-tree'
 import i18n, { type Language } from './i18n'
 import { TaskPage } from './TaskPage'
 import { PackageImportModal } from './PackageImportModal'
+import { DeveloperCenterModal } from './DeveloperCenterModal'
 import { taskRunner } from './tasks'
 import { ConversationPage } from './ConversationPage'
 import { ConversationNavigation } from './ConversationNavigation'
@@ -670,7 +671,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
   const { t } = useTranslation()
   const { language } = useWorkbench()
   const [importOpen, setImportOpen] = useState(false)
-  const [guideOpen, setGuideOpen] = useState(false)
+  const [integrationOpen, setIntegrationOpen] = useState(false)
   const [filter, setFilter] = useState<CapabilityFilter>('all')
   const available = listAvailableCapabilities()
   const installedById = new Map(installed.map((capability) => [capability.manifest.id, capability]))
@@ -733,7 +734,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
           {filters.map((option) => <button key={option.id} className={`filter-chip ${filter === option.id ? 'active' : ''}`} aria-pressed={filter === option.id} onClick={() => setFilter(option.id)}>{option.label} <span>{option.count}</span></button>)}
         </div>
         <div className="toolbar-spacer" />
-        <button className="quiet-button" onClick={() => setGuideOpen(true)}><CodeIcon />{t('developerGuide')}</button>
+        <button className="quiet-button" onClick={() => setIntegrationOpen(true)}><CodeIcon />{t('developerCenter')}</button>
       </div>
 
       {installed.length === 0 && filter === 'all' && <section className="capability-empty">
@@ -758,32 +759,9 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
       </section>
 
       <AnimatePresence>
-        {guideOpen && <DeveloperGuideModal onClose={() => setGuideOpen(false)} />}
+        {integrationOpen && <DeveloperCenterModal language={language} onClose={() => setIntegrationOpen(false)} />}
         {importOpen && <PackageImportModal language={language} onClose={() => setImportOpen(false)} onInstalled={async () => { await onRefresh(); onNotice(t('capabilityInstalled')) }} />}
       </AnimatePresence>
-    </div>
-  )
-}
-
-function DeveloperGuideModal({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation()
-  const sections = [
-    { title: t('developerGuideStructure'), copy: t('developerGuideStructureCopy') },
-    { title: t('developerGuideHost'), copy: t('developerGuideHostCopy') },
-    { title: t('developerGuideLifecycle'), copy: t('developerGuideLifecycleCopy') },
-  ]
-
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <motion.section className="modal developer-guide-modal" role="dialog" aria-modal="true" aria-labelledby="developer-guide-title" initial={{ opacity: 0, scale: 0.97, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98, y: 6 }}>
-        <div className="modal-header"><div><span className="section-kicker">CAPABILITY DEVELOPMENT</span><h2 id="developer-guide-title">{t('developerGuideTitle')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t('close')}><Cross2Icon /></button></div>
-        <p className="modal-copy">{t('developerGuideIntro')}</p>
-        <div className="developer-guide-list">
-          {sections.map((section, index) => <section className="developer-guide-item" key={section.title}><span>{index + 1}</span><div><h3>{section.title}</h3><p>{section.copy}</p></div></section>)}
-        </div>
-        <p className="developer-guide-reference">{t('developerGuideReference')}</p>
-        <div className="modal-footer"><button className="primary-button" onClick={onClose}>{t('understood')}</button></div>
-      </motion.section>
     </div>
   )
 }

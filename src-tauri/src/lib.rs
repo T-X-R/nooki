@@ -7,6 +7,7 @@ pub mod document_library;
 pub mod managed_provider;
 pub mod package_installer;
 pub mod task_execution;
+pub mod developer_integration;
 
 use capability_runtime::{CapabilityManifest, InstalledCapability, PlatformState};
 use codex_session_source::{read_daily_files, CodexDailySessionFiles};
@@ -666,9 +667,13 @@ pub fn run() {
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
       app.manage(task_execution::TaskExecutions::default());
+      app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
+      developer_integration::developer_integrations,
+      developer_integration::developer_integration_install,
+      developer_integration::developer_kit_export,
       conversation_list, conversation_create, conversation_read, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       tasks_read,
