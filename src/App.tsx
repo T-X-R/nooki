@@ -547,7 +547,7 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
   return (
     <div className="content-column library-page">
       <div className="page-header-row">
-        <div><h1 className="library-intro-title">{language === 'zh' ? '让留下的片段，' : 'Keep the fragments.'}<br /><em>{language === 'zh' ? '在需要时重逢。' : 'Find them when you need them.'}</em></h1></div>
+        <div><h1 className="library-intro-title">{language === 'zh' ? '认真留下的，' : 'What you choose to keep'}<br /><em>{language === 'zh' ? '值得再读一遍。' : 'is worth returning to.'}</em></h1></div>
         <span className="library-total">{documents.length} {t('libraryDocuments')}</span>
       </div>
 
