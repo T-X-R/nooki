@@ -1,7 +1,5 @@
 # Nooki
 
-Formerly Personal Workbench. The product is now named Nooki; the existing app identifier (`com.personal.workbench`), storage keys, backup format, capability IDs, and `workbench-capability-dev` skill name remain unchanged so existing data and packages continue to work.
-
 Nooki is a local-first desktop host for installable capabilities. Business-specific reports, tables and journals enter through a stable platform contract. Conversations and the Document Library are built-in tools for using the knowledge those capabilities produce.
 
 The initial release includes the React interface and a Tauri 2 desktop host. The host persists the selected AI Provider, manages Capability manifests and lifecycle state, enforces permissions, and keeps API credentials outside Capability code.
@@ -19,7 +17,7 @@ The initial release includes the React interface and a Tauri 2 desktop host. The
 - Direct Responses-compatible requests for managed API key Providers.
 - Codex CLI execution for Codex subscription tasks.
 
-The first production Capability lives at `capabilities/diary`. Its editor, storage, and activity-event logic are package-owned. The Nooki discovers package entry points without importing Diary business code into the shell. The desktop app also installs trusted local `.capability.zip` packages without rebuilding Nooki; browser preview and the desktop registry both keep install state independent from the catalog.
+The first production Capability lives at `capabilities/diary`. Its editor, storage, and activity-event logic are package-owned. Nooki discovers package entry points without importing Diary business code into the shell. The desktop app also installs trusted local `.capability.zip` packages without rebuilding Nooki; browser preview and the desktop registry both keep install state independent from the catalog.
 
 Codex Daily Review lives at `capabilities/codex-daily-review`. It owns session parsing, task extraction, prompt construction, and presentation. The platform only provides permission-checked access to raw files from today's Codex session partition and the shared AI Provider interface.
 
@@ -109,6 +107,16 @@ Build a DMG separately when needed:
 npm run desktop:build:dmg
 ```
 
+## Upgrading from Workbench
+
+Nooki was previously named Personal Workbench. The app bundle is now `Nooki.app`, and the repository is [T-X-R/nooki](https://github.com/T-X-R/nooki). Quit Workbench before opening Nooki. Once the new app is installed, remove the old `Workbench.app` bundle and update any Dock shortcut. Keep the application data directory.
+
+The app identifier (`com.personal.workbench`), storage keys, backup format, capability IDs and `workbench-capability-dev` skill name remain unchanged so existing data and packages continue to work. These compatibility identifiers are intentional; use **Nooki** for the product name in new documentation.
+
+## Documentation language
+
+Write all repository documentation in English, including README files, architecture and contract documentation, capability guides, skill instructions, and new documentation files. Use English for pull request titles and descriptions. Product interface translations remain bilingual in Simplified Chinese and English. Preserve API identifiers, package names and file paths exactly as defined by the implementation.
+
 ## Verification
 
 ```sh
@@ -148,9 +156,9 @@ Install and sign in to Codex before using Conversations. The App Server adapter 
 
 ## Import, organize and revise Library documents
 
-The Library accepts Markdown and TXT files (up to 50 files per import, 2 MB each), or pasted text. Review the title, date and body before importing. Each imported document receives a new stable identity; a matching filename does not overwrite an existing document. If a batch stops partway, the import dialog keeps track of its successful documents and retries only the remainder.
+The Library accepts Markdown and TXT files (up to 50 files per import, 2 MB each) through the file picker or drag and drop. Review the title, date and body before importing. Each imported document receives a new stable identity; a matching filename does not overwrite an existing document. If a batch stops partway, the import dialog keeps track of its successful documents and retries only the remainder.
 
-Use **Topics** to group documents from different sources without moving or copying them. Select documents to add to a topic or remove their associations. Deleting a topic retains all its documents. **Discuss this topic** attaches its available documents to Conversations; the existing 50-document and 100 KB message-context limits still apply.
+Use **Manage topics** to create, rename and delete topics that group documents from different sources without moving or copying them. **Default** contains all available documents; the header count follows the selected topic. Select documents to add to a topic or remove their associations. Deleting a topic retains all its documents. **Discuss this topic** attaches its available documents to Conversations; the existing 50-document and 100 KB message-context limits still apply.
 
 **Revise** edits a document's title and Markdown, with a comparison before saving. **Version history** previews and restores previous versions by creating a new revision. Stale edits fail instead of overwriting a newer publication. Tracking starts with the first publication or edit after this update; earlier versions cannot be reconstructed. Capability publications also retain the previous revision. Editing a published document does not change the Capability's internal data, so a later Capability publication may replace the current text while keeping that revision in history.
 

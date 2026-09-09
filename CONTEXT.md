@@ -1,6 +1,6 @@
 # Nooki
 
-Nooki is a local-first host for independently installed capabilities. The Nooki remains useful as a shell even when no business capability is installed.
+Nooki is a local-first host for independently installed capabilities. Nooki remains useful as a shell even when no business capability is installed.
 
 ## Language
 
@@ -35,7 +35,7 @@ The removal of a Capability Package. User data is retained unless the user separ
 The controlled environment through which a Capability accesses Nooki resources. A Capability never depends on the internal structure of Nooki pages.
 
 **Activity Event**:
-A user-visible fact recorded by the Nooki or an authorized Capability for later review or agent-assisted summarization.
+A user-visible fact recorded by Nooki or an authorized Capability for later review or agent-assisted summarization.
 
 **Agent Capability**:
 A Capability that reads explicitly authorized Activity Events and produces traceable, reversible generation or organization actions.
@@ -63,7 +63,7 @@ The Nooki-owned, long-lived space for documents published by Capabilities or sav
 _Avoid_: Capability storage, file dump
 
 **Document Gateway**:
-The Capability Host interface through which an authorized Capability publishes durable document content without knowing how the Nooki stores, indexes, or presents it.
+The Capability Host interface through which an authorized Capability publishes durable document content without knowing how Nooki stores, indexes, or presents it.
 _Avoid_: Library API, file writer
 
 **Document Publication**:
