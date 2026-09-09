@@ -53,3 +53,16 @@ test('legacy data stays readable and failed persistence never acknowledges an ed
   assert.throws(() => failing.change({ kind: 'edit', id: doc.id, expected: doc.revision!, title: 'Changed', content: 'Unsaved' }), /disk full/)
   assert.equal(store.read(doc.id).content, doc.content)
 })
+
+test('renaming a topic retains its documents and deleting it leaves their revisions intact', () => {
+  const { store } = setup()
+  const doc = store.change({ kind: 'import', document: input('topic-document') })!
+  store.change({ kind: 'save-topic', topic: { id: 'topic', name: 'Before', documentIds: [doc.id] } })
+  store.change({ kind: 'edit', id: doc.id, expected: doc.revision!, title: 'Revised', content: 'New content' })
+  store.change({ kind: 'save-topic', topic: { ...store.organization().topics[0], name: 'After' } })
+  assert.deepEqual(store.organization().topics, [{ id: 'topic', name: 'After', documentIds: [doc.id] }])
+  store.change({ kind: 'delete-topic', id: 'topic' })
+  assert.equal(store.organization().topics.length, 0)
+  assert.equal(store.read(doc.id).title, 'Revised')
+  assert.equal(store.history(doc.id).length, 2)
+})
