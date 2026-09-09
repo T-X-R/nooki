@@ -325,7 +325,17 @@ function Sidebar({ activeConversationId, onOpenConversation, activeView, activeC
     <aside className="sidebar">
       <div className="brand-lockup">
         <img className="brand-mark" src={nookiIcon} alt="" aria-hidden="true" />
-        <div className="brand-name">Nooki</div>
+        <span className="brand-name" role="img" aria-label="Nooki">
+          <svg viewBox="0 0 132 44" fill="none" aria-hidden="true">
+            <g stroke="currentColor" strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 34 10 10Q10 8 12 11L27 33Q29 36 29 32L32 9" />
+              <path d="M53 20C42 15 35 29 42 34C50 40 61 23 53 20Z" />
+              <path d="M78 19C66 14 60 30 67 35C76 40 87 23 78 19Z" />
+              <path d="m94 9-3 26m3-8 14-10m-12 9 11 10m14-16-2 15" />
+            </g>
+            <path d="M123 5c3 0 4 3 2 5s-6 2-6-1 2-4 4-4Z" fill="currentColor" />
+          </svg>
+        </span>
       </div>
 
       <div className="sidebar-label">{t('workspace')}</div>
