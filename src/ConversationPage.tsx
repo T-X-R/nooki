@@ -9,9 +9,11 @@ import { conversationClient } from './conversation-client'
 import { CONVERSATION_OWNER, LEGACY_REVIEW, type ConversationInput, type ConversationItem, type SaveAnswerInput } from './conversation-model'
 import { listLibraryDocuments, searchLibraryContent, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from './document-library'
 import './conversation.css'
+import { createGreetingRotation, type conversationGreetings } from './conversation-greetings'
 import { LibraryDialog, DocumentComparison } from './LibraryDialogs'
 
 // UI drafts only; Codex is the authority for session history and messages.
+const openingGreetings = createGreetingRotation()
 const drafts = new Map<string, { text: string; ids: string[] }>()
 let currentSession: string | null = null
 function ConversationMarkdown({ text, onDocument }: { text: string; onDocument(ref: DocumentReference): void }) {
@@ -33,6 +35,8 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
   const [selected, setSelected] = useState<string | null>(targetId === 'new' ? null : targetId ?? currentSession)
   const [text, setText] = useState(() => drafts.get(targetId ?? currentSession ?? 'new')?.text ?? '')
   const [ids, setIds] = useState<string[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.ids ?? [])
+  const [greeting, setGreeting] = useState<(typeof conversationGreetings)[number] | null>(null)
+  const handledNewOpening = useRef(false)
   const [documents, setDocuments] = useState<LibraryDocumentMetadata[]>([])
   const [picker, setPicker] = useState(false)
   const [query, setQuery] = useState('')
@@ -70,6 +74,12 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
   }, [incomingIds])
   useEffect(() => { onSelected(selected) }, [selected, onSelected])
   useEffect(() => { drafts.set(selected ?? 'new', { text, ids }) }, [selected, text, ids])
+  useEffect(() => {
+    const fresh = targetId === 'new' && !handledNewOpening.current
+    handledNewOpening.current = targetId === 'new'
+    if (targetId !== 'new' && selected && (!thread || thread.turns.length || running)) return
+    setGreeting(openingGreetings.get(targetId === 'new' ? 'new' : selected ?? 'new', { fresh, hasDocuments: ids.length > 0 || incomingIds.length > 0, hasText: !!text.trim() }))
+  }, [selected, targetId, ids.length, incomingIds.length, text, thread, running])
   const taskStatus = conversationTasks.map((t) => `${t.id}:${t.status}`).join(',')
   useEffect(() => {
     if (!selected) return
@@ -92,7 +102,7 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
     if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id) }
     const input: ConversationInput = { threadId: id, message: text.trim(), documentIds: ids, snapshotId: crypto.randomUUID() }
     await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
-    setText(''); drafts.set(id, { text: '', ids }); drafts.delete('new'); follow.current = true
+    setText(''); drafts.set(id, { text: '', ids }); drafts.delete('new'); openingGreetings.clearDraft(); follow.current = true
   })
   const save = (messageId: string, content: string, title?: string) => {
     setSaveTarget(null); setSaveError(''); setSaveCompare(false)
@@ -132,7 +142,7 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
       <section className={`conversation-main ${empty ? 'is-empty' : ''}`} aria-label={zh ? '当前对话' : 'Current conversation'}>
 
         <div className="conversation-messages" ref={scroll} onScroll={() => { const el = scroll.current!; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 70 }}>
-          {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : !thread?.turns.length && !running ? <div className="conversation-empty"><h2>{zh ? '不必想得周全，' : 'No need to have it all figured out. '}<em>{zh ? '先聊聊也好。' : 'Let’s talk it through.'}</em></h2><p>{zh ? '带上一个问题，或几份资料，慢慢理出头绪。' : 'Bring a question or a few documents, and work through them at your own pace.'}</p></div> : <>
+          {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : !thread?.turns.length && !running ? <div className="conversation-empty"><h2>{greeting?.[language]}</h2><p>{zh ? '带上一个问题，或几份资料，慢慢理出头绪。' : 'Bring a question or a few documents, and work through them at your own pace.'}</p></div> : <>
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
             {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.map((item) => item.type === 'userMessage' ? <article className="conversation-user" key={item.id}>{item.content?.filter((part) => part.type === 'text').map((part) => part.text).join('\n')}{!!attachments(item).length && <div className="conversation-message-sources">{attachments(item).map((doc) => <button key={doc.reference.documentId} onClick={() => onDocument(doc.reference)}><FileTextIcon />{doc.reference.title}</button>)}</div>}</article> : item.type === 'agentMessage' ? <article className={`conversation-answer ${item.phase === 'commentary' ? 'is-commentary' : ''}`} key={item.id}>{item.phase === 'commentary' && <span className="conversation-speaker">{zh ? '进展' : 'Progress'}</span>}<div className="conversation-markdown"><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} /></div>{turn.status === 'completed' && item.phase !== 'commentary' && item.text && <div className="conversation-answer-actions">{saveAction(item)}</div>}</article> : ['reasoning', 'plan', 'commandExecution', 'fileChange', 'mcpToolCall', 'dynamicToolCall', 'webSearch', 'contextCompaction', 'collabAgentToolCall'].includes(item.type) ? <ProcessItem key={item.id} item={item} zh={zh} /> : null)}{turn.error && <p className="conversation-error" role="alert">{turn.error.message}</p>}</div>)}
           </>}
