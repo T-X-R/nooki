@@ -88,6 +88,17 @@ fn codex_binary() -> String {
     .unwrap_or_else(|| "codex".into())
 }
 
+fn codex_command(binary: &str) -> std::io::Result<std::process::Command> {
+  let mut command = std::process::Command::new(binary);
+  // Finder-launched apps may lack the Node directory required by the Codex CLI launcher.
+  if let Some(parent) = std::path::Path::new(binary).parent().filter(|path| !path.as_os_str().is_empty()) {
+    let inherited = std::env::var_os("PATH").unwrap_or_else(|| "/usr/bin:/bin:/usr/sbin:/sbin".into());
+    let paths = std::iter::once(parent.to_path_buf()).chain(std::env::split_paths(&inherited));
+    command.env("PATH", std::env::join_paths(paths).map_err(std::io::Error::other)?);
+  }
+  Ok(command)
+}
+
 fn is_english(language: &str) -> bool {
   language == "en"
 }
@@ -202,9 +213,8 @@ fn provider_status(kind: String, language: String) -> ProviderStatus {
         };
       }
 
-      match std::process::Command::new(codex_binary())
-        .args(["login", "status"])
-        .output()
+      match codex_command(&codex_binary())
+        .and_then(|mut command| command.args(["login", "status"]).output())
       {
         Ok(output) if output.status.success() => ProviderStatus {
           kind,
@@ -565,7 +575,8 @@ async fn invoke_with_provider(input: String, provider_kind: &str) -> Result<Mode
   }
 
   let codex_bin = codex_binary();
-  let mut command = tokio::process::Command::new(codex_bin);
+  let mut command = tokio::process::Command::from(codex_command(&codex_bin)
+    .map_err(|_| "Could not prepare Codex executable path".to_string())?);
   command.kill_on_drop(true);
   command.arg("exec");
   let output = tokio::time::timeout(std::time::Duration::from_secs(600), command
@@ -712,4 +723,48 @@ pub fn run() {
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+#[cfg(all(test, unix))]
+mod subscription_tests {
+  use super::*;
+  use std::os::unix::fs::PermissionsExt;
+
+  #[test]
+  fn subscription_works_with_desktop_path() {
+    let root = std::env::temp_dir().join(format!("nooki-subscription-path-{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("config.toml"), "").unwrap();
+    let cli = root.join("codex");
+    let runtime = root.join("nooki-test-node");
+    std::fs::write(&cli, "#!/usr/bin/env nooki-test-node\n").unwrap();
+    std::fs::write(&runtime, r#"#!/bin/sh
+case "$2 $3" in
+  'login status') echo 'Logged in using ChatGPT' >&2 ;;
+  'exec --ephemeral') echo '{"type":"item.completed","item":{"type":"agent_message","text":"Provider ready"}}' ;;
+  *) exit 2 ;;
+esac
+"#).unwrap();
+    for path in [&cli, &runtime] {
+      std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    // A child test process isolates the Finder-like environment from other tests.
+    let result = std::process::Command::new(std::env::current_exe().unwrap())
+      .args(["--exact", "subscription_tests::subscription_probe", "--ignored", "--nocapture"])
+      .env("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+      .env("CODEX_BIN", &cli)
+      .env("CODEX_HOME", &root)
+      .output().unwrap();
+    std::fs::remove_dir_all(root).unwrap();
+    assert!(result.status.success(), "{}\n{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
+  }
+
+  #[tokio::test]
+  #[ignore = "runs in an isolated environment through subscription_works_with_desktop_path"]
+  async fn subscription_probe() {
+    let status = provider_status("codex-subscription".into(), "zh".into());
+    assert_eq!(status.state, "ready", "{}", status.detail);
+    let result = invoke_with_provider("Reply with Provider ready".into(), "codex-subscription").await.unwrap();
+    assert_eq!(result.output, "Provider ready");
+  }
 }
