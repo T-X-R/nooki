@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, io::{Cursor, Write}, path::{Component, Path}};
 use tauri::Manager;
 
-const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "tasks.json"];
+const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "tasks.json"];
 const LIMIT: usize = 128_000_000;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,6 +27,7 @@ fn collect(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) -> Re
     for item in fs::read_dir(path).map_err(|e| e.to_string())? { collect(root, &item.map_err(|e| e.to_string())?.path(), files)?; }
   } else {
     let name = path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into_owned();
+    if name.starts_with("conversation-workspaces/") && (name.split('/').count() != 3 || !["md", "txt"].iter().any(|ext| name.to_ascii_lowercase().ends_with(&format!(".{ext}")))) { return Ok(()); }
     if name.ends_with(".pending") || name.ends_with(".tmp") { return Ok(()); }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
     if content.len() + files.values().map(String::len).sum::<usize>() > LIMIT { return Err("Backup exceeds 128 MB".into()); }
@@ -47,7 +48,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
   serde_json::from_value::<Vec<crate::capability_runtime::InstalledCapability>>(backup.capabilities.clone()).map_err(|_| "Invalid capability inventory")?;
   if backup.files.len() > 100_000 || backup.files.values().chain(backup.local_storage.values()).map(String::len).sum::<usize>() > LIMIT { return Err("Backup exceeds 128 MB".into()); }
   for (name, content) in &backup.files {
-    if !safe_path(name) || !(name.ends_with(".json") || name.ends_with(".md")) { return Err("Invalid backup path".into()); }
+    if !safe_path(name) || !(name.ends_with(".json") || name.ends_with(".md") || (name.starts_with("conversation-workspaces/") && (name.to_ascii_lowercase().ends_with(".txt") || name.to_ascii_lowercase().ends_with(".md")))) { return Err("Invalid backup path".into()); }
     if name.ends_with(".json") { serde_json::from_str::<serde_json::Value>(content).map_err(|_| format!("Invalid JSON in {name}"))?; }
     if name.starts_with("document-history/") {
       let doc: document_library::LibraryDocument = serde_json::from_str(content).map_err(|_| "Invalid document history")?;
@@ -186,4 +187,12 @@ pub fn library_export_markdown(app: tauri::AppHandle, ids: Vec<String>, state: t
   zip.write_all("文档按来源保留为 Markdown。内部引用请在 Nooki 中打开；迁移资料和引用快照请使用完整数据备份。\nDocuments are organized by source. Internal citations open in Nooki; use a data backup to retain snapshots.\n".as_bytes()).map_err(|e| e.to_string())?;
   let bytes = zip.finish().map_err(|e| e.to_string())?.into_inner();
   download(&app, &format!("Nooki-documents-{}.zip", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), &bytes)
+}
+
+#[tauri::command]
+pub fn conversation_export_document(app: tauri::AppHandle, name: String, content: String) -> Result<String, String> {
+  if content.len() > 2_000_000 { return Err("Document exceeds 2 MB".into()); }
+  let name: String = name.chars().filter(|c| !c.is_control() && *c != '/' && *c != '\\').take(120).collect();
+  let name = if name.to_ascii_lowercase().ends_with(".md") || name.to_ascii_lowercase().ends_with(".txt") { name } else { format!("{name}.md") };
+  download(&app, &format!("Nooki-{}-{name}", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), content.as_bytes())
 }

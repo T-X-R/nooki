@@ -13,18 +13,20 @@ def event(method,params):out({'method':method,'params':params})
 for line in sys.stdin:
     request=json.loads(line);method=request.get('method');p=request.get('params',{});rid=request.get('id')
     if rid is None:continue
+    with open('fake-requests.jsonl','a') as trace: trace.write(json.dumps(request)+'\n')
     def reply(value):out({'id':rid,'result':value})
     def error(message):out({'id':rid,'error':{'code':-32600,'message':message}})
     if method=='initialize':reply({'userAgent':'fake-codex'})
     elif method=='thread/start':
         tid='session-'+str(len(threads)+1)
-        threads[tid]={'id':tid,'cwd':os.getcwd(),'preview':'','source':'vscode','updatedAt':1,'status':{'type':'idle'},'turns':[]}
+        threads[tid]={'id':tid,'cwd':p.get('cwd',os.getcwd()),'preview':'','source':'vscode','updatedAt':1,'status':{'type':'idle'},'turns':[]}
         reply({'thread':threads[tid]})
-    elif method=='thread/list':reply({'data':[t for t in threads.values() if t['turns'] and (not p.get('sourceKinds') or t['source'] in p['sourceKinds'])],'nextCursor':None})
+    elif method=='thread/list':reply({'data':[t for t in threads.values() if t['turns'] and (not p.get('cwd') or t['cwd'] in (p['cwd'] if isinstance(p['cwd'],list) else [p['cwd']])) and (not p.get('sourceKinds') or t['source'] in p['sourceKinds'])],'nextCursor':None})
     elif method in ('thread/read','thread/resume'):
         t=threads.get(p['threadId'])
         if not t:error('session missing');continue
         if method=='thread/resume' and not t['turns']:error('no rollout found');continue
+        if method=='thread/resume' and p.get('cwd'):t['cwd']=p['cwd'];persist()
         reply({'thread':{**t,'turns':[]}})
     elif method=='thread/turns/list':
         t=threads.get(p['threadId'])
@@ -32,11 +34,16 @@ for line in sys.stdin:
         reply({'data':list(reversed(t['turns'])),'nextCursor':None})
     elif method=='turn/start':
         t=threads[p['threadId']];text=p['input'][0]['text'];n=len(t['turns'])+1
+        if p.get('cwd'):t['cwd']=p['cwd']
         turn={'id':'turn-'+str(n),'status':'inProgress','startedAt':n,'items':[{'id':'user-'+str(n),'clientId':p.get('clientUserMessageId'),'type':'userMessage','content':p['input']}]}
         t['turns'].append(turn);t['preview']=text;persist();reply({'turn':turn})
         event('turn/started',{'threadId':t['id'],'turn':turn})
         if text=='disconnect' and n==1:sys.exit(0)
         if text=='slow':continue
+        if text=='revise-documents':
+            for file in Path(t['cwd']).iterdir():
+                if file.suffix in ('.md','.txt'):file.write_text(file.read_text()+'\nEdited by fixture')
+        if text=='write-document':Path(t['cwd'],'new-document.md').write_text('# New document\nCreated by fixture')
         reasoning={'id':'reason-'+str(n),'type':'reasoning','summary':['Checking sources'],'content':['not exposed']}
         event('item/started',{'threadId':t['id'],'turnId':turn['id'],'item':reasoning})
         event('item/reasoning/summaryTextDelta',{'threadId':t['id'],'turnId':turn['id'],'itemId':reasoning['id'],'summaryIndex':0,'delta':' summary'})

@@ -5,7 +5,7 @@ Nooki is a local-first desktop app for your notes, documents, and AI conversatio
 ## Features
 
 - **Document Library** — import, search, organize, and edit documents, with version history and Markdown export.
-- **Conversations** — work with your documents through Codex and save useful answers to the Library.
+- **Conversations** — discuss and revise Library documents or Markdown/text attachments with Codex, preview document changes, and save selected results to the Library.
 - **Capabilities** — add tools such as Diary and Codex Daily Review from the Capability Center.
 - **Local workspace** — manage tasks, back up your data, and choose between English and Simplified Chinese or light and dark themes.
 

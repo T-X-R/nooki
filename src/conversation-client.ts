@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { applyConversationEvent, type Conversation, type ConversationEvent } from './conversation-model'
+import { applyConversationEvent, retainPublicSummary, type Conversation, type ConversationEvent } from './conversation-model'
 
 const listeners = new Set<() => void>()
 let cache: Readonly<Record<string, Conversation>> = {}
@@ -32,6 +32,10 @@ export const conversationClient = {
     const before = revisions[id] ?? 0
     const thread = await invoke<Conversation>('conversation_read', { id, cursor: cursor ?? null })
     const previous = cache[id]
+    if (previous) {
+      const items = new Map(previous.turns.flatMap((turn) => turn.items.map((item) => [item.id, item] as const)))
+      thread.turns = thread.turns.map((turn) => ({ ...turn, items: turn.items.map((item) => retainPublicSummary(items.get(item.id), item)) }))
+    }
     if (previous && (cursor || (revisions[id] ?? 0) !== before)) {
       const turns = new Map(thread.turns.map((turn) => [turn.id, turn]))
       for (const turn of previous.turns) { if (cursor || (revisions[id] ?? 0) !== before) turns.set(turn.id, turn) }

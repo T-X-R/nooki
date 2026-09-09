@@ -1,4 +1,4 @@
-use app_lib::{codex_conversations::CodexConversations, source_snapshots, document_library::{self, DocumentPublication}};
+use app_lib::{codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, source_snapshots, document_library::{self, DocumentPublication}};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::{Arc, Mutex}};
 use tokio_util::sync::CancellationToken;
@@ -73,4 +73,58 @@ fn platform_source_snapshots_are_immutable_and_cannot_read_unselected_documents(
   assert!(source_snapshots::capture(&root,"../escape",&[]).is_err());
   assert!(source_snapshots::capture(&root,"snapshot-1",&[]).is_err());
   drop(bridge);let _=std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn document_turns_edit_working_copies_and_retain_outputs_across_followups_and_restart() {
+  let (root, bridge, _) = fixture();
+  let publication = DocumentPublication { key:"entry".into(), title:"Library original".into(), collection_key:"entries".into(), collection_name:"Journal".into(), document_date:"2026-09-09".into(), content:"Original Library text".into() };
+  let original = document_library::publish_document(&root, "test.diary", "Diary", publication).unwrap();
+  source_snapshots::capture(&root, "snapshot-edit", std::slice::from_ref(&original.id)).unwrap();
+  let inputs = DocumentInputs { snapshot_id: Some("snapshot-edit".into()), uploads: vec![Attachment { id:"upload-1".into(), name:"附件.txt".into(), content:"Uploaded text".into() }] };
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap();
+  let first = bridge.run_with_documents(id, "revise-documents", "", "edit-1", &inputs, CancellationToken::new()).await.unwrap();
+  let artifacts = first["artifacts"].as_array().unwrap();
+  assert_eq!(artifacts.len(), 2);
+  assert!(artifacts.iter().any(|a| a["name"] == "附件.txt" && a["content"] == "Uploaded text\nEdited by fixture"));
+  assert!(artifacts.iter().any(|a| a["source"]["documentId"] == original.id && a["before"] == "Original Library text"));
+  assert_eq!(document_library::read_document(&root, &original.id).unwrap().content, "Original Library text");
+  let second = bridge.run_with_documents(id, "revise-documents", "", "edit-2", &inputs, CancellationToken::new()).await.unwrap();
+  assert!(second["artifacts"].as_array().unwrap().iter().all(|a| a["content"].as_str().unwrap().ends_with("Edited by fixture\nEdited by fixture")));
+  let other = bridge.create().await.unwrap(); let other_id = other["id"].as_str().unwrap();
+  let new_document = bridge.run(other_id, "write-document", "", "new-1", CancellationToken::new()).await.unwrap();
+  assert_eq!(new_document["artifacts"].as_array().unwrap().len(), 1);
+  assert!(new_document["artifacts"][0]["before"].is_null());
+  assert_ne!(conversation_documents::workspace(&root, id), conversation_documents::workspace(&root, other_id));
+  assert_eq!(bridge.list(None).await.unwrap()["data"].as_array().unwrap().len(), 2);
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  for request in requests.iter().filter(|r| r["method"] == "turn/start") {
+    let p = &request["params"];
+    let expected = conversation_documents::workspace(&root, p["threadId"].as_str().unwrap()).canonicalize().unwrap();
+    assert_eq!(p["cwd"], expected.to_str().unwrap());
+    assert_eq!(p["sandboxPolicy"], json!({"type":"workspaceWrite","writableRoots":[expected],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true}));
+    assert_eq!(p["approvalPolicy"], "never");
+  }
+  drop(bridge);
+  let reopened = CodexConversations::new(root.join("codex").to_string_lossy().into(), root.clone(), Arc::new(|_| {}));
+  let recovered = reopened.run_with_documents(id, "revise-documents", "", "edit-1", &inputs, CancellationToken::new()).await.unwrap();
+  assert_eq!(recovered, first);
+  assert_eq!(reopened.read(id, None).await.unwrap()["turns"].as_array().unwrap().len(), 2);
+  drop(reopened); let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn document_preparation_rejects_invalid_attachments_and_linked_outputs() {
+  let (root, bridge, _) = fixture();
+  for (name, content) in [("../escape.md", "text"), ("data.docx", "text"), ("binary.txt", "a\0b")] {
+    let inputs = DocumentInputs { snapshot_id: None, uploads: vec![Attachment { id:"upload".into(), name:name.into(), content:content.into() }] };
+    assert!(conversation_documents::prepare(&root, "one", "request", &inputs).is_err());
+  }
+  conversation_documents::prepare(&root, "one", "valid", &DocumentInputs::default()).unwrap();
+  #[cfg(unix)] {
+    let outside = root.join("outside.md"); std::fs::write(&outside, "Private outside text").unwrap();
+    std::os::unix::fs::symlink(outside, conversation_documents::workspace(&root, "one").join("linked.md")).unwrap();
+    assert!(conversation_documents::complete(&root, "one", "valid").unwrap_err().contains("regular files"));
+  }
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
 }

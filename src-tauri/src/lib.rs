@@ -1,4 +1,5 @@
 pub mod codex_conversations;
+pub mod conversation_documents;
 pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;
@@ -396,10 +397,10 @@ async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::St
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String }
+struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
 #[tauri::command]
 async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, codex_conversations::CodexConversations>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
-  bridge.run(&request.thread_id, &request.message, &request.context, &request.request_id, executions.token(&request.execution_id)?).await
+  bridge.run_with_documents(&request.thread_id, &request.message, &request.context, &request.request_id, &request.documents, executions.token(&request.execution_id)?).await
 }
 #[tauri::command]
 fn library_capture_sources(id: String, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<Vec<source_snapshots::SnapshotDocument>, String> {
@@ -692,7 +693,7 @@ pub fn run() {
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
       library_management::library_history, library_management::library_trash,
-      user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown,
+      user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown, user_data::conversation_export_document,
       tasks_read,
       tasks_write,
       task_cancel_invocation,
