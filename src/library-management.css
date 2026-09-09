@@ -1,7 +1,7 @@
 /* Library workspace: compact navigation, a quiet list, and a dedicated reading area. */
 .content-column.library-page { padding-top: 14px; }
 .library-page .library-page-heading { align-items: center; margin-bottom: 10px; }
-.library-page .library-page-heading h1 { margin: 0; font-size: 20px; letter-spacing: -.035em; line-height: 1.25; }
+.library-page .library-page-heading h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); font-weight: 600; color: var(--ink-muted); letter-spacing: -.035em; line-height: 1.3; }
 .library-page .library-total { font-size: 10px; padding: 5px 8px; }
 .library-management-bar, .library-management-group, .library-batch-actions, .library-document-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .library-management-bar { flex: none; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--line); }
@@ -68,7 +68,7 @@ dialog.library-dialog-wide { width: min(980px, calc(100vw - 64px)); }
 .library-dialog .modal-header { gap: 16px; align-items: center; margin-bottom: 20px; }
 .library-dialog .modal-header h2 { margin: 0; font-size: 19px; font-weight: 600; }
 .library-dialog .modal-header .icon-button { width: 28px; height: 28px; }
-.library-dialog .modal-footer { position: sticky; bottom: -24px; padding: 16px 0 4px; background: var(--surface); border-top: 0; margin-top: 12px; }
+.library-dialog .modal-footer { position: sticky; bottom: -24px; padding: 0; background: var(--surface); border-top: 0; margin-top: 12px; }
 .library-dialog .modal-copy { font-size: 12px; line-height: 1.7; color: var(--ink-muted); }
 .library-dialog .primary-button, .library-dialog .secondary-button { font-size: 12px; padding: 8px 13px; min-height: 35px; box-shadow: none; }
 .library-dialog .danger-button { background: var(--negative); color: white; }
@@ -86,12 +86,25 @@ dialog.library-dialog-wide { width: min(980px, calc(100vw - 64px)); }
 .library-edit-split .library-field { margin: 0; }
 .library-edit-split h3, .library-comparison h3 { margin: 0 0 8px; font-size: 12px; font-weight: 500; }
 .library-edit-split .library-preview { height: min(40dvh, 420px); }
-.library-preview-switch { display: flex; justify-content: flex-end; margin: 8px 0; font-size: 12px; }
-.library-comparison pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px solid var(--line); border-radius: 7px; max-height: 40dvh; overflow: auto; font: 12px/1.8 ui-monospace, monospace; }
-.library-comparison pre > span { display: block; }
-.library-comparison pre > span br { display: none; }
+/* Only the dialog container loses its native focus ring; controls retain theirs. */
+dialog:focus, dialog:focus-visible, [role="dialog"]:focus, [role="dialog"]:focus-visible { outline: none; }
+.library-diff { display: flex; flex-direction: column; min-height: 0; }
+.library-diff-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 12px; }
+.library-diff-heading h3 { margin: 0; font: inherit; font-weight: 500; }
+.library-diff-heading > span { color: var(--ink-muted); font-size: 11px; }
+.library-diff-lines { overflow: auto; min-height: 0; max-height: 40dvh; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-strong); padding-block: 8px; }
+.library-diff-line { display: grid; grid-template-columns: 4ch 4ch 2ch minmax(0, 1fr); gap: 6px; padding: 2px 10px; font: 12px/1.8 ui-monospace, monospace; }
+.library-diff-number { color: var(--ink-muted); text-align: right; user-select: none; }
+.library-diff-line code { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .line-added { background: #27805320; }
 .line-removed { background: #be484820; }
+dialog.library-revision-dialog[open] { display: flex; flex-direction: column; height: min(720px, calc(100dvh - 64px)); overflow: hidden; }
+.library-revision-dialog > .modal-header, .library-revision-dialog > .library-field, .library-revision-dialog > .modal-footer { flex: none; }
+.library-revision-dialog > .modal-header { margin-bottom: 4px; }
+.library-revision-body { flex: 1; min-height: 0; }
+.library-revision-body > .library-edit-split, .library-revision-body > .library-diff { height: 100%; }
+.library-revision-body .library-edit-split > * { display: flex; flex-direction: column; min-height: 0; }
+.library-revision-body .library-editor, .library-revision-body .library-preview, .library-revision-body .library-diff-lines { flex: 1; height: 0; min-height: 0; max-height: none; resize: none; }
 .library-history-layout { display: grid; grid-template-columns: 185px minmax(0, 1fr); gap: 20px; }
 .library-history-layout nav { max-height: 46dvh; overflow: auto; border-right: 1px solid var(--line); padding-right: 12px; }
 .library-history-layout nav button { width: 100%; display: grid; gap: 6px; padding: 11px; border-radius: 7px; background: transparent; color: var(--ink-muted); text-align: left; margin-bottom: 5px; }
