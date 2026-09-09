@@ -50,13 +50,8 @@ impl CodexConversations {
     let mut current = self.client.lock().await;
     if let Some(client) = current.as_ref().filter(|c| c.alive.load(Ordering::Relaxed)) { return Ok(client.clone()); }
     std::fs::create_dir_all(self.workspace()).map_err(|_| "Could not create conversation workspace")?;
-    let mut command = tokio::process::Command::new(&self.binary);
-    // Finder-launched apps may lack the Node directory required by the Codex CLI launcher.
-    if let Some(parent) = Path::new(&self.binary).parent().filter(|p| !p.as_os_str().is_empty()) {
-      let inherited = std::env::var_os("PATH").unwrap_or_else(|| "/usr/bin:/bin:/usr/sbin:/sbin".into());
-      let paths = std::iter::once(parent.to_path_buf()).chain(std::env::split_paths(&inherited));
-      command.env("PATH", std::env::join_paths(paths).map_err(|_| "Could not prepare Codex executable path")?);
-    }
+    let mut command = tokio::process::Command::from(crate::codex_command(&self.binary)
+      .map_err(|_| "Could not prepare Codex executable path")?);
     let mut process = command.args(["app-server", "--listen", "stdio://"])
       .current_dir(self.workspace()).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).kill_on_drop(true)
       .spawn().map_err(|_| "Could not start Codex. Install Codex CLI and sign in first.")?;
