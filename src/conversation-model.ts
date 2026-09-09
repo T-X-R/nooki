@@ -9,7 +9,7 @@ export type Conversation = { id: string; name?: string; preview: string; updated
 export type ConversationEvent = { method: string; params?: { threadId?: string; turnId?: string; turn?: ConversationTurn; item?: ConversationItem; itemId?: string; delta?: string; summaryIndex?: number; message?: string } }
 export type ConversationInput = { threadId: string; message: string; documentIds: string[]; snapshotId: string }
 export type ConversationResult = { threadId: string; turnId: string }
-export type SaveAnswerInput = { threadId?: string; messageId: string; sourceMessageId?: string; title: string; content: string; date: string; language: 'zh' | 'en' }
+export type SaveAnswerInput = { threadId?: string; messageId: string; sourceMessageId?: string; title: string; content: string; date: string; language: 'zh' | 'en'; targetDocumentId?: string; expectedRevision?: string }
 
 // History always comes from Codex. This reducer only renders live notifications in memory.
 export function applyConversationEvent(thread: Conversation, event: ConversationEvent): Conversation {

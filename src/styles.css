@@ -174,13 +174,14 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .page-header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .page-header-row h1 { margin: 10px 0 7px; font-size: 40px; font-weight: 650; letter-spacing: -.065em; line-height: .98; }
 .page-header-row p { margin: 0; color: var(--ink-muted); font-size: 12px; }
-.page-header-row .capabilities-intro-title { margin: 6px 0 14px; font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
+.page-header-row .capabilities-intro-title { color: var(--ink); margin: 6px 0 14px; font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
+.capabilities-intro-title > span:last-child { color: #287568; }
+:root[data-theme="dark"] .capabilities-intro-title > span:last-child { color: #85cbb9; }
 .page-header-row .library-intro-title { margin: 6px 0 12px; font-size: clamp(27px, 3vw, 34px); font-weight: 600; letter-spacing: -.04em; line-height: 1.3; }
 .library-intro-title em { display: inline-block; margin-top: 5px; color: var(--ink-muted); font-size: .72em; font-style: normal; font-weight: 400; letter-spacing: .01em; }
-.page-header-row .task-intro-title { margin: 0 0 12px; letter-spacing: -.04em; line-height: 1.2; }
-.task-intro-title > span { display: block; margin-bottom: 8px; color: var(--ink-muted); font-size: 13px; font-weight: 500; letter-spacing: .02em; }
-.task-intro-title > em { display: block; font-size: clamp(28px, 3.2vw, 36px); font-style: normal; font-weight: 650; }
-.task-intro-accent { color: var(--warning); }
+.page-header-row .task-intro-title { margin: 6px 0 14px; color: var(--ink); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
+.task-intro-title > span:last-child { color: #91633b; }
+:root[data-theme="dark"] .task-intro-title > span:last-child { color: #d6af82; }
 
 .capability-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 30px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .capability-filters { display: flex; align-items: center; gap: 4px; }

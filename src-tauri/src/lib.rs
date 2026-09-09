@@ -4,6 +4,8 @@ pub mod document_grants;
 pub mod capability_runtime;
 pub mod codex_session_source;
 pub mod document_library;
+pub mod library_management;
+pub mod user_data;
 pub mod managed_provider;
 pub mod package_installer;
 pub mod task_execution;
@@ -661,6 +663,7 @@ pub fn run() {
         env!("CARGO_PKG_VERSION"),
       );
       let data_dir = app.path().app_data_dir()?;
+      user_data::recover(&data_dir).map_err(std::io::Error::other)?;
       let event_app = app.handle().clone();
       app.manage(codex_conversations::CodexConversations::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:codex-event", event); })));
       let platform_state = PlatformState::load(data_dir)
@@ -676,6 +679,9 @@ pub fn run() {
       developer_integration::developer_kit_export,
       conversation_list, conversation_create, conversation_read, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
+      library_management::library_organization, library_management::library_change,
+      library_management::library_history, library_management::library_trash,
+      user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown,
       tasks_read,
       tasks_write,
       task_cancel_invocation,

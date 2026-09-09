@@ -1,5 +1,7 @@
 use chrono::{Datelike, Local, NaiveDate, SecondsFormat};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use crate::library_management::{self, DATA_LOCK};
 use std::{fs, path::Path};
 
 const LIBRARY_DIR: &str = "document-library";
@@ -31,6 +33,8 @@ pub struct LibraryDocumentMetadata {
   pub size_bytes: usize,
   pub created_at: String,
   pub updated_at: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub revision: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -49,12 +53,13 @@ impl std::ops::Deref for LibraryDocument {
   }
 }
 
-pub fn publish_document(
+pub(crate) fn publish_unlocked(
   data_dir: &Path,
   capability_id: &str,
   capability_name: &str,
   input: DocumentPublication,
 ) -> Result<LibraryDocumentMetadata, String> {
+  if !valid_capability_id(capability_id) { return Err("Invalid document source".into()); }
   validate_slug(&input.key, "资料库文档键格式无效")?;
   validate_slug(&input.collection_key, "资料库集合键格式无效")?;
   validate_text(&input.title, 240, "资料库文档标题无效")?;
@@ -78,13 +83,15 @@ pub fn publish_document(
     "{}/{}/{}/{}/{}",
     capability_id, input.collection_key, year, month, input.key,
   );
-  let now = Local::now().to_rfc3339_opts(SecondsFormat::Secs, false);
+  if library_management::organization(data_dir)?.trash.contains_key(&id) { return Err("文档在回收站中，请先恢复 / Restore this document from Trash before updating".into()); }
+  let previous = if metadata_path.exists() { Some(read_unlocked(data_dir, &id)?) } else { None };
+  let now = Local::now().to_rfc3339_opts(SecondsFormat::Nanos, false);
   let created_at = read_metadata(&metadata_path)
     .ok()
     .filter(|metadata| metadata.id == id)
     .map(|metadata| metadata.created_at)
     .unwrap_or_else(|| now.clone());
-  let metadata = LibraryDocumentMetadata {
+  let mut metadata = LibraryDocumentMetadata {
     id,
     capability_id: capability_id.into(),
     capability_name: capability_name.into(),
@@ -97,17 +104,20 @@ pub fn publish_document(
     size_bytes: input.content.len(),
     created_at,
     updated_at: now,
+    revision: None,
   };
 
+  if let Some(previous) = previous { library_management::retain(data_dir, &previous)?; }
+  metadata.revision = Some(revision(&LibraryDocument { metadata: metadata.clone(), content: input.content.clone() }));
   fs::create_dir_all(&directory).map_err(|_| "无法创建资料库目录".to_string())?;
   atomic_write(&content_path, input.content.as_bytes(), "无法保存资料库文档")?;
-  let metadata_source = serde_json::to_vec_pretty(&metadata)
+  let metadata_source = serde_json::to_vec_pretty(&LibraryDocument { metadata: metadata.clone(), content: input.content })
     .map_err(|_| "无法序列化资料库文档信息".to_string())?;
   atomic_write(&metadata_path, &metadata_source, "无法保存资料库文档信息")?;
   Ok(metadata)
 }
 
-pub fn list_documents(data_dir: &Path) -> Result<Vec<LibraryDocumentMetadata>, String> {
+pub(crate) fn list_unlocked(data_dir: &Path) -> Result<Vec<LibraryDocumentMetadata>, String> {
   let root = data_dir.join(LIBRARY_DIR);
   if !root.is_dir() {
     return Ok(Vec::new());
@@ -125,7 +135,7 @@ pub fn list_documents(data_dir: &Path) -> Result<Vec<LibraryDocumentMetadata>, S
   Ok(documents)
 }
 
-pub fn read_document(data_dir: &Path, id: &str) -> Result<LibraryDocument, String> {
+pub(crate) fn validate_id(id: &str) -> Result<(), String> {
   let parts = id.split('/').collect::<Vec<_>>();
   if parts.len() != 5
     || !valid_capability_id(parts[0])
@@ -136,6 +146,12 @@ pub fn read_document(data_dir: &Path, id: &str) -> Result<LibraryDocument, Strin
   {
     return Err("资料库文档 ID 无效".into());
   }
+  Ok(())
+}
+
+pub(crate) fn read_unlocked(data_dir: &Path, id: &str) -> Result<LibraryDocument, String> {
+  validate_id(id)?;
+  let parts = id.split('/').collect::<Vec<_>>();
   let directory = data_dir
     .join(LIBRARY_DIR)
     .join(parts[0])
@@ -146,9 +162,15 @@ pub fn read_document(data_dir: &Path, id: &str) -> Result<LibraryDocument, Strin
   if metadata.id != id {
     return Err("资料库文档信息不一致".into());
   }
-  let content = fs::read_to_string(directory.join(format!("{}.md", parts[4])))
-    .map_err(|_| "无法读取资料库文档".to_string())?;
-  Ok(LibraryDocument { metadata, content })
+  // New records commit metadata and body together. Legacy Markdown pairs stay readable.
+  let value: serde_json::Value = serde_json::from_slice(&fs::read(directory.join(format!("{}.json", parts[4]))).map_err(|_| "Cannot read document")?).map_err(|_| "Invalid document")?;
+  let content = match value["content"].as_str() {
+    Some(content) => content.to_string(),
+    None => fs::read_to_string(directory.join(format!("{}.md", parts[4]))).map_err(|_| "无法读取资料库文档".to_string())?,
+  };
+  let mut doc = LibraryDocument { metadata, content };
+  doc.metadata.revision = Some(revision(&doc));
+  Ok(doc)
 }
 
 fn collect_metadata(
@@ -223,4 +245,23 @@ pub fn search_content(data_dir: &Path, query: &str) -> Result<Vec<String>, Strin
     if read_document(data_dir, &metadata.id)?.content.to_lowercase().contains(&query) { ids.push(metadata.id); }
   }
   Ok(ids)
+}
+
+
+pub fn revision(doc: &LibraryDocument) -> String {
+  format!("{:x}", Sha256::digest(serde_json::to_vec(&(&doc.id, &doc.title, &doc.content, &doc.updated_at)).expect("document strings serialize")))
+}
+pub fn publish_document(root: &Path, source: &str, name: &str, input: DocumentPublication) -> Result<LibraryDocumentMetadata, String> {
+  let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  publish_unlocked(root, source, name, input)
+}
+pub fn list_documents(root: &Path) -> Result<Vec<LibraryDocumentMetadata>, String> {
+  let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  let state = library_management::organization(root)?;
+  Ok(list_unlocked(root)?.into_iter().filter(|d| !state.trash.contains_key(&d.id)).collect())
+}
+pub fn read_document(root: &Path, id: &str) -> Result<LibraryDocument, String> {
+  let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  if library_management::organization(root)?.trash.contains_key(id) { return Err("文档在回收站中 / Document is in Trash".into()); }
+  read_unlocked(root, id)
 }

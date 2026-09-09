@@ -104,3 +104,8 @@ export function filterLibraryTree(tree: LibraryCapabilityNode[], query: string, 
     return documentCount > 0 ? [{ ...capability, documentCount, collections }] : []
   })
 }
+
+// A filtered or empty view must never retain a document from another view.
+export function visibleLibrarySelection(visibleIds: readonly string[], selectedId: string | null): string | null {
+  return selectedId && visibleIds.includes(selectedId) ? selectedId : visibleIds[0] ?? null
+}

@@ -143,3 +143,25 @@ Open **Conversations** to ask questions, extract information, compare sources, w
 The former Weekly Review entry is retired from navigation and the installation catalog. Existing task records, source grants and published documents remain available. Completed old drafts are accessible through **Previous review drafts** in Conversations; the old jobs remain only for backward-compatible task recovery.
 
 Install and sign in to Codex before using Conversations. The App Server adapter was checked against locally installed Codex CLI 0.153.4 and its generated protocol schema. See [Codex App Server documentation](https://learn.chatgpt.com/docs/app-server) for the protocol. Browser preview can display the interface, but session operations require the desktop host.
+
+## Import, organize and revise Library documents
+
+The Library accepts Markdown and TXT files (up to 50 files per import, 2 MB each), or pasted text. Review the title, date and body before importing. Each imported document receives a new stable identity; a matching filename does not overwrite an existing document. If a batch stops partway, the import dialog keeps track of its successful documents and retries only the remainder.
+
+Use **Topics** to group documents from different sources without moving or copying them. Select documents to add to a topic or remove their associations. Deleting a topic retains all its documents. **Discuss this topic** attaches its available documents to Conversations; the existing 50-document and 100 KB message-context limits still apply.
+
+**Revise** edits a document's title and Markdown, with a comparison before saving. **Version history** previews and restores previous versions by creating a new revision. Stale edits fail instead of overwriting a newer publication. Tracking starts with the first publication or edit after this update; earlier versions cannot be reconstructed. Capability publications also retain the previous revision. Editing a published document does not change the Capability's internal data, so a later Capability publication may replace the current text while keeping that revision in history.
+
+**Save this answer** now supports editing the body and either creating a document or updating an existing one. Publication still runs independently from model generation and retries without invoking AI. Newly saved answers retain a link to their originating conversation. Historical document citations continue to open their immutable source snapshots.
+
+**Trash** hides Library copies from ordinary search, selection and new source captures. Restore makes them available under their original identities. A Capability cannot republish a trashed document until it is restored. Permanently deleting a trashed document removes its current content, revision history and topic associations. Historical citation snapshots and the Capability's internal records remain separate; removing a journal entry inside Journal does not remove its Library copy.
+
+## Export, back up and restore data
+
+Select Library documents to **Export Markdown**. The desktop app saves a ZIP in Downloads with separate Markdown files organized by source; browser preview downloads one combined Markdown file. Internal citation links require Workbench. Use a full data backup to preserve their snapshots.
+
+**Settings → Local data** exports a `.workbench.json` backup to Downloads. It includes documents, revisions, topics, Trash, source snapshots, document grants, task records and Codex turn receipts, plus Activity Events, Capability private storage and interface preferences. The included Capability inventory is for reinstallation; executable packages, native Provider configuration, API credentials and Codex-owned session history are excluded. Restoring on another machine does not recreate those Codex sessions.
+
+Restore previews the backup and requires confirmation before replacing Workbench user data. Existing installed packages are unchanged; missing packages must be reinstalled. Running tasks block backup and restore. Restored running task records become interrupted on reload, with no automatic AI replay. Invalid backups are rejected before native data replacement; a durable rollback copy and a local-storage journal reconcile interrupted restoration. Browser preview backups have a separate format and cannot be restored into the desktop app.
+
+The same settings section shows retained Capability private-storage sizes. Disable an installed Capability before clearing its private data. Clearing private data requires confirmation and retains published documents, snapshots and task records.

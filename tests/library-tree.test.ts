@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { LibraryDocumentMetadata } from '../src/document-library.ts'
-import { buildLibraryTree, filterLibraryTree } from '../src/library-tree.ts'
+import { buildLibraryTree, filterLibraryTree, visibleLibrarySelection } from '../src/library-tree.ts'
 
 function document(
   id: string,
@@ -91,4 +91,18 @@ test('body search adds matching documents while retaining metadata matches', () 
   const tree = buildLibraryTree(docs, new Map())
   assert.equal(filterLibraryTree(tree, 'needle').length, 0)
   assert.equal(filterLibraryTree(tree, 'needle', new Set([docs[0].id]))[0].documentCount, 1)
+})
+
+test('empty topic and unmatched search clear the reader selection', () => {
+  const doc = document('default/document', 'imports', 'Imports', 'notes', 'Notes', '2026-09-09', 'Default document')
+  const ids = (tree: ReturnType<typeof buildLibraryTree>) => tree.flatMap((cap) => cap.collections.flatMap((collection) => collection.months.flatMap((month) => month.documents.map((item) => item.id))))
+  assert.equal(visibleLibrarySelection(ids(buildLibraryTree([], new Map())), doc.id), null)
+  assert.equal(visibleLibrarySelection(ids(filterLibraryTree(buildLibraryTree([doc], new Map()), 'unmatched')), doc.id), null)
+})
+
+test('switching views or deleting the open document selects only a visible document', () => {
+  assert.equal(visibleLibrarySelection(['topic/a', 'topic/b'], 'default/a'), 'topic/a')
+  assert.equal(visibleLibrarySelection(['topic/a', 'topic/b'], 'topic/b'), 'topic/b')
+  assert.equal(visibleLibrarySelection(['topic/a'], 'topic/b'), 'topic/a')
+  assert.equal(visibleLibrarySelection([], 'topic/a'), null)
 })
