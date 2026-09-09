@@ -11,10 +11,9 @@
 .conversation-empty h2 { min-height: 1.5em; display: flex; align-items: center; justify-content: center; margin: 0 0 14px; font-size: clamp(23px, 2.5vw, 30px); font-weight: 400; line-height: 1.5; letter-spacing: -.04em; text-wrap: balance; }
 
 .conversation-empty > p { color: var(--ink-muted); font-size: 12px; line-height: 1.8; margin: 0; }
-.conversation-turn { max-width: var(--conversation-width); margin: 0 auto 30px; }
+.conversation-turn { max-width: var(--conversation-width); margin: 0 auto 22px; }
 .conversation-user { width: fit-content; max-width: 85%; margin: 0 0 24px auto; padding: 12px 16px; border-radius: 12px 12px 3px 12px; background: var(--accent-wash); color: var(--ink); font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
-.conversation-answer { margin: 22px 0; }
-.conversation-speaker { color: var(--ink-soft); font-size: 9px; font-weight: 400; }
+.conversation-answer { margin: 10px 0; }
 .conversation-markdown { margin-top: 10px; font-size: 12px; line-height: 1.9; overflow-wrap: anywhere; }
 .conversation-markdown p { margin: 10px 0; }
 .conversation-markdown h1 { margin: 20px 0 12px; font-size: 23px; font-weight: 650; }
@@ -29,7 +28,7 @@
 .conversation-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
 .conversation-markdown td, .conversation-markdown th { padding: 7px 10px; border: 1px solid var(--line); text-align: left; }
 .conversation-markdown blockquote { padding-left: 14px; border-left: 2px solid var(--line); color: var(--ink-muted); }
-.conversation-answer-actions { margin-top: 14px; }
+.conversation-answer-actions { margin-top: 8px; }
 .conversation-answer-actions .quiet-button { gap: 6px; color: var(--ink-soft); font-size: 10px; }
 .conversation-answer-actions svg { width: 12px; height: 12px; }
 .conversation-answer.is-commentary .conversation-markdown { color: var(--ink-muted); font-size: 11px; }
@@ -82,3 +81,54 @@
 .conversation-message-sources { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
 .conversation-message-sources button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-strong); color: var(--accent); font-size: 9px; }
 .conversation-message-sources svg { width: 11px; height: 11px; }
+.conversation-message-sources > span, .conversation-upload-name { display: inline-flex; align-items: center; gap: 5px; min-width: 0; padding: 5px 7px; color: var(--ink-muted); font-size: 10px; overflow-wrap: anywhere; }
+.conversation-artifacts { display: grid; gap: 8px; margin-top: 8px; }
+.conversation-artifacts:empty { display: none; }
+.conversation-artifact { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-strong); }
+.conversation-artifact > svg { width: 20px; height: 20px; color: var(--accent); flex: none; }
+.conversation-artifact > div { flex: 1; min-width: 100px; }
+.conversation-artifact strong { display: block; color: var(--ink); font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.conversation-artifact small { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 10px; }
+.conversation-artifact .quiet-button { font-size: 11px; }
+.conversation-document-dialog { width: min(100%, 1000px); }
+dialog.conversation-document-dialog[open] { display: flex; flex-direction: column; height: min(760px, calc(100dvh - 64px)); overflow: hidden; }
+.conversation-document-dialog .modal-header, .conversation-document-dialog .modal-footer, .conversation-document-tools { flex: none; }
+.conversation-document-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.conversation-document-tools > span { flex: 1; color: var(--ink-muted); font-size: 11px; }
+.conversation-document-content { overflow: auto; min-height: 0; flex: 1; padding: 12px 4px; }
+.conversation-document-content .conversation-markdown { max-width: var(--workbench-reading-width); margin-inline: auto; }
+.library-dialog.conversation-save-dialog { width: min(460px, calc(100vw - 32px)); }
+.conversation-save-destination { display: grid; gap: 18px; padding: 2px 0 10px; }
+.conversation-save-destination .library-field { margin: 0; color: var(--ink-muted); }
+.conversation-destination-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 9px; outline: none; color: var(--ink); background: var(--surface-strong); font: inherit; font-size: 13px; text-align: left; }
+.conversation-destination-trigger > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.conversation-destination-trigger > svg { width: 14px; height: 14px; flex: none; color: var(--ink-soft); }
+.conversation-destination-trigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.conversation-destination-trigger:hover:not(:disabled) { border-color: var(--ink-soft); }
+.conversation-destination-trigger:focus-visible, .conversation-destination-trigger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent); }
+.conversation-destination-trigger:disabled { opacity: .55; cursor: default; }
+.conversation-destination-menu { position: fixed; inset: auto; margin: 0; box-sizing: border-box; padding: 5px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-strong); box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent); }
+.conversation-destination-menu > button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 36px; padding: 8px 10px; border-radius: 6px; text-align: left; color: var(--ink); background: transparent; font-size: 12px; outline: none; }
+.conversation-destination-menu > button > span { overflow-wrap: anywhere; }
+.conversation-destination-menu > button > svg { width: 14px; height: 14px; flex: none; }
+.conversation-destination-menu > button[aria-selected="true"] { color: var(--accent); background: var(--accent-wash); }
+.conversation-destination-menu > button:hover, .conversation-destination-menu > button:focus-visible { background: var(--surface-muted); }
+.conversation-destination-menu > button[aria-selected="true"]:focus-visible { background: var(--accent-wash); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+.conversation-state { display: flex; align-items: center; gap: 8px; max-width: var(--conversation-width); margin: 20px auto; color: var(--ink-soft); font-size: 11px; }
+.conversation-state svg { width: 13px; height: 13px; flex: none; }
+
+.conversation-turn-process { margin: 12px 0 6px; color: var(--ink-muted); }
+.conversation-turn-process > summary { display: flex; align-items: center; gap: 7px; padding: 6px 0; list-style: none; cursor: pointer; font-size: 11px; }
+.conversation-turn-process > summary::-webkit-details-marker { display: none; }
+.conversation-turn-process > summary svg { width: 12px; height: 12px; flex: none; transform: rotate(-90deg); }
+.conversation-turn-process[open] > summary svg { transform: rotate(0); }
+.conversation-turn-process-body { padding: 4px 0 8px; }
+.conversation-reasoning { margin: 14px 0; max-height: 240px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-muted); font-family: inherit; font-size: 11px; line-height: 1.8; }
+.conversation-turn-process-body > .conversation-answer { margin: 10px 0; }
+.conversation-turn-process-body > :first-child { margin-top: 0; }
+.conversation-turn-process-body .conversation-markdown { margin-top: 0; }
+.conversation-turn-process-body .conversation-markdown > :first-child { margin-top: 0; }
+.conversation-turn-process + .conversation-answer { margin-top: 0; }
+.conversation-turn > .conversation-answer .conversation-markdown { margin-top: 0; }
+.conversation-turn > .conversation-answer .conversation-markdown > :first-child { margin-top: 0; }

@@ -81,3 +81,43 @@ fn backup_rejects_malformed_auxiliary_records_before_replacing_data() {
     assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "keep me");
   }
 }
+
+#[test]
+fn backup_restores_document_working_copies_and_retained_turn_results_together() {
+  use app_lib::conversation_documents::{self as documents, DocumentInputs};
+  let root = Fixture::new();
+  documents::prepare(&root.0, "session", "first", &DocumentInputs::default()).unwrap();
+  let workspace = documents::workspace(&root.0, "session");
+  fs::write(workspace.join("draft.txt"), "First draft").unwrap();
+  let first = documents::complete(&root.0, "session", "first").unwrap();
+  fs::write(workspace.join("scratch.py"), "not a document").unwrap();
+  let backup = user_data::capture(&root.0, BTreeMap::new(), serde_json::json!([])).unwrap();
+  assert!(backup.files.keys().any(|name| name.starts_with("conversation-document-state/") && name.ends_with("-output.json")));
+  assert!(backup.files.keys().any(|name| name.ends_with("draft.txt")));
+  assert!(!backup.files.keys().any(|name| name.ends_with("scratch.py")));
+  fs::write(workspace.join("draft.txt"), "Later draft").unwrap();
+  user_data::restore(&root.0, &backup, "document-restore").unwrap();
+  assert_eq!(fs::read_to_string(workspace.join("draft.txt")).unwrap(), "First draft");
+  assert_eq!(documents::complete(&root.0, "session", "first").unwrap()[0].content, first[0].content);
+}
+
+#[test]
+fn conversation_placement_keeps_source_and_atomically_links_topic_with_idempotent_retry() {
+  let root = Fixture::new();
+  let doc = library::publish_document(&root.0, "workbench.conversations", "Conversations", document("conversation result")).unwrap();
+  management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "research".into(), name: "Research".into(), document_ids: vec![] } }).unwrap();
+  for _ in 0..2 {
+    management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("research".into()), section: management::LibrarySection { id: "diary".into(), name: "日记".into() } }).unwrap();
+  }
+  let state = management::organization(&root.0).unwrap();
+  assert_eq!(state.topics[0].document_ids, vec![doc.id.clone()]);
+  assert_eq!(state.sections[&doc.id].id, "diary");
+  let saved = library::read_document(&root.0, &doc.id).unwrap();
+  assert_eq!(saved.capability_id, "workbench.conversations");
+  assert_eq!(saved.content, "conversation result");
+  assert!(management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("deleted".into()), section: management::LibrarySection { id: "other".into(), name: "Other".into() } }).is_err());
+  assert_eq!(management::organization(&root.0).unwrap().sections[&doc.id].id, "diary");
+  management::change(&root.0, LibraryChange::Trash { ids: vec![doc.id.clone()] }).unwrap();
+  management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id.clone()] }).unwrap();
+  assert!(!management::organization(&root.0).unwrap().sections.contains_key(&doc.id));
+}

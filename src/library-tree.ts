@@ -27,16 +27,17 @@ export function buildLibraryTree(
   const capabilities = new Map<string, LibraryCapabilityNode>()
 
   for (const document of documents) {
-    let capability = capabilities.get(document.capabilityId)
+    const section = document.section ?? { id: document.capabilityId, name: document.capabilityName }
+    let capability = capabilities.get(section.id)
     if (!capability) {
       capability = {
-        capabilityId: document.capabilityId,
-        capabilityName: installedNames.get(document.capabilityId) ?? document.capabilityName,
-        installed: installedNames.has(document.capabilityId),
+        capabilityId: section.id,
+        capabilityName: installedNames.get(section.id) ?? section.name,
+        installed: installedNames.has(section.id),
         documentCount: 0,
         collections: [],
       }
-      capabilities.set(document.capabilityId, capability)
+      capabilities.set(section.id, capability)
     }
     capability.documentCount += 1
 

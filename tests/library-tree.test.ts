@@ -106,3 +106,13 @@ test('switching views or deleting the open document selects only a visible docum
   assert.equal(visibleLibrarySelection(['topic/a'], 'topic/b'), 'topic/a')
   assert.equal(visibleLibrarySelection([], 'topic/a'), null)
 })
+
+test('saved section controls the library tree without changing document provenance', () => {
+  const doc = { ...document('workbench.conversations/answers/2026/09/a', 'workbench.conversations', '对话', 'answers', '对话成果', '2026-09-09', 'Saved answer'), section: { id: 'diary', name: '日记' } }
+  const tree = buildLibraryTree([doc], new Map())
+  assert.equal(tree[0].capabilityId, 'diary')
+  assert.equal(tree[0].capabilityName, '日记')
+  const saved = tree[0].collections[0].months[0].documents[0]
+  assert.equal(saved.capabilityId, 'workbench.conversations')
+  assert.equal(saved.id, doc.id)
+})

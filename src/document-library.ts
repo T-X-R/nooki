@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { DocumentPublication } from '../packages/capability-contract/src'
 import { createLibraryStore, type LibraryChange, type Organization, type LibraryDocument, type LibraryDocumentMetadata } from './library-store'
-export type { LibraryDocument, LibraryDocumentMetadata, Topic, Origin, Organization, LibraryChange } from './library-store'
+export type { LibraryDocument, LibraryDocumentMetadata, Topic, Origin, Organization, LibraryChange, LibrarySection } from './library-store'
 
 const browser = () => createLibraryStore(window.localStorage)
 const changed = () => window.dispatchEvent(new Event('workbench:library-changed'))
@@ -11,7 +11,11 @@ export async function publishCapabilityDocument(capabilityId: string, capability
   changed()
 }
 export async function listLibraryDocuments(): Promise<LibraryDocumentMetadata[]> {
-  return window.__TAURI_INTERNALS__ ? invoke('library_list_documents') : browser().list().map(({ content: _content, ...doc }) => doc)
+  const [documents, organization] = await Promise.all([
+    window.__TAURI_INTERNALS__ ? invoke<LibraryDocumentMetadata[]>('library_list_documents') : browser().list().map(({ content: _content, ...doc }) => doc),
+    libraryOrganization(),
+  ])
+  return documents.map((doc) => ({ ...doc, section: organization.sections?.[doc.id] }))
 }
 export async function readLibraryDocument(id: string): Promise<LibraryDocument> {
   return window.__TAURI_INTERNALS__ ? invoke('library_read_document', { id }) : browser().read(id)

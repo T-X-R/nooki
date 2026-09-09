@@ -66,3 +66,19 @@ test('renaming a topic retains its documents and deleting it leaves their revisi
   assert.equal(store.read(doc.id).title, 'Revised')
   assert.equal(store.history(doc.id).length, 2)
 })
+
+test('placing a conversation result preserves its source and existing topic members across retries', () => {
+  const { store } = setup()
+  const existing = store.publish('diary', 'Diary', input('diary'))
+  const answer = store.publish('workbench.conversations', 'Conversations', input('answer'))
+  store.change({ kind: 'save-topic', topic: { id: 'research', name: 'Research', documentIds: [existing.id] } })
+  const placement = { kind: 'place' as const, id: answer.id, topicId: 'research', section: { id: 'diary', name: '日记' } }
+  store.change(placement); store.change(placement)
+  assert.deepEqual(store.organization().topics[0].documentIds, [existing.id, answer.id])
+  assert.equal(store.organization().sections?.[answer.id].id, 'diary')
+  assert.equal(store.read(answer.id).capabilityId, 'workbench.conversations')
+  assert.throws(() => store.change({ ...placement, topicId: 'deleted', section: { id: 'other', name: 'Other' } }), /Topic no longer exists/)
+  assert.equal(store.organization().sections?.[answer.id].id, 'diary')
+  store.change({ kind: 'trash', ids: [answer.id] }); store.change({ kind: 'purge', ids: [answer.id] })
+  assert.equal(store.organization().sections?.[answer.id], undefined)
+})

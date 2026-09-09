@@ -11,6 +11,8 @@ pub struct Organization {
   pub topics: Vec<Topic>,
   pub trash: BTreeMap<String, String>,
   pub origins: BTreeMap<String, Origin>,
+  #[serde(default)]
+  pub sections: BTreeMap<String, LibrarySection>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,6 +20,8 @@ pub struct Topic { pub id: String, pub name: String, pub document_ids: Vec<Strin
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Origin { pub thread_id: String, pub message_id: String }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LibrarySection { pub id: String, pub name: String }
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum LibraryChange {
@@ -29,6 +33,7 @@ pub enum LibraryChange {
   Trash { ids: Vec<String> },
   Restore { ids: Vec<String> },
   Purge { ids: Vec<String> },
+  Place { id: String, #[serde(rename = "topicId")] topic_id: Option<String>, section: LibrarySection },
   Origin { id: String, origin: Origin },
 }
 
@@ -124,9 +129,20 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
         }
         let history = root.join("document-history").join(&id);
         if history.exists() { fs::remove_dir_all(history).map_err(|e| e.to_string())?; }
-        state.trash.remove(&id); state.origins.remove(&id);
+        state.trash.remove(&id); state.origins.remove(&id); state.sections.remove(&id);
         for topic in &mut state.topics { topic.document_ids.retain(|value| value != &id); }
       }
+    }
+    LibraryChange::Place { id, topic_id, mut section } => {
+      document_library::read_unlocked(root, &id)?;
+      if state.trash.contains_key(&id) { return Err("文档在回收站中 / Document is in Trash".into()); }
+      if section.id.trim().is_empty() || section.id.len() > 200 || section.name.trim().is_empty() || section.name.chars().count() > 80 { return Err("栏目无效 / Invalid section".into()); }
+      if let Some(topic_id) = topic_id.filter(|id| !id.is_empty()) {
+        let topic = state.topics.iter_mut().find(|topic| topic.id == topic_id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?;
+        if !topic.document_ids.contains(&id) { topic.document_ids.push(id.clone()); }
+      }
+      section.name = section.name.trim().into();
+      state.sections.insert(id, section);
     }
     LibraryChange::Origin { id, origin } => { document_library::read_unlocked(root, &id)?; state.origins.insert(id, origin); }
   }
