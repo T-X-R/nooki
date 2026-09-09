@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { createLibraryStore, libraryStorageKey } from '../src/library-store.ts'
+const input = (key: string, content = 'Original evidence') => ({ key, title: key, content, documentDate: '2026-09-09', collectionKey: 'notes', collectionName: 'Notes' })
+const setup = () => {
+  const data = new Map<string, string>()
+  return { data, store: createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } }) }
+}
+test('imports and cross-source topics keep document identity through editing and reversible trash', () => {
+  const { data, store } = setup()
+  const first = store.change({ kind: 'import', document: input('first') })!
+  const other = store.publish('com.personal.diary', 'Diary', input('other'))
+  store.change({ kind: 'save-topic', topic: { id: 'topic', name: 'Project', documentIds: [first.id, other.id, first.id] } })
+  assert.equal(store.organization().topics[0].documentIds.length, 2)
+  store.change({ kind: 'edit', id: first.id, expected: first.revision!, title: 'Revised', content: 'New evidence' })
+  assert.equal(store.read(first.id).content, 'New evidence')
+  assert.equal(store.history(first.id)[1].content, 'Original evidence')
+  assert.throws(() => store.change({ kind: 'edit', id: first.id, expected: first.revision!, title: 'Stale', content: 'Stale' }), /Document changed/)
+  store.change({ kind: 'trash', ids: [first.id] })
+  assert.equal(store.list().length, 1)
+  assert.equal(store.list(true).length, 1)
+  assert.throws(() => store.publish('workbench.imports', 'Imports', { ...input('first'), collectionKey: 'imports' }), /Trash/)
+  assert.throws(() => store.read(first.id), /Trash/)
+  assert.deepEqual(store.organization().topics[0].documentIds, [first.id, other.id])
+  store.change({ kind: 'restore', ids: [first.id] })
+  const current = store.read(first.id)
+  store.change({ kind: 'restore-version', id: first.id, expected: current.revision!, revision: first.revision! })
+  assert.equal(store.read(first.id).content, 'Original evidence')
+  assert.equal(store.history(first.id).length, 3)
+  const afterRestart = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } })
+  assert.equal(afterRestart.read(first.id).content, 'Original evidence')
+  store.change({ kind: 'delete-topic', id: 'topic' })
+  assert.equal(store.list().length, 2)
+})
+test('permanent deletion requires trash and cleans topic associations but leaves citation snapshots alone', () => {
+  const { store, data } = setup()
+  const doc = store.publish('com.personal.diary', 'Diary', input('entry'))
+  data.set('workbench-source-snapshot:old', JSON.stringify(doc))
+  store.change({ kind: 'save-topic', topic: { id: 'project', name: 'Project', documentIds: [doc.id] } })
+  assert.throws(() => store.change({ kind: 'purge', ids: [doc.id] }), /Trash/)
+  store.change({ kind: 'trash', ids: [doc.id] })
+  store.change({ kind: 'purge', ids: [doc.id] })
+  assert.equal(store.list(true).length, 0)
+  assert.equal(store.organization().topics[0].documentIds.length, 0)
+  assert.equal(JSON.parse(data.get('workbench-source-snapshot:old')!).content, doc.content)
+})
+test('legacy data stays readable and failed persistence never acknowledges an edit', () => {
+  const { data, store } = setup()
+  const doc = store.publish('com.personal.diary', 'Diary', input('entry'))
+  data.set('personal-workbench-document-library', JSON.stringify([doc])); data.delete(libraryStorageKey)
+  assert.equal(store.read(doc.id).content, doc.content)
+  const failing = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: () => { throw new Error('disk full') } })
+  assert.throws(() => failing.change({ kind: 'edit', id: doc.id, expected: doc.revision!, title: 'Changed', content: 'Unsaved' }), /disk full/)
+  assert.equal(store.read(doc.id).content, doc.content)
+})

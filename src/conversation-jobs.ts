@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { DocumentPublication, SelectedDocument } from '../packages/capability-contract/src'
 import { publicationReference } from '../packages/capability-contract/src/references'
-import { readLibraryDocument, publishCapabilityDocument } from './document-library'
+import { readLibraryDocument, publishCapabilityDocument, changeLibrary } from './document-library'
 import { activityStore } from './activity'
 import { CONVERSATION_OWNER, libraryContext, type ConversationInput, type ConversationResult, type SaveAnswerInput } from './conversation-model'
 import type { TaskJob } from './task-runner'
@@ -33,12 +33,22 @@ export const saveAnswer: TaskJob = {
     const input = value as SaveAnswerInput
     if (!input.title.trim() || !input.content.trim() || !/^[a-z0-9-]+$/.test(input.messageId)) throw new Error('Invalid answer to save')
     const publication: DocumentPublication = { key: input.messageId, title: input.title, content: input.content, documentDate: input.date, collectionKey: 'answers', collectionName: input.language === 'zh' ? '对话成果' : 'Conversation answers' }
-    await step('publish', async () => {
+    const published = await step('publish', async () => {
       signal.throwIfAborted()
+      if (input.targetDocumentId) {
+        if (!input.expectedRevision) throw new Error('Missing target revision')
+        const current = await readLibraryDocument(input.targetDocumentId)
+        // A lost publication acknowledgement can be retried without overwriting a later edit.
+        if (current.title !== input.title || current.content !== input.content) {
+          await changeLibrary({ kind: 'edit', id: current.id, title: input.title, content: input.content, expected: input.expectedRevision })
+        }
+        return { kind: 'library-document' as const, documentId: current.id, title: input.title }
+      }
       if (window.__TAURI_INTERNALS__) await invoke('conversation_publish', { document: publication })
       else await publishCapabilityDocument(CONVERSATION_OWNER, input.language === 'zh' ? '对话' : 'Conversations', publication)
     })
-    const reference = publicationReference(CONVERSATION_OWNER, publication)
+    const reference = published ?? publicationReference(CONVERSATION_OWNER, publication)
+    if (input.threadId) await step('origin', async () => { await changeLibrary({ kind: 'origin', id: reference.documentId, origin: { threadId: input.threadId!, messageId: input.sourceMessageId ?? input.messageId } }) })
     await step('activity', async () => { signal.throwIfAborted(); activityStore.write(CONVERSATION_OWNER, { type: 'conversation.saved', title: input.title, key: reference.documentId, target: reference }, executionId.split(':')[0]) })
     return reference
   },

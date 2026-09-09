@@ -46,6 +46,10 @@ import { grantSelectedDocuments, readSourceReference } from './document-grants'
 import { TodayActivity } from './TodayActivity'
 import { searchLibraryContent, listLibraryDocuments, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from './document-library'
 import { buildLibraryTree, filterLibraryTree } from './library-tree'
+import { LibraryManager } from './LibraryManager'
+import { EditDocumentDialog, HistoryDialog } from './LibraryDialogs'
+import { DataManagement } from './DataManagement'
+import { libraryOrganization, type Origin } from './document-library'
 import i18n, { type Language } from './i18n'
 import { TaskPage } from './TaskPage'
 import { PackageImportModal } from './PackageImportModal'
@@ -217,8 +221,10 @@ function App() {
   }
   useEffect(() => {
     const open = (event: Event) => openDocument((event as CustomEvent<DocumentReference>).detail)
+    const conversation = (event: Event) => { setConversationTarget((event as CustomEvent<string>).detail); navigate('conversations') }
+    window.addEventListener('workbench:open-conversation', conversation)
     window.addEventListener('workbench:open-document', open)
-    return () => window.removeEventListener('workbench:open-document', open)
+    return () => { window.removeEventListener('workbench:open-document', open); window.removeEventListener('workbench:open-conversation', conversation) }
   }, [])
 
   const selectProvider = async (kind: ProviderKind) => {
@@ -252,7 +258,7 @@ function App() {
               {view === 'library' && <LibraryPage onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
-              {view === 'settings' && <SettingsPage onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} />}
+              {view === 'settings' && <SettingsPage installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} />}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -463,6 +469,12 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
   const { t } = useTranslation()
   const { language } = useWorkbench()
   const [documents, setDocuments] = useState<LibraryDocumentMetadata[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [scopeIds, setScopeIds] = useState<string[] | null>(null)
+  const [editing, setEditing] = useState<LibraryDocument | null>(null)
+  const [history, setHistory] = useState<LibraryDocument | null>(null)
+  const [origins, setOrigins] = useState<Record<string, Origin>>({})
+  const refreshLibrary = () => setRefreshKey((key) => key + 1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedDocument, setSelectedDocument] = useState<LibraryDocument | null>(null)
   const [loading, setLoading] = useState(true)
@@ -500,8 +512,8 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
   const installedNames = useMemo(() => new Map<string, string>(installed.map((capability): [string, string] => [
     capability.manifest.id,
     capabilityCopy(capability, language).name,
-  ]).concat([[CONVERSATION_OWNER, language === 'zh' ? '对话' : 'Conversations']])), [installed, language])
-  const tree = useMemo(() => buildLibraryTree(thisWeek ? documents.filter((doc) => inWeek(doc.documentDate)) : documents, installedNames), [documents, installedNames, thisWeek])
+  ]).concat([[CONVERSATION_OWNER, language === 'zh' ? '对话' : 'Conversations'], ['workbench.imports', language === 'zh' ? '导入资料' : 'Imports']])), [installed, language])
+  const tree = useMemo(() => buildLibraryTree(documents.filter((doc) => (!thisWeek || inWeek(doc.documentDate)) && (!scopeIds || scopeIds.includes(doc.id))), installedNames), [documents, installedNames, thisWeek, scopeIds])
   const filteredTree = useMemo(() => filterLibraryTree(tree, query, contentMatches), [tree, query, contentMatches])
   const searching = query.trim().length > 0
 
@@ -519,27 +531,29 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
       .then((next) => {
         if (!current) return
         setDocuments(next)
-        setSelectedId((previous) => previous ?? target?.documentId ?? next[0]?.id ?? null)
+        setSelectedId((previous) => next.some((doc) => doc.id === previous) ? previous : next.some((doc) => doc.id === target?.documentId) ? target!.documentId : next[0]?.id ?? null)
+        setSelectedInputs((previous) => new Set([...previous].filter((id) => next.some((doc) => doc.id === id))))
+        void libraryOrganization().then((value) => { if (current) setOrigins(value.origins) }).catch((reason) => { if (current) setError(String(reason)) })
         setError(null)
       })
       .catch(() => current && setError(t('libraryLoadFailed')))
       .finally(() => current && setLoading(false))
     return () => { current = false }
-  }, [t])
+  }, [t, refreshKey])
 
   useEffect(() => {
     let current = true
     setSelectedDocument(null)
     setSource(null)
     setDocumentError(null)
-    if (!selectedId) return () => { current = false }
+    if (!selectedId && !sourceTarget) return () => { current = false }
     const read = sourceTarget
       ? readSourceReference(sourceTarget).then((doc) => { if (current) setSource(doc) })
-      : readLibraryDocument(selectedId).then((doc) => { if (current) setSelectedDocument(doc) })
+      : readLibraryDocument(selectedId!).then((doc) => { if (current) setSelectedDocument(doc) })
     read
       .catch(() => current && setDocumentError(t('libraryDocumentLoadFailed')))
     return () => { current = false }
-  }, [selectedId, sourceTarget, t])
+  }, [selectedId, sourceTarget, t, refreshKey])
 
   const locale = language === 'zh' ? 'zh-CN' : 'en-US'
   const monthLabel = (month: string) => new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' })
@@ -552,6 +566,9 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
         <span className="library-total">{documents.length} {t('libraryDocuments')}</span>
       </div>
 
+      <LibraryManager language={language} documents={documents} selected={[...selectedInputs]} onOpen={(id) => { setSelectedId(id); setSourceTarget(null) }} onScope={setScopeIds} onDiscuss={onAddToConversation} refresh={refreshLibrary} />
+      {editing && <EditDocumentDialog document={editing} language={language} onClose={() => setEditing(null)} onSaved={refreshLibrary} />}
+      {history && <HistoryDialog document={history} language={language} onClose={() => setHistory(null)} onSaved={refreshLibrary} />}
       <div className="library-selection-bar">
         <div className="library-period-filter" role="group" aria-label={language === 'zh' ? '资料日期范围' : 'Document date range'}>
           <button aria-pressed={!thisWeek} onClick={() => setThisWeek(false)}>{language === 'zh' ? '全部资料' : 'All documents'}</button>
@@ -577,7 +594,7 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
       <div className="library-workspace">
         {loading ? <div className="library-state"><ReloadIcon className="spin" /><span>{t('libraryLoading')}</span></div>
           : error && documents.length === 0 ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{error}</span></div>
-            : documents.length === 0 ? <div className="library-state"><ArchiveIcon /><strong>{t('libraryEmpty')}</strong><span>{t('libraryEmptyHint')}</span></div>
+            : documents.length === 0 && !sourceTarget ? <div className="library-state"><ArchiveIcon /><strong>{t('libraryEmpty')}</strong><span>{t('libraryEmptyHint')}</span></div>
               : <>
                 <nav className="library-tree" aria-label={t('libraryTree')}>
                   <label className="library-tree-search">
@@ -604,7 +621,7 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
                         >
                           <ChevronRightIcon className={`library-tree-chevron ${capabilityExpanded ? 'is-expanded' : ''}`} />
                           <ArchiveIcon className="library-capability-icon" />
-                          <span><strong>{capability.capabilityName}</strong><small>{capability.capabilityId === CONVERSATION_OWNER ? (language === 'zh' ? '平台资料' : 'Platform documents') : capability.installed ? t('libraryInstalledSource') : t('libraryUninstalledSource')}</small></span>
+                          <span><strong>{capability.capabilityName}</strong><small>{[CONVERSATION_OWNER, 'workbench.imports'].includes(capability.capabilityId) ? (language === 'zh' ? '平台资料' : 'Platform documents') : capability.installed ? t('libraryInstalledSource') : t('libraryUninstalledSource')}</small></span>
                           <em>{capability.documentCount}</em>
                         </button>
                         {capabilityExpanded && capability.collections.map((collection) => {
@@ -655,8 +672,9 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
                 <article className="library-reader">
                   {source ? <><header className="library-reader-header"><span>{language === 'zh' ? '引用原文 · 使用时保存的快照' : 'Cited source · snapshot captured when used'}</span><h2>{source.reference.title}</h2><small>{source.documentDate} · {source.reference.revision}</small><button className="quiet-button" onClick={() => { setSourceTarget(null); setSelectedId(source.reference.documentId) }}>{language === 'zh' ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><div className="library-reader-document"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></div></> : selectedDocument ? <>
                     <header className="library-reader-header">
-                      <div><span>{selectedDocument.collectionName}</span><h2>{selectedDocument.title}</h2></div>
+                      <div><span>{selectedDocument.capabilityId === 'workbench.imports' ? (language === 'zh' ? '导入资料' : 'Imported documents') : selectedDocument.collectionName}</span><h2>{selectedDocument.title}</h2></div>
                       <div className="library-reader-meta"><span>{installedNames.get(selectedDocument.capabilityId) ?? selectedDocument.capabilityName}</span><small>{t('libraryUpdated')} {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedDocument.updatedAt))}</small></div>
+                      <div className="library-document-actions"><button className="quiet-button" onClick={() => setEditing(selectedDocument)}>{language === 'zh' ? '修订' : 'Revise'}</button><button className="quiet-button" onClick={() => setHistory(selectedDocument)}>{language === 'zh' ? '版本历史' : 'Version history'}</button><button className="quiet-button" onClick={() => onAddToConversation([selectedDocument.id])}>{language === 'zh' ? '继续讨论' : 'Discuss document'}</button>{origins[selectedDocument.id] && <button className="quiet-button" onClick={() => window.dispatchEvent(new CustomEvent('workbench:open-conversation', { detail: origins[selectedDocument.id].threadId }))}>{language === 'zh' ? '原始对话' : 'Original conversation'}</button>}</div>
                     </header>
                     <div className="library-reader-content"><div className="library-reader-document"><LibraryMarkdown content={selectedDocument.content} onDocument={onDocument} /></div></div>
                   </> : documentError ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{documentError}</span></div> : <div className="library-state"><FileTextIcon /><span>{t('librarySelectDocument')}</span></div>}
@@ -766,7 +784,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
   )
 }
 
-function SettingsPage({ onNotice, providerStatus, onSelectProvider, onCheckProvider }: { onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus> }) {
+function SettingsPage({ installed, onNotice, providerStatus, onSelectProvider, onCheckProvider }: { installed: InstalledCapability[]; onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus> }) {
   const { t } = useTranslation()
   const { theme, setTheme, language, setLanguage, providerKind } = useWorkbench()
   const [checking, setChecking] = useState(false)
@@ -813,7 +831,7 @@ function SettingsPage({ onNotice, providerStatus, onSelectProvider, onCheckProvi
 
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">03</span><div><h2>{t('language')}</h2><p>{t('languageIntro')}</p></div></div><div className="theme-options language-options"><button className={`theme-option ${language === 'zh' ? 'selected' : ''}`} onClick={() => setLanguage('zh')}><span className="language-preview">中</span><span><strong>{t('chinese')}</strong><small>{t('chineseDescription')}</small></span>{language === 'zh' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${language === 'en' ? 'selected' : ''}`} onClick={() => setLanguage('en')}><span className="language-preview">EN</span><span><strong>{t('english')}</strong><small>{t('englishDescription')}</small></span>{language === 'en' && <CheckIcon className="selected-check" />}</button></div></section>
 
-      <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">04</span><div><h2>{t('localData')}</h2><p>{t('localDataIntro')}</p></div></div><div className="data-row"><div className="data-row-icon"><FileTextIcon /></div><div><strong>{t('defaultWorkspace')}</strong><span>{t('personalWorkspaceLocal')}</span></div><span className="data-row-value">{t('ready')}</span><ChevronRightIcon /></div></section>
+      <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">04</span><div><h2>{t('localData')}</h2><p>{t('localDataIntro')}</p></div></div><div className="data-row"><div className="data-row-icon"><FileTextIcon /></div><div><strong>{t('defaultWorkspace')}</strong><span>{t('personalWorkspaceLocal')}</span></div><span className="data-row-value">{t('ready')}</span><ChevronRightIcon /></div><DataManagement language={language} installed={installed} /></section>
     </div>
   )
 }

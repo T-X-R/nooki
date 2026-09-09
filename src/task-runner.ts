@@ -12,6 +12,7 @@ export type TaskRunnerDependencies = {
 export function createTaskRunner(dependencies: TaskRunnerDependencies) {
   let records: readonly TaskRecord[] = []
   let initialized: Promise<void> | undefined
+  let maintenance = false
   let persistence: Promise<unknown> = Promise.resolve()
   const listeners = new Set<() => void>()
   const executions = new Map<string, { controller: AbortController; done: Promise<void> }>()
@@ -45,6 +46,7 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
     return current.map((record) => record.id === id ? { ...record, ...patch, updatedAt: new Date().toISOString() } : record)
   })
   const resolve = (record: Pick<TaskRecord, 'capabilityId' | 'capabilityVersion' | 'job'>) => {
+    if (maintenance) throw new Error('正在管理本地数据，请稍后重试 / Data maintenance in progress')
     if (pausedCapabilities.has(record.capabilityId)) throw new Error('Capability lifecycle change in progress')
     const resolved = dependencies.resolve(record.capabilityId, record.job)
     if (resolved.version !== record.capabilityVersion) throw new Error('Task belongs to a different capability version. Start a new task.')
@@ -167,6 +169,16 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
       } finally {
         pausedCapabilities.delete(capabilityId)
       }
+    },
+    async withMaintenance<T>(action: () => Promise<T>): Promise<T> {
+      await initialize()
+      if (maintenance) throw new Error('Data maintenance in progress')
+      maintenance = true
+      try {
+        await persistence
+        if (records.some((record) => record.status === 'running')) throw new Error('请先停止正在执行的任务 / Stop running tasks first')
+        return await action()
+      } finally { maintenance = false }
     },
     async settled(id: string) { await executions.get(id)?.done },
   }

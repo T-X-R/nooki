@@ -7,8 +7,9 @@ import { parseReferenceHref } from '../packages/capability-contract/src/referenc
 import { taskRunner } from './tasks'
 import { conversationClient } from './conversation-client'
 import { CONVERSATION_OWNER, LEGACY_REVIEW, type ConversationInput, type ConversationItem, type SaveAnswerInput } from './conversation-model'
-import { listLibraryDocuments, searchLibraryContent, type LibraryDocumentMetadata } from './document-library'
+import { listLibraryDocuments, searchLibraryContent, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from './document-library'
 import './conversation.css'
+import { LibraryDialog, DocumentComparison } from './LibraryDialogs'
 
 // UI drafts only; Codex is the authority for session history and messages.
 const drafts = new Map<string, { text: string; ids: string[] }>()
@@ -39,6 +40,10 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState<SaveAnswerInput | null>(null)
+  const [saveTarget, setSaveTarget] = useState<LibraryDocument | null>(null)
+  const [saveError, setSaveError] = useState('')
+  const [saveCompare, setSaveCompare] = useState(false)
+  const saveSelection = useRef(0)
   const [showLegacy, setShowLegacy] = useState(false)
   const scroll = useRef<HTMLDivElement>(null)
   const follow = useRef(true)
@@ -89,7 +94,22 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
     await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
     setText(''); drafts.set(id, { text: '', ids }); drafts.delete('new'); follow.current = true
   })
-  const save = (messageId: string, content: string, title?: string) => setSaving({ threadId: selected ?? undefined, messageId: crypto.randomUUID(), sourceMessageId: messageId, content, title: title ?? (thread?.name || thread?.preview || (zh ? '对话成果' : 'Conversation answer')).slice(0, 120), date: new Date().toLocaleDateString('en-CA'), language })
+  const save = (messageId: string, content: string, title?: string) => {
+    setSaveTarget(null); setSaveError(''); setSaveCompare(false)
+    setSaving({ threadId: selected ?? undefined, messageId: crypto.randomUUID(), sourceMessageId: messageId, content, title: title ?? (thread?.name || thread?.preview || (zh ? '对话成果' : 'Conversation answer')).slice(0, 120), date: new Date().toLocaleDateString('en-CA'), language })
+    void listLibraryDocuments().then(setDocuments).catch((e) => setSaveError(String(e)))
+  }
+  const selectSaveTarget = async (id: string) => {
+    const request = ++saveSelection.current
+    setSaveTarget(null); setSaveError(''); setSaveCompare(false)
+    setSaving((value) => value ? { ...value, targetDocumentId: id || undefined, expectedRevision: undefined } : value)
+    if (!id) return
+    try {
+      const doc = await readLibraryDocument(id)
+      if (request !== saveSelection.current) return
+      setSaveTarget(doc); setSaving((value) => value ? { ...value, title: doc.title, expectedRevision: doc.revision ?? doc.updatedAt } : value)
+    } catch (e) { if (request === saveSelection.current) setSaveError(String(e)) }
+  }
   const attachments = (item: ConversationItem) => {
     const task = tasks.find((record) => record.id === item.clientId)
     return (task?.checkpoints.sources as SelectedDocument[] | undefined) ?? []
@@ -129,6 +149,13 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
         </div>
       </section>
     </div>
-    {saving && <div className="modal-backdrop"><section className="modal conversation-save-modal" role="dialog" aria-modal="true" aria-labelledby="save-answer-title"><div className="modal-header"><h2 id="save-answer-title">{zh ? '保存对话成果' : 'Save this answer'}</h2><button className="icon-button" aria-label={zh ? '关闭' : 'Close'} onClick={() => setSaving(null)}><Cross2Icon /></button></div><label>{zh ? '文档标题' : 'Document title'}<input autoFocus value={saving.title} maxLength={120} onChange={(event) => setSaving({ ...saving, title: event.target.value })} /></label><p className="modal-copy">{zh ? '将这条回答及其来源引用保存到资料库。' : 'Save this answer and its source links to the Library.'}</p><div className="modal-footer"><button className="secondary-button" onClick={() => setSaving(null)}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={!saving.title.trim() || busy} onClick={() => void act(async () => { await taskRunner.start(CONVERSATION_OWNER, 'save-answer', saving); setSaving(null) })}>{zh ? '保存到资料库' : 'Save to Library'}</button></div></section></div>}
+    {saving && <LibraryDialog wide title={zh ? '保存对话成果' : 'Save this answer'} busy={busy} onClose={() => { saveSelection.current++; setSaving(null) }}>
+      <label className="library-field">{zh ? '保存位置' : 'Destination'}<select value={saving.targetDocumentId ?? ''} disabled={busy} onChange={(event) => void selectSaveTarget(event.target.value)}><option value="">{zh ? '保存为新文档' : 'Save as a new document'}</option>{documents.map((doc) => <option key={doc.id} value={doc.id}>{doc.title} · {doc.capabilityName} · {doc.documentDate}</option>)}</select></label>
+      <label className="library-field">{zh ? '文档标题' : 'Document title'}<input autoFocus value={saving.title} disabled={busy} maxLength={120} onChange={(event) => setSaving({ ...saving, title: event.target.value })} /></label>
+      {saveCompare && saveTarget ? <DocumentComparison before={`# ${saveTarget.title}\n\n${saveTarget.content}`} after={`# ${saving.title}\n\n${saving.content}`} /> : <label className="library-field">{zh ? '正文' : 'Content'}<textarea className="library-editor" value={saving.content} disabled={busy} onChange={(event) => setSaving({ ...saving, content: event.target.value })} /></label>}
+      <p className="modal-copy">{saving.targetDocumentId ? (zh ? '保存为所选文档的新版本，原内容和历史引用继续保留。' : 'Save a new revision of the selected document, retaining its previous content and citations.') : (zh ? '将编辑后的成果及来源引用保存到资料库。' : 'Save the edited answer and source links to the Library.')}</p>
+      {saveError && <p role="alert" className="library-error">{saveError}</p>}
+      <footer className="modal-footer">{saveTarget && <button className="secondary-button" disabled={busy} onClick={() => setSaveCompare(!saveCompare)}>{saveCompare ? (zh ? '继续编辑' : 'Keep editing') : (zh ? '查看差异' : 'Compare changes')}</button>}<button className="primary-button" disabled={!saving.title.trim() || !saving.content.trim() || busy || (!!saving.targetDocumentId && !saving.expectedRevision)} onClick={() => { setBusy(true); setSaveError(''); void taskRunner.start(CONVERSATION_OWNER, 'save-answer', saving).then(() => setSaving(null)).catch((e) => setSaveError(String(e))).finally(() => setBusy(false)) }}>{zh ? '保存到资料库' : 'Save to Library'}</button></footer>
+    </LibraryDialog>}
   </div>
 }

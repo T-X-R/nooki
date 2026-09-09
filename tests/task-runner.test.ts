@@ -108,3 +108,15 @@ test('a failure to persist the initial task prevents all execution', async () =>
   await assert.rejects(runner.start('test.job', 'review', {}), /disk full/)
   assert.equal(called, false)
 })
+
+test('data maintenance blocks task starts and refuses to replace data while work is running', async () => {
+  const gate = deferred<void>()
+  const { runner } = fixture({ run: async () => gate.promise })
+  const id = await runner.start('com.personal.notes', 'job', {})
+  await assert.rejects(runner.withMaintenance(async () => {}), /Stop running tasks/)
+  await runner.cancel(id); gate.resolve(); await runner.settled(id)
+  await runner.withMaintenance(async () => { await assert.rejects(runner.start('com.personal.notes', 'job', {}), /maintenance/) })
+  const next = await runner.start('com.personal.notes', 'job', {})
+  await runner.settled(next)
+  assert.equal(runner.getSnapshot().find((r) => r.id === next)?.status, 'completed')
+})

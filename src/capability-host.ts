@@ -35,8 +35,6 @@ export type {
   InstalledCapability,
 } from '../packages/capability-contract/src'
 
-const storageMemory = new Map<string, string>()
-
 function readEnvironment(): CapabilityEnvironment {
   const language = document.documentElement.lang.toLowerCase().startsWith('en') ? 'en' : 'zh'
   return Object.freeze({
@@ -69,19 +67,12 @@ function createEnvironment(): CapabilityHost['environment'] {
 const capabilityEnvironment = createEnvironment()
 
 function readStorage(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key)
-  } catch {
-    return storageMemory.get(key) ?? null
-  }
+  return window.localStorage.getItem(key)
 }
 
 function writeStorage(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    storageMemory.set(key, value)
-  }
+  // A successful save must be durable and available to backup/export.
+  window.localStorage.setItem(key, value)
 }
 
 function createStorage(capabilityId: string, permissions: CapabilityPermission[] | undefined, assertActive: () => void): CapabilityStorage {
@@ -107,11 +98,7 @@ function createStorage(capabilityId: string, permissions: CapabilityPermission[]
     },
     async remove(key: string) {
       assertPermission()
-      try {
-        window.localStorage.removeItem(`${prefix}${key}`)
-      } catch {
-        storageMemory.delete(`${prefix}${key}`)
-      }
+      window.localStorage.removeItem(`${prefix}${key}`)
     },
   })
 }
