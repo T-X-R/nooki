@@ -568,7 +568,7 @@ function LibraryPage({ installed, target, onAddToConversation, onOpenCapability,
   return (
     <div className="content-column library-page">
       <div className="page-header-row library-page-heading">
-        <h1>{language === 'zh' ? '认真留下的，值得再读一遍。' : 'What you keep is worth returning to.'}</h1>
+        <h1><span>{language === 'zh' ? '认真留下的，' : 'What you keep '}</span><span>{language === 'zh' ? '值得再读一遍。' : 'is worth returning to.'}</span></h1>
         <span className="library-total">{documents.filter((doc) => !scopeIds || scopeIds.includes(doc.id)).length} {t('libraryDocuments')}</span>
       </div>
       <LibraryManager language={language} documents={documents} selected={[...selectedInputs]} onOpen={(id) => { setQuery(''); setThisWeek(false); setSelectedId(id); setSourceTarget(null) }} onScope={(ids) => { setScopeIds(ids); setSourceTarget(null); setSelectedId(null); setSelectedDocument(null); setSelectedInputs(new Set()) }} onDiscuss={onAddToConversation} refresh={refreshLibrary} onClear={() => setSelectedInputs(new Set())}
