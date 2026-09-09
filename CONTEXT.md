@@ -1,10 +1,10 @@
-# Personal Workbench
+# Nooki
 
-Personal Workbench is a local-first host for independently installed capabilities. The Workbench remains useful as a shell even when no business capability is installed.
+Nooki is a local-first host for independently installed capabilities. Nooki remains useful as a shell even when no business capability is installed.
 
 ## Language
 
-**Workbench**:
+**Nooki**:
 The host product that provides navigation, global settings, commands, and lifecycle management for installed capabilities.
 _Avoid_: App shell, container
 
@@ -17,25 +17,25 @@ The distributable form of a Capability, containing its identity, version, entry 
 _Avoid_: Extension bundle
 
 **Capability Registry**:
-The Workbench record of installed Capability Packages and their version, compatibility, and enabled state.
+The Nooki record of installed Capability Packages and their version, compatibility, and enabled state.
 
 **Installation**:
 The act of validating and registering a Capability Package. A newly installed Capability is enabled by default and does not require separate AI Provider configuration.
 
 **Enablement**:
-The state that permits an installed Capability to appear in Workbench entry points and respond to commands.
+The state that permits an installed Capability to appear in Nooki entry points and respond to commands.
 
 **Disablement**:
-The state that retains a Capability Package and its data while preventing it from participating in Workbench execution.
+The state that retains a Capability Package and its data while preventing it from participating in Nooki execution.
 
 **Uninstallation**:
 The removal of a Capability Package. User data is retained unless the user separately confirms its deletion.
 
 **Capability Host**:
-The controlled environment through which a Capability accesses Workbench resources. A Capability never depends on the internal structure of Workbench pages.
+The controlled environment through which a Capability accesses Nooki resources. A Capability never depends on the internal structure of Nooki pages.
 
 **Activity Event**:
-A user-visible fact recorded by the Workbench or an authorized Capability for later review or agent-assisted summarization.
+A user-visible fact recorded by Nooki or an authorized Capability for later review or agent-assisted summarization.
 
 **Agent Capability**:
 A Capability that reads explicitly authorized Activity Events and produces traceable, reversible generation or organization actions.
@@ -59,11 +59,11 @@ The runtime that executes agent tasks through the local Codex CLI and its subscr
 The personal context shared by Capabilities and Activity Events. The first release has one default Workspace without coupling Capabilities to specific pages.
 
 **Document Library**:
-The Workbench-owned, long-lived space for documents published by Capabilities or saved from Conversations. Documents remain available when their Source Capability is disabled or uninstalled.
+The Nooki-owned, long-lived space for documents published by Capabilities or saved from Conversations. Documents remain available when their Source Capability is disabled or uninstalled.
 _Avoid_: Capability storage, file dump
 
 **Document Gateway**:
-The Capability Host interface through which an authorized Capability publishes durable document content without knowing how the Workbench stores, indexes, or presents it.
+The Capability Host interface through which an authorized Capability publishes durable document content without knowing how Nooki stores, indexes, or presents it.
 _Avoid_: Library API, file writer
 
 **Document Publication**:
@@ -75,7 +75,7 @@ A named Markdown artifact retained by the Document Library with its source and D
 _Avoid_: Activity Event, attachment
 
 **Document Collection**:
-A stable grouping inside one Source Capability's Document Library namespace. It is metadata managed by Workbench, not an arbitrary filesystem path supplied by a Capability.
+A stable grouping inside one Source Capability's Document Library namespace. It is metadata managed by Nooki, not an arbitrary filesystem path supplied by a Capability.
 _Avoid_: Folder path, directory string
 
 **Source Capability**:
@@ -83,7 +83,7 @@ The Capability identity recorded as the producer of a Library Document. It is pr
 _Avoid_: Owner
 
 **Document Grant**:
-An explicit user authorization allowing one Capability version to read only selected Library Document snapshots through the Capability Host. It is created by Workbench, never by the receiving Capability.
+An explicit user authorization allowing one Capability version to read only selected Library Document snapshots through the Capability Host. It is created by Nooki, never by the receiving Capability.
 
 **Source Snapshot**:
 The immutable document content captured when a document is attached to a Conversation turn or a Document Grant is confirmed. Its retention keeps a generated document's citations stable when the current Library Document changes or its source Capability is uninstalled.
@@ -95,7 +95,7 @@ A provenance link to a Library Document, optionally identifying a Source Snapsho
 A generated, locally retained result that the user must inspect before a Capability requests Document Publication. Completing generation does not imply publication.
 
 **Conversation**:
-The platform workspace for interacting with a persistent Codex session. Codex owns its message history and context; Workbench presents the interaction and connects it to Library documents.
+The platform workspace for interacting with a persistent Codex session. Codex owns its message history and context; Nooki presents the interaction and connects it to Library documents.
 
 **Conversation Turn**:
 One user message and the Codex work that follows, including replies, public thinking summaries and tool progress.

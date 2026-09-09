@@ -23,7 +23,7 @@ export const respond: TaskJob = {
     if (new TextEncoder().encode(context + input.message).length > 100_000) throw new Error('引用资料过长，请减少资料后重新发送 / Message and references exceed 100 KB')
     return step('codex-turn', async (): Promise<ConversationResult> => {
       signal.throwIfAborted()
-      if (!window.__TAURI_INTERNALS__) throw new Error('请在桌面 App 中连接 Codex / Codex requires desktop Workbench')
+      if (!window.__TAURI_INTERNALS__) throw new Error('请在桌面 App 中连接 Codex / Codex requires desktop Nooki')
       return invoke('conversation_run', { request: { threadId: input.threadId, message: input.message, context, requestId: executionId.split(':')[0], executionId } })
     })
   },

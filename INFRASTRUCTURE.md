@@ -1,6 +1,6 @@
 # Capability infrastructure, version 0.2
 
-Workbench owns task execution and installed package lifecycle. A Capability owns its UI, job definitions, business steps, input parsing and document publication decisions. Pages only submit work and subscribe to platform snapshots.
+Nooki owns task execution and installed package lifecycle. A Capability owns its UI, job definitions, business steps, input parsing and document publication decisions. Pages only submit work and subscribe to platform snapshots.
 
 ## Task execution
 
@@ -24,7 +24,7 @@ jobs: {
 }
 ```
 
-Use sequential steps with stable lowercase keys. Inputs, results and checkpoints must be JSON-serializable. Completed checkpoints are reused on retry, including after restarting Workbench. Step operations must be idempotent: a process can exit after an external effect but before its checkpoint is saved. Document publication already supports stable keys. This is not an exactly-once guarantee for arbitrary external effects.
+Use sequential steps with stable lowercase keys. Inputs, results and checkpoints must be JSON-serializable. Completed checkpoints are reused on retry, including after restarting Nooki. Step operations must be idempotent: a process can exit after an external effect but before its checkpoint is saved. Document publication already supports stable keys. This is not an exactly-once guarantee for arbitrary external effects.
 
 A task has one of `running`, `completed`, `failed`, `cancelled`, or `interrupted` states. App startup converts persisted `running` records to `interrupted`; it never automatically reruns business code or invokes AI. Users explicitly retry interrupted tasks. Version changes require starting a new task; checkpoints cannot be interpreted by a different package version.
 
@@ -36,7 +36,7 @@ Codex Daily Review uses the same runner through four steps: scan, summarize, sav
 
 ## Independently installed packages
 
-Version 1 of the package format supports **trusted, reviewed local code**, executing in the same JavaScript realm as Workbench. It is not an untrusted-code sandbox. The installer explains this and asks the user to approve the package and its full permissions, highlighting additions on update. Inspection reads data only; executable evaluation happens after confirmation. Capability code must perform work through CapabilityHost and avoid top-level effects, direct Tauri calls, shell state imports and global CSS selectors.
+Version 1 of the package format supports **trusted, reviewed local code**, executing in the same JavaScript realm as Nooki. It is not an untrusted-code sandbox. The installer explains this and asks the user to approve the package and its full permissions, highlighting additions on update. Inspection reads data only; executable evaluation happens after confirmation. Capability code must perform work through CapabilityHost and avoid top-level effects, direct Tauri calls, shell state imports and global CSS selectors.
 
 A `.capability.zip` contains only:
 
@@ -44,7 +44,7 @@ A `.capability.zip` contains only:
 - `entry.js`: a self-contained IIFE exporting the default CapabilityModule as `WorkbenchCapability`.
 - `style.css`: optional package-owned styles, scoped to the Capability's own selectors.
 
-React and its JSX runtime are supplied by Workbench as `WorkbenchReact` and `WorkbenchJSXRuntime`; the packaging command externalizes those imports to avoid duplicate React hook runtimes. Other dependencies and assets must be bundled. A Page is required for package format v1. Command and widget declarations remain reserved; the supported executable interfaces are Page and jobs.
+React and its JSX runtime are supplied by Nooki as `WorkbenchReact` and `WorkbenchJSXRuntime`; the packaging command externalizes those imports to avoid duplicate React hook runtimes. Other dependencies and assets must be bundled. A Page is required for package format v1. Command and widget declarations remain reserved; the supported executable interfaces are Page and jobs.
 
 Build a package using Node, the project's dependencies and Python 3 (standard library only):
 
@@ -54,7 +54,7 @@ npm run capability:pack -- capabilities/codex-daily-review
 npm run capability:pack -- examples/checkpoint-demo /tmp/workbench-packages
 ```
 
-Import the resulting ZIP through Capability Center in the desktop app. The example is outside the built-in catalog: it can be built after the desktop app and installed without rebuilding Workbench. It deliberately fails once after a ten-second checkpoint, allowing a retry to publish a document without repeating the completed wait. It never invokes AI.
+Import the resulting ZIP through Capability Center in the desktop app. The example is outside the built-in catalog: it can be built after the desktop app and installed without rebuilding Nooki. It deliberately fails once after a ten-second checkpoint, allowing a retry to publish a document without repeating the completed wait. It never invokes AI.
 
 The installer limits compressed size to 12 MB and each decoded file to 10 MB. It rejects extra files, path traversal, symlinks, malformed manifests, unsupported minimum platform versions and version conflicts. It parses entries in memory and does not extract arbitrary archive paths to disk.
 
@@ -77,7 +77,7 @@ Provider tests bind a local fake HTTP endpoint; no real model is invoked. Task t
 
 ## Desktop acceptance (2026-09-08)
 
-A debug bundle with a separate `com.personal.workbench.infrastructure-qa` identifier was built. The checkpoint demo was packaged afterward, imported through the native file picker, approved and opened without another Workbench build. The first run failed at the intended publication step with one saved checkpoint; retry completed with two checkpoints and its Markdown was verified in the Document Library. A second run was interrupted by quitting the app; after relaunch its persisted status was `interrupted` with attempt 1 and no automatic rerun. The installed package and the earlier completed task both survived relaunch. Provider calls were not used in this acceptance flow.
+A debug bundle with a separate `com.personal.workbench.infrastructure-qa` identifier was built. The checkpoint demo was packaged afterward, imported through the native file picker, approved and opened without another Nooki build. The first run failed at the intended publication step with one saved checkpoint; retry completed with two checkpoints and its Markdown was verified in the Document Library. A second run was interrupted by quitting the app; after relaunch its persisted status was `interrupted` with attempt 1 and no automatic rerun. The installed package and the earlier completed task both survived relaunch. Provider calls were not used in this acceptance flow.
 
 ## Today, selected documents and legacy review compatibility (0.3)
 
@@ -85,7 +85,7 @@ Today reads the shared task runner directly for `running`, `failed` and `interru
 
 Activity history retains the existing `personal-workbench:activity-events` local-storage key in the desktop WebView and browser preview. This avoids dropping existing records and survives app restart. The platform now provides reactive read/write access without the old 200-record eviction or an in-memory success fallback. Corrupt or unwritable history is surfaced as an error. This local history is separate from `tasks.json`; it is not a new task framework. Activity payloads can contain private facts and are not written to operational logs.
 
-Library body search scans published Markdown on demand; metadata filtering still supports title, source, collection and date, including localized source names. Search returns matching document IDs to the Workbench UI, never to a Capability. No embedding service, vector database or background indexing process is introduced.
+Library body search scans published Markdown on demand; metadata filtering still supports title, source, collection and date, including localized source names. Search returns matching document IDs to the Nooki UI, never to a Capability. No embedding service, vector database or background indexing process is introduced.
 
 The Library selection dialog creates immutable authorization snapshots under `document-grants/<id>.json` (browser preview uses `personal-workbench-document-grants-v1`). Each grant binds document IDs to one recipient Capability version. Native grant reads enforce permissions, recipient identity, version and enablement before returning any body. The platform-only source reader serves retained citations after uninstallation. Updates do not extend old grants to a new version; users select and authorize again. These checks enforce the supported Host contract; the trusted same-realm package model from 0.2 remains unchanged and is not an untrusted-code sandbox.
 
@@ -115,7 +115,7 @@ A response task checkpoints immutable source snapshots and a Codex turn receipt.
 
 Saving an answer is a separate platform job with stable publication identity and a coalesced activity event. Published answers use the reserved workbench.conversations provenance namespace and the answers collection. Neither ordinary replies nor intermediate reasoning/tool events automatically publish documents or flood Today.
 
-Verification includes a deterministic App Server subprocess fixture for first-message handling, streaming, persisted history, cancellation, failure retry, reconnection and receipt recovery. No model is called by these tests. Native source tests cover immutable captures, selection membership and path validation. A separate live check against Codex CLI 0.153.4 completed two short synthetic turns, verified attached context, follow-up context, persisted client IDs, session listing and history after reconnect, and archived its test session. No user documents were sent. The installed CLI reports these sessions as `vscode`; listing scopes by the dedicated Workbench workspace rather than assuming an `appServer` source kind.
+Verification includes a deterministic App Server subprocess fixture for first-message handling, streaming, persisted history, cancellation, failure retry, reconnection and receipt recovery. No model is called by these tests. Native source tests cover immutable captures, selection membership and path validation. A separate live check against Codex CLI 0.153.4 completed two short synthetic turns, verified attached context, follow-up context, persisted client IDs, session listing and history after reconnect, and archived its test session. No user documents were sent. The installed CLI reports these sessions as `vscode`; listing scopes by the dedicated Nooki workspace rather than assuming an `appServer` source kind.
 
 
 ### Conversations verification (2026-09-08)

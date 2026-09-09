@@ -12,4 +12,4 @@ An independent Capability that generates a cited review from explicitly authoriz
 
 Generation checkpoints source reads and validated AI output; the draft is retained as the task result. A failed or interrupted run resumes only after explicit retry. Publication takes the confirmed draft as durable task input and publishes with its stable ID; retrying publication never invokes AI. Updating the package requires a new grant and task, consistent with platform version fencing.
 
-Build the independent package with `npm run capability:pack -- capabilities/weekly-review`. Requires Workbench 0.3 or newer. Package code accesses platform services only through CapabilityHost. AI output must be structured JSON with valid selected source IDs; malformed or fabricated citations fail generation and can be retried.
+Build the independent package with `npm run capability:pack -- capabilities/weekly-review`. Requires Nooki 0.3 or newer. Package code accesses platform services only through CapabilityHost. AI output must be structured JSON with valid selected source IDs; malformed or fabricated citations fail generation and can be retried.

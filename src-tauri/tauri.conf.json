@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Workbench",
+  "productName": "Nooki",
   "version": "0.3.0",
   "identifier": "com.personal.workbench",
   "build": {
@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "Workbench",
+        "title": "Nooki",
         "width": 1240,
         "height": 820,
         "minWidth": 980,

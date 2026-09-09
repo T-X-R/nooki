@@ -34,7 +34,7 @@ export async function check(directory = process.cwd()) {
   const version = (value) => value.split('.').map(Number)
   const minimum = version(manifest.minPlatformVersion), supported = version(kit.platformVersion)
   for (let index = 0; index < 3; index++) {
-    if (minimum[index] > supported[index]) throw new Error(`Kit targets Workbench ${kit.platformVersion}; requested minimum is newer`)
+    if (minimum[index] > supported[index]) throw new Error(`Kit targets Nooki ${kit.platformVersion}; requested minimum is newer`)
     if (minimum[index] < supported[index]) break
   }
   const visit = async (path) => {

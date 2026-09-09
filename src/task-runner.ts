@@ -31,7 +31,7 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
   }
   const initialize = () => initialized ??= (async () => {
     records = (await dependencies.read()).map((record) => record.status === 'running'
-      ? { ...record, status: 'interrupted' as const, error: 'Execution interrupted when Workbench closed' }
+      ? { ...record, status: 'interrupted' as const, error: 'Execution interrupted when Nooki closed' }
       : record)
     await dependencies.write(records)
     emit()

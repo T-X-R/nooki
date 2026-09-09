@@ -1,5 +1,5 @@
 {
-  "name": "personal-workbench",
+  "name": "nooki",
   "private": true,
   "version": "0.3.0",
   "type": "module",
@@ -12,8 +12,8 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build --bundles app",
     "desktop:build:dmg": "tauri build --bundles dmg",
-    "desktop:open": "open src-tauri/target/release/bundle/macos/Workbench.app",
-    "desktop:install": "ditto src-tauri/target/release/bundle/macos/Workbench.app /Applications/Workbench.app",
+    "desktop:open": "open src-tauri/target/release/bundle/macos/Nooki.app",
+    "desktop:install": "ditto src-tauri/target/release/bundle/macos/Nooki.app /Applications/Nooki.app",
     "desktop:update": "npm run desktop:build && npm run desktop:install",
     "capability:pack": "node scripts/package-capability.mjs",
     "capability:kit": "node scripts/build-capability-kit.mjs"

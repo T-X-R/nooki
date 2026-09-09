@@ -19,7 +19,7 @@ export async function exportMarkdown(ids: string[]): Promise<string> {
   if (window.__TAURI_INTERNALS__) return invoke<string>('library_export_markdown', { ids })
   // Preview provides one readable Markdown file; desktop exports separate files in a ZIP.
   const docs = await Promise.all(ids.map(readLibraryDocument))
-  downloadText('Workbench-documents.md', docs.map((doc) => `# ${doc.title}\n\n${doc.content}`).join('\n\n---\n\n'), 'text/markdown')
+  downloadText('Nooki-documents.md', docs.map((doc) => `# ${doc.title}\n\n${doc.content}`).join('\n\n---\n\n'), 'text/markdown')
   return '已下载 Markdown / Markdown downloaded'
 }
 export async function exportUserData(): Promise<string> {
@@ -27,7 +27,7 @@ export async function exportUserData(): Promise<string> {
     const localStorage = localUserData()
     if (window.__TAURI_INTERNALS__) return invoke<string>('user_data_export', { localStorage })
     const backup: DataBackup = { format: 'workbench-preview-data', version: 1, createdAt: new Date().toISOString(), files: {}, localStorage, capabilities: [] }
-    downloadText(`Workbench-preview-${Date.now()}.workbench.json`, JSON.stringify(backup))
+    downloadText(`Nooki-preview-${Date.now()}.workbench.json`, JSON.stringify(backup))
     return '浏览器预览数据已下载 / Browser preview backup downloaded'
   })
 }

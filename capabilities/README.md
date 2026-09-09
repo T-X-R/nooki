@@ -8,7 +8,7 @@ A package must contain at least:
 - `index.tsx`: the package registration entry point and page implementation.
 - `styles.css`: package-owned interface styles.
 
-A Capability Package accesses platform services exclusively through `CapabilityHost`. It must not import `App.tsx`, the Tauri API, or the platform database. The built-in catalog is discovered during the Workbench build. To distribute a capability independently, run `npm run capability:pack -- <directory>` and import the ZIP in the desktop app; no Workbench rebuild is needed.
+A Capability Package accesses platform services exclusively through `CapabilityHost`. It must not import `App.tsx`, the Tauri API, or the platform database. The built-in catalog is discovered during the Nooki build. To distribute a capability independently, run `npm run capability:pack -- <directory>` and import the ZIP in the desktop app; no Nooki rebuild is needed.
 
 Only packages that create durable documents declare `documents.publish`. They publish through `host.documents.publish()` and do not depend on Document Library paths, storage, indexing, or UI code.
 
