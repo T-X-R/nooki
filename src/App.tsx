@@ -59,7 +59,7 @@ import { taskRunner } from './tasks'
 import { ConversationPage } from './ConversationPage'
 import { ConversationNavigation } from './ConversationNavigation'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from './conversation-model'
-import workbenchIcon from './assets/workbench-icon.png'
+import nookiIcon from './assets/nooki-icon.png'
 
 type View = 'today' | 'library' | 'capabilities' | 'settings' | 'capability' | 'tasks' | 'conversations'
 type Theme = 'light' | 'dark'
@@ -324,8 +324,8 @@ function Sidebar({ activeConversationId, onOpenConversation, activeView, activeC
   return (
     <aside className="sidebar">
       <div className="brand-lockup">
-        <img className="brand-mark" src={workbenchIcon} alt="" aria-hidden="true" />
-        <div className="brand-name">Workbench</div>
+        <img className="brand-mark" src={nookiIcon} alt="" aria-hidden="true" />
+        <div className="brand-name">Nooki</div>
       </div>
 
       <div className="sidebar-label">{t('workspace')}</div>

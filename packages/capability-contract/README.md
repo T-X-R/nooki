@@ -1,6 +1,6 @@
 # Capability Contract
 
-This package is the stable type boundary between Capability Packages and the Workbench. A capability depends on the Manifest, Host, storage, and page-entry types defined here, without depending on shell pages or the Tauri implementation.
+This package is the stable type boundary between Capability Packages and the Nooki. A capability depends on the Manifest, Host, storage, and page-entry types defined here, without depending on shell pages or the Tauri implementation.
 
 ## Follow the platform language and theme
 
@@ -70,7 +70,7 @@ await host.documents.publish({
 
 `key` and `collectionKey` are lowercase stable identifiers, not paths. The Gateway handles permission checks, assigns the Capability namespace, validates the publication, and passes it to platform persistence and indexing. Reusing the same key for the same date updates the document in place. Disablement and uninstallation block new publications but do not delete published documents.
 
-The Document Gateway is separate from `host.ai`. Workbench never assumes that every model response is a durable document; the Capability decides when a result is ready to publish without knowing how the platform stores or displays it.
+The Document Gateway is separate from `host.ai`. Nooki never assumes that every model response is a durable document; the Capability decides when a result is ready to publish without knowing how the platform stores or displays it.
 
 ## Run a task
 
@@ -80,13 +80,13 @@ Use JSON-serializable data and idempotent sequential steps. Explicit retry reuse
 
 ## Record a business activity
 
-`host.activity.write({ type, title, key?, target? })` requires `activity.write`. Workbench assigns the source, timestamp and, inside a job, task ID. A stable `key` updates one fact within that Capability rather than appending duplicate rows. `target` is a `DocumentReference`; omit it for job activities that should open their task details. Legacy events remain readable and fall back to their source Capability when no exact target was recorded.
+`host.activity.write({ type, title, key?, target? })` requires `activity.write`. Nooki assigns the source, timestamp and, inside a job, task ID. A stable `key` updates one fact within that Capability rather than appending duplicate rows. `target` is a `DocumentReference`; omit it for job activities that should open their task details. Legacy events remain readable and fall back to their source Capability when no exact target was recorded.
 
 A publication may opt into a document activity with `activity: { type, title, key? }`. This uses the existing `documents.publish` authorization, always targets the successfully published document, and never grants arbitrary activity writes. Publication and activity persistence are separate effects; a failed activity write rejects the publication call, so an idempotent retry repairs it without duplicating the document.
 
 ## Read an explicitly selected document
 
-Declare `documents.read-selected` with `minPlatformVersion: "0.3.0"`. The **Workbench Library UI** creates the authorization after the user reviews the selected titles and recipient. CapabilityHost intentionally has no grant-creation, full-library listing, search, or private cross-Capability storage interface.
+Declare `documents.read-selected` with `minPlatformVersion: "0.3.0"`. The **Nooki Library UI** creates the authorization after the user reviews the selected titles and recipient. CapabilityHost intentionally has no grant-creation, full-library listing, search, or private cross-Capability storage interface.
 
 ```ts
 const grants = await host.documents.listGrants()
@@ -102,6 +102,6 @@ if (grant) {
 
 Grants bind an immutable selection to a Capability ID and version. Both native and preview Hosts reject documents outside that grant. Native checks also reject missing permissions, disabled or uninstalled recipients, and version mismatches. A grant contains up to 50 documents and 8 MB of UTF-8 content. The Capability still decides when to call AI and must explain the input scope before generation.
 
-`DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId`, `snapshotId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. `snapshotId` addresses platform-owned conversation evidence independently of capability grants. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Workbench to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.
+`DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId`, `snapshotId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. `snapshotId` addresses platform-owned conversation evidence independently of capability grants. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Nooki to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.
 
 Platform Conversations use Codex session APIs directly. Their Library access and task ownership do not add full-library or Codex-session access to CapabilityHost. Existing packages continue to use scoped grants and the platform Model Gateway.

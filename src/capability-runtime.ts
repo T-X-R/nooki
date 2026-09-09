@@ -166,7 +166,7 @@ export async function getInstalledCapabilityPackagesWithState(): Promise<Install
 }
 
 export async function inspectCapabilityArchive(file: File): Promise<{ bytes: number[]; payload: PackagePayload; expectedVersion: string | null }> {
-  if (!isDesktopHost()) throw new Error('独立能力包安装需要桌面版 Workbench / Desktop Workbench required')
+  if (!isDesktopHost()) throw new Error('独立能力包安装需要桌面版 Nooki / Desktop Nooki required')
   if (file.size > 12 * 1024 * 1024) throw new Error('能力包不能超过 12 MB / Package exceeds 12 MB')
   const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
   const payload = await invoke<PackagePayload>('capability_package_inspect', { bytes })

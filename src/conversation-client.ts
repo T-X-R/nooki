@@ -7,7 +7,7 @@ let cache: Readonly<Record<string, Conversation>> = {}
 let listening: Promise<unknown> | undefined
 const revisions: Record<string, number> = {}
 function emit() { listeners.forEach((listener) => listener()) }
-function desktop() { if (!window.__TAURI_INTERNALS__) throw new Error('对话需要桌面版 Workbench 和已登录的 Codex / Desktop Workbench and Codex are required') }
+function desktop() { if (!window.__TAURI_INTERNALS__) throw new Error('对话需要桌面版 Nooki 和已登录的 Codex / Desktop Nooki and Codex are required') }
 export const conversationClient = {
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
   getSnapshot: () => cache,

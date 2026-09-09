@@ -21,7 +21,7 @@ export async function kitFiles() {
   const kit = JSON.parse(files['kit.json'])
   files['assets/starter/workbench.json'] = files['kit.json']
   const platform = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
-  if (kit.platformVersion !== platform.version) throw new Error('Update kit compatibility for this Workbench version')
+  if (kit.platformVersion !== platform.version) throw new Error('Update kit compatibility for this Nooki version')
   const starter = JSON.parse(files['assets/starter/package.json'])
   for (const group of ['dependencies', 'devDependencies']) {
     for (const name of Object.keys(starter[group])) {

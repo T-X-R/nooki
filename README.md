@@ -1,6 +1,8 @@
-# Personal Workbench
+# Nooki
 
-Personal Workbench is a local-first desktop host for installable capabilities. Business-specific reports, tables and journals enter through a stable platform contract. Conversations and the Document Library are built-in tools for using the knowledge those capabilities produce.
+Formerly Personal Workbench. The product is now named Nooki; the existing app identifier (`com.personal.workbench`), storage keys, backup format, capability IDs, and `workbench-capability-dev` skill name remain unchanged so existing data and packages continue to work.
+
+Nooki is a local-first desktop host for installable capabilities. Business-specific reports, tables and journals enter through a stable platform contract. Conversations and the Document Library are built-in tools for using the knowledge those capabilities produce.
 
 The initial release includes the React interface and a Tauri 2 desktop host. The host persists the selected AI Provider, manages Capability manifests and lifecycle state, enforces permissions, and keeps API credentials outside Capability code.
 
@@ -17,7 +19,7 @@ The initial release includes the React interface and a Tauri 2 desktop host. The
 - Direct Responses-compatible requests for managed API key Providers.
 - Codex CLI execution for Codex subscription tasks.
 
-The first production Capability lives at `capabilities/diary`. Its editor, storage, and activity-event logic are package-owned. The Workbench discovers package entry points without importing Diary business code into the shell. The desktop app also installs trusted local `.capability.zip` packages without rebuilding Workbench; browser preview and the desktop registry both keep install state independent from the catalog.
+The first production Capability lives at `capabilities/diary`. Its editor, storage, and activity-event logic are package-owned. The Nooki discovers package entry points without importing Diary business code into the shell. The desktop app also installs trusted local `.capability.zip` packages without rebuilding Nooki; browser preview and the desktop registry both keep install state independent from the catalog.
 
 Codex Daily Review lives at `capabilities/codex-daily-review`. It owns session parsing, task extraction, prompt construction, and presentation. The platform only provides permission-checked access to raw files from today's Codex session partition and the shared AI Provider interface.
 
@@ -27,17 +29,17 @@ Installation saves the package and its registry entry; uninstallation removes it
 
 ## Tasks and independent packages
 
-In **Capability Center → Developer center**, install the official `workbench-capability-dev` skill into Codex or Claude Code. Workbench detects local tool/configuration directories and installs the complete development kit only when you click **Integrate**. Codex uses `~/.agents/skills`; Claude Code uses `~/.claude/skills` (or `CLAUDE_CONFIG_DIR/skills`). Detection is a local availability hint, not proof that the tool has loaded the skill.
+In **Capability Center → Developer center**, install the official `workbench-capability-dev` skill into Codex or Claude Code. Nooki detects local tool/configuration directories and installs the complete development kit only when you click **Integrate**. Codex uses `~/.agents/skills`; Claude Code uses `~/.claude/skills` (or `CLAUDE_CONFIG_DIR/skills`). Detection is a local availability hint, not proof that the tool has loaded the skill.
 
-The kit is bundled with the app, so integration works offline and targets the displayed Workbench version. The UI supports updates and preserves edited, unowned, linked or newer skills. It lists changed files rather than overwriting them. **Download kit** saves a portable ZIP in the user's Downloads directory for other development tools or custom skills directories. Extract the ZIP and place the entire `workbench-capability-dev` folder in your skills directory. These actions do not modify tool credentials or install capabilities.
+The kit is bundled with the app, so integration works offline and targets the displayed Nooki version. The UI supports updates and preserves edited, unowned, linked or newer skills. It lists changed files rather than overwriting them. **Download kit** saves a portable ZIP in the user's Downloads directory for other development tools or custom skills directories. Extract the ZIP and place the entire `workbench-capability-dev` folder in your skills directory. These actions do not modify tool credentials or install capabilities.
 
-After integration, copy the development prompt into your coding tool. The skill includes the Host contract, matching UI primitives, a standalone starter, a simulated browser preview, checks and a packaging command. Development happens outside Workbench; import the resulting `.capability.zip` and manually confirm installation. New projects require Node.js 22.12+ (or a Vite-compatible newer release), npm dependencies and Python 3 for packaging. Only skill integration is offline; an initial `npm install` needs dependency access.
+After integration, copy the development prompt into your coding tool. The skill includes the Host contract, matching UI primitives, a standalone starter, a simulated browser preview, checks and a packaging command. Development happens outside Nooki; import the resulting `.capability.zip` and manually confirm installation. New projects require Node.js 22.12+ (or a Vite-compatible newer release), npm dependencies and Python 3 for packaging. Only skill integration is offline; an initial `npm install` needs dependency access.
 
 Maintain the source skill in `skills/workbench-capability-dev` and UI primitives in `packages/capability-ui`. Run `npm run capability:kit` to export `dist/workbench-capability-dev.zip`. Kit assembly copies canonical Host types and contract documentation, and derives preview theme tokens from the platform. Rust builds invoke the same Node assembler to embed the kit; installed users do not need Node to integrate. Increment the kit version when releasing changed development resources. Static checks enforce supported declarations, selected forbidden imports and scoped CSS; they do not sandbox code or replace native testing.
 
 Tool directory conventions: [Codex skills](https://learn.chatgpt.com/docs/build-skills), [Claude Code skills](https://code.claude.com/docs/en/skills), and [Claude configuration directory](https://code.claude.com/docs/en/claude-directory).
 
-Workbench 0.2 provides platform-owned task execution with persisted checkpoints, cancellation, explicit retry and interrupted-task recovery. Codex Daily Review uses this shared runner. Capability updates, disablement and uninstallation stop its running work before changing lifecycle state.
+Nooki 0.2 provides platform-owned task execution with persisted checkpoints, cancellation, explicit retry and interrupted-task recovery. Codex Daily Review uses this shared runner. Capability updates, disablement and uninstallation stop its running work before changing lifecycle state.
 
 Build reviewed local packages with `npm run capability:pack -- <directory>` and import them through Capability Center. Installation checks compatibility and requested permissions, validates the executable before activation, and retains the previous external version for rollback. These packages execute trusted code in the host realm; untrusted-code isolation is not part of package format v1.
 
@@ -59,18 +61,18 @@ Open **Settings → AI Provider** and choose one of the available sources:
 - **Managed API key** imports the selected model, Responses endpoint, and credential source from `~/.codex/api.config.toml`. The desktop host performs the request and shares this Provider with every authorized Capability.
 - **Codex subscription** uses `~/.codex/config.toml` and the login session managed by the local Codex CLI.
 
-Workbench persists only the Provider selection. An API key remains inside the desktop host and is never returned to the frontend, copied into the platform registry, or passed to a Capability. Workbench does not read Codex `auth.json`.
+Nooki persists only the Provider selection. An API key remains inside the desktop host and is never returned to the frontend, copied into the platform registry, or passed to a Capability. Nooki does not read Codex `auth.json`.
 
 ## Runtime logs
 
-Development and release builds write operational logs to `~/Library/Logs/com.personal.workbench/Workbench.log`. Logs use local timestamps, rotate at 2 MB, and retain the three most recent files. They record lifecycle events, Capability IDs, Provider stages, HTTP metadata, byte counts, durations, and error categories. They never record credentials, Authorization headers, raw Codex sessions, complete prompts, or Provider response text.
+Development and release builds write operational logs to `~/Library/Logs/com.personal.workbench/Nooki.log`. Logs use local timestamps, rotate at 2 MB, and retain the three most recent files. They record lifecycle events, Capability IDs, Provider stages, HTTP metadata, byte counts, durations, and error categories. They never record credentials, Authorization headers, raw Codex sessions, complete prompts, or Provider response text.
 
 ## Invoke AI from a Capability
 
 A Capability declares the `ai.invoke` permission in its manifest and calls only the Capability Host:
 
 ```ts
-// Workbench supplies host through CapabilityPageProps or the job context.
+// Nooki supplies host through CapabilityPageProps or the job context.
 const result = await host.ai.invoke('Summarize today\'s activity')
 ```
 
@@ -87,7 +89,7 @@ npm run desktop:build
 
 The release bundle is created at:
 
-- `src-tauri/target/release/bundle/macos/Workbench.app`
+- `src-tauri/target/release/bundle/macos/Nooki.app`
 
 Install it into `/Applications`:
 
@@ -124,21 +126,21 @@ See [CONTEXT.md](CONTEXT.md) for the project language and domain definitions.
 
 ## Review real activity and reuse selected documents
 
-Workbench 0.3 connects Today to saved journal entries, generated documents and tasks that need attention. Activity links open the corresponding Library document or task details and remain available after restarting.
+Nooki 0.3 connects Today to saved journal entries, generated documents and tasks that need attention. Activity links open the corresponding Library document or task details and remain available after restarting.
 
 In **Library**, search by body text as well as title, source, collection and date. Select documents and choose **Add to conversation**, or use the document picker inside a conversation. Documents are attached when you send the message; there is no platform-conversation grant dialog or additional confirmation checkbox. Independent Capability packages still require explicit grants through their existing Host boundary.
 
 ## Conversations powered by Codex
 
-Open **Conversations** to ask questions, extract information, compare sources, write, and continue with follow-up messages. Workbench launches the installed `codex app-server` over stdio using the local Codex configuration and login. This is a persistent Codex session, not a second Workbench chat database or a sequence of stateless Provider calls. The AI Provider setting continues to serve Capability invocations; Conversations use the Codex runtime directly.
+Open **Conversations** to ask questions, extract information, compare sources, write, and continue with follow-up messages. Nooki launches the installed `codex app-server` over stdio using the local Codex configuration and login. This is a persistent Codex session, not a second Nooki chat database or a sequence of stateless Provider calls. The AI Provider setting continues to serve Capability invocations; Conversations use the Codex runtime directly.
 
-- Codex owns session creation, listing, history, context and turns. Workbench shows reply deltas, public reasoning summaries and tool progress. Raw internal reasoning is not displayed.
-- Workbench conversations use a dedicated working directory under the app data directory. The list does not import or mutate unrelated Codex sessions.
+- Codex owns session creation, listing, history, context and turns. Nooki shows reply deltas, public reasoning summaries and tool progress. Raw internal reasoning is not displayed.
+- Nooki conversations use a dedicated working directory under the app data directory. The list does not import or mutate unrelated Codex sessions.
 - The initial conversation surface supports text and read-only tools. Requests for interactive tool approvals or unsupported actions are not silently approved. It is not a replacement for the full Codex coding interface.
 - Attach Library documents from any source, including uninstalled capabilities. The attached content becomes untrusted additional context for that Codex turn. Previously sent material remains in Codex session context even if you remove it from later attachments.
 - Source links open immutable document snapshots. The original document can change without changing the evidence used by an earlier reply.
 - Click **Save to Library**, review the title, and confirm to keep an answer. Saving is an independent task and can be retried without another Codex turn.
-- Task execution continues across navigation. Stop interrupts the Codex turn. On restart, interrupted Workbench tasks require an explicit retry; execution receipts reconcile already completed Codex turns before starting work again.
+- Task execution continues across navigation. Stop interrupts the Codex turn. On restart, interrupted Nooki tasks require an explicit retry; execution receipts reconcile already completed Codex turns before starting work again.
 
 The former Weekly Review entry is retired from navigation and the installation catalog. Existing task records, source grants and published documents remain available. Completed old drafts are accessible through **Previous review drafts** in Conversations; the old jobs remain only for backward-compatible task recovery.
 
@@ -158,10 +160,10 @@ Use **Topics** to group documents from different sources without moving or copyi
 
 ## Export, back up and restore data
 
-Select Library documents to **Export Markdown**. The desktop app saves a ZIP in Downloads with separate Markdown files organized by source; browser preview downloads one combined Markdown file. Internal citation links require Workbench. Use a full data backup to preserve their snapshots.
+Select Library documents to **Export Markdown**. The desktop app saves a ZIP in Downloads with separate Markdown files organized by source; browser preview downloads one combined Markdown file. Internal citation links require Nooki. Use a full data backup to preserve their snapshots.
 
 **Settings → Local data** exports a `.workbench.json` backup to Downloads. It includes documents, revisions, topics, Trash, source snapshots, document grants, task records and Codex turn receipts, plus Activity Events, Capability private storage and interface preferences. The included Capability inventory is for reinstallation; executable packages, native Provider configuration, API credentials and Codex-owned session history are excluded. Restoring on another machine does not recreate those Codex sessions.
 
-Restore previews the backup and requires confirmation before replacing Workbench user data. Existing installed packages are unchanged; missing packages must be reinstalled. Running tasks block backup and restore. Restored running task records become interrupted on reload, with no automatic AI replay. Invalid backups are rejected before native data replacement; a durable rollback copy and a local-storage journal reconcile interrupted restoration. Browser preview backups have a separate format and cannot be restored into the desktop app.
+Restore previews the backup and requires confirmation before replacing Nooki user data. Existing installed packages are unchanged; missing packages must be reinstalled. Running tasks block backup and restore. Restored running task records become interrupted on reload, with no automatic AI replay. Invalid backups are rejected before native data replacement; a durable rollback copy and a local-storage journal reconcile interrupted restoration. Browser preview backups have a separate format and cannot be restored into the desktop app.
 
 The same settings section shows retained Capability private-storage sizes. Disable an installed Capability before clearing its private data. Clearing private data requires confirmation and retains published documents, snapshots and task records.

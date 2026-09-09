@@ -109,11 +109,11 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
       </div>
       <div id="developer-integration-panel" role="tabpanel" aria-labelledby="developer-integration-tab" tabIndex={0} hidden={tab !== 'integration'}>
         <p className="modal-copy">{zh ? '集成 Skill 后，复制开发指令到你的工具中开始制作能力包。' : 'Integrate the skill, then copy the development prompt into your coding tool to get started.'}</p>
-        {!desktop ? <p className="integration-preview">{zh ? '请在桌面版 Workbench 中集成。浏览器预览无法检测或修改本机开发工具。' : 'Use desktop Workbench to integrate. Browser preview cannot detect or modify local coding tools.'}</p> : <>
+        {!desktop ? <p className="integration-preview">{zh ? '请在桌面版 Nooki 中集成。浏览器预览无法检测或修改本机开发工具。' : 'Use desktop Nooki to integrate. Browser preview cannot detect or modify local coding tools.'}</p> : <>
           <div className="integration-section-heading"><span>{zh ? '当前用户的开发工具' : 'Your coding tools'}</span><button className="quiet-button" disabled={Boolean(busy)} onClick={() => void refresh()}><ReloadIcon />{zh ? '重新检测' : 'Refresh'}</button></div>
           {busy === 'refresh' && <p role="status">{zh ? '正在检测…' : 'Detecting…'}</p>}
           <div className="integration-tools">{items.map((item) => row(item))}</div>
-          {items[0] && <p className="integration-version">Skill {items[0].bundledVersion} · Workbench {items[0].platformVersion} · {zh ? '可离线集成' : 'Offline integration'}</p>}
+          {items[0] && <p className="integration-version">Skill {items[0].bundledVersion} · Nooki {items[0].platformVersion} · {zh ? '可离线集成' : 'Offline integration'}</p>}
         </>}
         <div className="integration-resources">
           {desktop && <section>

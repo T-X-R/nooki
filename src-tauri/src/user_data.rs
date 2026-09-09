@@ -43,7 +43,7 @@ pub fn capture(root: &Path, local_storage: BTreeMap<String, String>, capabilitie
   Ok(backup)
 }
 pub fn validate(backup: &Backup) -> Result<(), String> {
-  if backup.format != "workbench-user-data" || backup.version != 1 { return Err("Unsupported Workbench backup".into()); }
+  if backup.format != "workbench-user-data" || backup.version != 1 { return Err("Unsupported Nooki backup".into()); }
   serde_json::from_value::<Vec<crate::capability_runtime::InstalledCapability>>(backup.capabilities.clone()).map_err(|_| "Invalid capability inventory")?;
   if backup.files.len() > 100_000 || backup.files.values().chain(backup.local_storage.values()).map(String::len).sum::<usize>() > LIMIT { return Err("Backup exceeds 128 MB".into()); }
   for (name, content) in &backup.files {
@@ -160,7 +160,7 @@ fn download(app: &tauri::AppHandle, name: &str, bytes: &[u8]) -> Result<String, 
 #[tauri::command]
 pub fn user_data_export(app: tauri::AppHandle, local_storage: BTreeMap<String, String>, state: tauri::State<'_, PlatformState>) -> Result<String, String> {
   let backup = capture(state.data_dir(), local_storage, serde_json::to_value(state.list_capabilities()?).map_err(|e| e.to_string())?)?;
-  download(&app, &format!("Workbench-{}.workbench.json", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), &serde_json::to_vec(&backup).map_err(|e| e.to_string())?)
+  download(&app, &format!("Nooki-{}.workbench.json", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), &serde_json::to_vec(&backup).map_err(|e| e.to_string())?)
 }
 #[tauri::command]
 pub fn user_data_restore(backup: Backup, transaction: String, state: tauri::State<'_, PlatformState>) -> Result<(), String> {
@@ -183,7 +183,7 @@ pub fn library_export_markdown(app: tauri::AppHandle, ids: Vec<String>, state: t
     zip.write_all(doc.content.as_bytes()).map_err(|e| e.to_string())?;
   }
   zip.start_file("README.txt", options).map_err(|e| e.to_string())?;
-  zip.write_all("文档按来源保留为 Markdown。内部引用请在 Workbench 中打开；迁移资料和引用快照请使用完整数据备份。\nDocuments are organized by source. Internal citations open in Workbench; use a data backup to retain snapshots.\n".as_bytes()).map_err(|e| e.to_string())?;
+  zip.write_all("文档按来源保留为 Markdown。内部引用请在 Nooki 中打开；迁移资料和引用快照请使用完整数据备份。\nDocuments are organized by source. Internal citations open in Nooki; use a data backup to retain snapshots.\n".as_bytes()).map_err(|e| e.to_string())?;
   let bytes = zip.finish().map_err(|e| e.to_string())?.into_inner();
-  download(&app, &format!("Workbench-documents-{}.zip", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), &bytes)
+  download(&app, &format!("Nooki-documents-{}.zip", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), &bytes)
 }

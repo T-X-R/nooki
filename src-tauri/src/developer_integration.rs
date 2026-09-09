@@ -130,7 +130,7 @@ impl DeveloperIntegration {
     if metadata.file_type().is_symlink() || !metadata.is_dir() { result.detail = Some("Existing skill is not a regular directory; it was preserved".into()); return Ok(result); }
     let actual = match read_hashes(&directory) { Ok(files) => files, Err(e) => { result.detail = Some(e); return Ok(result); } };
     let receipt = fs::read(directory.join(RECEIPT)).ok().and_then(|bytes| serde_json::from_slice::<Receipt>(&bytes).ok());
-    let Some(receipt) = receipt else { result.detail = Some("Existing skill has no Workbench installation record; it was preserved".into()); return Ok(result); };
+    let Some(receipt) = receipt else { result.detail = Some("Existing skill has no Nooki installation record; it was preserved".into()); return Ok(result); };
     result.installed_version = Some(receipt.version.clone());
     result.changed_files = actual.keys().chain(receipt.files.keys()).filter(|key| actual.get(*key) != receipt.files.get(*key)).cloned().collect();
     result.changed_files.sort(); result.changed_files.dedup();
