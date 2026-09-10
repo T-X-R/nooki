@@ -33,7 +33,7 @@ async fn native_sessions_stream_resume_and_recover_completed_turns_without_dupli
   assert!(events.lock().unwrap().iter().filter(|e|e["params"]["item"]["type"]=="reasoning").all(|e|e["params"]["item"]["content"]==json!([])));
   drop(bridge);
   let reopened = CodexConversations::new(root.join("codex").to_string_lossy().into(),root.clone(),Arc::new(|_|{}));
-  assert_eq!(reopened.list(None).await.unwrap()["data"].as_array().unwrap().len(),1);
+  assert_eq!(reopened.list(None, false).await.unwrap()["data"].as_array().unwrap().len(),1);
   assert_eq!(reopened.run(id,"hello","","request-1",CancellationToken::new()).await.unwrap(),first);
   assert!(reopened.read("unrelated",None).await.is_err());
   drop(reopened); let _=std::fs::remove_dir_all(root);
@@ -96,7 +96,7 @@ async fn document_turns_edit_working_copies_and_retain_outputs_across_followups_
   assert_eq!(new_document["artifacts"].as_array().unwrap().len(), 1);
   assert!(new_document["artifacts"][0]["before"].is_null());
   assert_ne!(conversation_documents::workspace(&root, id), conversation_documents::workspace(&root, other_id));
-  assert_eq!(bridge.list(None).await.unwrap()["data"].as_array().unwrap().len(), 2);
+  assert_eq!(bridge.list(None, false).await.unwrap()["data"].as_array().unwrap().len(), 2);
   let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
   for request in requests.iter().filter(|r| r["method"] == "turn/start") {
     let p = &request["params"];
@@ -126,5 +126,44 @@ fn document_preparation_rejects_invalid_attachments_and_linked_outputs() {
     std::os::unix::fs::symlink(outside, conversation_documents::workspace(&root, "one").join("linked.md")).unwrap();
     assert!(conversation_documents::complete(&root, "one", "valid").unwrap_err().contains("regular files"));
   }
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn archive_restore_and_delete_persist_and_reject_unowned_or_running_sessions() {
+  use app_lib::codex_conversations::ConversationAction::{Archive, Restore, Delete};
+  let (root, bridge, _) = fixture();
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap();
+  bridge.run(id, "keep this", "", "archive-1", CancellationToken::new()).await.unwrap();
+  assert!(bridge.change(id, Delete).await.unwrap_err().contains("Only archived"));
+  assert!(bridge.change("unrelated", Archive).await.is_err());
+  bridge.change(id, Archive).await.unwrap();
+  assert_eq!(bridge.list(None, false).await.unwrap()["data"], json!([]));
+  assert_eq!(bridge.list(None, true).await.unwrap()["data"][0]["id"], id);
+  drop(bridge);
+  let reopened = CodexConversations::new(root.join("codex").to_string_lossy().into(), root.clone(), Arc::new(|_| {}));
+  assert_eq!(reopened.list(None, true).await.unwrap()["data"][0]["id"], id);
+  reopened.change(id, Restore).await.unwrap();
+  assert_eq!(reopened.read(id, None).await.unwrap()["turns"].as_array().unwrap().len(), 1);
+  reopened.change(id, Archive).await.unwrap();
+  reopened.change(id, Delete).await.unwrap();
+  assert_eq!(reopened.list(None, true).await.unwrap()["data"], json!([]));
+  assert!(reopened.read(id, None).await.is_err());
+  drop(reopened);
+  let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn archive_refuses_a_running_turn() {
+  use app_lib::codex_conversations::ConversationAction::Archive;
+  let (root, bridge, events) = fixture(); let bridge = Arc::new(bridge);
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  let token = CancellationToken::new(); let cancelled = token.clone(); let running = bridge.clone(); let session = id.clone();
+  let handle = tokio::spawn(async move { running.run(&session, "slow", "", "archive-running", cancelled).await });
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    loop { if events.lock().unwrap().iter().any(|e| e["method"] == "turn/started") { break; } tokio::task::yield_now().await; }
+  }).await.unwrap();
+  assert!(bridge.change(&id, Archive).await.unwrap_err().contains("finish"));
+  token.cancel(); assert!(handle.await.unwrap().is_err());
   drop(bridge); let _ = std::fs::remove_dir_all(root);
 }

@@ -25,8 +25,8 @@ export function ConversationSaveDialog({ input, onClose }: { input: SaveAnswerIn
   }, [reload])
   const topic = library?.organization.topics.find((topic) => topic.id === topicId)
   const scoped = library?.documents.filter((doc) => !topicId || topic?.documentIds.includes(doc.id)) ?? []
-  const sections = buildLibraryTree(scoped, new Map([[CONVERSATION_OWNER, zh ? '对话' : 'Conversations']])).map((node) => ({ id: node.capabilityId, name: node.capabilityName }))
-  if ((!topicId || !sections.length) && !sections.some((section) => section.id === CONVERSATION_OWNER)) sections.unshift({ id: CONVERSATION_OWNER, name: zh ? '对话' : 'Conversations' })
+  const sections = buildLibraryTree(scoped, new Map([[CONVERSATION_OWNER, zh ? '对话' : 'Conversations']]), library?.organization.customSections).map((node) => ({ id: node.capabilityId, name: node.capabilityName }))
+  if ((!topicId || !scoped.length) && !sections.some((section) => section.id === CONVERSATION_OWNER)) sections.unshift({ id: CONVERSATION_OWNER, name: zh ? '对话' : 'Conversations' })
   const section = sections.find((section) => section.id === sectionId) ?? sections[0]
   const save = async () => {
     setBusy(true); setError('')

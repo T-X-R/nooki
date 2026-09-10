@@ -121,3 +121,28 @@ fn conversation_placement_keeps_source_and_atomically_links_topic_with_idempoten
   management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id.clone()] }).unwrap();
   assert!(!management::organization(&root.0).unwrap().sections.contains_key(&doc.id));
 }
+
+#[test]
+fn empty_custom_sections_survive_backup_and_moving_preserves_document_identity() {
+  use management::LibrarySection;
+  let root = Fixture::new();
+  fs::create_dir_all(&root.0).unwrap();
+  fs::write(root.0.join("library-organization.json"), r#"{"topics":[],"trash":{},"origins":{}}"#).unwrap();
+  assert!(management::organization(&root.0).unwrap().custom_sections.is_empty());
+  let section = LibrarySection { id: "custom-research".into(), name: " Research ".into() };
+  management::change(&root.0, LibraryChange::CreateSection { section: section.clone() }).unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().custom_sections[0].name, "Research");
+  assert!(management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: "custom-duplicate".into(), name: "research".into() } }).is_err());
+  assert!(management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: "diary".into(), name: "Invalid".into() } }).is_err());
+  let backup = user_data::capture(&root.0, BTreeMap::new(), serde_json::json!([])).unwrap();
+  fs::remove_file(root.0.join("library-organization.json")).unwrap();
+  user_data::restore(&root.0, &backup, "restore-sections").unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().custom_sections.len(), 1);
+  let doc = library::publish_document(&root.0, "com.personal.diary", "Diary", document("Keep original")).unwrap();
+  management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: None, section }).unwrap();
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Keep original");
+  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
+  management::change(&root.0, LibraryChange::Trash { ids: vec![doc.id.clone()] }).unwrap();
+  management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id] }).unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().custom_sections.len(), 1);
+}

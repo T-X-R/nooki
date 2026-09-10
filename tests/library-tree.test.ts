@@ -116,3 +116,12 @@ test('saved section controls the library tree without changing document provenan
   assert.equal(saved.capabilityId, 'workbench.conversations')
   assert.equal(saved.id, doc.id)
 })
+
+test('empty custom sections remain visible and searchable without inventing document selection', () => {
+  const tree = buildLibraryTree([], new Map(), [{ id: 'custom-research', name: 'Research' }])
+  assert.equal(tree.length, 1)
+  assert.equal(tree[0].documentCount, 0)
+  assert.deepEqual(tree[0].collections, [])
+  assert.equal(filterLibraryTree(tree, 'research').length, 1)
+  assert.equal(filterLibraryTree(tree, 'unmatched').length, 0)
+})
