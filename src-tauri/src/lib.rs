@@ -384,8 +384,12 @@ fn capability_documents_publish(
 }
 
 #[tauri::command]
-async fn conversation_list(cursor: Option<String>, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
-  bridge.list(cursor).await
+async fn conversation_list(cursor: Option<String>, archived: Option<bool>, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
+  bridge.list(cursor, archived.unwrap_or(false)).await
+}
+#[tauri::command]
+async fn conversation_change(id: String, action: codex_conversations::ConversationAction, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<(), String> {
+  bridge.change(&id, action).await
 }
 #[tauri::command]
 async fn conversation_create(bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
@@ -689,7 +693,7 @@ pub fn run() {
       developer_integration::developer_integrations,
       developer_integration::developer_integration_install,
       developer_integration::developer_kit_export,
-      conversation_list, conversation_create, conversation_read, conversation_run, conversation_publish,
+      conversation_list, conversation_change, conversation_create, conversation_read, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
       library_management::library_history, library_management::library_trash,

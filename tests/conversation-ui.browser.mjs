@@ -12,7 +12,7 @@ await page.addInitScript(()=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light',providerKind:'codex-api'},version:0}));
  const old={id:'old',preview:'历史测试会话',updatedAt:1,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []}))]}]};
  const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
- const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{}};
+ const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
  window.qa={old,docs,organization,readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:codex-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
@@ -149,14 +149,14 @@ await topicPicker.click();
 assert.ok(await dialog.getByRole('listbox',{name:'专题',exact:true}).evaluate(el=>el.scrollHeight>el.clientHeight), 'Long option lists scroll inside the menu');
 await dialog.getByRole('option',{name:'研究专题',exact:true}).click();
 await sectionPicker.click();
-assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['日记']);
+assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['日记','我的收藏']);
 await page.keyboard.press('Escape');
 assert.equal(await dialog.isVisible(),true, 'Escape closes the menu without closing the save dialog');
 assert.equal(await sectionPicker.getAttribute('aria-expanded'),'false');
 assert.equal(await sectionPicker.evaluate(el=>el===document.activeElement),true);
 await topicPicker.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('End'); await page.keyboard.press('Enter');
 await sectionPicker.click();
-assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['对话']);
+assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['对话','我的收藏']);
 await dialog.getByRole('heading',{name:'保存到资料库',exact:true}).click();
 await page.waitForFunction(()=>document.querySelectorAll('.conversation-destination-menu:popover-open').length===0,{},{timeout:1000});
 await page.waitForTimeout(50);
@@ -171,6 +171,8 @@ assert.equal(await sectionPicker.getAttribute('aria-expanded'),'false', 'Trigger
 await sectionPicker.click(); await page.keyboard.press('Tab');
 assert.equal(await dialog.getByRole('button',{name:'取消',exact:true}).evaluate(el=>el===document.activeElement),true, 'Tab continues to the next form control');
 assert.equal(await page.locator('.conversation-destination-menu:popover-open').count(),0, 'Tab closes the popup before moving to the next control');
+await sectionPicker.click();
+await dialog.getByRole('option',{name:'我的收藏',exact:true}).click();
 await dialog.getByRole('button',{name:'保存',exact:true}).click();
 await page.getByRole('button',{name:'已保存 · 打开',exact:true}).waitFor();
 const saved=await page.evaluate(()=>{
@@ -178,7 +180,7 @@ const saved=await page.evaluate(()=>{
  return {doc, section:window.qa.organization.sections[doc.id], topic:window.qa.organization.topics.find(t=>t.id==='research'), origin:window.qa.organization.origins[doc.id]};
 });
 assert.equal(saved.doc.capabilityId,'workbench.conversations');
-assert.equal(saved.section.id,'diary');
+assert.equal(saved.section.id,'custom-collection');
 assert.ok(saved.topic.documentIds.includes(saved.doc.id));
 assert.equal(saved.origin.messageId,'native-answer');
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('第二轮继续修改');

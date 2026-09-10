@@ -22,7 +22,7 @@
 .weekly-page button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-strong); color: var(--ink-muted); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: background .16s ease, color .16s ease; }
 .weekly-page button:hover { color: var(--accent); background: var(--accent-wash); }
 .weekly-page button:disabled { opacity: .45; cursor: default; }
-.weekly-page button:focus-visible, .weekly-page select:focus-visible, .weekly-page input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.weekly-page button:focus-visible, .weekly-page select:focus-visible, .weekly-page input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--line-strong); }
 .weekly-page .weekly-primary { min-height: 36px; margin-top: 16px; padding-inline: 15px; border-color: var(--accent); background: var(--accent); color: white; font-weight: 650; }
 .weekly-page .weekly-primary:hover:not(:disabled) { filter: brightness(1.08); }
 .weekly-empty { padding: 27px 20px 30px; border: 1px dashed var(--line); border-radius: 9px; text-align: center; }

@@ -8,13 +8,14 @@ export type LibraryDocument = LibraryDocumentMetadata & { content: string }
 export type LibrarySection = { id: string; name: string }
 export type Topic = { id: string; name: string; documentIds: string[] }
 export type Origin = { threadId: string; messageId: string }
-export type Organization = { topics: Topic[]; trash: Record<string, string>; origins: Record<string, Origin>; sections?: Record<string, LibrarySection> }
+export type Organization = { topics: Topic[]; trash: Record<string, string>; origins: Record<string, Origin>; sections?: Record<string, LibrarySection>; customSections?: LibrarySection[] }
 export type LibraryChange =
   | { kind: 'import'; document: DocumentPublication }
   | { kind: 'edit'; id: string; title: string; content: string; expected: string }
   | { kind: 'restore-version'; id: string; revision: string; expected: string }
   | { kind: 'save-topic'; topic: Topic }
   | { kind: 'delete-topic'; id: string }
+  | { kind: 'create-section'; section: LibrarySection }
   | { kind: 'trash' | 'restore' | 'purge'; ids: string[] }
   | { kind: 'place'; id: string; topicId?: string; section: LibrarySection }
   | { kind: 'origin'; id: string; origin: Origin }
@@ -69,7 +70,17 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
         case 'save-topic': {
           if (!change.topic.name.trim() || [...change.topic.name].length > 80) throw new Error('专题名称无效 / Invalid topic name')
           change.topic.documentIds.forEach((id) => find(state, id))
-          state.organization.topics = [...state.organization.topics.filter((t) => t.id !== change.topic.id), { ...change.topic, name: change.topic.name.trim(), documentIds: [...new Set(change.topic.documentIds)] }]; break
+          const topic = { ...change.topic, name: change.topic.name.trim(), documentIds: [...new Set(change.topic.documentIds)] }
+          const index = state.organization.topics.findIndex((item) => item.id === topic.id)
+          if (index < 0) state.organization.topics.push(topic); else state.organization.topics[index] = topic
+          break
+        }
+        case 'create-section': {
+          const section = { ...change.section, name: change.section.name.trim() }
+          if (!/^custom-[a-z0-9-]{1,100}$/.test(section.id) || !section.name || [...section.name].length > 80) throw new Error('栏目名称无效 / Invalid section name')
+          const sections = state.organization.customSections ??= []
+          if (sections.some((item) => item.id === section.id || item.name.toLocaleLowerCase() === section.name.toLocaleLowerCase())) throw new Error('栏目已存在 / Section already exists')
+          sections.push(section); break
         }
         case 'delete-topic': state.organization.topics = state.organization.topics.filter((t) => t.id !== change.id); break
         case 'trash': change.ids.forEach((id) => find(state, id)); change.ids.forEach((id) => { state.organization.trash[id] = new Date().toISOString() }); break

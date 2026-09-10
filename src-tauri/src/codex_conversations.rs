@@ -4,6 +4,10 @@ use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}, process::Stdio
 use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, process::{Child, ChildStdin}, sync::{broadcast, oneshot, Mutex as AsyncMutex}};
 use tokio_util::sync::CancellationToken;
 
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConversationAction { Archive, Restore, Delete }
+
 // Codex owns session persistence. This adapter owns only transport and execution receipts.
 pub struct CodexConversations {
   binary: String,
@@ -108,10 +112,28 @@ impl CodexConversations {
     if result["thread"]["cwd"].as_str() != self.workspace().to_str() && result["thread"]["cwd"].as_str() != expected.to_str() { return Err("This session does not belong to Nooki conversations".into()); }
     Ok(result["thread"].clone())
   }
-  pub async fn list(&self, cursor: Option<String>) -> Result<Value, String> {
+  pub async fn list(&self, cursor: Option<String>, archived: bool) -> Result<Value, String> {
     let mut paths = conversation_documents::workspaces(&self.root)?;
     paths.push(self.workspace());
-    self.connect().await?.request("thread/list", json!({"cwd":paths,"cursor":cursor,"limit":40,"sortKey":"updated_at","sourceKinds":[],"modelProviders":[]})).await
+    self.connect().await?.request("thread/list", json!({"cwd":paths,"cursor":cursor,"archived":archived,"limit":40,"sortKey":"updated_at","sourceKinds":[],"modelProviders":[]})).await
+  }
+  pub async fn change(&self, id: &str, action: ConversationAction) -> Result<(), String> {
+    let client = self.connect().await?;
+    let thread = self.owned_thread(&client, id).await?;
+    if thread["status"]["type"] == "active" { return Err("请等待会话完成后再操作 / Wait for this conversation to finish".into()); }
+    if matches!(action, ConversationAction::Delete) {
+      let mut cursor = None;
+      loop {
+        let page = self.list(cursor, true).await?;
+        if page["data"].as_array().ok_or("Codex returned invalid history")?.iter().any(|thread| thread["id"] == id) { break; }
+        cursor = page["nextCursor"].as_str().map(String::from);
+        if cursor.is_none() { return Err("只有已归档会话可以永久删除 / Only archived conversations can be deleted".into()); }
+      }
+    }
+    let method = match action { ConversationAction::Archive => "thread/archive", ConversationAction::Restore => "thread/unarchive", ConversationAction::Delete => "thread/delete" };
+    client.request(method, json!({"threadId":id})).await?;
+    client.fresh.lock().map_err(|_| "Codex session state unavailable")?.remove(id);
+    Ok(())
   }
   pub async fn create(&self) -> Result<Value, String> {
     let client = self.connect().await?;

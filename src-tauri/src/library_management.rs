@@ -13,6 +13,8 @@ pub struct Organization {
   pub origins: BTreeMap<String, Origin>,
   #[serde(default)]
   pub sections: BTreeMap<String, LibrarySection>,
+  #[serde(default)]
+  pub custom_sections: Vec<LibrarySection>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +32,7 @@ pub enum LibraryChange {
   RestoreVersion { id: String, revision: String, expected: String },
   SaveTopic { topic: Topic },
   DeleteTopic { id: String },
+  CreateSection { section: LibrarySection },
   Trash { ids: Vec<String> },
   Restore { ids: Vec<String> },
   Purge { ids: Vec<String> },
@@ -108,7 +111,13 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       topic.name = topic.name.trim().into();
       topic.document_ids.sort(); topic.document_ids.dedup();
       for id in &topic.document_ids { document_library::read_unlocked(root, id)?; }
-      state.topics.retain(|t| t.id != topic.id); state.topics.push(topic);
+      if let Some(existing) = state.topics.iter_mut().find(|t| t.id == topic.id) { *existing = topic; } else { state.topics.push(topic); }
+    }
+    LibraryChange::CreateSection { mut section } => {
+      section.name = section.name.trim().into();
+      if !section.id.starts_with("custom-") || section.id.len() <= 7 || section.id.len() > 107 || !section.id.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-') || section.name.is_empty() || section.name.chars().count() > 80 { return Err("栏目名称无效 / Invalid section name".into()); }
+      if state.custom_sections.iter().any(|s| s.id == section.id || s.name.to_lowercase() == section.name.to_lowercase()) { return Err("栏目已存在 / Section already exists".into()); }
+      state.custom_sections.push(section);
     }
     LibraryChange::DeleteTopic { id } => state.topics.retain(|t| t.id != id),
     LibraryChange::Trash { ids } => {

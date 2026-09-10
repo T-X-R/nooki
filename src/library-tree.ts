@@ -1,4 +1,4 @@
-import type { LibraryDocumentMetadata } from './document-library'
+import type { LibraryDocumentMetadata, LibrarySection } from './document-library'
 
 export type LibraryMonthNode = {
   key: string
@@ -23,8 +23,11 @@ export type LibraryCapabilityNode = {
 export function buildLibraryTree(
   documents: LibraryDocumentMetadata[],
   installedNames: ReadonlyMap<string, string>,
+  customSections: readonly LibrarySection[] = [],
 ): LibraryCapabilityNode[] {
-  const capabilities = new Map<string, LibraryCapabilityNode>()
+  const capabilities = new Map<string, LibraryCapabilityNode>(customSections.map((section) => [section.id, {
+    capabilityId: section.id, capabilityName: section.name, installed: false, documentCount: 0, collections: [],
+  }]))
 
   for (const document of documents) {
     const section = document.section ?? { id: document.capabilityId, name: document.capabilityName }
@@ -102,7 +105,7 @@ export function filterLibraryTree(tree: LibraryCapabilityNode[], query: string, 
       return documentCount > 0 ? [{ ...collection, documentCount, months }] : []
     })
     const documentCount = collections.reduce((total, collection) => total + collection.documentCount, 0)
-    return documentCount > 0 ? [{ ...capability, documentCount, collections }] : []
+    return documentCount > 0 || capabilityMatches ? [{ ...capability, documentCount, collections }] : []
   })
 }
 

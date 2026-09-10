@@ -82,3 +82,21 @@ test('placing a conversation result preserves its source and existing topic memb
   store.change({ kind: 'trash', ids: [answer.id] }); store.change({ kind: 'purge', ids: [answer.id] })
   assert.equal(store.organization().sections?.[answer.id], undefined)
 })
+
+test('custom sections persist while empty and moving documents preserves history and topics', () => {
+  const { store, data } = setup()
+  const section = { id: 'custom-research', name: '  Research  ' }
+  store.change({ kind: 'create-section', section })
+  const reopened = createLibraryStore({ getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value) } })
+  assert.deepEqual(reopened.organization().customSections, [{ ...section, name: 'Research' }])
+  assert.throws(() => store.change({ kind: 'create-section', section: { id: 'custom-duplicate', name: 'research' } }), /already exists/)
+  assert.throws(() => store.change({ kind: 'create-section', section: { ...section, name: '   ' } }), /Invalid/)
+  assert.throws(() => store.change({ kind: 'create-section', section: { id: 'diary', name: 'Built in' } }), /Invalid/)
+  const doc = store.publish('diary', 'Diary', input('move-me'))
+  store.change({ kind: 'save-topic', topic: { id: 'topic', name: 'Topic', documentIds: [doc.id] } })
+  store.change({ kind: 'place', id: doc.id, section: { ...section, name: 'Research' } })
+  assert.equal(store.read(doc.id).revision, doc.revision)
+  assert.deepEqual(store.organization().topics[0].documentIds, [doc.id])
+  store.change({ kind: 'trash', ids: [doc.id] }); store.change({ kind: 'purge', ids: [doc.id] })
+  assert.equal(store.organization().customSections?.length, 1)
+})
