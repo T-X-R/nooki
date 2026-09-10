@@ -61,6 +61,7 @@ import { DeveloperCenterModal } from './DeveloperCenterModal'
 import { taskRunner } from './tasks'
 import { ConversationPage } from './ConversationPage'
 import { ConversationNavigation } from './ConversationNavigation'
+import { ConversationArchiveDialog } from './ConversationArchiveDialog'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from './conversation-model'
 import nookiIcon from './assets/nooki-icon.png'
 
@@ -272,7 +273,7 @@ function App() {
               {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
-              {view === 'settings' && <SettingsPage installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} />}
+              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} />}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -763,11 +764,12 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
   )
 }
 
-function SettingsPage({ installed, onNotice, providerStatus, onSelectProvider, onCheckProvider }: { installed: InstalledCapability[]; onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus> }) {
+function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus, onSelectProvider, onCheckProvider }: { onOpenConversation(id: string): void; installed: InstalledCapability[]; onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus> }) {
   const { t } = useTranslation()
   const { theme, setTheme, language, setLanguage, providerKind } = useWorkbench()
   const [checking, setChecking] = useState(false)
   const [testingProvider, setTestingProvider] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
   const runCheck = async () => {
     setChecking(true)
@@ -811,6 +813,8 @@ function SettingsPage({ installed, onNotice, providerStatus, onSelectProvider, o
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">03</span><div><h2>{t('language')}</h2><p>{t('languageIntro')}</p></div></div><div className="theme-options language-options"><button className={`theme-option ${language === 'zh' ? 'selected' : ''}`} onClick={() => setLanguage('zh')}><span className="language-preview">中</span><span><strong>{t('chinese')}</strong><small>{t('chineseDescription')}</small></span>{language === 'zh' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${language === 'en' ? 'selected' : ''}`} onClick={() => setLanguage('en')}><span className="language-preview">EN</span><span><strong>{t('english')}</strong><small>{t('englishDescription')}</small></span>{language === 'en' && <CheckIcon className="selected-check" />}</button></div></section>
 
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">04</span><div><h2>{t('localData')}</h2><p>{t('localDataIntro')}</p></div></div><DataManagement language={language} installed={installed} /></section>
+      <section className="settings-section settings-archive-section"><div className="settings-section-heading"><span className="settings-number">05</span><div><h2>{language === 'zh' ? '已归档会话' : 'Archived conversations'}</h2><p>{language === 'zh' ? '查看、恢复或永久删除已归档的会话。' : 'View, restore or permanently delete archived conversations.'}</p></div><button className="secondary-button" onClick={() => setArchiveOpen(true)}><ArchiveIcon />{language === 'zh' ? '查看归档' : 'View archives'}</button></div></section>
+      {archiveOpen && <ConversationArchiveDialog language={language} onClose={() => setArchiveOpen(false)} onRestore={onOpenConversation} />}
     </div>
   )
 }

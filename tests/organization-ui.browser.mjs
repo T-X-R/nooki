@@ -68,11 +68,14 @@ try {
   await topics.getByRole('button', { name: '阅读与思考', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: '管理专题', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '切换专题', exact: true }).count(), 0);
+  assert.notEqual(await page.getByRole('button', { name: '资料库', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), await topics.getByRole('button', { name: '全部资料', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor));
   await topics.getByRole('button', { name: '旅行灵感', exact: true }).click();
   await page.getByText('这里还没有资料', { exact: true }).waitFor();
   assert.equal(await page.locator('.library-reader-content').count(), 0);
   await topics.getByRole('button', { name: '新建专题', exact: true }).click();
   await topics.getByRole('textbox', { name: '专题名称' }).fill('项目笔记');
+  assert.deepEqual(await topics.getByRole('textbox', { name: '专题名称' }).evaluate(el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).boxShadow]), ['none', 'none']);
+  await page.locator('.nav-library').screenshot({ path: '/private/tmp/nooki-refined-topic-editor.png', animations: 'disabled' });
   await page.keyboard.press('Enter');
   await topics.getByRole('button', { name: '项目笔记', exact: true }).waitFor();
   await topics.getByRole('button', { name: '重命名专题：项目笔记', exact: true }).click();
@@ -121,6 +124,10 @@ try {
   await page.screenshot({ path: '/private/tmp/nooki-library-dark.png' });
   await page.getByRole('button', { name: '对话', exact: true }).click();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).click();
+  assert.equal(await page.locator('#sidebar-conversation-history').getByRole('button', { name: '已归档', exact: true }).count(), 0);
+  await page.mouse.move(1200, 800);
+  await page.waitForTimeout(200);
+  assert.notEqual(await page.getByRole('button', { name: '对话', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), await page.getByRole('button', { name: '整理本周的想法', exact: true }).evaluate(el => getComputedStyle(el.closest('.nav-list-row')).backgroundColor));
   await page.evaluate(() => window.qa.failArchive = true);
   await page.getByRole('button', { name: '归档会话：整理本周的想法', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Archive failed' }).waitFor();
@@ -128,7 +135,12 @@ try {
   await page.evaluate(() => window.qa.failArchive = false);
   await page.getByRole('button', { name: '归档会话：整理本周的想法', exact: true }).click();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).waitFor({ state: 'hidden' });
-  await page.getByRole('button', { name: '已归档', exact: true }).click();
+  await page.locator('.sidebar-settings').click();
+  await page.getByRole('button', { name: '查看归档', exact: true }).waitFor();
+  assert.deepEqual(await page.locator('.settings-section h2').allTextContents().then(headings => headings.slice(-2)), ['本地数据', '已归档会话']);
+  await page.getByRole('button', { name: '查看归档', exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '/private/tmp/nooki-refined-archive-settings.png', animations: 'disabled' });
+  await page.getByRole('button', { name: '查看归档', exact: true }).click();
   const archive = page.getByRole('dialog');
   await archive.getByRole('button', { name: '恢复会话：整理本周的想法', exact: true }).waitFor();
   assert.equal(await archive.locator('.conversation-archive-row').count(), 44);
@@ -136,8 +148,14 @@ try {
   assert.ok((await page.evaluate(() => window.qa.pages)).includes(40));
   await archive.getByRole('button', { name: '恢复会话：整理本周的想法', exact: true }).click();
   await archive.waitFor({ state: 'hidden' });
+  await page.locator('.conversation-page').waitFor();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).waitFor();
-  await page.getByRole('button', { name: '已归档', exact: true }).click();
+  await page.locator('.sidebar-settings').click();
+  await page.getByRole('button', { name: '查看归档', exact: true }).waitFor();
+  assert.deepEqual(await page.locator('.settings-section h2').allTextContents().then(headings => headings.slice(-2)), ['本地数据', '已归档会话']);
+  await page.getByRole('button', { name: '查看归档', exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '/private/tmp/nooki-refined-archive-settings.png', animations: 'disabled' });
+  await page.getByRole('button', { name: '查看归档', exact: true }).click();
   await archive.getByRole('button', { name: '删除会话：往期对话 1', exact: true }).click();
   await archive.getByRole('button', { name: '取消', exact: true }).click();
   assert.equal(await page.evaluate(() => window.qa.deleted.length), 0);
@@ -172,6 +190,10 @@ try {
   await page.getByRole('button', { name: 'English topic', exact: true }).waitFor();
   await page.setViewportSize({ width: 800, height: 820 });
   await page.screenshot({ path: '/private/tmp/nooki-library-english.png', animations: 'disabled' });
+  await page.locator('.sidebar-settings').click();
+  await page.getByRole('button', { name: 'View archives', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Archived conversations', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   assert.deepEqual(errors, []);
   console.log('PASS: inline topics, empty scope, section persistence, duplicate validation, moving documents, theme/viewport QA, archive failure, restore, pagination, cancel, single deletion and partial bulk retry');
 } finally { await browser.close(); }
