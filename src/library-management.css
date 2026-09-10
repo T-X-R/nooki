@@ -192,7 +192,6 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archives .quiet-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .conversation-archive-empty { padding: 36px 0; text-align: center; color: var(--ink-soft); font-size: 12px; }
 .conversation-archive-empty > svg { width: 25px; height: 25px; margin-bottom: 8px; }
-.archive-delete-preview { max-height: 160px; overflow: auto; font-size: 12px; color: var(--ink-muted); overflow-wrap: anywhere; }
 @media (hover: none) { .nav-row-actions { opacity: 1; } }
 @media (max-width: 850px) {
   .sidebar:has(.nav-conversations > [aria-expanded="true"]) { width: 190px; flex-basis: 190px; align-items: stretch; }

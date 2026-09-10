@@ -55,7 +55,6 @@ export function ConversationArchives({ language, onRestore }: { language: 'zh' |
     </div>}
     {deleting && <LibraryDialog title={zh ? '删除归档会话' : 'Delete archived conversations'} busy={busy} onClose={() => { setDeleting(null); setError('') }}>
       <p className="modal-copy">{zh ? `永久删除 ${deleting.length} 个已归档会话？会话记录无法恢复，已保存到资料库的资料会保留。` : `Permanently delete ${deleting.length} archived conversations? Conversation history cannot be recovered. Documents saved to the Library will remain.`}</p>
-      <div className="archive-delete-preview">{deleting.slice(0, 3).map((session) => <p key={session.id}>{session.name || session.preview || (zh ? '未命名会话' : 'Untitled conversation')}</p>)}</div>
       <footer className="modal-footer"><button className="secondary-button" disabled={busy} onClick={() => { setDeleting(null); setError('') }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button danger-button" disabled={busy} onClick={() => void act(async () => {
         for (const session of deleting) {
           await conversationClient.change(session.id, 'delete')
