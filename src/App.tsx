@@ -61,7 +61,7 @@ import { DeveloperCenterModal } from './DeveloperCenterModal'
 import { taskRunner } from './tasks'
 import { ConversationPage } from './ConversationPage'
 import { ConversationNavigation } from './ConversationNavigation'
-import { ConversationArchiveDialog } from './ConversationArchiveDialog'
+import { ConversationArchives } from './ConversationArchives'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from './conversation-model'
 import nookiIcon from './assets/nooki-icon.png'
 
@@ -769,7 +769,6 @@ function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus,
   const { theme, setTheme, language, setLanguage, providerKind } = useWorkbench()
   const [checking, setChecking] = useState(false)
   const [testingProvider, setTestingProvider] = useState(false)
-  const [archiveOpen, setArchiveOpen] = useState(false)
 
   const runCheck = async () => {
     setChecking(true)
@@ -813,8 +812,7 @@ function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus,
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">03</span><div><h2>{t('language')}</h2><p>{t('languageIntro')}</p></div></div><div className="theme-options language-options"><button className={`theme-option ${language === 'zh' ? 'selected' : ''}`} onClick={() => setLanguage('zh')}><span className="language-preview">中</span><span><strong>{t('chinese')}</strong><small>{t('chineseDescription')}</small></span>{language === 'zh' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${language === 'en' ? 'selected' : ''}`} onClick={() => setLanguage('en')}><span className="language-preview">EN</span><span><strong>{t('english')}</strong><small>{t('englishDescription')}</small></span>{language === 'en' && <CheckIcon className="selected-check" />}</button></div></section>
 
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">04</span><div><h2>{t('localData')}</h2><p>{t('localDataIntro')}</p></div></div><DataManagement language={language} installed={installed} /></section>
-      <section className="settings-section settings-archive-section"><div className="settings-section-heading"><span className="settings-number">05</span><div><h2>{language === 'zh' ? '已归档会话' : 'Archived conversations'}</h2><p>{language === 'zh' ? '查看、恢复或永久删除已归档的会话。' : 'View, restore or permanently delete archived conversations.'}</p></div><button className="secondary-button" onClick={() => setArchiveOpen(true)}><ArchiveIcon />{language === 'zh' ? '查看归档' : 'View archives'}</button></div></section>
-      {archiveOpen && <ConversationArchiveDialog language={language} onClose={() => setArchiveOpen(false)} onRestore={onOpenConversation} />}
+      <ConversationArchives language={language} onRestore={onOpenConversation} />
     </div>
   )
 }
