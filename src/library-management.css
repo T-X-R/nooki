@@ -132,6 +132,7 @@ dialog.library-revision-dialog[open] { display: flex; flex-direction: column; he
 .data-retained-heading > span { color: var(--ink-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
 .data-capability-list { margin-top: 12px; }
 .data-capability-list > div { display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); padding: 13px 0; }
+.data-capability-list > div:last-child { border-bottom: 0; }
 .data-capability-list > div > span:nth-child(2) { display: grid; gap: 4px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .data-capability-list strong { font-size: 12px; font-weight: 600; }
 .data-capability-list small { color: var(--ink-muted); font-size: 10px; }
@@ -188,7 +189,7 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archive-row small { font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .conversation-archive-row .icon-button { flex: none; width: 30px; height: 30px; }
 .conversation-archive-row svg { width: 14px; height: 14px; }
-.conversation-archives .archive-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.conversation-archives .archive-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; }
 .conversation-archives .quiet-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .conversation-archive-empty { padding: 36px 0; text-align: center; color: var(--ink-soft); font-size: 12px; }
 .conversation-archive-empty > svg { width: 25px; height: 25px; margin-bottom: 8px; }
@@ -202,8 +203,11 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
   .nav-row-actions { opacity: 1; }
 }
 
-.settings-archive-section .conversation-archive-heading { margin: 0; }
-.conversation-archive-toggle { display: grid; grid-template-columns: 35px minmax(0, 1fr) auto 16px; align-items: center; gap: 12px; width: 100%; padding: 4px 0; text-align: left; background: transparent; color: var(--ink); border-radius: 6px; }
+.conversation-archive-header { display: grid; grid-template-columns: 35px minmax(0, 1fr) auto auto 16px; align-items: center; column-gap: 12px; }
+.settings-archive-section .conversation-archive-heading { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; grid-row: 1; margin: 0; }
+.conversation-archive-clear { position: relative; grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 12px; }
+.conversation-archive-clear svg { width: 14px; height: 14px; }
+.conversation-archive-toggle { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; gap: 12px; width: 100%; padding: 4px 0; text-align: left; background: transparent; color: var(--ink); border-radius: 6px; }
 .conversation-archive-toggle > svg { width: 14px; height: 14px; color: var(--ink-muted); transition: transform .18s ease; }
 .conversation-archive-toggle[aria-expanded="true"] > svg { transform: rotate(90deg); }
 .conversation-archive-toggle:hover > svg { color: var(--ink); }
@@ -214,4 +218,4 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archives .danger-button { background: var(--negative); color: white; }
 @keyframes archive-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .conversation-archives { animation: none; } .conversation-archive-toggle > svg { transition: none; } }
-@media (max-width: 640px) { .conversation-archive-toggle { grid-template-columns: 28px minmax(0, 1fr) auto 16px; gap: 8px; } .conversation-archives { margin-left: 0; } }
+@media (max-width: 640px) { .conversation-archive-header { grid-template-columns: 28px minmax(0, 1fr) auto auto 16px; column-gap: 8px; } .conversation-archive-toggle { gap: 8px; } .conversation-archives { margin-left: 0; } }

@@ -169,7 +169,7 @@ try {
   assert.equal(await page.evaluate(() => window.qa.deleted.length), 0);
   await archive.getByRole('button', { name: '删除会话：往期对话 1', exact: true }).click();
   await archive.getByRole('button', { name: '永久删除', exact: true }).click();
-  await archive.getByRole('button', { name: '清空归档', exact: true }).waitFor();
+  await archive.getByRole('button', { name: '删除会话：往期对话 2', exact: true }).waitFor();
   assert.equal(await archive.locator('.conversation-archive-row').count(), 42);
   assert.equal(await page.locator('.conversation-archive-count').textContent(), '42');
   await page.evaluate(() => window.qa.loseDeleteResponse = 'archived-1');
@@ -179,7 +179,7 @@ try {
   await archive.getByRole('button', { name: '重试', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('.conversation-archive-row').length === 41);
   await page.evaluate(() => window.qa.failDelete = 'archived-3');
-  await archive.getByRole('button', { name: '清空归档', exact: true }).click();
+  await page.getByRole('button', { name: '清空归档', exact: true }).click();
   await archive.getByRole('button', { name: '永久删除', exact: true }).click();
   await archive.getByRole('alert').filter({ hasText: 'Delete failed' }).waitFor();
   assert.equal(await page.evaluate(() => window.qa.deleted.length), 3);
