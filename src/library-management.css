@@ -189,7 +189,6 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archive-row small { font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .conversation-archive-row .icon-button { flex: none; width: 30px; height: 30px; }
 .conversation-archive-row svg { width: 14px; height: 14px; }
-.conversation-archives .archive-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; }
 .conversation-archives .quiet-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .conversation-archive-empty { padding: 36px 0; text-align: center; color: var(--ink-soft); font-size: 12px; }
 .conversation-archive-empty > svg { width: 25px; height: 25px; margin-bottom: 8px; }
@@ -214,8 +213,6 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archive-count { min-width: 24px; padding: 3px 7px; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 11px; font-weight: 500; letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums; }
 .conversation-archives { margin-left: 47px; padding-top: 16px; animation: archive-reveal .16s ease-out; }
 .conversation-archives .archive-copy { margin: 0 0 12px; color: var(--ink-muted); font-size: 12px; line-height: 1.7; }
-.conversation-archives .secondary-button, .conversation-archives .primary-button { min-height: 30px; padding: 7px 12px; font-size: 11px; box-shadow: none; }
-.conversation-archives .danger-button { background: var(--negative); color: white; }
 @keyframes archive-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .conversation-archives { animation: none; } .conversation-archive-toggle > svg { transition: none; } }
 @media (max-width: 640px) { .conversation-archive-header { grid-template-columns: 28px minmax(0, 1fr) auto auto 16px; column-gap: 8px; } .conversation-archive-toggle { gap: 8px; } .conversation-archives { margin-left: 0; } }
