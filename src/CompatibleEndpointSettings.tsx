@@ -123,7 +123,7 @@ export function CompatibleEndpointSettings({ language, onNotice, onChanged }: { 
   return (
     <div className="endpoint-panel">
       <div className="endpoint-panel-heading">
-        <div><strong>{t('endpointsTitle')}</strong><span>{t('endpointsIntro')}</span></div>
+        <strong>{t('endpointsTitle')}</strong>
         {!form && <button className="quiet-button" onClick={() => { setForm(BLANK_FORM); setError('') }}>{t('addEndpoint')}<PlusIcon /></button>}
       </div>
 
@@ -158,7 +158,6 @@ export function CompatibleEndpointSettings({ language, onNotice, onChanged }: { 
         ))}
       </ul>}
 
-      {state.endpoints.length === 0 && !form && <p className="endpoint-empty">{t('noEndpoints')}</p>}
 
       {form && <form className="endpoint-form" onSubmit={(event) => { event.preventDefault(); submit() }}>
         <div className="endpoint-form-grid">
@@ -171,17 +170,20 @@ export function CompatibleEndpointSettings({ language, onNotice, onChanged }: { 
           <label className="endpoint-field endpoint-field-wide">{t('endpointBaseUrl')}
             <input value={form.baseUrl} spellCheck={false} disabled={busy} onChange={(event) => setForm({ ...form, baseUrl: event.target.value })} />
           </label>
-          <label className="endpoint-field">{t('endpointWireApi')}
-            <select value={form.wireApi} disabled={busy} onChange={(event) => setForm({ ...form, wireApi: event.target.value as WireApi })}>
-              {(['responses', 'chat', 'anthropic'] as WireApi[]).map((wire) => <option key={wire} value={wire}>{wireLabels[wire]}</option>)}
-            </select>
-          </label>
-          <label className="endpoint-field">{t('endpointCredential')}
-            <select value={form.credential} disabled={busy} onChange={(event) => setForm({ ...form, credential: event.target.value as CredentialMode })}>
-              <option value="stored">{t('credentialStored')}</option>
-              <option value="environment">{t('credentialEnvironment')}</option>
-            </select>
-          </label>
+          <div className="endpoint-field" role="group" aria-label={t('endpointWireApi')}><span>{t('endpointWireApi')}</span>
+            <div className="endpoint-choices">
+              {(['responses', 'chat', 'anthropic'] as WireApi[]).map((wire) => (
+                <button key={wire} type="button" className={form.wireApi === wire ? 'is-active' : ''} aria-pressed={form.wireApi === wire} disabled={busy} onClick={() => setForm({ ...form, wireApi: wire })}>{wireLabels[wire]}</button>
+              ))}
+            </div>
+          </div>
+          <div className="endpoint-field" role="group" aria-label={t('endpointCredential')}><span>{t('endpointCredential')}</span>
+            <div className="endpoint-choices">
+              {(['stored', 'environment'] as CredentialMode[]).map((mode) => (
+                <button key={mode} type="button" className={form.credential === mode ? 'is-active' : ''} aria-pressed={form.credential === mode} disabled={busy} onClick={() => setForm({ ...form, credential: mode })}>{mode === 'stored' ? t('credentialStored') : t('credentialEnvironment')}</button>
+              ))}
+            </div>
+          </div>
           {form.credential === 'stored'
             ? <label className="endpoint-field">{t('endpointApiKey')}
                 <input type="password" value={form.apiKey} autoComplete="off" spellCheck={false} placeholder={editingExisting ? t('credentialKeep') : ''} disabled={busy} onChange={(event) => setForm({ ...form, apiKey: event.target.value })} />

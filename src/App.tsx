@@ -25,7 +25,6 @@ import {
   GearIcon,
   GlobeIcon,
   LightningBoltIcon,
-  LockClosedIcon,
   MagnifyingGlassIcon,
   MagicWandIcon,
   MoonIcon,
@@ -806,7 +805,6 @@ function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus,
         </div>
         <div className="provider-detail"><div className="detail-icon"><UpdateIcon /></div><div><strong>{providerStatus?.label ?? providerLabel(t, providerKind)} · {providerStateLabel(t, providerStatus?.state)}</strong><span>{providerStatus?.detail ?? t('providerStatusLoading')}</span></div><div className="provider-detail-actions"><button className="quiet-button" onClick={runCheck} disabled={checking}>{checking ? t('checkingEllipsis') : t('healthCheck')}<ReloadIcon className={checking ? 'spin' : ''} /></button><button className="quiet-button" onClick={testProvider} disabled={testingProvider}>{testingProvider ? t('testingEllipsis') : t('testCall')}<ArrowRightIcon /></button></div></div>
         {providerKind === 'compatible-api' && <CompatibleEndpointSettings language={language} onNotice={onNotice} onChanged={onRefreshProvider} />}
-        <div className="settings-callout"><LockClosedIcon /><div><strong>{t('credentialsStayInHost')}</strong><span>{t('credentialsCopy')}</span></div></div>
       </section>
 
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">02</span><div><h2>{t('appearance')}</h2><p>{t('appearanceIntro')}</p></div></div><div className="theme-options"><button className={`theme-option ${theme === 'light' ? 'selected' : ''}`} onClick={() => setTheme('light')}><span className="theme-preview theme-preview-light"><SunIcon /></span><span><strong>{t('light')}</strong><small>{t('lightDescription')}</small></span>{theme === 'light' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${theme === 'dark' ? 'selected' : ''}`} onClick={() => setTheme('dark')}><span className="theme-preview theme-preview-dark"><MoonIcon /></span><span><strong>{t('dark')}</strong><small>{t('darkDescription')}</small></span>{theme === 'dark' && <CheckIcon className="selected-check" />}</button></div></section>
