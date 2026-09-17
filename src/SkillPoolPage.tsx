@@ -341,10 +341,10 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
         </nav>
         <article className="skill-pool-reader-content" key={path}>
           {error && <p className="skill-pool-error" role="alert">{error}</p>}
-          {path === 'SKILL.md' && !!detail.description && <section className="skill-pool-reader-lead">
-            <span className="section-kicker">{zh ? '描述' : 'Description'}</span>
-            <p>{detail.description}</p>
-          </section>}
+          {path === 'SKILL.md' && !!detail.description && <dl className="skill-pool-reader-meta">
+            <dt className="section-kicker">{zh ? '描述' : 'Description'}</dt>
+            <dd>{detail.description}</dd>
+          </dl>}
           {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{path === 'SKILL.md' ? skillInstructions(file.content, detail.name, detail.title) : file.content}</Markdown></div>}
           {file?.kind === 'text' && <pre className="skill-pool-reader-code">{file.content}</pre>}
           {file?.kind === 'image' && <SkillImage zh={zh} source={file.content} label={path} />}
