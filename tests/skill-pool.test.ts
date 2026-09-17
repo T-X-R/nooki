@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  distributableTools, groupDecisions, holders, isSelected, nextSelection, pendingDecisions, searchSkills, toolSummary,
+  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, toolSummary,
   type Duplicate, type Overview, type PoolSkill, type ToolEntry, type ToolView,
 } from '../src/skill-pool.ts'
 
@@ -80,4 +80,11 @@ test('search covers the name, title, and description', () => {
   assert.deepEqual(searchSkills(skills, 'diary').map((entry) => entry.name), ['diary'])
   assert.deepEqual(searchSkills(skills, 'reads').map((entry) => entry.name), ['pdf'])
   assert.deepEqual(searchSkills(skills, '  ').map((entry) => entry.name), ['pdf', 'diary'])
+})
+
+test('a skill with many files still reads in an order', () => {
+  const files = ['scripts/build.py', 'references/contract.md', 'SKILL.md', 'LICENSE.txt', 'assets/pet.png']
+  assert.deepEqual(orderSkillFiles(files), ['SKILL.md', 'LICENSE.txt', 'assets/pet.png', 'references/contract.md', 'scripts/build.py'])
+  assert.deepEqual(fileLabel('references/doc/read.md'), { folder: 'references/doc', name: 'read.md' })
+  assert.deepEqual(fileLabel('SKILL.md'), { folder: '', name: 'SKILL.md' })
 })

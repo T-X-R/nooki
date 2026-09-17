@@ -5,8 +5,8 @@ import remarkGfm from 'remark-gfm'
 import { CheckCircledIcon, Cross2Icon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, TrashIcon } from '@radix-ui/react-icons'
 import './skill-pool.css'
 import {
-  distributableTools, detectedTools, emptyOverview, groupDecisions, holders, isSelected, nextSelection, searchSkills, toolSummary,
-  type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill, type SkillDetail,
+  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, toolSummary,
+  type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill, type SkillDetail, type SkillFile,
 } from './skill-pool'
 
 export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
@@ -286,6 +286,11 @@ function DeleteDialog({ zh, busy, skill, tools, includeModified, onIncludeModifi
 
 function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail; onClose(): void }) {
   const dialog = useRef<HTMLElement>(null)
+  const files = orderSkillFiles(detail.files)
+  const [path, setPath] = useState(files.includes('SKILL.md') ? 'SKILL.md' : (files[0] ?? ''))
+  const [file, setFile] = useState<SkillFile | null>(null)
+  const [error, setError] = useState('')
+  const [filter, setFilter] = useState('')
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
     dialog.current?.focus()
@@ -293,22 +298,61 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
     document.addEventListener('keydown', keyboard)
     return () => { document.removeEventListener('keydown', keyboard); previous?.focus() }
   }, [onClose])
+  useEffect(() => {
+    if (!path) return
+    let current = true
+    setError('')
+    void invoke<SkillFile>('skill_pool_read_file', { name: detail.name, path })
+      .then((value) => { if (current) setFile(value) })
+      .catch((reason) => { if (current) { setFile(null); setError(String(reason)) } })
+    return () => { current = false }
+  }, [detail.name, path])
+  const needle = filter.trim().toLowerCase()
+  const listed = needle ? files.filter((entry) => entry.toLowerCase().includes(needle)) : files
+  const size = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={-1} className="modal skill-pool-reader" role="dialog" aria-modal="true" aria-labelledby="skill-pool-reader-title">
-      <header className="modal-header">
+      <header className="modal-header skill-pool-reader-header">
         <div>
           <span className="section-kicker">SKILL</span>
           <h2 id="skill-pool-reader-title">{detail.title}</h2>
+          {!!detail.description && <p className="skill-pool-reader-description">{detail.description}</p>}
           <code className="skill-pool-reader-path">{detail.directory}</code>
         </div>
         <button className="icon-button" onClick={onClose} aria-label={zh ? '关闭' : 'Close'}><Cross2Icon /></button>
       </header>
-      <div className="skill-pool-reader-content"><Markdown remarkPlugins={[remarkGfm]}>{detail.content || (zh ? '这个技能没有 SKILL.md。' : 'This skill has no SKILL.md.')}</Markdown></div>
-      {detail.truncated && <p className="skill-pool-empty">{zh ? '内容过长，只显示开头部分。' : 'Only the beginning is shown; the file is long.'}</p>}
-      <details className="skill-pool-reader-files">
-        <summary>{detail.files.length} {zh ? '个文件' : 'files'}</summary>
-        {detail.files.map((file) => <code key={file}>{file}</code>)}
-      </details>
+      <div className="skill-pool-reader-body">
+        <nav className="skill-pool-reader-files" aria-label={zh ? '技能内的文件' : 'Files in this skill'}>
+          {files.length > 12 && <label className="skill-pool-search skill-pool-reader-filter">
+            <MagnifyingGlassIcon />
+            <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={zh ? '筛选文件' : 'Filter files'} aria-label={zh ? '筛选文件' : 'Filter files'} />
+          </label>}
+          <p className="skill-pool-reader-count">{files.length} {zh ? '个文件' : 'files'}</p>
+          <ul>
+            {listed.map((entry) => {
+              const { folder, name } = fileLabel(entry)
+              return <li key={entry}>
+                <button type="button" aria-current={entry === path ? 'true' : undefined} className={entry === path ? 'is-active' : ''} onClick={() => setPath(entry)} title={entry}>
+                  <span>{name}</span>
+                  {!!folder && <small>{folder}</small>}
+                </button>
+              </li>
+            })}
+          </ul>
+        </nav>
+        <article className="skill-pool-reader-content" key={path}>
+          {error && <p className="skill-pool-error" role="alert">{error}</p>}
+          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{file.content}</Markdown></div>}
+          {file?.kind === 'text' && <pre className="skill-pool-reader-code">{file.content}</pre>}
+          {file?.kind === 'image' && <img className="skill-pool-reader-image" src={file.content} alt={path} />}
+          {file?.kind === 'binary' && <p className="skill-pool-empty">{zh ? `这是一个二进制文件（${size(file.sizeBytes)}），不在这里展开。` : `A binary file (${size(file.sizeBytes)}); it is not shown here.`}</p>}
+          {file?.truncated && <p className="skill-pool-empty">{zh ? '文件很长，只显示开头部分。' : 'The file is long; only the beginning is shown.'}</p>}
+        </article>
+      </div>
+      <footer className="skill-pool-reader-footer">
+        <code>{path}</code>
+        {!!file && <span>{size(file.sizeBytes)}</span>}
+      </footer>
     </section>
   </div>
 }

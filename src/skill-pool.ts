@@ -56,6 +56,25 @@ export type SkillDetail = {
   truncated: boolean
 }
 
+export type SkillFile = {
+  path: string
+  kind: 'markdown' | 'text' | 'image' | 'binary'
+  content: string
+  truncated: boolean
+  sizeBytes: number
+}
+
+/** SKILL.md first, then folder by folder, so a 255-file skill still reads in an order. */
+export function orderSkillFiles(files: string[]): string[] {
+  const weight = (path: string) => (path === 'SKILL.md' ? 0 : path.includes('/') ? 2 : 1)
+  return [...files].sort((a, b) => weight(a) - weight(b) || a.localeCompare(b))
+}
+
+export function fileLabel(path: string): { folder: string; name: string } {
+  const cut = path.lastIndexOf('/')
+  return cut === -1 ? { folder: '', name: path } : { folder: path.slice(0, cut), name: path.slice(cut + 1) }
+}
+
 export type Removal = { toolId: string; toolName: string; state: string }
 
 export type DeleteReport = { name: string; trash: string; removed: Removal[]; kept: Removal[] }

@@ -10,6 +10,7 @@ const TRASH: &str = ".nooki-trash";
 const SKILL_FILE: &str = "SKILL.md";
 /// Long instructions are read in the pool, not in Nooki: enough to judge a skill, not a whole book.
 const READING_LIMIT: usize = 200_000;
+const IMAGE_LIMIT: u64 = 3_000_000;
 
 type Hashes = BTreeMap<String, String>;
 
@@ -95,6 +96,17 @@ pub struct SkillDetail {
   pub files: Vec<String>,
   pub content: String,
   pub truncated: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillFile {
+  pub path: String,
+  /// markdown, text, image, or binary: what the interface should do with `content`.
+  pub kind: String,
+  pub content: String,
+  pub truncated: bool,
+  pub size_bytes: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -606,6 +618,52 @@ impl SkillPool {
       files, truncated,
     })
   }
+
+  /// Read one file inside a pool skill so its references, scripts and images can be inspected.
+  pub fn read_file(&self, name: &str, path: &str) -> Result<SkillFile, String> {
+    safe_name(name)?;
+    let relative = Path::new(path);
+    if relative.components().any(|part| !matches!(part, Component::Normal(_))) { return Err("That file is outside the skill".into()); }
+    let target = self.pool.join(name).join(relative);
+    let metadata = fs::symlink_metadata(&target).map_err(|_| "That file is no longer there".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() { return Err("Only a regular file inside the skill can be read".into()); }
+    let size_bytes = metadata.len();
+    let extension = target.extension().unwrap_or_default().to_string_lossy().to_ascii_lowercase();
+    let mut file = SkillFile { path: path.into(), kind: "binary".into(), content: String::new(), truncated: false, size_bytes };
+    if let Some(media) = media_type(&extension) {
+      if size_bytes <= IMAGE_LIMIT {
+        file.kind = "image".into();
+        file.content = format!("data:{media};base64,{}", base64(&fs::read(&target).map_err(|e| e.to_string())?));
+      }
+      return Ok(file);
+    }
+    let Ok(text) = fs::read_to_string(&target) else { return Ok(file) };
+    file.kind = if extension == "md" || extension == "markdown" { "markdown".into() } else { "text".into() };
+    file.truncated = text.len() > READING_LIMIT;
+    file.content = if file.truncated { text.chars().take(READING_LIMIT).collect() } else { text };
+    Ok(file)
+  }
+}
+
+/// Data URLs keep image previews inside the interface without exposing the filesystem to it.
+fn base64(bytes: &[u8]) -> String {
+  const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
+  for chunk in bytes.chunks(3) {
+    let block = chunk.iter().enumerate().fold(0u32, |value, (index, byte)| value | (u32::from(*byte) << (16 - index * 8)));
+    for index in 0..4 {
+      if index <= chunk.len() { encoded.push(ALPHABET[(block >> (18 - index * 6) & 0x3f) as usize] as char); } else { encoded.push('='); }
+    }
+  }
+  encoded
+}
+
+fn media_type(extension: &str) -> Option<&'static str> {
+  Some(match extension {
+    "png" => "image/png", "jpg" | "jpeg" => "image/jpeg", "gif" => "image/gif",
+    "webp" => "image/webp", "svg" => "image/svg+xml", "bmp" => "image/bmp", "avif" => "image/avif",
+    _ => return None,
+  })
 }
 
 fn shell_expand(path: &str, home: &Path) -> String {
@@ -636,6 +694,9 @@ pub fn skill_pool_resolve(tool: String, name: String, action: String, rename: Op
 
 #[tauri::command]
 pub fn skill_pool_read(name: String, state: tauri::State<'_, SkillPool>) -> Result<SkillDetail, String> { state.read(&name) }
+
+#[tauri::command]
+pub fn skill_pool_read_file(name: String, path: String, state: tauri::State<'_, SkillPool>) -> Result<SkillFile, String> { state.read_file(&name, &path) }
 
 #[tauri::command]
 pub fn skill_pool_delete(name: String, include_modified: bool, state: tauri::State<'_, SkillPool>) -> Result<DeleteReport, String> {

@@ -334,3 +334,30 @@ fn reads_one_skill_for_display_without_leaving_the_pool() {
   assert!(pool.read("missing").is_err());
   assert!(pool.read("../escape").is_err());
 }
+
+#[test]
+fn reads_the_other_files_a_skill_carries() {
+  let fixture = Fixture::new();
+  let path = fixture.skill(".agents/skills", "hatch-pet", "Builds pets");
+  fs::create_dir_all(path.join("scripts")).unwrap();
+  fs::write(path.join("references.md"), "# References\n").unwrap();
+  fs::write(path.join("scripts/build.py"), "print('pet')\n").unwrap();
+  fs::write(path.join("assets/pet.png"), b"\x89PNG\r\n\x1a\nfake").unwrap_or_else(|_| {
+    fs::create_dir_all(path.join("assets")).unwrap();
+    fs::write(path.join("assets/pet.png"), b"\x89PNG\r\n\x1a\nfake").unwrap()
+  });
+  fs::write(path.join("scripts/build.pyc"), [0u8, 159, 146, 150]).unwrap();
+  let pool = fixture.pool();
+
+  assert_eq!(pool.read_file("hatch-pet", "references.md").unwrap().kind, "markdown");
+  let script = pool.read_file("hatch-pet", "scripts/build.py").unwrap();
+  assert_eq!((script.kind.as_str(), script.content.as_str()), ("text", "print('pet')\n"));
+  let image = pool.read_file("hatch-pet", "assets/pet.png").unwrap();
+  assert_eq!(image.kind, "image");
+  assert_eq!(image.content, "data:image/png;base64,iVBORw0KGgpmYWtl");
+  fs::write(path.join("assets/tiny.gif"), [0u8, 1, 2, 3]).unwrap();
+  assert_eq!(pool.read_file("hatch-pet", "assets/tiny.gif").unwrap().content, "data:image/gif;base64,AAECAw==", "padding is correct");
+  assert_eq!(pool.read_file("hatch-pet", "scripts/build.pyc").unwrap().kind, "binary");
+  assert!(pool.read_file("hatch-pet", "../pdf/SKILL.md").is_err());
+  assert!(pool.read_file("hatch-pet", "missing.md").is_err());
+}
