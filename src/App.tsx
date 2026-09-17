@@ -25,7 +25,6 @@ import {
   GearIcon,
   GlobeIcon,
   LightningBoltIcon,
-  LockClosedIcon,
   MagnifyingGlassIcon,
   MagicWandIcon,
   MoonIcon,
@@ -45,6 +44,7 @@ import type { DocumentReference, SelectedDocument } from '../packages/capability
 import { parseReferenceHref } from '../packages/capability-contract/src/references'
 import { grantSelectedDocuments, readSourceReference } from './document-grants'
 import { TodayActivity } from './TodayActivity'
+import { CompatibleEndpointSettings } from './CompatibleEndpointSettings'
 import { searchLibraryContent, listLibraryDocuments, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from './document-library'
 import { buildLibraryTree, filterLibraryTree, visibleLibrarySelection } from './library-tree'
 import { LibraryManager } from './LibraryManager'
@@ -273,7 +273,7 @@ function App() {
               {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
-              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} />}
+              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} onRefreshProvider={() => { void getProviderStatus(providerKind, language).then(setProviderStatus) }} />}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -764,7 +764,7 @@ function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: 
   )
 }
 
-function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus, onSelectProvider, onCheckProvider }: { onOpenConversation(id: string): void; installed: InstalledCapability[]; onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus> }) {
+function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus, onSelectProvider, onCheckProvider, onRefreshProvider }: { onOpenConversation(id: string): void; installed: InstalledCapability[]; onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus>; onRefreshProvider: () => void }) {
   const { t } = useTranslation()
   const { theme, setTheme, language, setLanguage, providerKind } = useWorkbench()
   const [checking, setChecking] = useState(false)
@@ -804,7 +804,7 @@ function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus,
           ))}
         </div>
         <div className="provider-detail"><div className="detail-icon"><UpdateIcon /></div><div><strong>{providerStatus?.label ?? providerLabel(t, providerKind)} · {providerStateLabel(t, providerStatus?.state)}</strong><span>{providerStatus?.detail ?? t('providerStatusLoading')}</span></div><div className="provider-detail-actions"><button className="quiet-button" onClick={runCheck} disabled={checking}>{checking ? t('checkingEllipsis') : t('healthCheck')}<ReloadIcon className={checking ? 'spin' : ''} /></button><button className="quiet-button" onClick={testProvider} disabled={testingProvider}>{testingProvider ? t('testingEllipsis') : t('testCall')}<ArrowRightIcon /></button></div></div>
-        <div className="settings-callout"><LockClosedIcon /><div><strong>{t('credentialsStayInHost')}</strong><span>{t('credentialsCopy')}</span></div></div>
+        {providerKind === 'compatible-api' && <CompatibleEndpointSettings language={language} onNotice={onNotice} onChanged={onRefreshProvider} />}
       </section>
 
       <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">02</span><div><h2>{t('appearance')}</h2><p>{t('appearanceIntro')}</p></div></div><div className="theme-options"><button className={`theme-option ${theme === 'light' ? 'selected' : ''}`} onClick={() => setTheme('light')}><span className="theme-preview theme-preview-light"><SunIcon /></span><span><strong>{t('light')}</strong><small>{t('lightDescription')}</small></span>{theme === 'light' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${theme === 'dark' ? 'selected' : ''}`} onClick={() => setTheme('dark')}><span className="theme-preview theme-preview-dark"><MoonIcon /></span><span><strong>{t('dark')}</strong><small>{t('darkDescription')}</small></span>{theme === 'dark' && <CheckIcon className="selected-check" />}</button></div></section>

@@ -43,6 +43,10 @@ A Capability that reads explicitly authorized Activity Events and produces trace
 **AI Provider**:
 The platform-managed source for model invocations, defined by a protocol, endpoint, model, and credential reference. A Codex subscription session is not a general-purpose AI Provider.
 
+**Compatible Endpoint**:
+An AI Provider the person configures by hand with a base URL, model, request protocol, and their own API key. Nooki proposes no vendor list: the person states which service and model to use. The key stays in the desktop host, and the interface only ever sees a masked hint.
+_Avoid_: Custom model, third-party provider
+
 **Model Gateway**:
 The single model invocation interface exposed to Capabilities. It checks installation, enablement, and `ai.invoke` permission before resolving the globally selected AI Provider.
 
