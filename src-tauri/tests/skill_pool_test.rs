@@ -302,7 +302,7 @@ fn a_machine_without_a_pool_keeps_its_skills_until_the_first_one_is_adopted() {
   assert!(!fixture.home(".agents").exists(), "scanning never creates the pool");
   assert!(overview.skills.is_empty());
   assert_eq!(overview.duplicates.iter().map(|duplicate| duplicate.kind.as_str()).collect::<Vec<_>>(), ["adopt"]);
-  assert_eq!(fs::read_to_string(fixture.home(".claude/skills/handmade/SKILL.md")).unwrap().contains("Written by hand"), true);
+  assert!(fs::read_to_string(fixture.home(".claude/skills/handmade/SKILL.md")).unwrap().contains("Written by hand"));
 
   pool.resolve("claude", "handmade", "adopt", None).unwrap();
   let overview = pool.overview().unwrap();
