@@ -39,6 +39,7 @@ export type Duplicate = {
 
 export type Overview = {
   poolDirectory: string
+  poolExists: boolean
   skills: PoolSkill[]
   tools: ToolView[]
   duplicates: Duplicate[]
@@ -49,7 +50,7 @@ export type Removal = { toolId: string; toolName: string; state: string }
 
 export type DeleteReport = { name: string; trash: string; removed: Removal[]; kept: Removal[] }
 
-export const emptyOverview: Overview = { poolDirectory: '', skills: [], tools: [], duplicates: [], notices: [] }
+export const emptyOverview: Overview = { poolDirectory: '', poolExists: false, skills: [], tools: [], duplicates: [], notices: [] }
 
 /** Tools that receive copies. A tool reading the pool directly already sees every skill. */
 export function distributableTools(overview: Overview): ToolView[] {

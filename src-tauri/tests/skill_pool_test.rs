@@ -290,3 +290,31 @@ fn a_hand_made_link_is_reported_and_converted_into_a_managed_copy_only_on_reques
   assert!(fixture.home(".agents/skills/pdf/SKILL.md").is_file(), "the pool keeps the original");
   assert!(overview.duplicates.is_empty(), "{:?}", overview.duplicates);
 }
+
+#[test]
+fn a_machine_without_a_pool_keeps_its_skills_until_the_first_one_is_adopted() {
+  let fixture = Fixture::new();
+  fixture.install_claude();
+  fixture.skill(".claude/skills", "handmade", "Written by hand");
+  let pool = fixture.pool();
+  let overview = pool.overview().unwrap();
+  assert!(!overview.pool_exists);
+  assert!(!fixture.home(".agents").exists(), "scanning never creates the pool");
+  assert!(overview.skills.is_empty());
+  assert_eq!(overview.duplicates.iter().map(|duplicate| duplicate.kind.as_str()).collect::<Vec<_>>(), ["adopt"]);
+  assert_eq!(fs::read_to_string(fixture.home(".claude/skills/handmade/SKILL.md")).unwrap().contains("Written by hand"), true);
+
+  pool.resolve("claude", "handmade", "adopt", None).unwrap();
+  let overview = pool.overview().unwrap();
+  assert!(overview.pool_exists);
+  assert_eq!(overview.skills.iter().map(|skill| skill.name.as_str()).collect::<Vec<_>>(), ["handmade"]);
+  assert!(fixture.home(".claude/skills/handmade/SKILL.md").is_file());
+}
+
+#[test]
+fn an_empty_machine_stays_untouched() {
+  let fixture = Fixture::new();
+  let overview = fixture.pool().overview().unwrap();
+  assert!(!overview.pool_exists && overview.skills.is_empty() && overview.duplicates.is_empty());
+  assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 0, "nothing is created on a machine without skills");
+}

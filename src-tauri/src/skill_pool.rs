@@ -75,6 +75,8 @@ pub struct Duplicate {
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
   pub pool_directory: String,
+  /// False until a skill is adopted or installed: scanning never creates the pool.
+  pub pool_exists: bool,
   pub skills: Vec<PoolSkill>,
   pub tools: Vec<ToolView>,
   pub duplicates: Vec<Duplicate>,
@@ -381,7 +383,6 @@ impl SkillPool {
   /// Scan, sync every detected tool, and report what needs a decision.
   pub fn overview(&self) -> Result<Overview, String> {
     let _guard = self.gate.lock().map_err(|_| "The skill pool is busy")?;
-    fs::create_dir_all(&self.pool).map_err(|e| format!("Cannot create the skill pool: {e}"))?;
     let settings = self.settings();
     let skills = self.skills()?;
     let mut notices = Vec::new();
@@ -405,7 +406,7 @@ impl SkillPool {
         duplicates.push(Duplicate { kind: "content".into(), name: skill.name.clone(), tool_id: String::new(), tool_name: String::new(), directory: self.pool.join(&skill.name).to_string_lossy().into_owned(), description: skill.description.clone(), pool_name: first.clone(), differing_files: vec![] });
       } else { seen.insert(signature, skill.name.clone()); }
     }
-    Ok(Overview { pool_directory: self.pool.to_string_lossy().into_owned(), skills, tools: views, duplicates, notices })
+    Ok(Overview { pool_directory: self.pool.to_string_lossy().into_owned(), pool_exists: self.pool.is_dir(), skills, tools: views, duplicates, notices })
   }
 
   pub fn set_selection(&self, tool_id: &str, selected: Vec<String>) -> Result<(), String> {

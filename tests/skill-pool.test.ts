@@ -14,7 +14,7 @@ function tool(id: string, selected: string[], entries: ToolEntry[] = [], overrid
 }
 
 function overview(skills: PoolSkill[], tools: ToolView[], duplicates: Duplicate[] = []): Overview {
-  return { poolDirectory: '/home/.agents/skills', skills, tools, duplicates, notices: [] }
+  return { poolDirectory: '/home/.agents/skills', poolExists: true, skills, tools, duplicates, notices: [] }
 }
 
 test('only detected tools that need copies appear in the distribution matrix', () => {

@@ -70,7 +70,9 @@ export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
       <div>
         <span className="section-kicker">ONE PLACE FOR YOUR SKILLS</span>
         <h1>{zh ? '技能池' : 'Skill pool'}</h1>
-        <p className="skill-pool-path"><code>{overview.poolDirectory}</code> · {overview.skills.length} {zh ? '个技能' : 'skills'}</p>
+        <p className="skill-pool-path"><code>{overview.poolDirectory}</code> · {overview.poolExists
+          ? `${overview.skills.length} ${zh ? '个技能' : 'skills'}`
+          : (zh ? '尚未创建，收编或安装第一个技能时自动建立' : 'not created yet; it appears with the first skill you adopt or install')}</p>
       </div>
       <button className="quiet-button" disabled={Boolean(busy)} onClick={() => void refresh()}><ReloadIcon className={busy === 'refresh' ? 'spin' : ''} />{zh ? '重新扫描' : 'Rescan'}</button>
     </div>
@@ -122,7 +124,9 @@ export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={zh ? '搜索技能' : 'Search skills'} aria-label={zh ? '搜索技能' : 'Search skills'} />
         </label>
       </div>
-      {!overview.skills.length && <p className="skill-pool-empty">{zh ? '技能池还是空的。让你的 agent 把技能装进这个目录，或从下方工具里收编已有技能。' : 'The pool is empty. Let an agent install a skill into this directory, or adopt the ones your tools already hold.'}</p>}
+      {!overview.skills.length && <p className="skill-pool-empty">{overview.duplicates.some((duplicate) => duplicate.kind === 'adopt')
+        ? (zh ? '技能池还是空的。你的工具里已经有技能，在上方把它们收进来就行。' : 'The pool is empty, but your tools already hold skills. Adopt them above.')
+        : (zh ? '技能池还是空的。让你的 agent 把技能装进这个目录，或先安装一个开发工具再回来。' : 'The pool is empty. Let an agent install a skill into this directory, or install a coding tool and come back.')}</p>}
       {visible.map((skill) => <article className="skill-pool-skill" key={skill.name}>
         <div className="skill-pool-skill-main">
           <h3>{skill.title}</h3>
