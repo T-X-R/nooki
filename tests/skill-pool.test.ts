@@ -1,0 +1,83 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import {
+  distributableTools, groupDecisions, holders, isSelected, nextSelection, pendingDecisions, searchSkills, toolSummary,
+  type Duplicate, type Overview, type PoolSkill, type ToolEntry, type ToolView,
+} from '../src/skill-pool.ts'
+
+function skill(name: string, description = ''): PoolSkill {
+  return { name, title: name, description, fileCount: 1, updatedAt: '2026-09-17T10:00:00+08:00', issue: null }
+}
+
+function tool(id: string, selected: string[], entries: ToolEntry[] = [], overrides: Partial<ToolView> = {}): ToolView {
+  return { id, name: id, directory: `/home/${id}/skills`, detected: true, readsPool: false, custom: false, selected, entries, error: null, ...overrides }
+}
+
+function overview(skills: PoolSkill[], tools: ToolView[], duplicates: Duplicate[] = []): Overview {
+  return { poolDirectory: '/home/.agents/skills', skills, tools, duplicates, notices: [] }
+}
+
+test('only detected tools that need copies appear in the distribution matrix', () => {
+  const state = overview([skill('pdf')], [
+    tool('codex', ['pdf']),
+    tool('claude', [], [], { detected: false }),
+    tool('pi', ['pdf'], [], { readsPool: true }),
+  ])
+  assert.deepEqual(distributableTools(state).map((entry) => entry.id), ['codex'])
+})
+
+test('a tool reading the pool always counts as selected', () => {
+  const pi = tool('pi', [], [], { readsPool: true })
+  assert.equal(isSelected(pi, 'pdf'), true)
+  assert.equal(isSelected(tool('codex', ['diary']), 'pdf'), false)
+})
+
+test('toggling a skill keeps the rest of a tool selection intact', () => {
+  const codex = tool('codex', ['diary', 'pdf'])
+  assert.deepEqual(nextSelection(codex, 'pdf', false), ['diary'])
+  assert.deepEqual(nextSelection(tool('codex', ['diary']), 'pdf', true), ['diary', 'pdf'])
+  assert.deepEqual(nextSelection(codex, 'pdf', true), ['diary', 'pdf'], 'selecting twice does not duplicate')
+})
+
+test('a tool reports what it holds', () => {
+  const codex = tool('codex', ['pdf'], [
+    { name: 'pdf', state: 'mirror', description: '' },
+    { name: 'diary', state: 'modified', description: '' },
+    { name: 'handmade', state: 'foreign', description: 'Written by hand' },
+  ])
+  assert.deepEqual(toolSummary(codex), { mirror: 1, modified: 1, linked: 0, foreign: 1, unreadable: 0 })
+})
+
+test('decisions are ordered by how much they can cost', () => {
+  const duplicate = (kind: Duplicate['kind'], name: string): Duplicate => ({ kind, name, toolId: 'codex', toolName: 'Codex', directory: `/home/codex/skills/${name}`, description: '', poolName: name, differingFiles: [] })
+  const state = overview([], [], [duplicate('content', 'pdf-copy'), duplicate('adopt', 'handmade'), duplicate('linked', 'notes'), duplicate('name', 'pdf'), duplicate('modified', 'diary')])
+  assert.deepEqual(pendingDecisions(state).map((entry) => entry.kind), ['name', 'modified', 'linked', 'adopt', 'content'])
+})
+
+test('deletion names every tool that would lose the skill', () => {
+  const state = overview([skill('pdf')], [
+    tool('codex', ['pdf'], [{ name: 'pdf', state: 'mirror', description: '' }]),
+    tool('claude', ['pdf'], [{ name: 'pdf', state: 'modified', description: '' }]),
+    tool('xxa', [], [{ name: 'pdf', state: 'foreign', description: '' }]),
+    tool('pi', ['pdf'], [], { readsPool: true }),
+    tool('absent', ['pdf'], [{ name: 'pdf', state: 'mirror', description: '' }], { detected: false }),
+  ])
+  assert.deepEqual(holders(state, 'pdf').map((entry) => entry.id), ['codex', 'claude', 'pi'])
+})
+
+test('decisions of the same kind for the same tool are one group', () => {
+  const duplicate = (kind: Duplicate['kind'], name: string, toolId: string): Duplicate => ({ kind, name, toolId, toolName: toolId, directory: `/home/${toolId}/skills/${name}`, description: '', poolName: name, differingFiles: [] })
+  const state = overview([], [], [
+    duplicate('linked', 'pdf', 'claude'), duplicate('linked', 'diary', 'claude'), duplicate('linked', 'notes', 'codex'), duplicate('adopt', 'handmade', 'claude'),
+  ])
+  const groups = groupDecisions(state)
+  assert.deepEqual(groups.map((group) => [group.key, group.items.length]), [['linked:claude', 2], ['linked:codex', 1], ['adopt:claude', 1]])
+  assert.deepEqual(groups[0].items.map((item) => item.name), ['diary', 'pdf'])
+})
+
+test('search covers the name, title, and description', () => {
+  const skills = [skill('pdf', 'Reads PDF files'), skill('diary', 'Writes a diary')]
+  assert.deepEqual(searchSkills(skills, 'diary').map((entry) => entry.name), ['diary'])
+  assert.deepEqual(searchSkills(skills, 'reads').map((entry) => entry.name), ['pdf'])
+  assert.deepEqual(searchSkills(skills, '  ').map((entry) => entry.name), ['pdf', 'diary'])
+})

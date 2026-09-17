@@ -6,6 +6,7 @@ Nooki is a local-first desktop app for your notes, documents, and AI conversatio
 
 - **Document Library** — import, search, organize, and edit documents, with version history and Markdown export.
 - **Conversations** — discuss and revise Library documents or Markdown/text attachments with Codex, preview document changes, and save selected results to the Library.
+- **Skill pool** — keep every agent skill in `~/.agents/skills`, resolve duplicates by hand, and distribute them to the coding tools installed on your machine.
 - **Capabilities** — add tools such as Diary and Codex Daily Review from the Capability Center.
 - **Local workspace** — manage tasks, back up your data, and choose between English and Simplified Chinese or light and dark themes.
 
@@ -46,7 +47,7 @@ This builds `src-tauri/target/release/bundle/macos/Nooki.app` and installs it in
 
 ## Capability development
 
-Open **Capability Center → Developer center** to install the development skill for Codex or Claude Code, or download the kit for another tool. Build a capability with the kit, then import its `.capability.zip` in Nooki.
+Open **Capability Center → Developer center** to install the development skill into the skill pool, from where it reaches Codex, Claude Code, and any other tool you registered. You can also download the kit and place it yourself. Build a capability with the kit, then import its `.capability.zip` in Nooki.
 
 Only install packages you trust: capabilities execute code inside the desktop host.
 

@@ -17,8 +17,6 @@ pub struct KitInfo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntegrationStatus {
-  pub tool: String,
-  pub detected: bool,
   pub directory: String,
   pub status: String,
   pub installed_version: Option<String>,
@@ -67,57 +65,34 @@ fn read_hashes(directory: &Path) -> Result<BTreeMap<String, String>, String> {
   Ok(files)
 }
 
+// The developer skill is installed into the Skill Pool; distribution to each coding tool is the
+// Skill Pool's job, so this module never writes into a tool's own directory.
 pub struct DeveloperIntegration {
   home: PathBuf,
-  codex_home: PathBuf,
-  claude_home: PathBuf,
-  binary_directories: Vec<PathBuf>,
-  codex_app: PathBuf,
-  codex_override: Option<PathBuf>,
+  pool: PathBuf,
   files: Files,
   gate: Mutex<()>,
 }
 
 impl DeveloperIntegration {
   pub fn new(home: PathBuf, files: Files) -> Self {
-    Self { codex_home: home.join(".codex"), claude_home: home.join(".claude"),
-      binary_directories: vec![home.join(".local/bin"), home.join(".npm-global/bin"), home.join(".hermes/node/bin"), PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin")],
-      codex_app: PathBuf::from("/Applications/Codex.app"), codex_override: None,
-      home, files, gate: Mutex::new(()) }
+    Self { pool: home.join(".agents/skills"), home, files, gate: Mutex::new(()) }
   }
 
   pub fn from_environment() -> Result<Self, String> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).filter(|p| p.is_absolute()).ok_or("Cannot locate the current user's home directory")?;
-    let mut integration = Self::new(home, bundled_files());
-    if let Some(path) = std::env::var_os("CODEX_HOME").map(PathBuf::from).filter(|p| p.is_absolute()) { integration.codex_home = path; }
-    if let Some(path) = std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from).filter(|p| p.is_absolute()) { integration.claude_home = path; }
-    integration.codex_override = std::env::var_os("CODEX_BIN").map(PathBuf::from);
-    if let Some(path) = std::env::var_os("PATH") { integration.binary_directories.extend(std::env::split_paths(&path)); }
-    Ok(integration)
+    Ok(Self::new(home, bundled_files()))
   }
 
   pub fn info(&self) -> KitInfo { serde_json::from_str(&self.files["kit.json"]).expect("valid built-in kit metadata") }
 
-  fn root(&self, tool: &str) -> Result<PathBuf, String> {
-    let default = match tool {
-      "codex" => self.home.join(".agents/skills"),
-      "claude" => self.claude_home.join("skills"),
-      _ => return Err("Unsupported development tool".into()),
-    };
-    Ok(default)
-  }
+  fn root(&self) -> PathBuf { self.pool.clone() }
 
-  fn detected(&self, tool: &str) -> bool {
-    let binary = if tool == "codex" { "codex" } else { "claude" };
-    (if tool == "codex" { self.codex_home.is_dir() || self.codex_app.is_dir() || self.home.join("Applications/Codex.app").is_dir() || self.codex_override.as_ref().is_some_and(|p| p.is_file()) } else { self.claude_home.is_dir() })
-      || self.binary_directories.iter().any(|p| p.join(binary).is_file() || p.join(format!("{binary}.exe")).is_file() || p.join(format!("{binary}.cmd")).is_file())
-  }
-
-  pub fn inspect(&self, tool: &str) -> Result<IntegrationStatus, String> {
-    let root = self.root(tool)?;
+  pub fn inspect(&self) -> Result<IntegrationStatus, String> {
+    let root = self.root();
     let directory = root.join(SKILL_NAME);
     let kit = self.info();
-    let mut result = IntegrationStatus { tool: tool.into(), detected: self.detected(tool), directory: directory.to_string_lossy().into(), status: "missing".into(), installed_version: None, bundled_version: kit.version.clone(), platform_version: kit.platform_version, changed_files: vec![], detail: None };
+    let mut result = IntegrationStatus { directory: directory.to_string_lossy().into(), status: "missing".into(), installed_version: None, bundled_version: kit.version.clone(), platform_version: kit.platform_version, changed_files: vec![], detail: None };
     let metadata = match fs::symlink_metadata(&directory) {
       Ok(value) => value,
       Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -141,18 +116,18 @@ impl DeveloperIntegration {
     Ok(result)
   }
 
-  pub fn install(&self, tool: &str) -> Result<IntegrationStatus, String> {
+  pub fn install(&self) -> Result<IntegrationStatus, String> {
     let _guard = self.gate.lock().map_err(|_| "Integration is busy")?;
-    let root = self.root(tool)?;
+    let root = self.root();
     let destination = root.join(SKILL_NAME);
     let backup = root.join(BACKUP);
-    let status = self.inspect(tool)?;
+    let status = self.inspect()?;
     if status.status == "current" { return Ok(status); }
     if status.status == "modified" || status.status == "newer" { return Err("Existing skill has local changes or a newer version. Download the kit to compare; your files were preserved.".into()); }
     if status.status == "recovery" {
       read_hashes(&backup)?;
       fs::rename(&backup, &destination).map_err(|e| format!("Could not restore previous skill: {e}"))?;
-      return self.inspect(tool);
+      return self.inspect();
     }
     if fs::symlink_metadata(&backup).is_ok() { return Err(format!("A previous integration backup remains at {}. Preserve or move it before retrying.", backup.display())); }
     fs::create_dir_all(&root).map_err(|e| format!("Cannot create skills directory: {e}"))?;
@@ -169,7 +144,7 @@ impl DeveloperIntegration {
       let receipt = Receipt { version: self.info().version, files: hashes(&self.files) };
       fs::write(stage.join(RECEIPT), serde_json::to_vec(&receipt).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
       // Recheck after staging: a user may edit the skill while the modal is open.
-      let latest = self.inspect(tool)?;
+      let latest = self.inspect()?;
       if latest.status != status.status || latest.installed_version != status.installed_version { return Err("Skill changed during integration; refresh and retry".into()); }
       let replacing = status.status == "update";
       if replacing { fs::rename(&destination, &backup).map_err(|e| e.to_string())?; }
@@ -178,7 +153,7 @@ impl DeveloperIntegration {
         return Err(error.to_string());
       }
       if replacing { fs::remove_dir_all(&backup).map_err(|e| format!("Skill installed, but previous backup could not be removed: {e}"))?; }
-      self.inspect(tool)
+      self.inspect()
     })();
     if stage.is_dir() { let _ = fs::remove_dir_all(stage); }
     operation
@@ -201,13 +176,13 @@ impl DeveloperIntegration {
 }
 
 #[tauri::command]
-pub fn developer_integrations(state: tauri::State<'_, DeveloperIntegration>) -> Result<Vec<IntegrationStatus>, String> {
-  ["codex", "claude"].into_iter().map(|tool| state.inspect(tool)).collect()
+pub fn developer_integration(state: tauri::State<'_, DeveloperIntegration>) -> Result<IntegrationStatus, String> {
+  state.inspect()
 }
 
 #[tauri::command]
-pub fn developer_integration_install(tool: String, state: tauri::State<'_, DeveloperIntegration>) -> Result<IntegrationStatus, String> {
-  state.install(&tool)
+pub fn developer_integration_install(state: tauri::State<'_, DeveloperIntegration>) -> Result<IntegrationStatus, String> {
+  state.install()
 }
 
 #[tauri::command]

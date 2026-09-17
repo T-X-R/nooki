@@ -107,5 +107,32 @@ One user message and the Codex work that follows, including replies, public thin
 **Conversation Answer**:
 A Codex reply the user can keep in the Conversation or explicitly save as a Library Document with its source references.
 
+**Skill Pool**:
+The Nooki-managed directory `~/.agents/skills` holding one copy of every agent skill the person keeps. It is the only place a skill is added, resolved, or deleted, and it is what makes the same skill available to every coding tool on the machine.
+_Avoid_: Skill folder, skill registry
+
+**Pool Skill**:
+One entry in the Skill Pool, identified by its directory name and described by the `name` and `description` its `SKILL.md` declares.
+
+**Agent Tool**:
+A coding agent installed on this machine that reads skills from a known directory, such as Codex, Claude Code, or pi. Nooki lists an Agent Tool only when it is detected, and a person can register one Nooki does not know about by naming its skills directory.
+_Avoid_: Client, IDE
+
+**Skill Mirror**:
+The copy of a Pool Skill that Nooki writes into an Agent Tool's skills directory. A copy rather than a link, because a tool may refuse to follow links.
+_Avoid_: Symlink, shortcut
+
+**Mirror Receipt**:
+The record Nooki keeps inside an Agent Tool's skills directory listing the Skill Mirrors it wrote and their content hashes. A directory absent from the receipt belongs to the person and is never modified or removed.
+
+**Adoption**:
+Moving a skill that lives in an Agent Tool's directory into the Skill Pool, after which that tool is served by a Skill Mirror.
+
+**Duplicate Review**:
+The decision Nooki asks for when skills collide: the same name with different content, an edited mirror, a hand-made link, or two pool skills holding identical content. Nothing is overwritten before the person chooses.
+
+**Skill Uninstallation**:
+Removing a Pool Skill from every Agent Tool that holds it, including its Mirror Receipt entry, before moving the pool copy to trash. Deleting files in one place is not an uninstallation.
+
 **Document Source**:
 The platform feature or Source Capability recorded as the producer of a Library Document. Provenance is independent of installation and document retention.

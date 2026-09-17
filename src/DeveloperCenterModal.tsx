@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import { CheckCircledIcon, CodeIcon, CopyIcon, Cross2Icon, DownloadIcon, ReloadIcon } from '@radix-ui/react-icons'
 
-type Tool = 'codex' | 'claude'
 type Integration = {
-  tool: Tool
-  detected: boolean
   directory: string
   status: 'missing' | 'current' | 'update' | 'modified' | 'newer' | 'recovery'
   installedVersion: string | null
@@ -26,7 +23,7 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
   const zh = language === 'zh'
   const desktop = Boolean(window.__TAURI_INTERNALS__)
   const [tab, setTab] = useState<'integration' | 'guide'>('guide')
-  const [items, setItems] = useState<Integration[]>([])
+  const [integration, setIntegration] = useState<Integration | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -57,7 +54,7 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
     try { await operation() } catch (reason) { setError(String(reason)) }
     finally { active.current = false; setBusy(null) }
   }
-  const refresh = () => perform('refresh', async () => { setItems(await invoke<Integration[]>('developer_integrations')) })
+  const refresh = () => perform('refresh', async () => { setIntegration(await invoke<Integration>('developer_integration')) })
   useEffect(() => { if (desktop) void refresh() }, [desktop])
 
   const copyPrompt = () => perform('copy', async () => {
@@ -65,25 +62,24 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
     await navigator.clipboard.writeText(prompt)
     setNotice(zh ? '开发指令已复制，请粘贴到你的开发工具中并填写需求。' : 'Prompt copied. Paste it into your coding tool and add your requirements.')
   })
-  const install = (item: Integration) => perform(item.tool, async () => {
-    const next = await invoke<Integration>('developer_integration_install', { tool: item.tool })
-    setItems((current) => current.map((value) => value.tool === next.tool ? next : value))
-    setNotice(zh ? 'Skill 已准备好。复制开发指令，在你的工具中开始；若未发现 Skill，请重启开发工具。' : 'Skill is ready. Copy the prompt to get started; restart your tool if the skill does not appear.')
+  const install = () => perform('install', async () => {
+    setIntegration(await invoke<Integration>('developer_integration_install'))
+    setNotice(zh ? 'Skill 已进入技能池，并会分发到本机的开发工具。若未发现 Skill，请重启开发工具。' : 'The skill is in the skill pool and is distributed to your coding tools. Restart your tool if it does not appear.')
   })
-  const statusText = (item: Integration) => ({
+  const statusText = (item: Integration): string => ({
     missing: zh ? '未集成' : 'Not integrated', current: zh ? '已集成' : 'Integrated',
     update: zh ? '可更新' : 'Update available', modified: zh ? '本地内容已保留' : 'Local content preserved',
     newer: zh ? '已安装更新版本' : 'Newer version installed', recovery: zh ? '需要恢复' : 'Recovery needed',
   })[item.status]
-  const row = (item: Integration) => <section className="integration-tool" key={item.tool}>
+  const row = (item: Integration) => <section className="integration-tool">
     <div className="integration-tool-header">
-      <div className="integration-tool-heading"><CodeIcon /><strong>{item.tool === 'codex' ? 'Codex' : 'Claude Code'}</strong><span className={`integration-badge ${item.status === 'current' ? 'ready' : ''}`}>{statusText(item)}</span></div>
+      <div className="integration-tool-heading"><CodeIcon /><strong>{zh ? '技能池' : 'Skill pool'}</strong><span className={`integration-badge ${item.status === 'current' ? 'ready' : ''}`}>{statusText(item)}</span></div>
       {item.status !== 'current' && item.status !== 'newer' && <div className="integration-tool-actions">
         {item.status === 'modified' ? <span className="integration-preserved">{zh ? '下载开发包进行比较' : 'Download kit to compare'}</span>
-            : <button className="primary-button" disabled={Boolean(busy)} onClick={() => void install(item)}>{busy === item.tool ? (zh ? '处理中…' : 'Working…') : item.status === 'update' ? (zh ? '更新' : 'Update') : item.status === 'recovery' ? (zh ? '恢复之前的版本' : 'Restore previous version') : (zh ? '集成' : 'Integrate')}</button>}
+            : <button className="primary-button" disabled={Boolean(busy)} onClick={() => void install()}>{busy === 'install' ? (zh ? '处理中…' : 'Working…') : item.status === 'update' ? (zh ? '更新' : 'Update') : item.status === 'recovery' ? (zh ? '恢复之前的版本' : 'Restore previous version') : (zh ? '集成' : 'Integrate')}</button>}
       </div>}
     </div>
-    <p>{item.detected ? (zh ? '已检测到' : 'Detected') : (zh ? '未检测到，可先集成 Skill' : 'Not detected. You can still integrate the skill.')}{item.installedVersion && ` · v${item.installedVersion}`}</p>
+    <p>{zh ? '装进技能池后，会分发到本机检测到的开发工具。分发范围在技能池里调整。' : 'Installed into the skill pool, then distributed to the coding tools detected on this machine. Adjust the reach in Skill pool.'}{item.installedVersion && ` · v${item.installedVersion}`}</p>
     <code className="integration-path">{item.directory}</code>
     {(item.detail || item.changedFiles.length > 0) && <details className="integration-changes"><summary>{zh ? '查看保留内容' : 'View preserved content'}</summary>{item.detail && <p>{item.detail}</p>}{item.changedFiles.map((file) => <code key={file}>{file}</code>)}</details>}
   </section>
@@ -108,12 +104,12 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
         <p className="developer-guide-reference">{t('developerGuideReference')}</p>
       </div>
       <div id="developer-integration-panel" role="tabpanel" aria-labelledby="developer-integration-tab" tabIndex={0} hidden={tab !== 'integration'}>
-        <p className="modal-copy">{zh ? '集成 Skill 后，复制开发指令到你的工具中开始制作能力包。' : 'Integrate the skill, then copy the development prompt into your coding tool to get started.'}</p>
+        <p className="modal-copy">{zh ? '把开发 Skill 装进技能池，再复制开发指令到你的工具中开始制作能力包。' : 'Install the developer skill into the skill pool, then copy the development prompt into your coding tool to get started.'}</p>
         {!desktop ? <p className="integration-preview">{zh ? '请在桌面版 Nooki 中集成。浏览器预览无法检测或修改本机开发工具。' : 'Use desktop Nooki to integrate. Browser preview cannot detect or modify local coding tools.'}</p> : <>
-          <div className="integration-section-heading"><span>{zh ? '当前用户的开发工具' : 'Your coding tools'}</span><button className="quiet-button" disabled={Boolean(busy)} onClick={() => void refresh()}><ReloadIcon />{zh ? '重新检测' : 'Refresh'}</button></div>
+          <div className="integration-section-heading"><span>{zh ? '开发 Skill 的位置' : 'Where the developer skill lives'}</span><button className="quiet-button" disabled={Boolean(busy)} onClick={() => void refresh()}><ReloadIcon />{zh ? '重新检测' : 'Refresh'}</button></div>
           {busy === 'refresh' && <p role="status">{zh ? '正在检测…' : 'Detecting…'}</p>}
-          <div className="integration-tools">{items.map((item) => row(item))}</div>
-          {items[0] && <p className="integration-version">Skill {items[0].bundledVersion} · Nooki {items[0].platformVersion} · {zh ? '可离线集成' : 'Offline integration'}</p>}
+          <div className="integration-tools">{integration && row(integration)}</div>
+          {integration && <p className="integration-version">Skill {integration.bundledVersion} · Nooki {integration.platformVersion} · {zh ? '可离线集成' : 'Offline integration'}</p>}
         </>}
         <div className="integration-resources">
           {desktop && <section>

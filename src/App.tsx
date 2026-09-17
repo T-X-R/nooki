@@ -9,6 +9,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
   ArchiveIcon,
+  BackpackIcon,
   ChatBubbleIcon,
   ArrowRightIcon,
   CalendarIcon,
@@ -56,6 +57,7 @@ import { DataManagement } from './DataManagement'
 import { libraryOrganization, type Origin } from './document-library'
 import i18n, { type Language } from './i18n'
 import { TaskPage } from './TaskPage'
+import { SkillPoolPage } from './SkillPoolPage'
 import { PackageImportModal } from './PackageImportModal'
 import { DeveloperCenterModal } from './DeveloperCenterModal'
 import { taskRunner } from './tasks'
@@ -65,7 +67,7 @@ import { ConversationArchives } from './ConversationArchives'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from './conversation-model'
 import nookiIcon from './assets/nooki-icon.png'
 
-type View = 'today' | 'library' | 'capabilities' | 'settings' | 'capability' | 'tasks' | 'conversations'
+type View = 'today' | 'library' | 'skills' | 'capabilities' | 'settings' | 'capability' | 'tasks' | 'conversations'
 type Theme = 'light' | 'dark'
 type CapabilityFilter = 'all' | 'enabled' | 'disabled'
 
@@ -270,6 +272,7 @@ function App() {
               {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} providerStatus={providerStatus} />}
               {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
+              {view === 'skills' && <SkillPoolPage language={language} />}
               {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
@@ -359,6 +362,9 @@ function Sidebar({ organization, organizationError, libraryTopicId, onSelectTopi
           <span className="nav-hint">01</span>
         </button>
         <LibraryNavigation language={language} active={activeView === 'library'} topicId={libraryTopicId} organization={organization} error={organizationError} onEnter={() => onNavigate('library')} onSelect={onSelectTopic} />
+        <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
+          <span className="nav-item-main"><BackpackIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
+        </button>
         <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
         <button className={`nav-item ${activeView === 'tasks' ? 'is-active' : ''}`} aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}>
           <span className="nav-item-main"><ClockIcon />{language === 'zh' ? '任务' : 'Tasks'}</span>
@@ -828,6 +834,7 @@ function CommandPalette({ onClose, onNavigate, onNotice, theme, onToggleTheme }:
     { label: t('openToday'), hint: t('navigation'), icon: CalendarIcon, action: () => onNavigate('today') },
     { label: i18n.language.startsWith('zh') ? '打开对话' : 'Open conversations', hint: t('navigation'), icon: ChatBubbleIcon, action: () => onNavigate('conversations') },
     { label: t('openLibrary'), hint: t('navigation'), icon: ArchiveIcon, action: () => onNavigate('library') },
+    { label: i18n.language.startsWith('zh') ? '打开技能池' : 'Open skill pool', hint: t('navigation'), icon: BackpackIcon, action: () => onNavigate('skills') },
     { label: t('openCapabilities'), hint: t('navigation'), icon: CubeIcon, action: () => onNavigate('capabilities') },
     { label: t('openSettings'), hint: t('navigation'), icon: GearIcon, action: () => onNavigate('settings') },
     { label: theme === 'light' ? t('switchToDark') : t('switchToLight'), hint: t('appearanceHint'), icon: theme === 'light' ? MoonIcon : SunIcon, action: () => { onToggleTheme(); onClose() } },
