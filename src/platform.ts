@@ -18,6 +18,86 @@ export type AiInvocationResult = {
   output: string
 }
 
+/** The request shape a compatible endpoint understands. */
+export type WireApi = 'responses' | 'chat' | 'anthropic'
+
+/** How the desktop host resolves the credential of an endpoint. */
+export type CredentialKind = 'stored' | 'environment' | 'local' | 'missing'
+
+/**
+ * A configured endpoint as the interface sees it. The API key itself never
+ * leaves the desktop host, so only a masked hint is available here.
+ */
+export type CompatibleEndpoint = {
+  id: string
+  label: string
+  baseUrl: string
+  model: string
+  wireApi: WireApi
+  apiKeyEnv: string
+  reasoningEffort: string
+  credential: CredentialKind
+  credentialHint: string
+  selected: boolean
+}
+
+export type CompatibleEndpoints = {
+  endpoints: CompatibleEndpoint[]
+  selectedId: string
+}
+
+/** An empty `apiKey` keeps the credential already stored for that endpoint. */
+export type CompatibleEndpointInput = {
+  id?: string
+  label: string
+  baseUrl: string
+  model: string
+  wireApi: WireApi
+  apiKeyEnv: string
+  apiKey?: string
+  reasoningEffort?: string
+}
+
+const EMPTY_ENDPOINTS: CompatibleEndpoints = { endpoints: [], selectedId: '' }
+
+export function isDesktopHost(): boolean {
+  return Boolean(window.__TAURI_INTERNALS__)
+}
+
+function endpointError(error: unknown, language: Language): Error {
+  if (typeof error === 'string') return new Error(error)
+  return new Error(language === 'en' ? 'Could not update the compatible endpoint' : '无法更新兼容端点')
+}
+
+export async function listCompatibleEndpoints(): Promise<CompatibleEndpoints> {
+  if (!isDesktopHost()) return EMPTY_ENDPOINTS
+  return invoke<CompatibleEndpoints>('compatible_endpoints')
+}
+
+export async function saveCompatibleEndpoint(endpoint: CompatibleEndpointInput, language: Language): Promise<CompatibleEndpoints> {
+  try {
+    return await invoke<CompatibleEndpoints>('compatible_endpoint_save', { endpoint, language })
+  } catch (error) {
+    throw endpointError(error, language)
+  }
+}
+
+export async function removeCompatibleEndpoint(id: string, language: Language): Promise<CompatibleEndpoints> {
+  try {
+    return await invoke<CompatibleEndpoints>('compatible_endpoint_remove', { id, language })
+  } catch (error) {
+    throw endpointError(error, language)
+  }
+}
+
+export async function selectCompatibleEndpoint(id: string, language: Language): Promise<CompatibleEndpoints> {
+  try {
+    return await invoke<CompatibleEndpoints>('compatible_endpoint_select', { id, language })
+  } catch (error) {
+    throw endpointError(error, language)
+  }
+}
+
 declare global {
   interface Window {
     __TAURI_INTERNALS__?: unknown
@@ -37,7 +117,7 @@ function providerLabel(kind: ProviderKind, language: Language): string {
 export async function getProviderStatus(kind: ProviderKind, language: Language): Promise<ProviderStatus> {
   const label = providerLabel(kind, language)
 
-  if (window.__TAURI_INTERNALS__) {
+  if (isDesktopHost()) {
     try {
       return await invoke<ProviderStatus>('provider_status', { kind, language })
     } catch {

@@ -4,6 +4,7 @@ pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;
 pub mod codex_session_source;
+pub mod compatible_provider;
 pub mod document_library;
 pub mod library_management;
 pub mod user_data;
@@ -14,6 +15,7 @@ pub mod developer_integration;
 
 use capability_runtime::{CapabilityManifest, InstalledCapability, PlatformState};
 use codex_session_source::{read_daily_files, CodexDailySessionFiles};
+use compatible_provider::{CompatibleEndpoints, EndpointInput, EndpointsSnapshot};
 use document_library::{DocumentPublication, LibraryDocument, LibraryDocumentMetadata};
 use managed_provider::{invoke, load_codex_api_profile, ModelResult};
 use serde::{Deserialize, Serialize};
@@ -155,8 +157,23 @@ fn localize_provider_error(detail: String, english: bool) -> String {
     "API 配置中的 base_url 不能包含查询参数或片段" => {
       "The configured base_url cannot contain a query or fragment".into()
     }
-    "兼容端点尚未接入，请选择 API key 托管或 Codex 订阅" => {
-      "Compatible endpoints are not connected yet. Select Managed API key or Codex subscription".into()
+    "兼容端点尚未配置" => "No compatible endpoint is configured yet".into(),
+    "兼容端点不存在" => "That compatible endpoint no longer exists".into(),
+    "兼容端点缺少可用凭据" => "The compatible endpoint has no usable credential".into(),
+    "兼容端点缺少 base_url" => "The compatible endpoint is missing a base URL".into(),
+    "兼容端点缺少模型名称" => "The compatible endpoint is missing a model name".into(),
+    "兼容端点的协议无效" => "The compatible endpoint protocol is not supported".into(),
+    "兼容端点的 base_url 无效" => "The compatible endpoint base URL is invalid".into(),
+    "兼容端点的 base_url 不能包含查询参数或片段" => {
+      "The compatible endpoint base URL cannot contain a query or fragment".into()
+    }
+    "兼容端点的配置字段过长" => "A compatible endpoint field is too long".into(),
+    "兼容端点数量已达上限" => "You have reached the compatible endpoint limit".into(),
+    "兼容端点配置暂时不可用" => "Compatible endpoint settings are temporarily unavailable".into(),
+    "兼容端点配置文件已损坏" => "The compatible endpoint settings file is damaged".into(),
+    "无法读取兼容端点配置" => "Could not read the compatible endpoint settings".into(),
+    "无法写入兼容端点配置" | "无法保存兼容端点配置" | "无法序列化兼容端点配置" => {
+      "Could not save the compatible endpoint settings".into()
     }
     "未知的 Provider 类型" => "Unknown Provider type".into(),
     "Codex Agent 未返回文本结果" => "The Codex agent returned no text output".into(),
@@ -165,7 +182,19 @@ fn localize_provider_error(detail: String, english: bool) -> String {
 }
 
 #[tauri::command]
-fn provider_status(kind: String, language: String) -> ProviderStatus {
+fn provider_status(
+  kind: String,
+  language: String,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
+) -> ProviderStatus {
+  provider_status_with(kind, language, &endpoints)
+}
+
+fn provider_status_with(
+  kind: String,
+  language: String,
+  endpoints: &CompatibleEndpoints,
+) -> ProviderStatus {
   let english = is_english(&language);
   let label = match (kind.as_str(), english) {
     ("codex-api", true) => "Managed API key",
@@ -239,23 +268,83 @@ fn provider_status(kind: String, language: String) -> ProviderStatus {
         },
       }
     }
-    _ => ProviderStatus {
-      kind,
-      state: "preview".into(),
-      label: label.into(),
-      detail: if english {
-        "Compatible endpoint configuration is coming to platform settings".into()
-      } else {
-        "兼容端点将在平台设置中配置".into()
+    _ => match endpoints.active_summary() {
+      Ok(Some((name, model, credential))) => ProviderStatus {
+        kind,
+        state: if credential { "configured".into() } else { "error".into() },
+        label: label.into(),
+        detail: match (credential, english) {
+          (true, true) => format!("{name} · {model}"),
+          (true, false) => format!("{name} · {model}"),
+          (false, true) => format!("{name} has no usable credential"),
+          (false, false) => format!("{name} 缺少可用凭据"),
+        },
+      },
+      Ok(None) => ProviderStatus {
+        kind,
+        state: "error".into(),
+        label: label.into(),
+        detail: if english {
+          "Add a compatible endpoint with your own API key below".into()
+        } else {
+          "请在下方添加兼容端点并填写你自己的 API key".into()
+        },
+      },
+      Err(detail) => ProviderStatus {
+        kind,
+        state: "error".into(),
+        label: label.into(),
+        detail: localize_provider_error(detail, english),
       },
     },
   }
 }
 
 #[tauri::command]
+fn compatible_endpoints(
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
+) -> Result<EndpointsSnapshot, String> {
+  endpoints.snapshot()
+}
+
+#[tauri::command]
+fn compatible_endpoint_save(
+  endpoint: EndpointInput,
+  language: String,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
+) -> Result<EndpointsSnapshot, String> {
+  endpoints
+    .save(endpoint)
+    .map_err(|detail| localize_provider_error(detail, is_english(&language)))
+}
+
+#[tauri::command]
+fn compatible_endpoint_remove(
+  id: String,
+  language: String,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
+) -> Result<EndpointsSnapshot, String> {
+  endpoints
+    .remove(&id)
+    .map_err(|detail| localize_provider_error(detail, is_english(&language)))
+}
+
+#[tauri::command]
+fn compatible_endpoint_select(
+  id: String,
+  language: String,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
+) -> Result<EndpointsSnapshot, String> {
+  endpoints
+    .select(&id)
+    .map_err(|detail| localize_provider_error(detail, is_english(&language)))
+}
+
+#[tauri::command]
 async fn provider_health_check(
   language: String,
   state: tauri::State<'_, PlatformState>,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
 ) -> Result<ProviderStatus, String> {
   let english = is_english(&language);
   let kind = match state.selected_provider() {
@@ -269,18 +358,23 @@ async fn provider_health_check(
       })
     }
   };
-  if kind != "codex-api" {
-    return Ok(provider_status(kind, language));
+  if kind != "codex-api" && kind != "compatible-api" {
+    return Ok(provider_status_with(kind, language, &endpoints));
   }
 
-  let label = if english { "Managed API key" } else { "API key 托管" };
-  let provider = match load_codex_api_profile(&codex_home()) {
+  let label = provider_status_with(kind.clone(), language.clone(), &endpoints).label;
+  let resolved = if kind == "codex-api" {
+    load_codex_api_profile(&codex_home())
+  } else {
+    endpoints.active_provider()
+  };
+  let provider = match resolved {
     Ok(provider) => provider,
     Err(detail) => {
       return Ok(ProviderStatus {
         kind,
         state: "error".into(),
-        label: label.into(),
+        label,
         detail: localize_provider_error(detail, english),
       })
     }
@@ -292,7 +386,7 @@ async fn provider_health_check(
     Ok(_) => ProviderStatus {
       kind,
       state: "ready".into(),
-      label: label.into(),
+      label,
       detail: if english {
         format!("Connected · {provider_name} · {model}")
       } else {
@@ -302,7 +396,7 @@ async fn provider_health_check(
     Err(detail) => ProviderStatus {
       kind,
       state: "error".into(),
-      label: label.into(),
+      label,
       detail: localize_provider_error(detail, english),
     },
   })
@@ -459,9 +553,10 @@ fn library_read_document(
 async fn test_selected_provider(
   language: String,
   state: tauri::State<'_, PlatformState>,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
 ) -> Result<ModelResult, String> {
   let provider_kind = state.selected_provider()?;
-  invoke_with_provider("Reply with exactly 'Provider ready'. Do not use tools.".into(), &provider_kind)
+  invoke_with_provider("Reply with exactly 'Provider ready'. Do not use tools.".into(), &provider_kind, &endpoints)
     .await
     .map_err(|detail| localize_provider_error(detail, is_english(&language)))
 }
@@ -471,6 +566,7 @@ async fn capability_ai_invoke(
   request: CapabilityAiRequest,
   executions: tauri::State<'_, task_execution::TaskExecutions>,
   state: tauri::State<'_, PlatformState>,
+  endpoints: tauri::State<'_, CompatibleEndpoints>,
 ) -> Result<ModelResult, String> {
   let started = std::time::Instant::now();
   let capability_id = request.capability_id;
@@ -496,7 +592,7 @@ async fn capability_ai_invoke(
   let result = tokio::select! {
     biased;
     _ = token.cancelled() => Err("Task cancelled".into()),
-    result = invoke_with_provider(request.input, &provider_kind) => result,
+    result = invoke_with_provider(request.input, &provider_kind, &endpoints) => result,
   };
   match &result {
     Ok(output) => log::info!(
@@ -559,7 +655,11 @@ async fn capability_codex_sessions_read_daily_files(
   result
 }
 
-async fn invoke_with_provider(input: String, provider_kind: &str) -> Result<ModelResult, String> {
+async fn invoke_with_provider(
+  input: String,
+  provider_kind: &str,
+  endpoints: &CompatibleEndpoints,
+) -> Result<ModelResult, String> {
   if input.trim().is_empty() {
     return Err("AI input cannot be empty".into());
   }
@@ -573,7 +673,7 @@ async fn invoke_with_provider(input: String, provider_kind: &str) -> Result<Mode
   }
 
   if provider_kind == "compatible-api" {
-    return Err("兼容端点尚未接入，请选择 API key 托管或 Codex 订阅".into());
+    return invoke(endpoints.active_provider()?, &input).await;
   }
   if provider_kind != "codex-subscription" {
     return Err("未知的 Provider 类型".into());
@@ -682,6 +782,7 @@ pub fn run() {
       user_data::recover(&data_dir).map_err(std::io::Error::other)?;
       let event_app = app.handle().clone();
       app.manage(codex_conversations::CodexConversations::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:codex-event", event); })));
+      app.manage(compatible_provider::CompatibleEndpoints::load(&data_dir).map_err(std::io::Error::other)?);
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
@@ -707,6 +808,10 @@ pub fn run() {
       capability_package_rollback,
       provider_status,
       provider_health_check,
+      compatible_endpoints,
+      compatible_endpoint_save,
+      compatible_endpoint_remove,
+      compatible_endpoint_select,
       get_selected_provider,
       set_selected_provider,
       install_capability,
@@ -767,9 +872,10 @@ esac
   #[tokio::test]
   #[ignore = "runs in an isolated environment through subscription_works_with_desktop_path"]
   async fn subscription_probe() {
-    let status = provider_status("codex-subscription".into(), "zh".into());
+    let endpoints = CompatibleEndpoints::load(&std::env::temp_dir().join(format!("nooki-probe-{}", std::process::id()))).unwrap();
+    let status = provider_status_with("codex-subscription".into(), "zh".into(), &endpoints);
     assert_eq!(status.state, "ready", "{}", status.detail);
-    let result = invoke_with_provider("Reply with Provider ready".into(), "codex-subscription").await.unwrap();
+    let result = invoke_with_provider("Reply with Provider ready".into(), "codex-subscription", &endpoints).await.unwrap();
     assert_eq!(result.output, "Provider ready");
   }
 }

@@ -9,7 +9,48 @@ use std::{
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 const CONNECT_ATTEMPTS: usize = 3;
+const ANTHROPIC_VERSION: &str = "2023-06-01";
+const ANTHROPIC_MAX_TOKENS: u32 = 8192;
 static NEXT_REQUEST_ID: AtomicU64 = AtomicU64::new(1);
+
+/// The request shape a Provider endpoint understands. One managed adapter
+/// serves every endpoint so credentials never leave the desktop host.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WireApi {
+  /// OpenAI Responses API, used by Codex API profiles.
+  Responses,
+  /// OpenAI Chat Completions API, used by DeepSeek, Kimi, Qwen and friends.
+  Chat,
+  /// Anthropic Messages API, used by Claude.
+  Anthropic,
+}
+
+impl WireApi {
+  pub fn parse(value: &str) -> Option<Self> {
+    match value {
+      "responses" => Some(Self::Responses),
+      "chat" | "chat-completions" => Some(Self::Chat),
+      "anthropic" | "messages" => Some(Self::Anthropic),
+      _ => None,
+    }
+  }
+
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::Responses => "responses",
+      Self::Chat => "chat",
+      Self::Anthropic => "anthropic",
+    }
+  }
+
+  fn path_suffix(self) -> &'static str {
+    match self {
+      Self::Responses => "responses",
+      Self::Chat => "chat/completions",
+      Self::Anthropic => "messages",
+    }
+  }
+}
 
 #[derive(Clone)]
 pub struct ManagedProvider {
@@ -18,6 +59,22 @@ pub struct ManagedProvider {
   reasoning_effort: Option<String>,
   base_url: String,
   bearer_token: String,
+  wire_api: WireApi,
+}
+
+impl ManagedProvider {
+  /// Builds a Provider from user-configured endpoint settings. The credential
+  /// stays inside this struct and is never serialized back to the interface.
+  pub fn new(
+    name: String,
+    model: String,
+    base_url: String,
+    bearer_token: String,
+    wire_api: WireApi,
+    reasoning_effort: Option<String>,
+  ) -> Self {
+    Self { name, model, reasoning_effort, base_url, bearer_token, wire_api }
+  }
 }
 
 #[derive(Debug, Serialize)]
@@ -84,6 +141,7 @@ fn parse_codex_api_profile(source: &str) -> Result<ManagedProvider, String> {
     reasoning_effort: profile.model_reasoning_effort,
     base_url: provider.base_url.clone(),
     bearer_token,
+    wire_api: WireApi::Responses,
   })
 }
 
@@ -133,22 +191,20 @@ async fn invoke_with_client(
   request_id: u64,
   started: Instant,
 ) -> Result<ModelResult, String> {
-  let url = responses_url(&provider.base_url)?;
-  let mut payload = serde_json::json!({
-    "model": provider.model,
-    "input": input,
-  });
-  if let Some(effort) = provider.reasoning_effort.as_deref().filter(|effort| !effort.trim().is_empty()) {
-    payload["reasoning"] = serde_json::json!({ "effort": effort });
-  }
+  let url = endpoint_url(&provider.base_url, provider.wire_api)?;
+  let payload = request_payload(&provider, input);
 
   let response = retry_connect_failures(
     || {
-      client
-        .post(url.clone())
-        .bearer_auth(&provider.bearer_token)
-        .json(&payload)
-        .send()
+      let request = client.post(url.clone());
+      let request = match provider.wire_api {
+        // Anthropic authenticates with a dedicated header and a pinned version.
+        WireApi::Anthropic => request
+          .header("x-api-key", provider.bearer_token.as_str())
+          .header("anthropic-version", ANTHROPIC_VERSION),
+        _ => request.bearer_auth(&provider.bearer_token),
+      };
+      request.json(&payload).send()
     },
     reqwest::Error::is_connect,
   )
@@ -229,7 +285,7 @@ async fn invoke_with_client(
     );
     "Provider 返回了无法解析的响应".to_string()
   })?;
-  let output = extract_output_text(&body).ok_or_else(|| {
+  let output = extract_output_text(&body, provider.wire_api).ok_or_else(|| {
     log::warn!(
       target: "workbench::provider",
       "request.error id={request_id} stage=output_extract response_bytes={} elapsed_ms={}",
@@ -287,7 +343,35 @@ where
   unreachable!("the retry loop always returns")
 }
 
-fn responses_url(base_url: &str) -> Result<reqwest::Url, String> {
+fn request_payload(provider: &ManagedProvider, input: &str) -> serde_json::Value {
+  let effort = provider
+    .reasoning_effort
+    .as_deref()
+    .map(str::trim)
+    .filter(|effort| !effort.is_empty());
+
+  match provider.wire_api {
+    WireApi::Responses => {
+      let mut payload = serde_json::json!({ "model": provider.model, "input": input });
+      if let Some(effort) = effort {
+        payload["reasoning"] = serde_json::json!({ "effort": effort });
+      }
+      payload
+    }
+    WireApi::Chat => serde_json::json!({
+      "model": provider.model,
+      "messages": [{ "role": "user", "content": input }],
+      "stream": false,
+    }),
+    WireApi::Anthropic => serde_json::json!({
+      "model": provider.model,
+      "max_tokens": ANTHROPIC_MAX_TOKENS,
+      "messages": [{ "role": "user", "content": [{ "type": "text", "text": input }] }],
+    }),
+  }
+}
+
+pub fn endpoint_url(base_url: &str, wire_api: WireApi) -> Result<reqwest::Url, String> {
   let mut url = reqwest::Url::parse(base_url)
     .map_err(|_| "API 配置中的 base_url 无效".to_string())?;
   if !matches!(url.scheme(), "http" | "https") || url.username() != "" || url.password().is_some() {
@@ -297,14 +381,52 @@ fn responses_url(base_url: &str) -> Result<reqwest::Url, String> {
     return Err("API 配置中的 base_url 不能包含查询参数或片段".into());
   }
 
+  let suffix = wire_api.path_suffix();
   let path = url.path().trim_end_matches('/');
-  if !path.ends_with("/responses") {
-    url.set_path(&format!("{path}/responses"));
+  if !path.ends_with(&format!("/{suffix}")) {
+    url.set_path(&format!("{path}/{suffix}"));
   }
   Ok(url)
 }
 
-fn extract_output_text(body: &serde_json::Value) -> Option<String> {
+fn extract_output_text(body: &serde_json::Value, wire_api: WireApi) -> Option<String> {
+  match wire_api {
+    WireApi::Responses => extract_responses_text(body),
+    WireApi::Chat => extract_chat_text(body),
+    WireApi::Anthropic => extract_anthropic_text(body),
+  }
+}
+
+fn extract_chat_text(body: &serde_json::Value) -> Option<String> {
+  let message = body.get("choices")?.as_array()?.first()?.get("message")?;
+  if let Some(content) = message.get("content").and_then(serde_json::Value::as_str) {
+    if !content.trim().is_empty() {
+      return Some(content.to_string());
+    }
+  }
+  // Some gateways return structured content parts instead of a plain string.
+  let parts = message.get("content")?.as_array()?;
+  let text = parts
+    .iter()
+    .filter_map(|part| part.get("text").and_then(serde_json::Value::as_str))
+    .collect::<Vec<_>>()
+    .join("");
+  (!text.trim().is_empty()).then_some(text)
+}
+
+fn extract_anthropic_text(body: &serde_json::Value) -> Option<String> {
+  let text = body
+    .get("content")?
+    .as_array()?
+    .iter()
+    .filter(|block| block.get("type").and_then(serde_json::Value::as_str) == Some("text"))
+    .filter_map(|block| block.get("text").and_then(serde_json::Value::as_str))
+    .collect::<Vec<_>>()
+    .join("");
+  (!text.trim().is_empty()).then_some(text)
+}
+
+fn extract_responses_text(body: &serde_json::Value) -> Option<String> {
   if let Some(output) = body.get("output_text").and_then(serde_json::Value::as_str) {
     return Some(output.to_string());
   }
@@ -346,13 +468,120 @@ fn response_shape(bytes: &[u8]) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-  use super::{retry_connect_failures, CONNECT_ATTEMPTS, REQUEST_TIMEOUT};
+  use super::{
+    endpoint_url, extract_output_text, invoke, request_payload, retry_connect_failures,
+    ManagedProvider, WireApi, CONNECT_ATTEMPTS, REQUEST_TIMEOUT,
+  };
   use std::cell::Cell;
+  use std::io::{Read, Write};
   use std::time::Duration;
 
   #[derive(Debug, PartialEq, Eq)]
   struct TestError {
     retryable: bool,
+  }
+
+  fn provider(wire_api: WireApi) -> ManagedProvider {
+    ManagedProvider::new(
+      "Vendor".into(),
+      "model-1".into(),
+      "https://api.example.com/v1".into(),
+      "sk-test".into(),
+      wire_api,
+      None,
+    )
+  }
+
+  #[test]
+  fn each_wire_api_targets_its_own_path() {
+    let cases = [
+      (WireApi::Responses, "https://api.example.com/v1/responses"),
+      (WireApi::Chat, "https://api.example.com/v1/chat/completions"),
+      (WireApi::Anthropic, "https://api.example.com/v1/messages"),
+    ];
+    for (wire_api, expected) in cases {
+      assert_eq!(endpoint_url("https://api.example.com/v1", wire_api).unwrap().as_str(), expected);
+      // An endpoint that already names the path is kept as configured.
+      assert_eq!(endpoint_url(expected, wire_api).unwrap().as_str(), expected);
+    }
+    assert!(endpoint_url("ftp://api.example.com", WireApi::Chat).is_err());
+    assert!(endpoint_url("https://api.example.com/v1?key=1", WireApi::Chat).is_err());
+  }
+
+  #[test]
+  fn each_wire_api_sends_and_reads_its_own_shape() {
+    let responses = request_payload(&provider(WireApi::Responses), "hello");
+    assert_eq!(responses["input"], "hello");
+    let chat = request_payload(&provider(WireApi::Chat), "hello");
+    assert_eq!(chat["messages"][0]["content"], "hello");
+    let anthropic = request_payload(&provider(WireApi::Anthropic), "hello");
+    assert_eq!(anthropic["messages"][0]["content"][0]["text"], "hello");
+    assert!(anthropic["max_tokens"].is_number());
+
+    let chat_body = serde_json::json!({ "choices": [{ "message": { "content": "done" } }] });
+    assert_eq!(extract_output_text(&chat_body, WireApi::Chat).as_deref(), Some("done"));
+    let chat_parts = serde_json::json!({
+      "choices": [{ "message": { "content": [{ "type": "text", "text": "done" }] } }]
+    });
+    assert_eq!(extract_output_text(&chat_parts, WireApi::Chat).as_deref(), Some("done"));
+    let anthropic_body = serde_json::json!({
+      "content": [{ "type": "thinking", "thinking": "..." }, { "type": "text", "text": "done" }]
+    });
+    assert_eq!(extract_output_text(&anthropic_body, WireApi::Anthropic).as_deref(), Some("done"));
+    let responses_body = serde_json::json!({ "output_text": "done" });
+    assert_eq!(extract_output_text(&responses_body, WireApi::Responses).as_deref(), Some("done"));
+    assert_eq!(extract_output_text(&chat_body, WireApi::Anthropic), None);
+  }
+
+  /// Answers one request with `body` and returns what the adapter sent.
+  fn fake_endpoint(body: &'static str) -> (u16, std::thread::JoinHandle<String>) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let handle = std::thread::spawn(move || {
+      let (mut stream, _) = listener.accept().unwrap();
+      let mut buffer = [0u8; 4096];
+      let read = stream.read(&mut buffer).unwrap();
+      let response = format!(
+        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{body}",
+        body.len(),
+      );
+      stream.write_all(response.as_bytes()).unwrap();
+      stream.flush().unwrap();
+      String::from_utf8_lossy(&buffer[..read]).to_lowercase()
+    });
+    (port, handle)
+  }
+
+  #[tokio::test]
+  async fn calls_a_chat_endpoint_with_a_bearer_credential() {
+    let (port, endpoint) = fake_endpoint(r#"{"choices":[{"message":{"content":"pong"}}]}"#);
+    let mut provider = provider(WireApi::Chat);
+    provider.base_url = format!("http://127.0.0.1:{port}/v1");
+
+    let result = invoke(provider, "ping").await.unwrap();
+    assert_eq!(result.output, "pong");
+    assert_eq!(result.model, "model-1");
+
+    let request = endpoint.join().unwrap();
+    assert!(request.starts_with("post /v1/chat/completions"), "{request}");
+    assert!(request.contains("authorization: bearer sk-test"), "{request}");
+  }
+
+  #[tokio::test]
+  async fn calls_an_anthropic_endpoint_with_its_own_headers() {
+    let (port, endpoint) = fake_endpoint(r#"{"content":[{"type":"text","text":"pong"}]}"#);
+    let mut provider = provider(WireApi::Anthropic);
+    provider.base_url = format!("http://127.0.0.1:{port}/v1");
+
+    let result = invoke(provider, "ping").await.unwrap();
+    assert_eq!(result.output, "pong");
+
+    let request = endpoint.join().unwrap();
+    assert!(request.starts_with("post /v1/messages"), "{request}");
+    assert!(request.contains("x-api-key: sk-test"), "{request}");
+    assert!(request.contains("anthropic-version: 2023-06-01"), "{request}");
+    // A credential must never travel in a header the vendor does not expect.
+    assert!(!request.contains("authorization:"), "{request}");
   }
 
   #[test]
