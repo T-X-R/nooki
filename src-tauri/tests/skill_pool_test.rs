@@ -318,3 +318,19 @@ fn an_empty_machine_stays_untouched() {
   assert!(!overview.pool_exists && overview.skills.is_empty() && overview.duplicates.is_empty());
   assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 0, "nothing is created on a machine without skills");
 }
+
+#[test]
+fn reads_one_skill_for_display_without_leaving_the_pool() {
+  let fixture = Fixture::new();
+  let path = fixture.skill(".agents/skills", "pdf", "Reads PDF files");
+  fs::create_dir_all(path.join("references")).unwrap();
+  fs::write(path.join("references/tables.md"), "# Tables").unwrap();
+  let pool = fixture.pool();
+  let detail = pool.read("pdf").unwrap();
+  assert_eq!((detail.title.as_str(), detail.description.as_str()), ("pdf", "Reads PDF files"));
+  assert_eq!(detail.files, ["SKILL.md", "references/tables.md"]);
+  assert!(detail.content.contains("# pdf") && !detail.truncated);
+  assert_eq!(PathBuf::from(&detail.directory), fixture.home(".agents/skills/pdf"));
+  assert!(pool.read("missing").is_err());
+  assert!(pool.read("../escape").is_err());
+}

@@ -8,6 +8,8 @@ pub const RECEIPT: &str = ".nooki-skill-mirror.json";
 const SETTINGS: &str = "skill-pool.json";
 const TRASH: &str = ".nooki-trash";
 const SKILL_FILE: &str = "SKILL.md";
+/// Long instructions are read in the pool, not in Nooki: enough to judge a skill, not a whole book.
+const READING_LIMIT: usize = 200_000;
 
 type Hashes = BTreeMap<String, String>;
 
@@ -81,6 +83,18 @@ pub struct Overview {
   pub tools: Vec<ToolView>,
   pub duplicates: Vec<Duplicate>,
   pub notices: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillDetail {
+  pub name: String,
+  pub title: String,
+  pub description: String,
+  pub directory: String,
+  pub files: Vec<String>,
+  pub content: String,
+  pub truncated: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -573,6 +587,25 @@ impl SkillPool {
   }
 
   pub fn skill_hashes(&self, name: &str) -> Result<Hashes, String> { hashes(&self.pool.join(name)) }
+
+  /// Read one pool skill for display. Instructions are shown, never executed.
+  pub fn read(&self, name: &str) -> Result<SkillDetail, String> {
+    safe_name(name)?;
+    let directory = self.pool.join(name);
+    if !directory.is_dir() { return Err("The pool has no skill with this name".into()); }
+    let files: Vec<String> = hashes(&directory)?.into_keys().collect();
+    let described = describe(&directory);
+    let raw = fs::read_to_string(directory.join(SKILL_FILE)).unwrap_or_default();
+    let truncated = raw.len() > READING_LIMIT;
+    Ok(SkillDetail {
+      name: name.into(),
+      title: described.as_ref().map(|value| value.0.clone()).filter(|value| !value.is_empty()).unwrap_or_else(|| name.into()),
+      description: described.map(|value| value.1).unwrap_or_default(),
+      directory: directory.to_string_lossy().into_owned(),
+      content: if truncated { raw.chars().take(READING_LIMIT).collect() } else { raw },
+      files, truncated,
+    })
+  }
 }
 
 fn shell_expand(path: &str, home: &Path) -> String {
@@ -600,6 +633,9 @@ pub fn skill_pool_resolve(tool: String, name: String, action: String, rename: Op
   state.resolve(&tool, &name, &action, rename)?;
   state.overview()
 }
+
+#[tauri::command]
+pub fn skill_pool_read(name: String, state: tauri::State<'_, SkillPool>) -> Result<SkillDetail, String> { state.read(&name) }
 
 #[tauri::command]
 pub fn skill_pool_delete(name: String, include_modified: bool, state: tauri::State<'_, SkillPool>) -> Result<DeleteReport, String> {

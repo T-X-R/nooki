@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { CheckCircledIcon, Cross2Icon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, TrashIcon } from '@radix-ui/react-icons'
 import './skill-pool.css'
 import {
   distributableTools, detectedTools, emptyOverview, groupDecisions, holders, isSelected, nextSelection, searchSkills, toolSummary,
-  type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill,
+  type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill, type SkillDetail,
 } from './skill-pool'
 
 export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
@@ -16,6 +18,7 @@ export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
   const [notice, setNotice] = useState('')
   const [query, setQuery] = useState('')
   const [pendingDelete, setPendingDelete] = useState<PoolSkill | null>(null)
+  const [reading, setReading] = useState<SkillDetail | null>(null)
   const [includeModified, setIncludeModified] = useState(false)
   const [adding, setAdding] = useState(false)
   const running = useRef(false)
@@ -128,11 +131,11 @@ export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
         ? (zh ? '技能池还是空的。你的工具里已经有技能，在上方把它们收进来就行。' : 'The pool is empty, but your tools already hold skills. Adopt them above.')
         : (zh ? '技能池还是空的。让你的 agent 把技能装进这个目录，或先安装一个开发工具再回来。' : 'The pool is empty. Let an agent install a skill into this directory, or install a coding tool and come back.')}</p>}
       {visible.map((skill) => <article className="skill-pool-skill" key={skill.name}>
-        <div className="skill-pool-skill-main">
+        <button type="button" className="skill-pool-skill-main" onClick={() => void perform(`read:${skill.name}`, async () => { setReading(await invoke<SkillDetail>('skill_pool_read', { name: skill.name })) })}>
           <h3>{skill.title}</h3>
           <p>{skill.description || (zh ? '没有描述' : 'No description')}</p>
-          <small><code>{skill.name}</code> · {skill.fileCount} {zh ? '个文件' : 'files'}{skill.issue ? ` · ${skill.issue}` : ''}</small>
-        </div>
+          {skill.issue && <small>{skill.issue}</small>}
+        </button>
         <div className="skill-pool-skill-tools" role="group" aria-label={`${skill.name} · ${zh ? '分发到' : 'Distributed to'}`}>
           {tools.map((tool) => <label key={tool.id} className="skill-pool-toggle">
             <input
@@ -163,6 +166,8 @@ export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
       onCancel={() => setPendingDelete(null)}
       onConfirm={() => void confirmDelete(pendingDelete)}
     />}
+
+    {reading && <SkillReader zh={zh} detail={reading} onClose={() => setReading(null)} />}
 
     {notice && <p className="skill-pool-notice" role="status"><CheckCircledIcon />{notice}<button className="icon-button" aria-label={zh ? '关闭提示' : 'Dismiss'} onClick={() => setNotice('')}><Cross2Icon /></button></p>}
     {error && <p className="skill-pool-error" role="alert">{error}</p>}
@@ -275,6 +280,35 @@ function DeleteDialog({ zh, busy, skill, tools, includeModified, onIncludeModifi
         <button className="primary-button" disabled={busy} onClick={onConfirm}>{zh ? '删除并卸载' : 'Delete and uninstall'}</button>
         <button className="quiet-button" disabled={busy} onClick={onCancel}>{zh ? '取消' : 'Cancel'}</button>
       </div>
+    </section>
+  </div>
+}
+
+function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail; onClose(): void }) {
+  const dialog = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    dialog.current?.focus()
+    const keyboard = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); onClose() } }
+    document.addEventListener('keydown', keyboard)
+    return () => { document.removeEventListener('keydown', keyboard); previous?.focus() }
+  }, [onClose])
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section ref={dialog} tabIndex={-1} className="modal skill-pool-reader" role="dialog" aria-modal="true" aria-labelledby="skill-pool-reader-title">
+      <header className="modal-header">
+        <div>
+          <span className="section-kicker">SKILL</span>
+          <h2 id="skill-pool-reader-title">{detail.title}</h2>
+          <code className="skill-pool-reader-path">{detail.directory}</code>
+        </div>
+        <button className="icon-button" onClick={onClose} aria-label={zh ? '关闭' : 'Close'}><Cross2Icon /></button>
+      </header>
+      <div className="skill-pool-reader-content"><Markdown remarkPlugins={[remarkGfm]}>{detail.content || (zh ? '这个技能没有 SKILL.md。' : 'This skill has no SKILL.md.')}</Markdown></div>
+      {detail.truncated && <p className="skill-pool-empty">{zh ? '内容过长，只显示开头部分。' : 'Only the beginning is shown; the file is long.'}</p>}
+      <details className="skill-pool-reader-files">
+        <summary>{detail.files.length} {zh ? '个文件' : 'files'}</summary>
+        {detail.files.map((file) => <code key={file}>{file}</code>)}
+      </details>
     </section>
   </div>
 }

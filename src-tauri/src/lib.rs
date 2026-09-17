@@ -802,6 +802,7 @@ pub fn run() {
       skill_pool::skill_pool_overview,
       skill_pool::skill_pool_set_selection,
       skill_pool::skill_pool_resolve,
+      skill_pool::skill_pool_read,
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,

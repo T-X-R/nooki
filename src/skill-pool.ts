@@ -46,6 +46,16 @@ export type Overview = {
   notices: string[]
 }
 
+export type SkillDetail = {
+  name: string
+  title: string
+  description: string
+  directory: string
+  files: string[]
+  content: string
+  truncated: boolean
+}
+
 export type Removal = { toolId: string; toolName: string; state: string }
 
 export type DeleteReport = { name: string; trash: string; removed: Removal[]; kept: Removal[] }
