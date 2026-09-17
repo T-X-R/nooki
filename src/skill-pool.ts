@@ -64,6 +64,15 @@ export type SkillFile = {
   sizeBytes: number
 }
 
+/** A skill declares itself in frontmatter; the reader shows that as a heading, not as body text. */
+export function skillBody(content: string): string {
+  const normalized = content.replace(/^\uFEFF/, '')
+  if (!/^---\r?\n/.test(normalized)) return content
+  const end = normalized.search(/\r?\n---[ \t]*(\r?\n|$)/)
+  if (end === -1) return content
+  return normalized.slice(end).replace(/^\r?\n---[ \t]*/, '').replace(/^(\r?\n)+/, '')
+}
+
 /** SKILL.md first, then folder by folder, so a 255-file skill still reads in an order. */
 export function orderSkillFiles(files: string[]): string[] {
   const weight = (path: string) => (path === 'SKILL.md' ? 0 : path.includes('/') ? 2 : 1)

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, toolSummary,
+  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, skillBody, toolSummary,
   type Duplicate, type Overview, type PoolSkill, type ToolEntry, type ToolView,
 } from '../src/skill-pool.ts'
 
@@ -87,4 +87,13 @@ test('a skill with many files still reads in an order', () => {
   assert.deepEqual(orderSkillFiles(files), ['SKILL.md', 'LICENSE.txt', 'assets/pet.png', 'references/contract.md', 'scripts/build.py'])
   assert.deepEqual(fileLabel('references/doc/read.md'), { folder: 'references/doc', name: 'read.md' })
   assert.deepEqual(fileLabel('SKILL.md'), { folder: '', name: 'SKILL.md' })
+})
+
+test('a skill declares itself in frontmatter, so the body starts after it', () => {
+  const skillMd = '---\nname: pdf\ndescription: Reads PDF files\n---\n\n# Working with PDFs\n\nStart here.\n'
+  assert.equal(skillBody(skillMd), '# Working with PDFs\n\nStart here.\n')
+  assert.equal(skillBody('# No frontmatter\n\nBody.'), '# No frontmatter\n\nBody.')
+  assert.equal(skillBody('---\nname: broken\n\n# Never closed'), '---\nname: broken\n\n# Never closed')
+  assert.equal(skillBody('---\r\nname: pdf\r\n---\r\n\r\n# Windows\r\n'), '# Windows\r\n')
+  assert.equal(skillBody('---\nname: pdf\n---\n\ntext with --- inside\n'), 'text with --- inside\n')
 })

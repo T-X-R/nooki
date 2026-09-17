@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm'
 import { CheckCircledIcon, Cross2Icon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, TrashIcon } from '@radix-ui/react-icons'
 import './skill-pool.css'
 import {
-  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, toolSummary,
+  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, skillBody, toolSummary,
   type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill, type SkillDetail, type SkillFile,
 } from './skill-pool'
 
@@ -342,9 +342,9 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
         </nav>
         <article className="skill-pool-reader-content" key={path}>
           {error && <p className="skill-pool-error" role="alert">{error}</p>}
-          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{file.content}</Markdown></div>}
+          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{path === 'SKILL.md' ? skillBody(file.content) : file.content}</Markdown></div>}
           {file?.kind === 'text' && <pre className="skill-pool-reader-code">{file.content}</pre>}
-          {file?.kind === 'image' && <img className="skill-pool-reader-image" src={file.content} alt={path} />}
+          {file?.kind === 'image' && <SkillImage zh={zh} source={file.content} label={path} />}
           {file?.kind === 'binary' && <p className="skill-pool-empty">{zh ? `这是一个二进制文件（${size(file.sizeBytes)}），不在这里展开。` : `A binary file (${size(file.sizeBytes)}); it is not shown here.`}</p>}
           {file?.truncated && <p className="skill-pool-empty">{zh ? '文件很长，只显示开头部分。' : 'The file is long; only the beginning is shown.'}</p>}
         </article>
@@ -355,6 +355,26 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
       </footer>
     </section>
   </div>
+}
+
+/** A blob keeps a large image out of the DOM as text and survives a strict content policy. */
+function SkillImage({ zh, source, label }: { zh: boolean; source: string; label: string }) {
+  const [url, setUrl] = useState('')
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    const [header, payload] = source.split(',', 2)
+    if (!payload) { setFailed(true); return }
+    try {
+      const binary = atob(payload)
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+      const blob = new Blob([bytes], { type: header.slice('data:'.length).replace(';base64', '') })
+      const created = URL.createObjectURL(blob)
+      setUrl(created); setFailed(false)
+      return () => URL.revokeObjectURL(created)
+    } catch { setFailed(true) }
+  }, [source])
+  if (failed) return <p className="skill-pool-empty">{zh ? `无法显示 ${label}。` : `${label} cannot be shown here.`}</p>
+  return <img className="skill-pool-reader-image" src={url} alt={label} onError={() => setFailed(true)} />
 }
 
 function deleteNotice(report: DeleteReport, zh: boolean): string {
