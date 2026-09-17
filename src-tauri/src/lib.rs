@@ -111,6 +111,11 @@ fn localize_provider_error(detail: String, english: bool) -> String {
     return detail;
   }
 
+  // A vendor explanation is appended after the platform reason and stays as the
+  // vendor wrote it; only the reason in front of it is translated.
+  if let Some((reason, vendor)) = detail.split_once(" · ") {
+    return format!("{} · {vendor}", localize_provider_error(reason.to_string(), true));
+  }
   if let Some(env_key) = detail.strip_prefix("桌面宿主未获取到环境变量 ") {
     return format!("The desktop host could not read environment variable {env_key}");
   }
@@ -145,9 +150,7 @@ fn localize_provider_error(detail: String, english: bool) -> String {
     "Provider 请求发送失败" => "Could not send the Provider request".into(),
     "读取 Provider 响应失败" => "Could not read the Provider response".into(),
     "Provider 拒绝了当前凭据" => "The Provider rejected the current credential".into(),
-    "Provider 不支持配置的 Responses 端点" => {
-      "The Provider does not support the configured Responses endpoint".into()
-    }
+    "Provider 未找到配置的端点路径" => "The Provider has no endpoint at that path".into(),
     "Provider 当前请求过多或额度不足" => {
       "The Provider is rate limited or has insufficient quota".into()
     }

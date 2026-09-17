@@ -11,6 +11,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 const CONNECT_ATTEMPTS: usize = 3;
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 const ANTHROPIC_MAX_TOKENS: u32 = 8192;
+const MAX_VENDOR_DETAIL: usize = 200;
 static NEXT_REQUEST_ID: AtomicU64 = AtomicU64::new(1);
 
 /// The request shape a Provider endpoint understands. One managed adapter
@@ -245,18 +246,22 @@ async fn invoke_with_client(
     started.elapsed().as_millis(),
   );
   if !status.is_success() {
+    // The vendor usually explains the refusal better than the status code does,
+    // for instance an unknown model name. Pass that sentence through.
+    let vendor = failure_detail(response, &provider.bearer_token).await;
     log::warn!(
       target: "workbench::provider",
-      "request.error id={request_id} stage=http_status status={} elapsed_ms={}",
+      "request.error id={request_id} stage=http_status status={} detail={vendor:?} elapsed_ms={}",
       status.as_u16(),
       started.elapsed().as_millis(),
     );
-    return Err(match status.as_u16() {
-      401 | 403 => "Provider 拒绝了当前凭据".into(),
-      404 => "Provider 不支持配置的 Responses 端点".into(),
-      429 => "Provider 当前请求过多或额度不足".into(),
+    let base = match status.as_u16() {
+      401 | 403 => "Provider 拒绝了当前凭据".to_string(),
+      404 => "Provider 未找到配置的端点路径".to_string(),
+      429 => "Provider 当前请求过多或额度不足".to_string(),
       code => format!("Provider 请求失败（HTTP {code}）"),
-    });
+    };
+    return Err(if vendor.is_empty() { base } else { format!("{base} · {vendor}") });
   }
 
   let bytes = response
@@ -308,6 +313,41 @@ async fn invoke_with_client(
     model: provider.model,
     output,
   })
+}
+
+/// Reads the vendor explanation out of a refused request. Anything resembling
+/// a credential is removed before the sentence reaches a log or the interface.
+async fn failure_detail(response: reqwest::Response, secret: &str) -> String {
+  let Ok(bytes) = response.bytes().await else { return String::new() };
+  let text = match serde_json::from_slice::<serde_json::Value>(&bytes) {
+    Ok(body) => vendor_message(&body).unwrap_or_default(),
+    Err(_) => String::from_utf8_lossy(&bytes).into_owned(),
+  };
+  let collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+  if collapsed.is_empty() || collapsed.starts_with('<') {
+    return String::new();
+  }
+  let redacted = redact(&collapsed, secret);
+  match redacted.char_indices().nth(MAX_VENDOR_DETAIL) {
+    Some((index, _)) => format!("{}…", &redacted[..index]),
+    None => redacted,
+  }
+}
+
+fn vendor_message(body: &serde_json::Value) -> Option<String> {
+  ["/error/message", "/message", "/error", "/detail"]
+    .into_iter()
+    .find_map(|pointer| body.pointer(pointer).and_then(serde_json::Value::as_str))
+    .map(str::to_string)
+}
+
+fn redact(text: &str, secret: &str) -> String {
+  let text = if secret.chars().count() >= 8 { text.replace(secret, "[redacted]") } else { text.to_string() };
+  text
+    .split(' ')
+    .map(|word| if word.len() > 12 && word.contains("sk-") { "[redacted]" } else { word })
+    .collect::<Vec<_>>()
+    .join(" ")
 }
 
 fn request_error_kind(error: &reqwest::Error) -> &'static str {
@@ -535,6 +575,10 @@ mod tests {
 
   /// Answers one request with `body` and returns what the adapter sent.
   fn fake_endpoint(body: &'static str) -> (u16, std::thread::JoinHandle<String>) {
+    fake_endpoint_with_status("200 OK", body)
+  }
+
+  fn fake_endpoint_with_status(status: &'static str, body: &'static str) -> (u16, std::thread::JoinHandle<String>) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let handle = std::thread::spawn(move || {
@@ -542,7 +586,7 @@ mod tests {
       let mut buffer = [0u8; 4096];
       let read = stream.read(&mut buffer).unwrap();
       let response = format!(
-        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{body}",
+        "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{body}",
         body.len(),
       );
       stream.write_all(response.as_bytes()).unwrap();
@@ -582,6 +626,23 @@ mod tests {
     assert!(request.contains("anthropic-version: 2023-06-01"), "{request}");
     // A credential must never travel in a header the vendor does not expect.
     assert!(!request.contains("authorization:"), "{request}");
+  }
+
+  #[tokio::test]
+  async fn explains_a_refusal_in_the_words_of_the_vendor() {
+    let (port, endpoint) = fake_endpoint_with_status(
+      "503 Service Unavailable",
+      r#"{"error":{"message":"not_found_error: model: Claude-Opus-5 with key sk-1234567890abcdef"}}"#,
+    );
+    let mut provider = provider(WireApi::Anthropic);
+    provider.base_url = format!("http://127.0.0.1:{port}/v1");
+
+    let error = invoke(provider, "ping").await.unwrap_err();
+    assert!(error.starts_with("Provider 请求失败（HTTP 503） · "), "{error}");
+    assert!(error.contains("not_found_error: model: Claude-Opus-5"), "{error}");
+    // A key echoed back by the vendor must not reach the interface.
+    assert!(!error.contains("sk-1234567890abcdef"), "{error}");
+    endpoint.join().unwrap();
   }
 
   #[test]
