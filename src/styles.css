@@ -332,10 +332,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .provider-detail-actions { display: flex; align-items: center; gap: 14px; }
 .endpoint-panel { margin: 14px 0 0 47px; }
 .endpoint-preview-note { margin: 14px 0 0 47px; color: var(--ink-muted); font-size: 9px; }
-.endpoint-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.endpoint-panel-heading strong { font-size: 10px; font-weight: 650; }
-.endpoint-panel-heading .quiet-button { padding: 0; }
-.endpoint-list { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.endpoint-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.endpoint-add { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; padding: 9px 10px; border: 1px dashed var(--line-strong); border-radius: 9px; background: transparent; color: var(--ink-muted); font-size: 10px; font-weight: 600; transition: border-color .18s ease, color .18s ease, background .18s ease; }
+.endpoint-add:first-child { margin-top: 0; }
+.endpoint-add:hover { border-color: color-mix(in srgb, var(--accent) 52%, var(--line-strong)); background: var(--surface); color: var(--accent); }
+.endpoint-add svg { width: 13px; height: 13px; }
 .endpoint-item { display: flex; align-items: center; gap: 6px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); transition: border-color .18s ease, background .18s ease; }
 .endpoint-item:hover { border-color: var(--line-strong); }
 .endpoint-item.selected { border-color: color-mix(in srgb, var(--accent) 62%, var(--line)); background: var(--accent-wash); }

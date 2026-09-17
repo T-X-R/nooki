@@ -122,11 +122,6 @@ export function CompatibleEndpointSettings({ language, onNotice, onChanged }: { 
 
   return (
     <div className="endpoint-panel">
-      <div className="endpoint-panel-heading">
-        <strong>{t('endpointsTitle')}</strong>
-        {!form && <button className="quiet-button" onClick={() => { setForm(BLANK_FORM); setError('') }}>{t('addEndpoint')}<PlusIcon /></button>}
-      </div>
-
       {state.endpoints.length > 0 && <ul className="endpoint-list">
         {state.endpoints.map((endpoint) => (
           <li key={endpoint.id} className={`endpoint-item ${endpoint.selected ? 'selected' : ''}`}>
@@ -157,6 +152,8 @@ export function CompatibleEndpointSettings({ language, onNotice, onChanged }: { 
           </li>
         ))}
       </ul>}
+
+      {!form && <button className="endpoint-add" onClick={() => { setForm(BLANK_FORM); setError('') }}><PlusIcon />{t('addEndpoint')}</button>}
 
 
       {form && <form className="endpoint-form" onSubmit={(event) => { event.preventDefault(); submit() }}>
