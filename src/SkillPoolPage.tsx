@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm'
 import { CheckCircledIcon, Cross2Icon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, TrashIcon } from '@radix-ui/react-icons'
 import './skill-pool.css'
 import {
-  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, skillBody, toolSummary,
+  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, skillInstructions, toolSummary,
   type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill, type SkillDetail, type SkillFile,
 } from './skill-pool'
 
@@ -316,7 +316,6 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
         <div>
           <span className="section-kicker">SKILL</span>
           <h2 id="skill-pool-reader-title">{detail.title}</h2>
-          {!!detail.description && <p className="skill-pool-reader-description">{detail.description}</p>}
           <code className="skill-pool-reader-path">{detail.directory}</code>
         </div>
         <button className="icon-button" onClick={onClose} aria-label={zh ? '关闭' : 'Close'}><Cross2Icon /></button>
@@ -342,7 +341,11 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
         </nav>
         <article className="skill-pool-reader-content" key={path}>
           {error && <p className="skill-pool-error" role="alert">{error}</p>}
-          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{path === 'SKILL.md' ? skillBody(file.content) : file.content}</Markdown></div>}
+          {path === 'SKILL.md' && !!detail.description && <section className="skill-pool-reader-lead">
+            <span className="section-kicker">{zh ? '描述' : 'Description'}</span>
+            <p>{detail.description}</p>
+          </section>}
+          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{path === 'SKILL.md' ? skillInstructions(file.content, detail.name, detail.title) : file.content}</Markdown></div>}
           {file?.kind === 'text' && <pre className="skill-pool-reader-code">{file.content}</pre>}
           {file?.kind === 'image' && <SkillImage zh={zh} source={file.content} label={path} />}
           {file?.kind === 'binary' && <p className="skill-pool-empty">{zh ? `这是一个二进制文件（${size(file.sizeBytes)}），不在这里展开。` : `A binary file (${size(file.sizeBytes)}); it is not shown here.`}</p>}

@@ -73,6 +73,17 @@ export function skillBody(content: string): string {
   return normalized.slice(end).replace(/^\r?\n---[ \t]*/, '').replace(/^(\r?\n)+/, '')
 }
 
+/** The dialog is already named after the skill, so a body that opens by repeating that name loses the repetition. */
+export function skillInstructions(content: string, ...names: string[]): string {
+  const body = skillBody(content)
+  const opening = /^[ \t]*#[ \t]+(.+?)[ \t]*(\r?\n|$)/.exec(body)
+  if (!opening) return body
+  const simplify = (value: string) => value.toLowerCase().replace(/[^\p{Letter}\p{Number}]+/gu, '')
+  const heading = simplify(opening[1])
+  if (!heading || !names.some((name) => simplify(name) === heading)) return body
+  return body.slice(opening[0].length).replace(/^(\r?\n)+/, '')
+}
+
 /** SKILL.md first, then folder by folder, so a 255-file skill still reads in an order. */
 export function orderSkillFiles(files: string[]): string[] {
   const weight = (path: string) => (path === 'SKILL.md' ? 0 : path.includes('/') ? 2 : 1)

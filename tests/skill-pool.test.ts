@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, skillBody, toolSummary,
+  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, skillBody, skillInstructions, toolSummary,
   type Duplicate, type Overview, type PoolSkill, type ToolEntry, type ToolView,
 } from '../src/skill-pool.ts'
 
@@ -96,4 +96,13 @@ test('a skill declares itself in frontmatter, so the body starts after it', () =
   assert.equal(skillBody('---\nname: broken\n\n# Never closed'), '---\nname: broken\n\n# Never closed')
   assert.equal(skillBody('---\r\nname: pdf\r\n---\r\n\r\n# Windows\r\n'), '# Windows\r\n')
   assert.equal(skillBody('---\nname: pdf\n---\n\ntext with --- inside\n'), 'text with --- inside\n')
+})
+
+test('the dialog names the skill, so the body does not repeat that name', () => {
+  const repeated = '---\nname: sandbox-handwritten\n---\n\n# Sandbox Handwritten\n\nA sandbox skill.\n'
+  assert.equal(skillInstructions(repeated, 'sandbox-handwritten', 'sandbox-handwritten'), 'A sandbox skill.\n')
+  const titled = '---\nname: pdf\n---\n\n# Working with PDFs\n\nStart here.\n'
+  assert.equal(skillInstructions(titled, 'pdf', 'pdf'), '# Working with PDFs\n\nStart here.\n')
+  assert.equal(skillInstructions('## Overview\n\nBody.', 'overview'), '## Overview\n\nBody.')
+  assert.equal(skillInstructions('# 技能池\n\n正文\n', '技能池'), '正文\n')
 })
