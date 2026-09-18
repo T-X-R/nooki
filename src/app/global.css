@@ -310,8 +310,21 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .settings-section { padding: 22px 0 25px; border-bottom: 1px solid var(--line); }
 .settings-section-heading { display: grid; grid-template-columns: 35px 1fr; gap: 12px; }
 .settings-number { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 650; }
-.settings-section h2 { margin: -2px 0 7px; font-size: 17px; font-weight: 650; letter-spacing: -.035em; }
+.settings-section h2, .settings-section h3 { margin: -2px 0 7px; font-size: 17px; font-weight: 650; letter-spacing: -.035em; }
 .settings-section p { margin: 0; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+
+/* Two groups, because a person has to know whether a setting leaves Nooki before they change it. */
+.settings-group { margin-top: 30px; }
+.settings-group-heading { padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+.settings-group-heading h2 { margin: 0 0 3px; font-size: 13px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
+.settings-group-heading p { margin: 0; color: var(--ink-muted); font-size: 11px; }
+.settings-group-empty { margin: 14px 0 0; color: var(--ink-muted); font-size: 11px; }
+.settings-section.is-reserved { opacity: .62; }
+.settings-reserved-tag { margin-left: 8px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-muted); font-size: 9px; font-weight: 550; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; }
+.settings-linked-row { margin-top: 12px; padding-left: 47px; }
+.settings-scope-notes { margin: 12px 0 0; padding-left: 47px; list-style: none; }
+.settings-scope-notes li { position: relative; margin-top: 5px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+.settings-scope-notes li::before { content: ''; position: absolute; left: -13px; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
 .provider-options, .theme-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 19px 0 12px 47px; }
 .provider-option, .theme-option { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 80px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
 .provider-option:hover, .theme-option:hover { border-color: var(--line-strong); background: var(--surface-strong); }
