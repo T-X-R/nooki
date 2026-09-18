@@ -64,6 +64,40 @@ export type SkillFile = {
   sizeBytes: number
 }
 
+export type SkillField = { key: string; value: string }
+
+/** The frontmatter a skill declares about itself, read as a card above its instructions rather than as YAML.
+ *  Only the shapes skills actually use are understood: plain values, quoted values, block scalars and lists. */
+export function skillFrontmatter(content: string): SkillField[] {
+  const normalized = content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
+  if (!/^---\n/.test(normalized)) return []
+  const end = normalized.indexOf('\n---', 3)
+  if (end === -1) return []
+  const lines = normalized.slice(4, end).split('\n')
+  const fields: SkillField[] = []
+  const unquote = (value: string) => /^(['"])([\s\S]*)\1$/.exec(value.trim())?.[2] ?? value.trim()
+  for (let index = 0; index < lines.length; index += 1) {
+    const opening = /^([A-Za-z_][\w .-]*):[ \t]*(.*)$/.exec(lines[index])
+    if (!opening) continue
+    const key = opening[1].trim()
+    const folded = /^[|>][-+]?$/.test(opening[2].trim())
+    let value = folded ? '' : unquote(opening[2])
+    const parts: string[] = []
+    while (index + 1 < lines.length && (/^[ \t]+\S/.test(lines[index + 1]) || (folded && !lines[index + 1].trim()))) {
+      index += 1
+      const line = lines[index].trim()
+      parts.push(line.startsWith('- ') ? line.slice(2).trim() : line)
+    }
+    if (parts.length) {
+      const listed = parts.every((part) => part.length) && lines.slice(index - parts.length + 1, index + 1).every((line) => line.trim().startsWith('- '))
+      const joined = listed ? parts.map(unquote).join(', ') : parts.join(folded && opening[2].trim().startsWith('>') ? ' ' : '\n').trim()
+      value = value ? `${value} ${joined}` : joined
+    }
+    if (key && value) fields.push({ key, value: unquote(value) })
+  }
+  return fields
+}
+
 /** A skill declares itself in frontmatter; the reader shows that as a heading, not as body text. */
 export function skillBody(content: string): string {
   const normalized = content.replace(/^\uFEFF/, '')

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, skillBody, skillInstructions, toolSummary,
+  distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, skillBody, skillFrontmatter, skillInstructions, toolSummary,
   type Duplicate, type Overview, type PoolSkill, type ToolEntry, type ToolView,
 } from '../src/skill-pool.ts'
 
@@ -105,4 +105,35 @@ test('the dialog names the skill, so the body does not repeat that name', () => 
   assert.equal(skillInstructions(titled, 'pdf', 'pdf'), '# Working with PDFs\n\nStart here.\n')
   assert.equal(skillInstructions('## Overview\n\nBody.', 'overview'), '## Overview\n\nBody.')
   assert.equal(skillInstructions('# 技能池\n\n正文\n', '技能池'), '正文\n')
+})
+
+test('frontmatter reads as the fields a skill declares about itself', () => {
+  const fields = skillFrontmatter([
+    '---',
+    'name: doctor-prescription-logic',
+    'description: 根据患者开药请求提取药品名称，在 `skills/` 文件夹中检索。',
+    'allowed-tools:',
+    '  - read',
+    '  - bash',
+    'license: "MIT"',
+    '---',
+    '',
+    '# 医保开药规则解读',
+  ].join('\n'))
+  assert.deepEqual(fields, [
+    { key: 'name', value: 'doctor-prescription-logic' },
+    { key: 'description', value: '根据患者开药请求提取药品名称，在 `skills/` 文件夹中检索。' },
+    { key: 'allowed-tools', value: 'read, bash' },
+    { key: 'license', value: 'MIT' },
+  ])
+})
+
+test('a wrapped description stays one field', () => {
+  const fields = skillFrontmatter('---\ndescription: >\n  Use when a user asks\n  for a prescription rule.\nname: rules\n---\nbody\n')
+  assert.deepEqual(fields, [{ key: 'description', value: 'Use when a user asks for a prescription rule.' }, { key: 'name', value: 'rules' }])
+})
+
+test('a file without frontmatter declares nothing', () => {
+  assert.deepEqual(skillFrontmatter('# Title\n\nname: not frontmatter\n'), [])
+  assert.deepEqual(skillFrontmatter('---\nname: unterminated\n'), [])
 })

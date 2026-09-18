@@ -1,13 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import Markdown from 'react-markdown'
+import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import type { RootContent } from 'hast'
+import type { PluggableList } from 'unified'
 import { CheckCircledIcon, Cross2Icon, ExclamationTriangleIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, TrashIcon } from '@radix-ui/react-icons'
+import 'highlight.js/styles/github-dark.css'
 import './skill-pool.css'
+import { codeLanguages, highlightCode, languageForPath } from './code-highlight'
 import {
-  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, skillInstructions, toolSummary,
+  distributableTools, detectedTools, emptyOverview, fileLabel, groupDecisions, holders, isSelected, nextSelection, orderSkillFiles, searchSkills, skillFrontmatter, skillInstructions, toolSummary,
   type DecisionGroup, type DeleteReport, type Duplicate, type Overview, type PoolSkill, type SkillDetail, type SkillFile,
 } from './skill-pool'
+
+/** Fences are highlighted once, by the same registry the plain file viewer uses. */
+const rehypePlugins: PluggableList = [[rehypeHighlight, { languages: codeLanguages, detect: false }]]
+const markdownComponents: Components = {
+  pre: ({ children }) => <div className="skill-pool-code"><pre>{children}</pre></div>,
+  table: ({ children }) => <div className="skill-pool-table"><table>{children}</table></div>,
+}
 
 export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
   const zh = language === 'zh'
@@ -309,6 +321,12 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
   }, [detail.name, path])
   const needle = filter.trim().toLowerCase()
   const listed = needle ? files.filter((entry) => entry.toLowerCase().includes(needle)) : files
+  // What the skill says about itself belongs above its instructions, as a card, not as YAML the reader has to parse.
+  const declared = useMemo(() => {
+    const fields = skillFrontmatter(detail.content)
+    if (fields.length) return fields
+    return detail.description ? [{ key: zh ? '描述' : 'description', value: detail.description }] : []
+  }, [detail.content, detail.description, zh])
   const size = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
   return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={-1} className="modal skill-pool-reader" role="dialog" aria-modal="true" aria-labelledby="skill-pool-reader-title">
@@ -341,12 +359,14 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
         </nav>
         <article className="skill-pool-reader-content" key={path}>
           {error && <p className="skill-pool-error" role="alert">{error}</p>}
-          {path === 'SKILL.md' && !!detail.description && <dl className="skill-pool-reader-meta">
-            <dt className="section-kicker">{zh ? '描述' : 'Description'}</dt>
-            <dd>{detail.description}</dd>
+          {path === 'SKILL.md' && !!declared.length && <dl className="skill-pool-reader-meta">
+            {declared.map((field) => <div key={field.key}>
+              <dt className="section-kicker">{field.key}</dt>
+              <dd>{field.value}</dd>
+            </div>)}
           </dl>}
-          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]}>{path === 'SKILL.md' ? skillInstructions(file.content, detail.name, detail.title) : file.content}</Markdown></div>}
-          {file?.kind === 'text' && <pre className="skill-pool-reader-code">{file.content}</pre>}
+          {file?.kind === 'markdown' && <div className="skill-pool-markdown"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={rehypePlugins} components={markdownComponents}>{path === 'SKILL.md' ? skillInstructions(file.content, detail.name, detail.title) : file.content}</Markdown></div>}
+          {file?.kind === 'text' && <CodeBlock code={file.content} language={languageForPath(path)} />}
           {file?.kind === 'image' && <SkillImage zh={zh} source={file.content} label={path} />}
           {file?.kind === 'binary' && <p className="skill-pool-empty">{zh ? `这是一个二进制文件（${size(file.sizeBytes)}），不在这里展开。` : `A binary file (${size(file.sizeBytes)}); it is not shown here.`}</p>}
           {file?.truncated && <p className="skill-pool-empty">{zh ? '文件很长，只显示开头部分。' : 'The file is long; only the beginning is shown.'}</p>}
@@ -358,6 +378,23 @@ function SkillReader({ zh, detail, onClose }: { zh: boolean; detail: SkillDetail
       </footer>
     </section>
   </div>
+}
+
+/** One code surface for both worlds: a fenced block inside instructions and a whole `.json` or `.py` file. */
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  const tree = useMemo(() => highlightCode(code, language), [code, language])
+  return <div className="skill-pool-code" data-language={language || undefined}>
+    <pre><code className="hljs">{highlighted(tree.children)}</code></pre>
+  </div>
+}
+
+function highlighted(nodes: RootContent[]): ReactNode {
+  return nodes.map((node, index) => {
+    if (node.type === 'text') return node.value
+    if (node.type !== 'element') return null
+    const names = node.properties?.className
+    return <span key={index} className={Array.isArray(names) ? names.join(' ') : undefined}>{highlighted(node.children)}</span>
+  })
 }
 
 /** A blob keeps a large image out of the DOM as text and survives a strict content policy. */
