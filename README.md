@@ -93,6 +93,11 @@ npm run dev -- --host 127.0.0.1 --port 5193
 npm run test:ui
 ```
 
-See [Capability infrastructure](INFRASTRUCTURE.md) and [Domain concepts](CONTEXT.md) for technical details.
+See [Capability infrastructure](INFRASTRUCTURE.md) and [Domain concepts](CONTEXT.md) for technical
+details.
+
+`docs/` holds the design record: the [architecture](docs/architecture.md) the first version was
+built from, the [decision records](docs/adr/), and the [Skill Pool spec](docs/spec-skill-pool.md).
+Notes that are not meant for the repository live in `docs/local/`, which stays untracked.
 
 Write repository documentation and pull request titles and descriptions in English.
