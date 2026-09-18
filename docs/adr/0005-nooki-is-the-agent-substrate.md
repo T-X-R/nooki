@@ -54,13 +54,29 @@ only Nooki can see the whole. The ledger is Nooki's data, and the verbatim trans
 tool that produced it.
 
 **Nooki keeps exactly one execution surface of its own.** The Conversation exists because work on
-Library documents has no home inside a code-native agent, and because Nooki must be useful when no
-other agent is installed. It is the document-native agent, not the unified entry point for agents.
-It stays a single, deep integration, and it is the only place Nooki speaks an agent's protocol.
+Library documents has no home inside a code-native agent. It is the document-native agent, not the
+unified entry point for agents. It stays a single, deep integration, and it is the only place Nooki
+speaks an agent's protocol.
 
-And three refusals. Nooki does not implement an agent loop, does not implement a model client beyond
-the minimum a Capability needs, and does not implement a sandbox. Every one of those is maintained
-by a vendor spending more on it each quarter than this project will in its lifetime.
+And three refusals. Nooki does not implement an agent loop, does not implement a model client, and
+does not implement a sandbox. Every one of those is maintained by a vendor spending more on it each
+quarter than this project will in its lifetime.
+
+### Nooki lists agents, not authentication modes
+
+A corollary worth stating separately, because Nooki got it wrong twice.
+
+Whether Codex is signed in with a ChatGPT subscription or an API key is recorded in
+`~/.codex/auth.json` and reported by the app-server through `account/read`. Which models it may use
+comes from `model/list`. What quota remains comes from `account/rateLimits/read`. Every one of those
+facts belongs to the tool, is maintained by the tool, and is already correct in the tool.
+
+So Nooki offers **one entry per installed agent**, never one entry per way of authenticating it.
+Sign-in state, credentials, and model choice are detected and displayed read-only; a person who is
+not signed in is sent to that tool to sign in. Nooki reads no credential and stores none.
+
+The Agent Tool the Skill Pool already detects is that entry. One detection, reused everywhere: skill
+distribution, Capability model access, and later the session ledger and asset distribution.
 
 ### The test
 
@@ -80,15 +96,38 @@ Before any feature enters Nooki, three questions:
 | The record of approvals, skill use, and artifacts | The verbatim transcript |
 | Handing work from one agent to the next | Migrating a model's context |
 | Documents, and an agent that is native to them | A general-purpose agent |
+| One entry per installed agent | One entry per way of signing into one |
 
 ## Consequences
 
-The **Compatible Endpoint as built is off this line.** It gave Nooki a private credential store, an
-HTTP stack, and hand-written knowledge of three vendor wire formats — a duplicate of what every
-installed agent already ships, and one that cannot keep up: it has no streaming, no tools, and no
-second turn. It is re-scoped rather than removed. An endpoint definition becomes a shared asset,
-authored once and distributed to the tools that can use it, and Nooki keeps only the smallest
-invocation path that Capability `ai.invoke` requires. See the Settings spec.
+**Nooki stops making model requests.** The Compatible Endpoint gave Nooki a private credential store,
+an HTTP stack, and hand-written knowledge of three vendor wire formats — around 1,375 lines
+duplicating what every installed agent already ships, and unable to keep up: no streaming, no tools,
+no second turn. It is removed, along with the endpoint list, the credential store, and the reader for
+`~/.codex/api.config.toml`.
+
+Capability `ai.invoke` is instead served by a one-shot turn on an installed agent. That is not a
+reduction: it inherits streaming, retries, vendor quirks, and structured output through the
+agent's own `outputSchema`, none of which Nooki would have written. The **Model Gateway** stays
+exactly as `CONTEXT.md` defines it, so no Capability changes; only what sits behind it changes.
+
+**Nooki keeps no credentials at all.** `AI Provider` and `Credential Broker` cease to be concepts.
+An architecture change that removes concepts rather than adding them is the signal that the boundary
+was drawn in the right place.
+
+**Model endpoints are not a shared asset.** Of the four candidates, model configuration is the worst:
+its payload is a secret, the per-tool schemas differ most, and a person changes it once a year. It
+stays where each vendor maintains it and where the person already sets it. MCP servers and
+conventions files prove the distribution machinery first, on payloads that are not keys.
+
+**A machine with no agent installed has no AI in Nooki.** This is the cost of the decision and it is
+accepted deliberately rather than worked around. Nooki is the layer above the agents; with none
+beneath it, documents, skills, and tasks still work and nothing pretends otherwise. The interface
+says so plainly instead of offering a control that cannot succeed.
+
+**Capability invocations spend the person's agent quota.** Previously they spent an API key the
+person had entered for that purpose. A Capability says which agent it is about to spend before it
+spends it.
 
 **Settings becomes the configuration surface of the substrate**, not a preferences panel. The
 machine's shared configuration and Nooki's own preferences are different things and stop sharing a
@@ -115,6 +154,8 @@ integration, in one module, for one tool, with a stated reason. It is not a temp
 - How MCP servers and conventions files are modelled as distributed assets.
 - Whether the Conversation gains an approval surface and per-session skill loadouts. That work is
   compatible with this decision but is specified separately.
+- Whether a Capability may request a specific model rather than accepting the agent's default. The
+  agent reports its models through `model/list`, so the option exists; the need does not yet.
 - Windows. Paths and detection target macOS first, as in ADR 0004.
 
 See [the Settings spec](../spec-settings.md) for the first change this decision forces, and
