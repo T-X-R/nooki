@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { TaskRecord } from '../packages/capability-contract/src/index.ts'
-import { groupTasks } from '../src/task-groups.ts'
-import { CONVERSATION_OWNER } from '../src/conversation-model.ts'
+import { groupTasks } from '../src/features/tasks/task-groups.ts'
+import { CONVERSATION_OWNER } from '../src/features/conversation/conversation-model.ts'
 
 function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
   return { id, ownerKind: 'platform', capabilityId: CONVERSATION_OWNER, capabilityVersion: '1', job: 'respond', input: { threadId: 'one', message: 'First question' }, status: 'completed', stage: null, attempt: 1, checkpoints: {}, result: null, error: null, createdAt: '2026-09-08T01:00:00Z', updatedAt: '2026-09-08T01:00:00Z', ...overrides }

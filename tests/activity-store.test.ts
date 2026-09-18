@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { activityStorageKey, createActivityStore, todayFeed } from '../src/activity-store.ts'
+import { activityStorageKey, createActivityStore, todayFeed } from '../src/platform/activity-store.ts'
 import type { TaskRecord } from '../packages/capability-contract/src/index.ts'
 
 test('legacy activity survives restart and stable business keys update without duplicate rows', () => {

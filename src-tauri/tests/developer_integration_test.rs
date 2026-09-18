@@ -15,26 +15,31 @@ impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 fn inspection_is_read_only_and_install_is_complete_and_idempotent() {
   let fixture = Fixture::new();
   let integration = fixture.integration();
-  assert_eq!(integration.inspect("codex").unwrap().status, "missing");
+  assert_eq!(integration.inspect().unwrap().status, "missing");
   assert!(!fixture.0.join(".agents").exists());
-  let installed = integration.install("codex").unwrap();
+  let installed = integration.install().unwrap();
   assert_eq!(installed.status, "current");
   let skill = fixture.0.join(".agents/skills").join(SKILL_NAME);
   for (path, content) in bundled_files() { assert_eq!(fs::read_to_string(skill.join(path)).unwrap(), content); }
-  assert_eq!(integration.install("codex").unwrap().status, "current");
+  assert_eq!(integration.install().unwrap().status, "current");
   assert!(!fixture.0.join(".claude").exists());
 }
 
 #[test]
-fn detects_claude_configuration_and_installs_only_into_its_skills_directory() {
+fn installs_into_the_skill_pool_and_reaches_every_detected_tool() {
   let fixture = Fixture::new();
   fs::create_dir(fixture.0.join(".claude")).unwrap();
   fs::write(fixture.0.join(".claude/settings.json"), "personal settings").unwrap();
-  let integration = fixture.integration();
-  assert!(integration.inspect("claude").unwrap().detected);
-  let installed = integration.install("claude").unwrap();
-  assert_eq!(PathBuf::from(installed.directory), fixture.0.join(".claude/skills").join(SKILL_NAME));
+  let installed = fixture.integration().install().unwrap();
+  assert_eq!(PathBuf::from(&installed.directory), fixture.0.join(".agents/skills").join(SKILL_NAME));
+  assert!(!fixture.0.join(".claude/skills").exists(), "distribution belongs to the skill pool");
+
+  let pool = app_lib::skill_pool::SkillPool::new(fixture.0.clone(), fixture.0.join("data"));
+  let overview = pool.overview().unwrap();
+  assert!(overview.skills.iter().any(|skill| skill.name == SKILL_NAME));
+  assert!(fixture.0.join(".claude/skills").join(SKILL_NAME).join("SKILL.md").is_file());
   assert_eq!(fs::read_to_string(fixture.0.join(".claude/settings.json")).unwrap(), "personal settings");
+  assert!(overview.duplicates.is_empty(), "{:?}", overview.duplicates);
 }
 
 #[test]
@@ -43,12 +48,12 @@ fn updates_owned_skill_and_preserves_unrelated_skills() {
   let mut old = bundled_files();
   old.insert("kit.json".into(), "{\"version\":\"0.0.1\",\"platformVersion\":\"0.3.0\"}".into());
   old.insert("retired.md".into(), "old resource".into());
-  DeveloperIntegration::new(fixture.0.clone(), old).install("codex").unwrap();
+  DeveloperIntegration::new(fixture.0.clone(), old).install().unwrap();
   let sibling = fixture.0.join(".agents/skills/my-skill");
   fs::create_dir(&sibling).unwrap(); fs::write(sibling.join("SKILL.md"), "user skill").unwrap();
   let integration = fixture.integration();
-  assert_eq!(integration.inspect("codex").unwrap().status, "update");
-  assert_eq!(integration.install("codex").unwrap().status, "current");
+  assert_eq!(integration.inspect().unwrap().status, "update");
+  assert_eq!(integration.install().unwrap().status, "current");
   assert!(!fixture.0.join(".agents/skills").join(SKILL_NAME).join("retired.md").exists());
   assert_eq!(fs::read_to_string(sibling.join("SKILL.md")).unwrap(), "user skill");
 }
@@ -58,15 +63,15 @@ fn edits_additions_deletions_and_unmanaged_skills_are_preserved() {
   for mutation in ["edit", "add", "delete", "receipt"] {
     let fixture = Fixture::new();
     let integration = fixture.integration();
-    let path = PathBuf::from(integration.install("claude").unwrap().directory);
+    let path = PathBuf::from(integration.install().unwrap().directory);
     match mutation {
       "edit" => fs::write(path.join("SKILL.md"), "my own instructions").unwrap(),
       "add" => fs::write(path.join("my-notes.md"), "keep me").unwrap(),
       "delete" => fs::remove_file(path.join("SKILL.md")).unwrap(),
       _ => fs::remove_file(path.join(".workbench-integration.json")).unwrap(),
     }
-    assert_eq!(integration.inspect("claude").unwrap().status, "modified");
-    assert!(integration.install("claude").is_err());
+    assert_eq!(integration.inspect().unwrap().status, "modified");
+    assert!(integration.install().is_err());
     if mutation == "edit" { assert_eq!(fs::read_to_string(path.join("SKILL.md")).unwrap(), "my own instructions"); }
     if mutation == "add" { assert_eq!(fs::read_to_string(path.join("my-notes.md")).unwrap(), "keep me"); }
     if mutation == "delete" { assert!(!path.join("SKILL.md").exists()); }
@@ -74,15 +79,14 @@ fn edits_additions_deletions_and_unmanaged_skills_are_preserved() {
 }
 
 #[test]
-fn refuses_downgrade_and_invalid_tool() {
+fn refuses_a_downgrade() {
   let fixture = Fixture::new();
   let mut future = bundled_files();
   future.insert("kit.json".into(), "{\"version\":\"99.0.0\",\"platformVersion\":\"0.3.0\"}".into());
-  DeveloperIntegration::new(fixture.0.clone(), future).install("codex").unwrap();
+  DeveloperIntegration::new(fixture.0.clone(), future).install().unwrap();
   let integration = fixture.integration();
-  assert_eq!(integration.inspect("codex").unwrap().status, "newer");
-  assert!(integration.install("codex").is_err());
-  assert!(integration.install("unknown").is_err());
+  assert_eq!(integration.inspect().unwrap().status, "newer");
+  assert!(integration.install().is_err());
 
 }
 
@@ -96,25 +100,25 @@ fn preserves_linked_skill_and_linked_files() {
   fs::write(outside.join("SKILL.md"), "keep me").unwrap();
   symlink(&outside, root.join(SKILL_NAME)).unwrap();
   let integration = fixture.integration();
-  assert_eq!(integration.inspect("codex").unwrap().status, "modified");
-  assert!(integration.install("codex").is_err());
+  assert_eq!(integration.inspect().unwrap().status, "modified");
+  assert!(integration.install().is_err());
   assert_eq!(fs::read_to_string(outside.join("SKILL.md")).unwrap(), "keep me");
   fs::remove_file(root.join(SKILL_NAME)).unwrap();
-  integration.install("codex").unwrap();
+  integration.install().unwrap();
   symlink(&outside, root.join(SKILL_NAME).join("linked")).unwrap();
-  assert_eq!(integration.inspect("codex").unwrap().status, "modified");
-  assert!(integration.install("codex").is_err());
+  assert_eq!(integration.inspect().unwrap().status, "modified");
+  assert!(integration.install().is_err());
 }
 
 #[test]
 fn interrupted_swap_can_restore_previous_skill_without_overwriting_changes() {
   let fixture = Fixture::new();
   let integration = fixture.integration();
-  let path = PathBuf::from(integration.install("codex").unwrap().directory);
+  let path = PathBuf::from(integration.install().unwrap().directory);
   let backup = path.parent().unwrap().join(".workbench-capability-dev.previous");
   fs::rename(path, &backup).unwrap();
-  assert_eq!(integration.inspect("codex").unwrap().status, "recovery");
-  assert_eq!(integration.install("codex").unwrap().status, "current");
+  assert_eq!(integration.inspect().unwrap().status, "recovery");
+  assert_eq!(integration.install().unwrap().status, "current");
   assert!(!backup.exists());
 }
 

@@ -12,6 +12,7 @@ pub mod managed_provider;
 pub mod package_installer;
 pub mod task_execution;
 pub mod developer_integration;
+pub mod skill_pool;
 
 use capability_runtime::{CapabilityManifest, InstalledCapability, PlatformState};
 use codex_session_source::{read_daily_files, CodexDailySessionFiles};
@@ -791,12 +792,21 @@ pub fn run() {
       app.manage(platform_state);
       app.manage(task_execution::TaskExecutions::default());
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
+      app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      developer_integration::developer_integrations,
+      developer_integration::developer_integration,
       developer_integration::developer_integration_install,
       developer_integration::developer_kit_export,
+      skill_pool::skill_pool_overview,
+      skill_pool::skill_pool_set_selection,
+      skill_pool::skill_pool_resolve,
+      skill_pool::skill_pool_read,
+      skill_pool::skill_pool_read_file,
+      skill_pool::skill_pool_delete,
+      skill_pool::skill_pool_add_tool,
+      skill_pool::skill_pool_remove_tool,
       conversation_list, conversation_change, conversation_create, conversation_read, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,

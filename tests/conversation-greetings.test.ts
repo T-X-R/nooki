@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { conversationGreetings, createGreetingRotation } from '../src/conversation-greetings.ts'
+import { conversationGreetings, createGreetingRotation } from '../src/features/conversation/conversation-greetings.ts'
 const fresh = { fresh: true, hasDocuments: false, hasText: false }
 
 test('every opening has both languages and ordinary openings never mention documents', () => {

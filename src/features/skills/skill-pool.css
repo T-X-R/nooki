@@ -1,0 +1,121 @@
+.skill-pool-page { display: flex; flex-direction: column; gap: 28px; }
+.skill-pool-heading { align-items: flex-start; }
+/* A line that carries a path is one font, never a mix of the interface and monospace faces. */
+.skill-pool-path, .skill-pool-tool code, .skill-pool-decision code, .skill-pool-skill-main small { display: block; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink-soft); line-height: 1.6; }
+.skill-pool-path { margin-top: 6px; font-size: 10px; }
+.skill-pool-tool code, .skill-pool-decision code { font-size: 10px; }
+
+.skill-pool-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.skill-pool-section-heading h2, .skill-pool-decisions h2 { font-size: 13px; font-weight: 650; }
+
+.skill-pool-decisions { display: flex; flex-direction: column; gap: 12px; }
+.skill-pool-decision { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.skill-pool-decision h3 { font-size: 12px; font-weight: 650; }
+.skill-pool-decision p { font-size: 11.5px; color: var(--ink-muted); }
+.skill-pool-decision details { font-size: 11px; color: var(--ink-muted); }
+.skill-pool-decision details summary { width: fit-content; padding: 2px 0; font: inherit; font-size: 10px; font-weight: 600; color: var(--ink-muted); cursor: pointer; }
+.skill-pool-decision details code { margin-top: 5px; }
+.skill-pool-decision-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.skill-pool-rename { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.skill-pool-rename label, .skill-pool-add-tool label { display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; color: var(--ink-muted); }
+.skill-pool-rename input, .skill-pool-add-tool input, .skill-pool-search input { min-width: 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 11.5px; }
+
+.skill-pool-tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.skill-pool-tool { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.skill-pool-tool header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.skill-pool-tool p { font-size: 11px; color: var(--ink-muted); }
+.skill-pool-badge { padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-strong, var(--accent)); font-size: 9.5px; }
+
+.skill-pool-search { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); }
+.skill-pool-search svg { width: 13px; height: 13px; }
+.skill-pool-skills { display: flex; flex-direction: column; gap: 10px; }
+.skill-pool-skill { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; }
+.skill-pool-skill-main { display: flex; flex-direction: column; gap: 4px; max-width: 60ch; }
+.skill-pool-skill-main h3 { font-size: 12.5px; font-weight: 650; }
+.skill-pool-skill-main p { font-size: 11.5px; color: var(--ink-muted); }
+.skill-pool-skill-main small { margin-top: 2px; font-size: 9.5px; }
+.skill-pool-skill-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.skill-pool-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-muted); }
+.skill-pool-confirm-option { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; }
+
+.skill-pool-empty, .skill-pool-preview { font-size: 11.5px; color: var(--ink-muted); }
+.skill-pool-notices p, .skill-pool-error, .skill-pool-notice { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+.skill-pool-notices p { color: var(--ink-muted); }
+.skill-pool-error { color: var(--danger, #b4412f); }
+.skill-pool-delete { display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+.skill-pool-add-tool { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 12px; }
+.skill-pool-add-actions { display: flex; align-items: center; gap: 10px; }
+.skill-pool-decision-list { display: flex; flex-direction: column; gap: 10px; padding-left: 12px; border-left: 1px solid var(--line); }
+
+/* The whole row opens the skill, so the heading area is a button that still reads as text. */
+.skill-pool-skill-main { flex: 1 1 320px; align-items: flex-start; padding: 0; background: transparent; text-align: left; cursor: pointer; }
+.skill-pool-skill-main h3 { transition: color .16s ease; }
+.skill-pool-skill-main:hover h3, .skill-pool-skill-main:focus-visible h3 { color: var(--accent-strong, var(--accent)); }
+
+.skill-pool-reader { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; width: min(1100px, 94vw); height: min(820px, 88vh); padding: 0; overflow: hidden; }
+.skill-pool-reader-header { padding: 20px 22px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, var(--surface-strong), color-mix(in srgb, var(--surface-muted) 55%, var(--surface-strong))); }
+.skill-pool-reader-header h2 { margin-top: 7px; font-size: 18px; letter-spacing: -.03em; }
+.skill-pool-reader-path { display: block; margin-top: 7px; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--ink-soft); }
+
+.skill-pool-reader-body { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 0; }
+.skill-pool-reader-files { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 14px 12px; overflow-y: auto; border-right: 1px solid var(--line); background: var(--surface-muted); }
+.skill-pool-reader-filter { padding: 0 4px; }
+.skill-pool-reader-filter input { min-width: 0; width: 100%; font-size: 11px; }
+.skill-pool-reader-count { padding: 0 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.skill-pool-reader-files ul { display: flex; flex-direction: column; gap: 2px; }
+.skill-pool-reader-files button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; padding: 6px 8px; border-radius: 7px; background: transparent; text-align: left; transition: background .16s ease, color .16s ease; }
+.skill-pool-reader-files button span { overflow: hidden; width: 100%; font-size: 11px; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; }
+.skill-pool-reader-files button small { overflow: hidden; width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; color: var(--ink-soft); text-overflow: ellipsis; white-space: nowrap; }
+.skill-pool-reader-files button:hover { background: var(--surface); }
+.skill-pool-reader-files button.is-active { background: var(--surface-strong); }
+.skill-pool-reader-files button.is-active span { font-weight: 650; color: var(--accent-strong, var(--accent)); }
+
+.skill-pool-reader-content { min-height: 0; padding: 30px 40px 60px; overflow-y: auto; scroll-behavior: smooth; }
+/* What the skill declares about itself reads as a record card, one row per field, above the instructions. */
+.skill-pool-reader-meta { margin: 2px 0 34px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--surface) 60%, var(--surface-strong)); overflow: hidden; }
+.skill-pool-reader-meta > div { display: grid; grid-template-columns: minmax(96px, 140px) minmax(0, 1fr); align-items: start; gap: 4px 28px; padding: 14px 20px; }
+.skill-pool-reader-meta > div + div { border-top: 1px solid var(--line); }
+.skill-pool-reader-meta dt { padding-top: 3px; color: var(--accent-strong, var(--accent)); }
+.skill-pool-reader-meta dd { max-width: 74ch; font-size: 12.5px; line-height: 1.9; color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; white-space: pre-wrap; }
+.skill-pool-reader-meta > div:first-child dd { font-weight: 640; }
+@media (max-width: 880px) { .skill-pool-reader-meta > div { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+.skill-pool-reader-image { max-width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-muted); }
+.skill-pool-reader-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; border-top: 1px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; color: var(--ink-soft); }
+
+/* One dark code surface, borrowed from the github-dark tokens the highlighter emits. */
+.skill-pool-page, .skill-pool-reader { --code-surface: #0d1117; --code-ink: #e6edf3; }
+
+/* Reading a skill should feel like reading a document, not a config dump. */
+.skill-pool-markdown { max-width: 78ch; overflow-wrap: anywhere; font-size: 13px; line-height: 1.9; color: var(--ink); text-wrap: pretty; }
+.skill-pool-markdown > :first-child { margin-top: 0; }
+.skill-pool-markdown h1, .skill-pool-markdown h2, .skill-pool-markdown h3 { line-height: 1.4; text-wrap: balance; }
+.skill-pool-markdown h1 { margin: 34px 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); font-size: 24px; font-weight: 700; letter-spacing: -.04em; }
+.skill-pool-markdown h2 { margin: 36px 0 12px; font-size: 17px; font-weight: 680; letter-spacing: -.028em; }
+.skill-pool-markdown h3 { margin: 26px 0 8px; font-size: 14px; font-weight: 660; letter-spacing: -.012em; }
+.skill-pool-markdown h1 + p, .skill-pool-markdown h2 + h3, .skill-pool-markdown h3 + p, .skill-pool-markdown h2 + p { margin-top: 6px; }
+.skill-pool-markdown h4, .skill-pool-markdown h5, .skill-pool-markdown h6 { margin: 18px 0 6px; font-size: 11px; font-weight: 650; color: var(--ink-soft); letter-spacing: .1em; text-transform: uppercase; }
+.skill-pool-markdown p { margin: 11px 0; }
+.skill-pool-markdown ul, .skill-pool-markdown ol { margin: 10px 0 10px 22px; list-style: revert; }
+.skill-pool-markdown li { margin: 5px 0; padding-left: 2px; }
+.skill-pool-markdown li::marker { color: var(--ink-soft); }
+.skill-pool-markdown li > ul, .skill-pool-markdown li > ol { margin: 5px 0 5px 18px; }
+.skill-pool-markdown a { color: var(--accent-strong, var(--accent)); text-decoration: underline; text-underline-offset: 2px; }
+.skill-pool-markdown strong { font-weight: 650; }
+.skill-pool-markdown em { color: var(--ink-muted); }
+.skill-pool-markdown blockquote { margin: 16px 0; padding: 2px 0 2px 16px; border-left: 2px solid color-mix(in srgb, var(--accent) 45%, var(--line-strong)); color: var(--ink-muted); }
+.skill-pool-markdown hr { margin: 28px 0; border: 0; border-top: 1px solid var(--line); }
+/* An inline mention of a file, a field or a value is a quiet accent, not a boxed-in fragment. */
+.skill-pool-markdown code { padding: 1.5px 6px; border-radius: 5px; background: color-mix(in srgb, var(--accent-soft) 55%, transparent); color: var(--accent-strong, var(--accent)); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em; }
+.skill-pool-markdown table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; line-height: 1.7; }
+.skill-pool-table { overflow-x: auto; margin: 22px 0; border: 1px solid var(--line); border-radius: 12px; }
+.skill-pool-markdown th, .skill-pool-markdown td { padding: 11px 18px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.skill-pool-markdown th { background: color-mix(in srgb, var(--surface-muted) 55%, transparent); font-weight: 680; white-space: nowrap; }
+.skill-pool-markdown tbody tr:last-child td { border-bottom: 0; }
+
+/* Code reads on its own dark surface in either theme, so a snippet never passes for prose. */
+.skill-pool-code { overflow: hidden; margin: 20px 0; border-radius: 12px; background: var(--code-surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 8%, transparent); }
+.skill-pool-code pre { overflow-x: auto; margin: 0; padding: 20px 22px; }
+.skill-pool-code pre code, .skill-pool-code pre code.hljs { display: block; padding: 0; border: 0; background: transparent; color: var(--code-ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; line-height: 1.85; overflow-wrap: normal; white-space: pre; tab-size: 2; }
+.skill-pool-reader-content > .skill-pool-code { margin: 0; }
+.skill-pool-markdown img { max-width: 100%; margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; }
+.skill-pool-markdown input[type="checkbox"] { margin-right: 6px; }

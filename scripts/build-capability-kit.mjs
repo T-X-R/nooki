@@ -40,7 +40,7 @@ export async function kitFiles() {
   ]) files[target] = await readFile(join(root, source), 'utf8')
   files['assets/starter/ui/index.tsx'] = files['assets/starter/ui/index.tsx'].replace('../../capability-contract/src', '../contract')
   files['references/contract.md'] = files['references/contract.md'].replaceAll('../../INFRASTRUCTURE.md', 'infrastructure.md').replaceAll('../../packages/capability-contract/src', '../assets/starter/contract')
-  const css = await readFile(join(root, 'src/styles.css'), 'utf8')
+  const css = await readFile(join(root, 'src/app/global.css'), 'utf8')
   files['assets/starter/preview/theme.css'] = css.slice(css.indexOf(':root {'), css.indexOf('* { box-sizing'))
   return Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b)))
 }

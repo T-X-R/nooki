@@ -6,14 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "npm run test:platform && npm run test:capabilities",
     "test:capabilities": "node --test capabilities/*/*.test.ts",
     "test:platform": "node --test tests/*.test.ts",
+    "test:ui": "node tests/ui/conversation.mjs && node tests/ui/organization.mjs",
     "preview": "vite preview",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build --bundles app",
     "desktop:build:dmg": "tauri build --bundles dmg",
     "desktop:open": "open src-tauri/target/release/bundle/macos/Nooki.app",
-    "desktop:install": "ditto src-tauri/target/release/bundle/macos/Nooki.app /Applications/Nooki.app",
+    "desktop:install": "node scripts/install-desktop-app.mjs",
     "desktop:update": "npm run desktop:build && npm run desktop:install",
     "capability:pack": "node scripts/package-capability.mjs",
     "capability:kit": "node scripts/build-capability-kit.mjs"
@@ -21,12 +23,15 @@
   "dependencies": {
     "@radix-ui/react-icons": "1.3.2",
     "@tauri-apps/api": "2.11.0",
+    "highlight.js": "11.12.0",
     "i18next": "26.4.1",
+    "lowlight": "3.3.0",
     "motion": "12.40.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-i18next": "17.0.13",
     "react-markdown": "10.1.0",
+    "rehype-highlight": "7.0.2",
     "remark-gfm": "4.0.1",
     "zustand": "5.0.12"
   },

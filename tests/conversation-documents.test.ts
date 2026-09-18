@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { artifactTitle, decodeAttachment, validateAttachments } from '../src/conversation-documents.ts'
-import { createLibraryStore } from '../src/library-store.ts'
+import { artifactTitle, decodeAttachment, validateAttachments } from '../src/features/conversation/conversation-documents.ts'
+import { createLibraryStore } from '../src/platform/library-store.ts'
 
 const bytes = (text: string) => new TextEncoder().encode(text).buffer
 test('attachments preserve UTF-8 text and identity, and reject unsupported, binary or oversized inputs', () => {

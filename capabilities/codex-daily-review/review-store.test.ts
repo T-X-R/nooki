@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { CapabilityTaskContext, TaskRecord } from '../../packages/capability-contract/src/index.ts'
-import { createTaskRunner } from '../../src/task-runner.ts'
+import { createTaskRunner } from '../../src/platform/task-runner.ts'
 import { dailyReviewJob, dailyReviewSnapshot } from './review-store.ts'
 
 function fixture(empty = false) {
