@@ -347,7 +347,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .agent-option small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-foot { display: flex; align-items: center; gap: 13px; margin-top: 10px; }
 .agent-foot .quiet-button { padding: 0; }
-.agent-foot span { color: var(--ink-soft); font-size: 10px; }
 .data-row { display: flex; align-items: center; gap: 11px; margin: 18px 0 0 47px; padding: 11px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .data-row-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--surface-muted); color: var(--ink-muted); }
 .data-row-icon svg { width: 13px; height: 13px; }

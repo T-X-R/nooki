@@ -69,7 +69,6 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
           {listed.some(canChoose) && (
             <div className="agent-foot">
               <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}</button>
-              <span>{t('agentRunTestNote')}</span>
             </div>
           )}
         </div>
@@ -98,7 +97,9 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
             <span className="settings-number">{String(index + 1).padStart(2, '0')}</span>
             <div>
               <h2>{t(SECTION_TITLE[section.id])}</h2>
-              <p>{t(SECTION_INTRO[section.id])}</p>
+              {/* A section says what it needs to. The agent cards carry their own state, so that one
+                  has no intro. */}
+              {SECTION_INTRO[section.id] && <p>{t(SECTION_INTRO[section.id] as string)}</p>}
             </div>
           </div>
           {body[section.id]}
@@ -115,8 +116,7 @@ const SECTION_TITLE: Record<SettingsSectionId, string> = {
   'local-data': 'localData',
 }
 
-const SECTION_INTRO: Record<SettingsSectionId, string> = {
-  'agent-access': 'agentAccessIntro',
+const SECTION_INTRO: Partial<Record<SettingsSectionId, string>> = {
   'appearance': 'appearanceIntro',
   'language': 'languageIntro',
   'local-data': 'localDataIntro',
