@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { CheckCircledIcon } from '@radix-ui/react-icons'
 import type { DocumentReference } from '../../packages/capability-contract/src/index.ts'
-import { checkProviderHealth, getProviderStatus, getSelectedProvider, setSelectedProvider, type ProviderKind, type ProviderStatus } from '../platform/ai-provider.ts'
+import { getCapabilityAgent, listAgentTools, setCapabilityAgent, type AgentTool } from '../platform/agent-tools.ts'
 import type { InstalledCapability } from '../platform/capability-host.ts'
 import { getCapabilityModule, getInstalledCapabilityPackagesWithState } from '../platform/capability-runtime.ts'
 import { libraryOrganization } from '../platform/document-library.ts'
@@ -24,11 +24,11 @@ import { CommandPalette } from './CommandPalette.tsx'
 import { Sidebar } from './Sidebar.tsx'
 import { Topbar } from './Topbar.tsx'
 import { WindowTitlebar } from './WindowTitlebar.tsx'
-import { useWorkbench, type View } from '../platform/preferences.ts'
+import { takeSubstrateNotice, useWorkbench, type View } from '../platform/preferences.ts'
 
 function App() {
   const { t } = useTranslation()
-  const { view, theme, language, setView, setTheme, providerKind, setProviderKind } = useWorkbench()
+  const { view, theme, language, setView, setTheme } = useWorkbench()
   const [libraryTopicId, setLibraryTopicId] = useState('')
   const [organization, setOrganization] = useState<Organization>(emptyOrganization)
   const [organizationError, setOrganizationError] = useState('')
@@ -44,7 +44,8 @@ function App() {
   const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
   const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
-  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
+  const [agents, setAgents] = useState<AgentTool[]>([])
+  const [capabilityAgent, setChosenAgent] = useState('codex')
   const [notice, setNotice] = useState<string | null>(null)
   const [installedCapabilities, setInstalledCapabilities] = useState<InstalledCapability[]>([])
   const [activeCapabilityId, setActiveCapabilityId] = useState<string | null>(null)
@@ -61,9 +62,10 @@ function App() {
     void i18n.changeLanguage(language)
   }, [language])
 
-  useEffect(() => {
-    getSelectedProvider().then(setProviderKind)
-  }, [setProviderKind])
+  const refreshAgents = () => {
+    void Promise.all([listAgentTools(), getCapabilityAgent()]).then(([tools, chosen]) => { setAgents(tools); setChosenAgent(chosen) })
+  }
+  useEffect(refreshAgents, [])
 
   const refreshCapabilities = async () => {
     try {
@@ -84,10 +86,6 @@ function App() {
     }
   }, [activeCapabilityId, setView, view])
 
-  useEffect(() => {
-    setProviderStatus(null)
-    getProviderStatus(providerKind, language).then(setProviderStatus)
-  }, [language, providerKind])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -104,6 +102,8 @@ function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [setView])
+
+  useEffect(() => { if (takeSubstrateNotice()) showNotice(t('agentMigrated')) }, [])
 
   const showNotice = (message: string) => {
     setNotice(message)
@@ -134,12 +134,12 @@ function App() {
     return () => { window.removeEventListener('workbench:open-document', open); window.removeEventListener('workbench:open-conversation', conversation) }
   }, [])
 
-  const selectProvider = async (kind: ProviderKind) => {
+  const chooseAgent = async (id: string) => {
     try {
-      await setSelectedProvider(kind)
-      setProviderKind(kind)
+      await setCapabilityAgent(id)
+      setChosenAgent(id)
     } catch {
-      showNotice(t('providerSaveFailed'))
+      showNotice(t('agentSaveFailed'))
     }
   }
 
@@ -159,14 +159,14 @@ function App() {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
-              {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} providerStatus={providerStatus} />}
-              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
+              {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} agents={agents} capabilityAgent={capabilityAgent} />}
+              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} onOpen={setConversationTarget} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
               {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
-              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} onRefreshProvider={() => { void getProviderStatus(providerKind, language).then(setProviderStatus) }} />}
+              {view === 'settings' && <SettingsPage installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} />}
             </motion.div>
           </AnimatePresence>
         </main>

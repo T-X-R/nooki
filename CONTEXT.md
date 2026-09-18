@@ -20,7 +20,7 @@ _Avoid_: Extension bundle
 The Nooki record of installed Capability Packages and their version, compatibility, and enabled state.
 
 **Installation**:
-The act of validating and registering a Capability Package. A newly installed Capability is enabled by default and does not require separate AI Provider configuration.
+The act of validating and registering a Capability Package. A newly installed Capability is enabled by default and does not require separate model configuration.
 
 **Enablement**:
 The state that permits an installed Capability to appear in Nooki entry points and respond to commands.
@@ -40,18 +40,22 @@ A user-visible fact recorded by Nooki or an authorized Capability for later revi
 **Agent Capability**:
 A Capability that reads explicitly authorized Activity Events and produces traceable, reversible generation or organization actions.
 
-**AI Provider**:
-The platform-managed source for model invocations, defined by a protocol, endpoint, model, and credential reference. A Codex subscription session is not a general-purpose AI Provider.
+**Agent Substrate**:
+What Nooki is. It owns what the agents on a machine share and never owns what any one of them is doing. It distributes shared assets, reads sessions without writing them, keeps the ledger of what happened, and runs no model client of its own.
+_Avoid_: Agent platform, AI platform
 
-**Compatible Endpoint**:
-An AI Provider the person configures by hand with a base URL, model, request protocol, and their own API key. Nooki proposes no vendor list: the person states which service and model to use. The key stays in the desktop host, and the interface only ever sees a masked hint.
-_Avoid_: Custom model, third-party provider
+**Shared Asset**:
+Something more than one agent on this machine can use, that Nooki distributes from one place: a skill today, an MCP server and a conventions file later. A credential is not a Shared Asset.
+
+**Agent Access**:
+The Agent Tool that serves `ai.invoke` for Capability Packages. It is a choice among the agents installed here, never a protocol, endpoint, model, or key. Invocations spend that agent's quota, and Conversations are unaffected by it.
+_Avoid_: AI Provider, compatible endpoint, capability model access
+
+**Agent Sign-in**:
+Whether an Agent Tool reports itself as signed in, read from that tool's own files and never declared by a person. An agent that keeps its credentials where Nooki cannot look is reported as unknown rather than guessed at. Sign-in is shown and never enforced: an agent with no login of its own, such as pi, is still selectable. Nooki never collects or stores a credential.
 
 **Model Gateway**:
-The single model invocation interface exposed to Capabilities. It checks installation, enablement, and `ai.invoke` permission before resolving the globally selected AI Provider.
-
-**Credential Broker**:
-The platform mechanism that resolves credentials for a Provider adapter without exposing raw tokens or API keys to Capability Packages.
+The single model invocation interface exposed to Capabilities. It checks installation, enablement, and `ai.invoke` permission, then hands the request to the Agent Tool chosen for Agent Access.
 
 **Agent Host**:
 The platform interface for agent work involving tools, input references, and execution progress. It may use the Model Gateway or a dedicated Agent Runtime.
@@ -115,7 +119,7 @@ _Avoid_: Skill folder, skill registry
 One entry in the Skill Pool, identified by its directory name and described by the `name` and `description` its `SKILL.md` declares.
 
 **Agent Tool**:
-A coding agent installed on this machine that reads skills from a known directory, such as Codex, Claude Code, or pi. Nooki lists an Agent Tool only when it is detected, and a person can register one Nooki does not know about by naming its skills directory.
+A coding agent installed on this machine that reads skills from a known directory, such as Codex, Claude Code, or pi. Nooki lists an Agent Tool only when it is detected, and a person can register one Nooki does not know about by naming its skills directory. Detection reads files and never runs an agent binary; an agent is started only when a Capability asks for work.
 _Avoid_: Client, IDE
 
 **Skill Mirror**:

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { AiInvocationResult } from './ai-provider.ts'
+import type { AiInvocationResult } from './agent-tools.ts'
+import { useWorkbench } from './preferences.ts'
 import type {
   ActivityEventInput,
   CapabilityEnvironment,
@@ -162,8 +163,11 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
       async invoke(input: string) {
         assertActive()
         try {
+          // The reason an invocation failed is written by the agent, so the host needs to know
+          // which language to say it in.
           return await invoke<AiInvocationResult>('capability_ai_invoke', {
             request: { capabilityId, input, executionId: execution?.id },
+            language: useWorkbench.getState().language,
           })
         } catch (error) {
           throw new Error(typeof error === 'string' ? error : '能力调用 AI 失败')
