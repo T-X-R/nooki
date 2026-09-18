@@ -53,7 +53,9 @@ export function TodayPage({ installed, onNavigate, onOpenCapability, onDocument,
           <div className="provider-status-line">
             <div className="provider-status-symbol"><LightningBoltIcon /></div>
             <div><strong>{agent?.name ?? capabilityAgent}</strong><span>{t(note.key, note.values)}</span></div>
-            <span className={`pill pill-${standing}`}>{t(standing === 'available' ? 'agentAvailable' : standing === 'notInstalled' ? 'agentNotInstalled' : 'agentPreview')}</span>
+            {/* No badge: the line under the name already says the state, and saying it twice in
+                four words of space reads as decoration. */}
+            <span className={`agent-dot agent-dot-${standing}`} aria-hidden="true" />
           </div>
           <p className="provider-copy">{t('agentSurfaceCopy')}</p>
           <button className="surface-link" onClick={() => onNavigate('settings')}>{t('agentSurfaceLink')}<ChevronRightIcon /></button>

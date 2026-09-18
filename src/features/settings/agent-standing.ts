@@ -18,17 +18,19 @@ export function agentStanding(tool: AgentTool | null, desktop: boolean): AgentSt
 }
 
 /**
- * What to say under the name. For an installed agent this is about credentials, and it is a
- * statement rather than a warning: an agent holding its own credentials is the arrangement Nooki
- * wants, not a problem to fix.
+ * The state of one agent, short enough to sit at the end of its row.
+ *
+ * It says only what Nooki actually knows. That an agent holds its own credentials is true of every
+ * row, so it is said once in the section intro instead of repeated down the list, where it would be
+ * the same sentence twice and carry no information the second time.
  */
 export function agentNote(tool: AgentTool | null, standing: AgentStanding): AgentNote {
   if (standing === 'preview') return { key: 'agentPreviewNote' }
-  if (standing === 'notInstalled') return { key: 'agentMissingNote' }
+  if (standing === 'notInstalled') return { key: 'agentNotInstalled' }
   if (tool?.signIn.method) return { key: 'agentSignedInAs', values: { method: tool.signIn.method } }
   // The hint is the tool's own command. Nooki repeats it rather than offering to run it.
   if (tool?.signIn.state === 'out' && tool.signIn.hint) return { key: 'agentSignInHint', values: { hint: tool.signIn.hint } }
-  return { key: 'agentCredentialOwn' }
+  return { key: 'agentInstalled' }
 }
 
 /**

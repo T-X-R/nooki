@@ -1,12 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowRightIcon, CheckIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { CheckIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
 import { isDesktopHost, testCapabilityAgent, type AgentTool } from '../../platform/agent-tools.ts'
 import { useWorkbench } from '../../platform/preferences.ts'
 import { DataManagement } from './DataManagement.tsx'
 import { agentNote, agentStanding, canChoose, listedAgents } from './agent-standing.ts'
-import { notesFor, visibleSections, type SettingsSectionId } from './settings-sections.ts'
+import { visibleSections, type SettingsSectionId } from './settings-sections.ts'
 
 type SettingsPageProps = {
   installed: InstalledCapability[]
@@ -39,46 +39,43 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
 
   // One renderer per section id, so the order stays data and the layout stays markup.
   const body: Partial<Record<SettingsSectionId, ReactNode>> = {
-    'agent-access': (
-      <div className="agent-access">
-        {listed.length === 0
-          ? <p className="settings-empty">{t('agentNoAgents')}</p>
-          : <ul className="agent-list">
-              {listed.map((tool) => {
-                const standing = agentStanding(tool, desktop)
-                const note = agentNote(tool, standing)
-                const selected = capabilityAgent === tool.id
-                const choosable = canChoose(tool)
-                return (
-                  <li key={tool.id}>
-                    <button
-                      type="button"
-                      className={`agent-option ${selected ? 'is-selected' : ''} ${choosable ? '' : 'is-unavailable'}`}
-                      role="radio"
-                      aria-checked={selected}
-                      disabled={!choosable}
-                      onClick={() => void onChooseAgent(tool.id)}
-                    >
-                      <span className="agent-mark" aria-hidden="true">{selected && <CheckIcon />}</span>
-                      <span className="agent-body">
-                        <strong>{tool.name}</strong>
-                        <small>{t(note.key, note.values)}</small>
-                      </span>
-                      {!choosable && <span className="agent-tag">{t('agentNotInstalled')}</span>}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>}
-        <ScopeNotes section="agent-access" />
-        {listed.some(canChoose) && (
-          <div className="agent-actions">
-            <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}<ArrowRightIcon /></button>
-            <span>{t('agentRunTestNote')}</span>
-          </div>
-        )}
-      </div>
-    ),
+    'agent-access': listed.length === 0
+      ? <p className="settings-empty">{t('agentNoAgents')}</p>
+      : (
+        <div className="agent-panel">
+          <ul role="radiogroup" aria-label={t('agentAccess')}>
+            {listed.map((tool) => {
+              const note = agentNote(tool, agentStanding(tool, desktop))
+              const selected = capabilityAgent === tool.id
+              const choosable = canChoose(tool)
+              return (
+                <li key={tool.id}>
+                  <button
+                    type="button"
+                    className={`agent-row ${selected ? 'is-selected' : ''}`}
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={!choosable}
+                    onClick={() => void onChooseAgent(tool.id)}
+                  >
+                    <span className="agent-dot" aria-hidden="true" />
+                    <span className="agent-name">{tool.name}</span>
+                    <span className="agent-state">{t(note.key, note.values)}</span>
+                    {/* The column is always reserved, so names do not shift when the choice moves. */}
+                    <span className="agent-check" aria-hidden="true">{selected && <CheckIcon />}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          {listed.some(canChoose) && (
+            <div className="agent-foot">
+              <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}</button>
+              <span>{t('agentRunTestNote')}</span>
+            </div>
+          )}
+        </div>
+      ),
     'appearance': (
       <div className="theme-options">
         <button className={`theme-option ${theme === 'light' ? 'selected' : ''}`} onClick={() => setTheme('light')}><span className="theme-preview theme-preview-light"><SunIcon /></span><span><strong>{t('light')}</strong><small>{t('lightDescription')}</small></span>{theme === 'light' && <CheckIcon className="selected-check" />}</button>
@@ -127,13 +124,3 @@ const SECTION_INTRO: Record<SettingsSectionId, string> = {
   'local-data': 'localDataIntro',
 }
 
-function ScopeNotes({ section }: { section: SettingsSectionId }) {
-  const { t } = useTranslation()
-  const notes = notesFor(section)
-  if (!notes.length) return null
-  return (
-    <ul className="settings-scope-notes">
-      {notes.map((note) => <li key={note.id}>{t(note.id === 'conversations' ? 'scopeNoteConversations' : 'scopeNoteQuota')}</li>)}
-    </ul>
-  )
-}

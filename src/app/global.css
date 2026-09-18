@@ -156,15 +156,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .provider-status-symbol svg { width: 16px; height: 16px; }
 .provider-status-line > div:nth-child(2) { display: grid; min-width: 0; flex: 1; gap: 3px; }
 .provider-status-line strong { font-size: 12px; font-weight: 650; }
-.provider-status-line span:not(.pill) { color: var(--ink-muted); font-size: 10px; }
-.pill { padding: 4px 6px; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; text-transform: uppercase; }
-.pill-preview { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
-.pill-ready { background: color-mix(in srgb, var(--positive) 12%, transparent); color: var(--positive); }
-.pill-configured { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
-.pill-error { background: #f8e1e2; color: #a5575d; }
-/* An agent Nooki cannot find is absent, not broken, and should not look alarming. */
-.pill-available { background: color-mix(in srgb, var(--positive) 12%, transparent); color: var(--positive); }
-.pill-notInstalled { background: color-mix(in srgb, var(--ink-muted) 11%, transparent); color: var(--ink-muted); }
+.provider-status-line span:not(.agent-dot) { color: var(--ink-muted); font-size: 10px; }
+/* The Today card marks the chosen agent with the same dot the Settings list uses. */
+.agent-dot-notInstalled, .agent-dot-preview { background: var(--line-strong); }
 .provider-copy { margin: 15px 0; color: var(--ink-muted); font-size: 11px; line-height: 1.7; }
 .surface-link { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink); }
 .surface-link svg { color: var(--accent); }
@@ -314,36 +308,46 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .settings-section-heading { display: grid; grid-template-columns: 35px 1fr; gap: 12px; }
 .settings-number { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 650; }
 .settings-section h2, .settings-section h3 { margin: -2px 0 7px; font-size: 17px; font-weight: 650; letter-spacing: -.035em; }
-.settings-section p { margin: 0; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+/* A measure, not a page width. The panel below is 460px; an intro running to 950px reads as a
+   different document. */
+.settings-section p { margin: 0; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 
-/* A list of names does not need the whole window. Capping it keeps one agent from looking lost and
-   ten from turning into a wall. */
-.settings-empty { margin: 14px 0 0 47px; max-width: 520px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
-.settings-scope-notes { margin: 14px 0 0; padding-left: 60px; list-style: none; }
-.settings-scope-notes li { position: relative; margin-top: 5px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
-.settings-scope-notes li::before { content: ''; position: absolute; left: -13px; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+/* One row per agent, on one line.
+   Proportions follow shadcn's Item at size=sm: a 10px gap, a title and a state that differ by colour
+   rather than by size, and the action in a footer of the same box. An earlier version stacked a
+   12px name over a 10px sentence inside a 63px row, which is how a list ends up looking loose and
+   cramped at the same time. */
+.settings-empty { margin: 16px 0 0 47px; max-width: 460px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 
-.agent-access { margin-top: 16px; }
-.agent-list { margin: 0 0 0 47px; padding: 0; max-width: 520px; list-style: none; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; background: var(--surface); }
-.agent-list li + li .agent-option { border-top: 1px solid var(--line); }
-.agent-option { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 11px; width: 100%; padding: 13px 15px; border: 0; background: transparent; color: var(--ink); text-align: left; transition: background .18s ease; }
-.agent-option:not(:disabled):hover { background: var(--surface-strong); }
-.agent-option.is-selected { background: var(--accent-wash); box-shadow: inset 2px 0 0 var(--accent); }
-.agent-option.is-unavailable { color: var(--ink-muted); cursor: default; }
-/* An empty circle for the unchosen, so the column keeps its width and the rows stay aligned. */
-.agent-mark { display: grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--accent); }
-.agent-option.is-selected .agent-mark { border-color: var(--accent); }
-.agent-mark svg { width: 10px; height: 10px; }
-.agent-body { display: grid; gap: 3px; min-width: 0; }
-.agent-body strong { font-size: 12px; font-weight: 650; }
-.agent-body small { color: var(--ink-muted); font-size: 10px; line-height: 1.5; }
-.agent-tag { color: var(--ink-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; text-transform: uppercase; }
-.agent-actions { display: flex; align-items: center; gap: 12px; margin: 14px 0 0 47px; max-width: 520px; }
-.agent-actions .quiet-button { padding: 0; }
-.agent-actions span { color: var(--ink-muted); font-size: 10px; }
+.agent-panel { margin: 18px 0 0 47px; max-width: 460px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.agent-panel ul { margin: 0; padding: 0; list-style: none; }
+.agent-panel li + li { border-top: 1px solid var(--line); }
+.agent-panel li:first-child .agent-row { border-radius: 9px 9px 0 0; }
+.agent-panel li:last-child .agent-row { border-radius: 0 0 9px 9px; }
 
-.theme-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 19px 0 12px 47px; }
-.theme-option { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 80px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
+/* The check column is always present so a name never shifts when the choice moves. */
+.agent-row { display: grid; grid-template-columns: 6px 1fr auto 13px; align-items: center; gap: 10px; width: 100%; padding: 0 14px; min-height: 42px; border: 0; background: transparent; color: var(--ink); text-align: left; transition: background .16s ease; }
+.agent-row:not(:disabled):hover { background: var(--surface-strong); }
+.agent-row.is-selected { background: var(--accent-wash); }
+.agent-row:disabled { cursor: default; }
+
+/* A dot carries the state without a badge repeating the words beside it. */
+.agent-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
+.agent-row:disabled .agent-dot { background: var(--line-strong); }
+.agent-name { overflow: hidden; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.agent-row:disabled .agent-name { color: var(--ink-muted); font-weight: 550; }
+.agent-state { color: var(--ink-muted); font-size: 11px; white-space: nowrap; }
+.agent-check { display: grid; place-items: center; color: var(--accent); }
+.agent-check svg { width: 13px; height: 13px; }
+
+.agent-foot { display: flex; align-items: center; gap: 13px; padding: 9px 14px; border-top: 1px solid var(--line); }
+.agent-foot .quiet-button { padding: 0; }
+.agent-foot span { color: var(--ink-soft); font-size: 10px; }
+
+/* Two choices, two columns, and the same 460px measure the agent panel uses. A three-column
+   track holding two cards stretched them across the page and gave one screen two content widths. */
+.theme-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 18px 0 12px 47px; max-width: 460px; }
+.theme-option { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 58px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
 .theme-option:hover { border-color: var(--line-strong); background: var(--surface-strong); }
 .theme-option.selected { border-color: color-mix(in srgb, var(--accent) 62%, var(--line)); background: var(--accent-wash); }
 .theme-option > span:nth-child(2) { display: grid; gap: 5px; min-width: 0; }
@@ -482,7 +486,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
   .capability-card-copy { min-width: calc(100% - 50px); }
   .capability-card-actions { width: 100%; padding-left: 49px; }
   .theme-options { grid-template-columns: 1fr; margin-left: 0; }
-  .settings-scope-notes { padding-left: 13px; }
   .settings-section-heading { grid-template-columns: 28px 1fr; }
   .settings-number { font-size: 9px; }
   .content-column.library-page { height: auto; min-height: 100%; }

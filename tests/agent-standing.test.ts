@@ -31,8 +31,16 @@ test('an agent with no login of its own is still available', () => {
   // pi is configured with an API key in its own config. There is nothing to sign into.
   const pi = tool({ id: 'pi', name: 'pi', signIn: { state: 'unknown', method: null, hint: null } })
   assert.equal(agentStanding(pi, true), 'available')
-  assert.deepEqual(agentNote(pi, 'available'), { key: 'agentCredentialOwn' })
+  assert.deepEqual(agentNote(pi, 'available'), { key: 'agentInstalled' })
   assert.ok(canChoose(pi))
+})
+
+test('a row says only what Nooki knows, and never the same sentence twice', () => {
+  const claude = tool({ id: 'claude', name: 'Claude Code', signIn: { state: 'unknown', method: null, hint: null } })
+  const pi = tool({ id: 'pi', name: 'pi', signIn: { state: 'unknown', method: null, hint: null } })
+  // Identical because the state is identical; short enough that the repetition reads as a column.
+  assert.deepEqual(agentNote(claude, 'available'), agentNote(pi, 'available'))
+  assert.deepEqual(agentNote(tool({ detected: false }), 'notInstalled'), { key: 'agentNotInstalled' })
 })
 
 test('an agent reports its credential in its own words when it has one to report', () => {

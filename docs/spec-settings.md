@@ -113,19 +113,24 @@ rendered as furniture.
 Every agent Nooki knows how to detect, installed ones first, as one list:
 
 ```
- ●  Codex                     Signed in · ChatGPT
- ○  Claude Code               It manages its own credentials. Nothing to configure in Nooki.
- ○  pi                        It manages its own credentials. Nothing to configure in Nooki.
- ○  kimi                      It was not found on this machine.       NOT INSTALLED
-
-    Conversations use the Codex CLI and its login session. This setting does not change them.
-    Capability invocations spend the quota of the agent selected here.
-
-    [ Run one invocation ]   This really runs, and spends the selected agent's quota.
+ ●  Codex                                          Signed in · ChatGPT   ✓
+ ●  Claude Code                                              Installed
+ ●  pi                                                       Installed
+ ○  kimi                                                 Not installed
+ ─────────────────────────────────────────────────────────────────────
+    Run one invocation    Really runs, and spends quota
 ```
 
-A single bordered list with dividers, capped in width. One agent does not look lost in a three-column
-grid and ten do not turn into a wall; nothing reflows between those two cases.
+One line per agent in a single bordered list, 460px wide, with the action in the same box. One agent
+does not look lost and ten do not turn into a wall; nothing reflows between those two cases.
+
+The proportions follow the current convention for this shape of list (shadcn's `Item` at `size="sm"`,
+which is the same anatomy: media, content, actions): a name and a state that differ by colour rather
+than by size, and a row tall enough to touch and no taller. An earlier version stacked a 12px name
+over a 10px sentence in a 63px row, which is how a list ends up looking loose and cramped at once.
+
+A dot carries availability instead of a badge repeating the words beside it. The check column is
+always reserved, so no name shifts when the choice moves.
 
 **Installed is the only condition.** Sign-in is shown and never enforced. pi has no login — an API key
 in its own config is enough — and Claude Code keeps credentials where Nooki cannot look. Gating on a
@@ -133,7 +138,19 @@ state read from the outside would block working setups to pre-empt an error mess
 delivers better. An agent that is not installed is listed, greyed, and cannot be selected, so a person
 can see what Nooki is able to use.
 
-What sits under the name is a statement, not a warning. An agent holding its own credentials is the
+**A row says only what Nooki knows, and never the same sentence twice.** That an agent holds its own
+credentials is true of every row, so it is said once in the section intro. Repeating it down the list
+put one identical sentence on consecutive lines, where the second occurrence carried nothing. The row
+states what differs: `Signed in · ChatGPT`, `Installed`, `Not installed`.
+
+The intro also carries the scope correction — Conversations always use the Codex CLI and are
+unaffected — and the fact that invocations spend the selected agent's quota. These were a bulleted
+list under the control. Two bullets restating the section in a heavier shape is not emphasis, and the
+facts fit the sentence that was already there. A consequence worth recording: the correction is no
+longer a piece of data a test can assert against, only a string, so `settings-sections.ts` lost its
+scope-note registry. A rule that exists in one sentence does not need a registry to hold it.
+
+What a row states is a statement, not a warning. An agent holding its own credentials is the
 arrangement Nooki wants, not a problem to fix. Only Codex has a sign-in Nooki can read, from
 `~/.codex/auth.json`; when it reports itself signed out, the row repeats that tool's own command and
 offers nothing else.
