@@ -43,31 +43,29 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
       ? <p className="settings-empty">{t('agentNoAgents')}</p>
       : (
         <div className="agent-panel">
-          <ul role="radiogroup" aria-label={t('agentAccess')}>
+          {/* One card per agent, on one row, so the section fills the same width as the two below. */}
+          <div className="theme-options agent-options" role="radiogroup" aria-label={t('agentAccess')}>
             {listed.map((tool) => {
               const note = agentNote(tool, agentStanding(tool, desktop))
               const selected = capabilityAgent === tool.id
               const choosable = canChoose(tool)
               return (
-                <li key={tool.id}>
-                  <button
-                    type="button"
-                    className={`agent-row ${selected ? 'is-selected' : ''}`}
-                    role="radio"
-                    aria-checked={selected}
-                    disabled={!choosable}
-                    onClick={() => void onChooseAgent(tool.id)}
-                  >
-                    <span className="agent-dot" aria-hidden="true" />
-                    <span className="agent-name">{tool.name}</span>
-                    <span className="agent-state">{t(note.key, note.values)}</span>
-                    {/* The column is always reserved, so names do not shift when the choice moves. */}
-                    <span className="agent-check" aria-hidden="true">{selected && <CheckIcon />}</span>
-                  </button>
-                </li>
+                <button
+                  key={tool.id}
+                  type="button"
+                  className={`theme-option agent-option ${selected ? 'selected' : ''}`}
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={!choosable}
+                  onClick={() => void onChooseAgent(tool.id)}
+                >
+                  <span className="agent-dot" aria-hidden="true" />
+                  <span><strong>{tool.name}</strong><small>{t(note.key, note.values)}</small></span>
+                  {selected && <CheckIcon className="selected-check" />}
+                </button>
               )
             })}
-          </ul>
+          </div>
           {listed.some(canChoose) && (
             <div className="agent-foot">
               <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}</button>
@@ -93,7 +91,7 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
 
   return (
     <div className="content-column settings-page">
-      <div className="page-header-row"><div><div className="eyebrow">{t('preferences')}</div><h1>{t('settings')}</h1><p>{t('settingsIntro')}</p></div></div>
+      <div className="page-header-row"><div><div className="eyebrow">{t('preferences')}</div><h1>{t('settings')}</h1></div></div>
       {visibleSections(desktop).map((section, index) => (
         <section key={section.id} className="settings-section">
           <div className="settings-section-heading">

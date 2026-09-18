@@ -308,46 +308,15 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .settings-section-heading { display: grid; grid-template-columns: 35px 1fr; gap: 12px; }
 .settings-number { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 650; }
 .settings-section h2, .settings-section h3 { margin: -2px 0 7px; font-size: 17px; font-weight: 650; letter-spacing: -.035em; }
-/* A measure, not a page width. The panel below is 460px; an intro running to 950px reads as a
-   different document. */
+/* A measure, not a page width. An intro running the full 950px reads as a different document from
+   the cards below it. */
 .settings-section p { margin: 0; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+.settings-empty { margin: 16px 0 0 47px; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 
-/* One row per agent, on one line.
-   Proportions follow shadcn's Item at size=sm: a 10px gap, a title and a state that differ by colour
-   rather than by size, and the action in a footer of the same box. An earlier version stacked a
-   12px name over a 10px sentence inside a 63px row, which is how a list ends up looking loose and
-   cramped at the same time. */
-.settings-empty { margin: 16px 0 0 47px; max-width: 460px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
-
-.agent-panel { margin: 18px 0 0 47px; max-width: 460px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
-.agent-panel ul { margin: 0; padding: 0; list-style: none; }
-.agent-panel li + li { border-top: 1px solid var(--line); }
-.agent-panel li:first-child .agent-row { border-radius: 9px 9px 0 0; }
-.agent-panel li:last-child .agent-row { border-radius: 0 0 9px 9px; }
-
-/* The check column is always present so a name never shifts when the choice moves. */
-.agent-row { display: grid; grid-template-columns: 6px 1fr auto 13px; align-items: center; gap: 10px; width: 100%; padding: 0 14px; min-height: 42px; border: 0; background: transparent; color: var(--ink); text-align: left; transition: background .16s ease; }
-.agent-row:not(:disabled):hover { background: var(--surface-strong); }
-.agent-row.is-selected { background: var(--accent-wash); }
-.agent-row:disabled { cursor: default; }
-
-/* A dot carries the state without a badge repeating the words beside it. */
-.agent-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
-.agent-row:disabled .agent-dot { background: var(--line-strong); }
-.agent-name { overflow: hidden; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.agent-row:disabled .agent-name { color: var(--ink-muted); font-weight: 550; }
-.agent-state { color: var(--ink-muted); font-size: 11px; white-space: nowrap; }
-.agent-check { display: grid; place-items: center; color: var(--accent); }
-.agent-check svg { width: 13px; height: 13px; }
-
-.agent-foot { display: flex; align-items: center; gap: 13px; padding: 9px 14px; border-top: 1px solid var(--line); }
-.agent-foot .quiet-button { padding: 0; }
-.agent-foot span { color: var(--ink-soft); font-size: 10px; }
-
-/* Two choices, two columns, and the same 460px measure the agent panel uses. A three-column
-   track holding two cards stretched them across the page and gave one screen two content widths. */
-.theme-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 18px 0 12px 47px; max-width: 460px; }
-.theme-option { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 58px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
+/* Two choices, two columns, each filling half the row. Every block in Settings runs to the same
+   right edge, so the page has one content width rather than a panel column and an empty margin. */
+.theme-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 19px 0 12px 47px; }
+.theme-option { position: relative; display: flex; align-items: center; gap: 10px; min-height: 62px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
 .theme-option:hover { border-color: var(--line-strong); background: var(--surface-strong); }
 .theme-option.selected { border-color: color-mix(in srgb, var(--accent) 62%, var(--line)); background: var(--accent-wash); }
 .theme-option > span:nth-child(2) { display: grid; gap: 5px; min-width: 0; }
@@ -359,13 +328,26 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .settings-callout > div { display: grid; gap: 3px; }
 .settings-callout strong { font-size: 10px; font-weight: 650; }
 .settings-callout span { color: var(--ink-muted); font-size: 9px; line-height: 1.55; }
-.theme-options { grid-template-columns: repeat(2, minmax(190px, 1fr)); margin-top: 19px; }
-.theme-option { align-items: center; min-height: 62px; }
 .theme-preview { display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid var(--line); border-radius: 9px; }
 .theme-preview svg { width: 15px; height: 15px; }
 .theme-preview-light { background: #f5f6f8; color: #7c8491; }
 .theme-preview-dark { background: #252a32; color: #c4caff; }
 .language-preview { display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-muted); color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 700; }
+
+/* One card per agent, three to a row, in the same card shape the two sections below use. A bordered
+   list 460px wide left two thirds of the row empty and gave one screen two content widths. */
+.agent-panel { margin: 19px 0 12px 47px; }
+.agent-options { grid-template-columns: repeat(3, 1fr); margin: 0; }
+.agent-option { min-height: 58px; }
+.agent-option:disabled { cursor: default; }
+/* A dot carries the state without a badge repeating the words beside it. */
+.agent-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--positive); }
+.agent-option:disabled .agent-dot { background: var(--line-strong); }
+.agent-option:disabled strong { color: var(--ink-muted); font-weight: 550; }
+.agent-option small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-foot { display: flex; align-items: center; gap: 13px; margin-top: 10px; }
+.agent-foot .quiet-button { padding: 0; }
+.agent-foot span { color: var(--ink-soft); font-size: 10px; }
 .data-row { display: flex; align-items: center; gap: 11px; margin: 18px 0 0 47px; padding: 11px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .data-row-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--surface-muted); color: var(--ink-muted); }
 .data-row-icon svg { width: 13px; height: 13px; }
@@ -486,6 +468,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
   .capability-card-copy { min-width: calc(100% - 50px); }
   .capability-card-actions { width: 100%; padding-left: 49px; }
   .theme-options { grid-template-columns: 1fr; margin-left: 0; }
+  .agent-panel { margin-left: 0; }
+  .settings-empty { margin-left: 0; }
   .settings-section-heading { grid-template-columns: 28px 1fr; }
   .settings-number { font-size: 9px; }
   .content-column.library-page { height: auto; min-height: 100%; }
