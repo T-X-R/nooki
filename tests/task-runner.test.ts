@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createTaskRunner, type TaskJob } from '../src/task-runner.ts'
+import { createTaskRunner, type TaskJob } from '../src/platform/task-runner.ts'
 import type { TaskRecord } from '../packages/capability-contract/src/index.ts'
 
 function deferred<T>() {

@@ -1,0 +1,52 @@
+import { invoke } from '@tauri-apps/api/core'
+import type { CapabilityTasks, TaskRecord } from '../../packages/capability-contract/src/index.ts'
+import { createTaskRunner } from './task-runner.ts'
+import { createCapabilityHost } from './capability-host.ts'
+// Layering exception: platform reaches into a feature here. Conversations are the one
+// built-in job owner, and they are wired in directly instead of through a registry.
+// Installed capabilities resolve through `capability-runtime` below and stay decoupled.
+import { resolveConversationJob, CONVERSATION_OWNER } from '../features/conversation/conversation-jobs.ts'
+import { getCapabilityModule, getRuntimeInstalledCapability } from './capability-runtime.ts'
+
+const browserKey = 'personal-workbench-tasks-v1'
+export const taskRunner = createTaskRunner({
+  read: async () => window.__TAURI_INTERNALS__
+    ? invoke<TaskRecord[]>('tasks_read')
+    : JSON.parse(localStorage.getItem(browserKey) ?? '[]'),
+  write: async (records) => {
+    if (window.__TAURI_INTERNALS__) await invoke('tasks_write', { records })
+    else localStorage.setItem(browserKey, JSON.stringify(records))
+  },
+  resolve(capabilityId, job) {
+    if (capabilityId === CONVERSATION_OWNER) return resolveConversationJob(job)
+    const installed = getRuntimeInstalledCapability(capabilityId)
+    const module = getCapabilityModule(capabilityId)
+    if (!installed?.enabled || !module) throw new Error('Capability is not installed or enabled')
+    if (!module.manifest.entrypoints.includes('job') || !module.jobs?.[job]) throw new Error('Capability job not found')
+    return { version: module.manifest.version, definition: { run: (input, context) => module.jobs![job].run(input, {
+      ...context, host: createCapabilityHost(capabilityId, module.manifest.permissions, module.manifest.name, { id: context.executionId, signal: context.signal }),
+    }) } }
+  },
+  cancelInvocation: async (id) => {
+    if (window.__TAURI_INTERNALS__) await invoke('task_cancel_invocation', { id })
+  },
+})
+
+export function capabilityTasks(capabilityId: string): CapabilityTasks {
+  let previous: readonly TaskRecord[] | undefined
+  let snapshot: readonly TaskRecord[] = []
+  const assertOwner = (id: string) => {
+    if (!taskRunner.getSnapshot().some((record) => record.id === id && record.capabilityId === capabilityId)) throw new Error('Task not found for capability')
+  }
+  return {
+    getSnapshot() {
+      const records = taskRunner.getSnapshot()
+      if (records !== previous) { previous = records; snapshot = records.filter((record) => record.capabilityId === capabilityId) }
+      return snapshot
+    },
+    subscribe: taskRunner.subscribe,
+    start: (job, input) => taskRunner.start(capabilityId, job, input),
+    cancel: async (id) => { assertOwner(id); await taskRunner.cancel(id) },
+    retry: async (id) => { assertOwner(id); await taskRunner.retry(id) },
+  }
+}

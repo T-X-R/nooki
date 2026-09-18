@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { toText } from 'hast-util-to-text'
-import { fenceLanguage, highlightCode, languageForPath } from '../src/code-highlight.ts'
+import { fenceLanguage, highlightCode, languageForPath } from '../src/shared/code-highlight.ts'
 
 const classes = (tree: ReturnType<typeof highlightCode>): string[] => {
   const found: string[] = []

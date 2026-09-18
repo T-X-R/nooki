@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   distributableTools, fileLabel, groupDecisions, holders, orderSkillFiles, isSelected, nextSelection, pendingDecisions, searchSkills, skillBody, skillFrontmatter, skillInstructions, toolSummary,
   type Duplicate, type Overview, type PoolSkill, type ToolEntry, type ToolView,
-} from '../src/skill-pool.ts'
+} from '../src/features/skills/skill-pool.ts'
 
 function skill(name: string, description = ''): PoolSkill {
   return { name, title: name, description, fileCount: 1, updatedAt: '2026-09-17T10:00:00+08:00', issue: null }

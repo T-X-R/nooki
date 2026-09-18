@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { LibraryDocumentMetadata } from '../src/document-library.ts'
-import { buildLibraryTree, filterLibraryTree, visibleLibrarySelection } from '../src/library-tree.ts'
+import type { LibraryDocumentMetadata } from '../src/platform/document-library.ts'
+import { buildLibraryTree, filterLibraryTree, visibleLibrarySelection } from '../src/features/library/library-tree.ts'
 
 function document(
   id: string,

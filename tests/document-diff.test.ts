@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { documentDiff } from '../src/document-diff.ts'
+import { documentDiff } from '../src/shared/document-diff.ts'
 
 test('separate edits preserve unchanged lines and line numbers', () => {
   const diff = documentDiff('title\nold\ncontext\nremoved\nend', 'title\nnew\ncontext\nadded\nend')

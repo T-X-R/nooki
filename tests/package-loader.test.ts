@@ -27,7 +27,7 @@ Object.assign(globalThis, {
 })
 URL.createObjectURL = (blob: Blob) => { const id = `blob:${crypto.randomUUID()}`; sources.set(id, blob); return id }
 URL.revokeObjectURL = (url: string) => { sources.delete(url) }
-const { loadPackageModule } = await import('../src/package-loader.ts')
+const { loadPackageModule } = await import('../src/platform/package-loader.ts')
 
 function payload(version = '1.0.0') {
   const manifest = { id: 'test.external', name: 'External', version, entrypoints: ['page'] as ['page'], permissions: [] as [], minPlatformVersion: '0.2.0' }

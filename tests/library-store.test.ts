@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createLibraryStore, libraryStorageKey } from '../src/library-store.ts'
+import { createLibraryStore, libraryStorageKey } from '../src/platform/library-store.ts'
 const input = (key: string, content = 'Original evidence') => ({ key, title: key, content, documentDate: '2026-09-09', collectionKey: 'notes', collectionName: 'Notes' })
 const setup = () => {
   const data = new Map<string, string>()

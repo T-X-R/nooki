@@ -1,0 +1,868 @@
+import { AnimatePresence, motion } from 'motion/react'
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import {
+  ArchiveIcon,
+  BackpackIcon,
+  ChatBubbleIcon,
+  ArrowRightIcon,
+  CalendarIcon,
+  CheckCircledIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CodeIcon,
+  KeyboardIcon,
+  Cross2Icon,
+  EnterIcon,
+  ExclamationTriangleIcon,
+  FileTextIcon,
+  GearIcon,
+  GlobeIcon,
+  LightningBoltIcon,
+  MagnifyingGlassIcon,
+  MagicWandIcon,
+  MoonIcon,
+  Pencil2Icon,
+  PlusIcon,
+  ReloadIcon,
+  RocketIcon,
+  CubeIcon,
+  SunIcon,
+  UpdateIcon,
+  TrashIcon,
+} from '@radix-ui/react-icons'
+import { checkProviderHealth, getProviderStatus, getSelectedProvider, setSelectedProvider, testSelectedProvider, type ProviderKind, type ProviderStatus } from '../platform/ai-provider.ts'
+import { createCapabilityHost, type InstalledCapability } from '../platform/capability-host.ts'
+import { getCapabilityModule, getInstalledCapabilityPackagesWithState, installCapabilityPackage, listAvailableCapabilities, setCapabilityPackageEnabled, uninstallCapabilityPackage, rollbackCapabilityPackage, getCapabilityLoadError } from '../platform/capability-runtime.ts'
+import type { DocumentReference, SelectedDocument } from '../../packages/capability-contract/src/index.ts'
+import { parseReferenceHref } from '../../packages/capability-contract/src/references.ts'
+import { grantSelectedDocuments, readSourceReference } from '../platform/document-grants.ts'
+import { TodayActivity } from '../features/activity/TodayActivity.tsx'
+import { CompatibleEndpointSettings } from '../features/settings/CompatibleEndpointSettings.tsx'
+import { searchLibraryContent, listLibraryDocuments, readLibraryDocument, type LibraryDocument, type LibraryDocumentMetadata } from '../platform/document-library.ts'
+import { buildLibraryTree, filterLibraryTree, visibleLibrarySelection } from '../features/library/library-tree.ts'
+import { LibraryManager } from '../features/library/LibraryManager.tsx'
+import { LibraryNavigation } from '../features/library/LibraryNavigation.tsx'
+import { LibrarySectionComposer } from '../features/library/LibrarySectionComposer.tsx'
+import { emptyOrganization, type Organization } from '../platform/library-store.ts'
+import { EditDocumentDialog, HistoryDialog, DeleteDocumentsDialog } from '../features/library/LibraryDialogs.tsx'
+import { DataManagement } from '../features/settings/DataManagement.tsx'
+import { libraryOrganization, type Origin } from '../platform/document-library.ts'
+import i18n, { type Language } from '../shared/i18n.ts'
+import { TaskPage } from '../features/tasks/TaskPage.tsx'
+import { SkillPoolPage } from '../features/skills/SkillPoolPage.tsx'
+import { PackageImportModal } from '../features/capabilities/PackageImportModal.tsx'
+import { DeveloperCenterModal } from '../features/capabilities/DeveloperCenterModal.tsx'
+import { taskRunner } from '../platform/tasks.ts'
+import { ConversationPage } from '../features/conversation/ConversationPage.tsx'
+import { ConversationNavigation } from '../features/conversation/ConversationNavigation.tsx'
+import { ConversationArchives } from '../features/conversation/ConversationArchives.tsx'
+import { CONVERSATION_OWNER, LEGACY_REVIEW } from '../features/conversation/conversation-model.ts'
+import nookiIcon from '../assets/nooki-icon.png'
+
+type View = 'today' | 'library' | 'skills' | 'capabilities' | 'settings' | 'capability' | 'tasks' | 'conversations'
+type Theme = 'light' | 'dark'
+type CapabilityFilter = 'all' | 'enabled' | 'disabled'
+
+type WorkbenchState = {
+  view: View
+  theme: Theme
+  language: Language
+  providerKind: ProviderKind
+  setView: (view: View) => void
+  setTheme: (theme: Theme) => void
+  setLanguage: (language: Language) => void
+  setProviderKind: (providerKind: ProviderKind) => void
+}
+
+const useWorkbench = create<WorkbenchState>()(
+  persist(
+    (set) => ({
+      view: 'today',
+      theme: 'light',
+      language: 'zh',
+      providerKind: 'codex-api',
+      setView: (view) => set({ view }),
+      setTheme: (theme) => set({ theme }),
+      setLanguage: (language) => set({ language }),
+      setProviderKind: (providerKind) => set({ providerKind }),
+    }),
+    {
+      name: 'personal-workbench-preferences',
+      version: 3,
+      migrate: (persistedState) => {
+        const state = persistedState as Partial<WorkbenchState>
+        const previousKind = state.providerKind as string | undefined
+        const providerKind: ProviderKind = previousKind === 'codex-cli'
+          ? 'codex-subscription'
+          : previousKind === 'openai-api'
+            ? 'codex-api'
+            : previousKind === 'codex-subscription' || previousKind === 'compatible-api'
+              ? previousKind
+              : 'codex-api'
+        const language: Language = state.language === 'en' ? 'en' : 'zh'
+        return { ...state, providerKind, language }
+      },
+    },
+  ),
+)
+
+function capabilityCopy(capability: { manifest: import('../platform/capability-host.ts').CapabilityManifest }, language: Language) {
+  const translation = capability.manifest.locales?.[language]
+  return {
+    name: translation?.name || capability.manifest.name,
+    description: translation?.description ?? capability.manifest.description,
+  }
+}
+
+function CapabilityIcon({ name }: { name?: string }) {
+  if (name === 'pencil-2') return <Pencil2Icon />
+  if (name === 'magic-wand') return <MagicWandIcon />
+  return <FileTextIcon />
+}
+
+function providerLabel(t: TFunction, kind: ProviderKind) {
+  return kind === 'codex-api' ? t('providerApi') : kind === 'codex-subscription' ? t('providerSubscription') : t('providerCompatible')
+}
+
+function providerStateLabel(t: TFunction, state: ProviderStatus['state'] | undefined) {
+  return state === 'ready' ? t('connected') : state === 'configured' ? t('configured') : state === 'error' ? t('needsAttention') : t('checking')
+}
+
+function App() {
+  const { t } = useTranslation()
+  const { view, theme, language, setView, setTheme, providerKind, setProviderKind } = useWorkbench()
+  const [libraryTopicId, setLibraryTopicId] = useState('')
+  const [organization, setOrganization] = useState<Organization>(emptyOrganization)
+  const [organizationError, setOrganizationError] = useState('')
+  useEffect(() => {
+    let current = true
+    const load = () => { void libraryOrganization().then((value) => { if (current) { setOrganization(value); setOrganizationError(''); setLibraryTopicId((id) => value.topics.some((topic) => topic.id === id) ? id : '') } }).catch((reason) => { if (current) setOrganizationError(String(reason)) }) }
+    load(); window.addEventListener('workbench:library-changed', load)
+    return () => { current = false; window.removeEventListener('workbench:library-changed', load) }
+  }, [])
+  const [conversationTarget, setConversationTarget] = useState<string | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [conversationDocuments, setConversationDocuments] = useState<string[]>([])
+  const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
+  const [taskTarget, setTaskTarget] = useState<string | null>(null)
+  const [commandOpen, setCommandOpen] = useState(false)
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [installedCapabilities, setInstalledCapabilities] = useState<InstalledCapability[]>([])
+  const [activeCapabilityId, setActiveCapabilityId] = useState<string | null>(null)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    if (window.__TAURI_INTERNALS__) {
+      void getCurrentWindow().setTheme(theme)
+    }
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en'
+    void i18n.changeLanguage(language)
+  }, [language])
+
+  useEffect(() => {
+    getSelectedProvider().then(setProviderKind)
+  }, [setProviderKind])
+
+  const refreshCapabilities = async () => {
+    try {
+      setInstalledCapabilities(await getInstalledCapabilityPackagesWithState())
+      await taskRunner.initialize()
+    } catch {
+      showNotice(t('capabilitiesLoadFailed'))
+    }
+  }
+
+  useEffect(() => {
+    void refreshCapabilities()
+  }, [])
+
+  useEffect(() => {
+    if (view === 'capability' && (!activeCapabilityId || !getCapabilityModule(activeCapabilityId))) {
+      setView('capabilities')
+    }
+  }, [activeCapabilityId, setView, view])
+
+  useEffect(() => {
+    setProviderStatus(null)
+    getProviderStatus(providerKind, language).then(setProviderStatus)
+  }, [language, providerKind])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandOpen((open) => !open)
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === ',') {
+        event.preventDefault()
+        setView('settings')
+      }
+      if (event.key === 'Escape') setCommandOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [setView])
+
+  const showNotice = (message: string) => {
+    setNotice(message)
+    window.setTimeout(() => setNotice(null), 3200)
+  }
+
+  const navigate = (nextView: View) => {
+    setView(nextView)
+    setCommandOpen(false)
+  }
+
+  const openCapability = (id: string) => {
+    if (id === LEGACY_REVIEW || id === CONVERSATION_OWNER) { navigate('conversations'); return }
+    setActiveCapabilityId(id)
+    navigate('capability')
+  }
+
+  const openDocument = (reference: DocumentReference) => {
+    setLibraryTopicId('')
+    setDocumentTarget(reference)
+    navigate('library')
+  }
+  useEffect(() => {
+    const open = (event: Event) => openDocument((event as CustomEvent<DocumentReference>).detail)
+    const conversation = (event: Event) => { setConversationTarget((event as CustomEvent<string>).detail); navigate('conversations') }
+    window.addEventListener('workbench:open-conversation', conversation)
+    window.addEventListener('workbench:open-document', open)
+    return () => { window.removeEventListener('workbench:open-document', open); window.removeEventListener('workbench:open-conversation', conversation) }
+  }, [])
+
+  const selectProvider = async (kind: ProviderKind) => {
+    try {
+      await setSelectedProvider(kind)
+      setProviderKind(kind)
+    } catch {
+      showNotice(t('providerSaveFailed'))
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <WindowTitlebar />
+      <div className="app-workspace">
+        <Sidebar organization={organization} organizationError={organizationError} libraryTopicId={libraryTopicId} onSelectTopic={(id) => { setLibraryTopicId(id); setDocumentTarget(null); navigate('library') }} activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
+        <main className="app-main">
+          <Topbar onOpenCommand={() => setCommandOpen(true)} />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              className="page-wrap"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} providerStatus={providerStatus} />}
+              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
+              {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
+              {view === 'skills' && <SkillPoolPage language={language} />}
+              {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
+              {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
+              {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
+              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} providerStatus={providerStatus} onSelectProvider={selectProvider} onCheckProvider={async () => { const nextStatus = await checkProviderHealth(providerKind, language); setProviderStatus(nextStatus); return nextStatus }} onRefreshProvider={() => { void getProviderStatus(providerKind, language).then(setProviderStatus) }} />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            className="toast"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+          >
+            <CheckCircledIcon />
+            {notice}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {commandOpen && (
+          <CommandPalette
+            onClose={() => setCommandOpen(false)}
+            onNavigate={navigate}
+            onNotice={showNotice}
+            theme={theme}
+            onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function WindowTitlebar() {
+  const { t } = useTranslation()
+  if (!window.__TAURI_INTERNALS__) return null
+
+  const appWindow = getCurrentWindow()
+
+  return (
+    <header
+      className="window-titlebar"
+      data-tauri-drag-region
+      onDoubleClick={(event) => {
+        if ((event.target as HTMLElement).closest('button')) return
+        void appWindow.toggleMaximize()
+      }}
+    >
+      <div className="window-controls" role="group" aria-label={t('windowControls')}>
+        <button type="button" className="window-control window-control-close" aria-label={t('closeWindow')} onClick={() => void appWindow.close()} />
+        <button type="button" className="window-control window-control-minimize" aria-label={t('minimizeWindow')} onClick={() => void appWindow.minimize()} />
+        <button type="button" className="window-control window-control-maximize" aria-label={t('maximizeWindow')} onClick={() => void appWindow.toggleMaximize()} />
+      </div>
+    </header>
+  )
+}
+
+function Sidebar({ organization, organizationError, libraryTopicId, onSelectTopic, activeConversationId, onOpenConversation, activeView, activeCapabilityId, installed, onNavigate, onOpenCapability }: { organization: Organization; organizationError: string; libraryTopicId: string; onSelectTopic(id: string): void; activeConversationId: string | null; onOpenConversation(id: string | null): void; activeView: View; activeCapabilityId: string | null; installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void }) {
+  const { t } = useTranslation()
+  const { theme, setTheme, language } = useWorkbench()
+  const enabledCapabilities = installed.filter((capability) => capability.enabled && capability.manifest.id !== LEGACY_REVIEW)
+
+  return (
+    <aside className="sidebar">
+      <div className="brand-lockup">
+        <img className="brand-mark" src={nookiIcon} alt="" aria-hidden="true" />
+        <span className="brand-name" role="img" aria-label="Nooki">
+          <svg viewBox="0 0 132 44" fill="none" aria-hidden="true">
+            <g stroke="currentColor" strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 34 10 10Q10 8 12 11L27 33Q29 36 29 32L32 9" />
+              <path d="M53 20C42 15 35 29 42 34C50 40 61 23 53 20Z" />
+              <path d="M78 19C66 14 60 30 67 35C76 40 87 23 78 19Z" />
+              <path d="m94 9-3 26m3-8 14-10m-12 9 11 10m14-16-2 15" />
+            </g>
+            <path d="M123 5c3 0 4 3 2 5s-6 2-6-1 2-4 4-4Z" fill="currentColor" />
+          </svg>
+        </span>
+      </div>
+
+      <div className="sidebar-label">{t('workspace')}</div>
+      <nav className="primary-nav" aria-label={t('mainNavigation')}>
+        <button className={`nav-item ${activeView === 'today' ? 'is-active' : ''}`} aria-current={activeView === 'today' ? 'page' : undefined} onClick={() => onNavigate('today')}>
+          <span className="nav-item-main"><CalendarIcon />{t('today')}</span>
+          <span className="nav-hint">01</span>
+        </button>
+        <LibraryNavigation language={language} active={activeView === 'library'} topicId={libraryTopicId} organization={organization} error={organizationError} onEnter={() => onNavigate('library')} onSelect={onSelectTopic} />
+        <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
+          <span className="nav-item-main"><BackpackIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
+        </button>
+        <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
+        <button className={`nav-item ${activeView === 'tasks' ? 'is-active' : ''}`} aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}>
+          <span className="nav-item-main"><ClockIcon />{language === 'zh' ? '任务' : 'Tasks'}</span>
+        </button>
+        {enabledCapabilities.map((capability) => {
+          const active = activeView === 'capability' && activeCapabilityId === capability.manifest.id
+          return (
+            <button key={capability.manifest.id} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} onClick={() => onOpenCapability(capability.manifest.id)}>
+              <span className="nav-item-main"><CapabilityIcon name={capability.manifest.icon} />{capabilityCopy(capability, language).name}</span>
+            </button>
+          )
+        })}
+        <button className={`nav-item ${activeView === 'capabilities' ? 'is-active' : ''}`} aria-current={activeView === 'capabilities' ? 'page' : undefined} onClick={() => onNavigate('capabilities')}>
+          <span className="nav-item-main"><CubeIcon />{t('capabilities')}</span>
+          <span className="nav-hint">—</span>
+        </button>
+      </nav>
+
+      <div className="sidebar-spacer" />
+
+      <button className={`nav-item sidebar-settings ${activeView === 'settings' ? 'is-active' : ''}`} onClick={() => onNavigate('settings')}>
+        <span className="nav-item-main"><GearIcon />{t('settings')}</span>
+        <span className="nav-hint">⌘,</span>
+      </button>
+
+      <div className="sidebar-footer">
+        <button className="icon-button" aria-label={theme === 'light' ? t('switchDark') : t('switchLight')} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+          {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+        </button>
+        <span className="version-label">v0.3.0 · {t('localVersion')}</span>
+      </div>
+    </aside>
+  )
+}
+
+function Topbar({ onOpenCommand }: { onOpenCommand: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <header
+      className="topbar"
+      data-tauri-drag-region
+      onDoubleClick={(event) => {
+        if (!window.__TAURI_INTERNALS__ || (event.target as HTMLElement).closest('button')) return
+        void getCurrentWindow().toggleMaximize()
+      }}
+    >
+      <div className="topbar-actions">
+        <button className="topbar-search" aria-label={`${t('searchWorkbench')} (⌘ K)`} onClick={onOpenCommand}><MagnifyingGlassIcon /><kbd>⌘ K</kbd></button>
+      </div>
+    </header>
+  )
+}
+
+function TodayPage({ installed, onNavigate, onOpenCapability, onDocument, onTask, providerStatus }: { installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void; onDocument: (reference: DocumentReference) => void; onTask: (id: string) => void; providerStatus: ProviderStatus | null }) {
+  const { t } = useTranslation()
+  const { language, providerKind } = useWorkbench()
+  const enabled = installed.filter((capability) => capability.enabled)
+  const primaryCapability = enabled[0]
+  const primaryCapabilityName = primaryCapability ? capabilityCopy(primaryCapability, language).name : null
+  const today = new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())
+  return (
+    <div className="content-column today-page">
+      <div className="page-intro">
+        <div>
+          <div className="eyebrow">{today}</div>
+          <h1>{t('todayHeadingFirst')}<br /><em>{t('todayHeadingSecond')}</em></h1>
+        </div>
+        <div className="intro-actions">
+          {primaryCapability && primaryCapabilityName
+            ? <button className="primary-button" onClick={() => onOpenCapability(primaryCapability.manifest.id)}>{t('openNamedCapability', { name: primaryCapabilityName })}<ArrowRightIcon /></button>
+            : <button className="primary-button" onClick={() => onNavigate('capabilities')}><PlusIcon />{t('installFirstCapability')}</button>}
+        </div>
+      </div>
+
+      <div className="today-grid">
+        <section className="surface surface-empty">
+          <div className="surface-heading">
+            <div><span className="section-kicker">WORKSPACE</span><h2>{t('todayStart')}</h2></div>
+            <span className="count-label">{enabled.length === 0 ? t('zeroCapabilities') : language === 'zh' ? `${enabled.length} 个能力` : `${enabled.length} capabilities`}</span>
+          </div>
+          {enabled.length === 0 ? <div className="empty-stage">
+            <div className="empty-orbit" aria-hidden="true"><span /><span /><span /></div>
+            <div className="empty-stage-copy"><strong>{t('noEnabledCapabilities')}</strong><span>{t('installedCapabilitiesAppear')}</span></div>
+            <button className="text-button" onClick={() => onNavigate('capabilities')}>{t('browseCapabilities')}<ArrowRightIcon /></button>
+          </div> : <div className="today-capability-list">{enabled.map((capability) => { const copy = capabilityCopy(capability, language); return <button key={capability.manifest.id} className="today-capability-link" onClick={() => onOpenCapability(capability.manifest.id)}><span><strong>{copy.name}</strong><small>{copy.description}</small></span><ArrowRightIcon /></button> })}</div>}
+        </section>
+
+        <section className="surface provider-surface">
+          <div className="surface-heading">
+            <div><span className="section-kicker">AI PROVIDER</span><h2>{t('unifiedAi')}</h2></div>
+            <LightningBoltIcon className="heading-icon" />
+          </div>
+          <div className="provider-status-line">
+            <div className="provider-status-symbol"><LightningBoltIcon /></div>
+            <div><strong>{providerStatus?.label ?? providerLabel(t, providerKind)}</strong><span>{providerStatus?.detail ?? t('providerChecking')}</span></div>
+            <span className={`pill pill-${providerStatus?.state ?? 'preview'}`}>{providerStateLabel(t, providerStatus?.state)}</span>
+          </div>
+          <p className="provider-copy">{t('providerCopy')}</p>
+          <button className="surface-link" onClick={() => onNavigate('settings')}>{t('viewProviderSettings')}<ChevronRightIcon /></button>
+        </section>
+      </div>
+
+      <TodayActivity language={language} installed={installed} onDocument={onDocument} onTask={onTask} onCapability={onOpenCapability} />
+    </div>
+  )
+}
+
+class CapabilityErrorBoundary extends Component<{ children: ReactNode; onBack(): void; language: Language }, { error: string | null }> {
+  state = { error: null as string | null }
+  static getDerivedStateFromError(error: Error) { return { error: error.message } }
+  render() {
+    return this.state.error ? <div className="content-column" role="alert"><h2>{this.props.language === 'zh' ? '能力页面加载失败' : 'Capability page failed'}</h2><p>{this.state.error}</p><button className="primary-button" onClick={this.props.onBack}>{this.props.language === 'zh' ? '管理能力或回退版本' : 'Manage capability or roll back'}</button></div> : this.props.children
+  }
+}
+
+function CapabilityPage({ module }: { module: import('../platform/capability-runtime.ts').CapabilityModule }) {
+  const Page = module.Page
+  const host = useMemo(() => createCapabilityHost(module.manifest.id, module.manifest.permissions, module.manifest.name), [module.manifest.id, module.manifest.name, module.manifest.permissions])
+  return <Page host={host} />
+}
+
+function LibraryMarkdown({ content, onDocument }: { content: string; onDocument: (reference: DocumentReference) => void }) {
+  return <Markdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => {
+    const reference = parseReferenceHref(href ?? '')
+    return reference ? <a href={href} onClick={(event) => { event.preventDefault(); onDocument(reference) }}>{children}</a> : <a href={href}>{children}</a>
+  } }}>{content}</Markdown>
+}
+
+function LibraryPage({ topicId, organization, onSelectTopic, installed, target, onAddToConversation, onOpenCapability, onDocument }: { topicId: string; organization: Organization; onSelectTopic(id: string): void; installed: InstalledCapability[]; target: DocumentReference | null; onAddToConversation(ids: string[]): void; onOpenCapability: (id: string) => void; onDocument: (reference: DocumentReference) => void }) {
+  const { t } = useTranslation()
+  const { language } = useWorkbench()
+  const [documents, setDocuments] = useState<LibraryDocumentMetadata[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [deleteIds, setDeleteIds] = useState<string[] | null>(null)
+  const scopeIds = topicId ? organization.topics.find((topic) => topic.id === topicId)?.documentIds ?? [] : null
+  const [editing, setEditing] = useState<LibraryDocument | null>(null)
+  const [history, setHistory] = useState<LibraryDocument | null>(null)
+  const [origins, setOrigins] = useState<Record<string, Origin>>({})
+  const refreshLibrary = () => setRefreshKey((key) => key + 1)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedDocument, setSelectedDocument] = useState<LibraryDocument | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [documentError, setDocumentError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [contentMatches, setContentMatches] = useState<Set<string>>(new Set())
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [selectedInputs, setSelectedInputs] = useState<Set<string>>(new Set())
+  const [grantOpen, setGrantOpen] = useState(false)
+  const [recipient, setRecipient] = useState('')
+  const [grantBusy, setGrantBusy] = useState(false)
+  const [grantError, setGrantError] = useState<string | null>(null)
+  const [thisWeek, setThisWeek] = useState(false)
+  const [sourceTarget, setSourceTarget] = useState<DocumentReference | null>(null)
+  const [source, setSource] = useState<SelectedDocument | null>(null)
+  useEffect(() => { setSourceTarget(null); setSelectedId(null); setSelectedDocument(null); setSelectedInputs(new Set()); setQuery(''); setThisWeek(false) }, [topicId])
+  useEffect(() => { window.addEventListener('workbench:library-changed', refreshLibrary); return () => window.removeEventListener('workbench:library-changed', refreshLibrary) }, [])
+  const recipients = installed.filter((cap) => cap.manifest.id !== LEGACY_REVIEW && cap.enabled && cap.manifest.permissions.includes('documents.read-selected'))
+  const monday = new Date(); monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7)
+  const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6)
+  const inWeek = (date: string) => date >= monday.toLocaleDateString('en-CA') && date <= sunday.toLocaleDateString('en-CA')
+  useEffect(() => {
+    let current = true
+    setContentMatches(new Set()); setSearchError(null)
+    const timer = window.setTimeout(() => { void searchLibraryContent(query).then((ids) => { if (current) setContentMatches(new Set(ids)) }).catch((reason) => { if (current) setSearchError(String(reason)) }) }, 150)
+    return () => { current = false; window.clearTimeout(timer) }
+  }, [query, documents])
+  useEffect(() => {
+    if (!target) return
+    setSourceTarget(target.grantId || target.snapshotId ? target : null)
+    setSelectedId(target.documentId)
+  }, [target])
+  const [collapsedCapabilities, setCollapsedCapabilities] = useState<Set<string>>(() => new Set())
+  const installedNames = useMemo(() => new Map<string, string>(installed.map((capability): [string, string] => [
+    capability.manifest.id,
+    capabilityCopy(capability, language).name,
+  ]).concat([[CONVERSATION_OWNER, language === 'zh' ? '对话' : 'Conversations'], ['workbench.imports', language === 'zh' ? '导入资料' : 'Imports']])), [installed, language])
+  const tree = useMemo(() => buildLibraryTree(documents.filter((doc) => (!thisWeek || inWeek(doc.documentDate)) && (!scopeIds || scopeIds.includes(doc.id))), installedNames, organization.customSections), [documents, installedNames, thisWeek, scopeIds, organization.customSections])
+  const filteredTree = useMemo(() => filterLibraryTree(tree, query, contentMatches), [tree, query, contentMatches])
+  const visibleIds = useMemo(() => filteredTree.flatMap((cap) => cap.collections.flatMap((collection) => collection.months.flatMap((month) => month.documents.map((doc) => doc.id)))), [filteredTree])
+  const visibleIdSet = useMemo(() => new Set(visibleIds), [visibleIds])
+  const searching = query.trim().length > 0
+  useEffect(() => {
+    if (!sourceTarget) setSelectedId((id) => visibleLibrarySelection(visibleIds, id))
+    setSelectedInputs((ids) => { const next = [...ids].filter((id) => visibleIdSet.has(id)); return next.length === ids.size ? ids : new Set(next) })
+  }, [visibleIds, visibleIdSet, sourceTarget])
+  const currentDocument = selectedDocument?.id === selectedId && visibleIdSet.has(selectedDocument.id) ? selectedDocument : null
+
+  const toggleKey = (current: Set<string>, key: string) => {
+    const next = new Set(current)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    return next
+  }
+
+  useEffect(() => {
+    let current = true
+    setLoading(true)
+    listLibraryDocuments()
+      .then((next) => {
+        if (!current) return
+        setDocuments(next)
+        setSelectedId((previous) => next.some((doc) => doc.id === previous) ? previous : next.some((doc) => doc.id === target?.documentId) ? target!.documentId : next[0]?.id ?? null)
+        setSelectedInputs((previous) => new Set([...previous].filter((id) => next.some((doc) => doc.id === id))))
+        void libraryOrganization().then((value) => { if (current) setOrigins(value.origins) }).catch((reason) => { if (current) setError(String(reason)) })
+        setError(null)
+      })
+      .catch(() => current && setError(t('libraryLoadFailed')))
+      .finally(() => current && setLoading(false))
+    return () => { current = false }
+  }, [t, refreshKey])
+
+  useEffect(() => {
+    let current = true
+    setSelectedDocument(null)
+    setSource(null)
+    setDocumentError(null)
+    if (!selectedId && !sourceTarget) return () => { current = false }
+    const read = sourceTarget
+      ? readSourceReference(sourceTarget).then((doc) => { if (current) setSource(doc) })
+      : readLibraryDocument(selectedId!).then((doc) => { if (current) setSelectedDocument(doc) })
+    read
+      .catch(() => current && setDocumentError(t('libraryDocumentLoadFailed')))
+    return () => { current = false }
+  }, [selectedId, sourceTarget, t, refreshKey])
+
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US'
+
+
+  return (
+    <div className="content-column library-page">
+      <div className="page-header-row library-page-heading">
+        <h1><span>{language === 'zh' ? '认真留下的，' : 'What you keep '}</span><span>{language === 'zh' ? '值得再读一遍。' : 'is worth returning to.'}</span></h1>
+        <span className="library-total">{documents.filter((doc) => !scopeIds || scopeIds.includes(doc.id)).length} {t('libraryDocuments')}</span>
+      </div>
+      <LibraryManager topicId={topicId} onSelectTopic={onSelectTopic} language={language} documents={documents} selected={[...selectedInputs]} onOpen={(id) => { setQuery(''); setThisWeek(false); setSelectedId(id); setSourceTarget(null) }} onDiscuss={onAddToConversation} refresh={refreshLibrary} onClear={() => setSelectedInputs(new Set())}
+        filters={<div className="library-period-filter" role="group" aria-label={language === 'zh' ? '资料日期范围' : 'Document date range'}><button aria-pressed={!thisWeek} onClick={() => setThisWeek(false)}>{language === 'zh' ? '全部' : 'All'}</button><button aria-pressed={thisWeek} onClick={() => setThisWeek(true)}><CalendarIcon />{language === 'zh' ? '本周' : 'This week'}</button></div>}
+        selectionActions={<>{!!recipients.length && <button className="library-grant-action" onClick={() => { setRecipient(recipients[0]?.manifest.id ?? ''); setGrantError(null); setGrantOpen(true) }}>{language === 'zh' ? '授权读取' : 'Authorize access'}</button>}<button className="library-conversation-action" disabled={selectedInputs.size > 50} onClick={() => onAddToConversation([...selectedInputs])}><ChatBubbleIcon />{language === 'zh' ? '添加到对话' : 'Add to conversation'}</button></>}
+      />
+      {editing && <EditDocumentDialog document={editing} language={language} onClose={() => setEditing(null)} onSaved={refreshLibrary} />}
+      {history && <HistoryDialog document={history} language={language} onClose={() => setHistory(null)} onSaved={refreshLibrary} />}
+      {deleteIds && <DeleteDocumentsDialog ids={deleteIds} language={language} onClose={() => setDeleteIds(null)} onDeleted={refreshLibrary} />}
+      {searchError && <p role="alert">{searchError}</p>}
+      {grantOpen && <div className="modal-backdrop"><section className="modal grant-modal" role="dialog" aria-modal="true" aria-labelledby="grant-title"><div className="modal-header"><div><span className="section-kicker">DOCUMENT ACCESS</span><h2 id="grant-title">{language === 'zh' ? '确认资料授权' : 'Confirm document access'}</h2></div><button className="icon-button" disabled={grantBusy} onClick={() => setGrantOpen(false)} aria-label={t('close')}><Cross2Icon /></button></div>
+        <p className="modal-copy">{language === 'zh' ? '只授权读取以下资料的当前快照。能力可将这些内容用于 AI 生成；不会获得全库或其他能力私有数据的访问权。' : 'Authorize only the current snapshots listed below. The capability may use them for AI generation; this does not grant access to the entire Library or private capability storage.'}</p>
+        <div className="grant-section-label"><span>{language === 'zh' ? '所选资料' : 'Selected documents'}</span><small>{selectedInputs.size}</small></div>
+        <ul className="grant-document-list">{documents.filter((doc) => selectedInputs.has(doc.id)).map((doc) => <li key={doc.id}><span className="grant-document-icon"><FileTextIcon /></span><span><strong>{doc.title}</strong><small>{installedNames.get(doc.capabilityId) ?? doc.capabilityName} · {doc.documentDate}</small></span></li>)}</ul>
+        <fieldset className="grant-recipients"><legend>{language === 'zh' ? '允许哪个能力读取' : 'Allow access to'}</legend><div className="grant-recipient-list">{recipients.map((cap) => <label className={`grant-recipient ${recipient === cap.manifest.id ? 'is-selected' : ''}`} key={cap.manifest.id}><input type="radio" name="document-recipient" value={cap.manifest.id} checked={recipient === cap.manifest.id} disabled={grantBusy} onChange={() => setRecipient(cap.manifest.id)} /><span className="grant-recipient-icon"><CapabilityIcon name={cap.manifest.icon} /></span><span><strong>{capabilityCopy(cap, language).name}</strong><small>{capabilityCopy(cap, language).description}</small></span><CheckIcon className="grant-recipient-check" aria-hidden="true" /></label>)}</div></fieldset>
+        {!recipients.length && <p>{language === 'zh' ? '请先安装并启用支持所选文档读取的能力。' : 'Install and enable a capability that supports selected documents.'}</p>}
+        {grantError && <p role="alert">{grantError}</p>}
+        <div className="modal-footer"><button className="secondary-button" disabled={grantBusy} onClick={() => setGrantOpen(false)}>{language === 'zh' ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={grantBusy || !recipient} onClick={() => { setGrantBusy(true); void grantSelectedDocuments(recipient, [...selectedInputs]).then(() => { setGrantOpen(false); onOpenCapability(recipient) }).catch((reason) => setGrantError(String(reason))).finally(() => setGrantBusy(false)) }}>{language === 'zh' ? '授权并打开能力' : 'Authorize and open'}<ArrowRightIcon /></button></div>
+      </section></div>}
+      <div className="library-workspace">
+        {loading ? <div className="library-state"><ReloadIcon className="spin" /><span>{t('libraryLoading')}</span></div>
+          : error && documents.length === 0 ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{error}</span></div>
+            : <>
+                <nav className="library-tree" aria-label={t('libraryTree')}>
+                  <label className="library-tree-search">
+                    <MagnifyingGlassIcon />
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder={language === 'zh' ? '搜索资料…' : 'Search documents…'}
+                      aria-label={t('librarySearch')}
+                    />
+                  </label>
+                  <div className="library-list-caption"><label><input type="checkbox" aria-label={language === 'zh' ? '选择当前列表全部资料' : 'Select all visible documents'} checked={!!visibleIds.length && visibleIds.every((id) => selectedInputs.has(id))} ref={(el) => { if (el) el.indeterminate = selectedInputs.size > 0 && selectedInputs.size < visibleIds.length }} disabled={!visibleIds.length} onChange={(e) => setSelectedInputs(e.target.checked ? new Set(visibleIds) : new Set())} />{language === 'zh' ? '全选' : 'Select all'}</label><span>{visibleIds.length} {language === 'zh' ? '篇资料' : 'documents'}</span></div>
+                  <LibrarySectionComposer language={language} />
+                  {filteredTree.length === 0
+                    ? <div className="library-search-empty">{searching ? t('libraryNoSearchResults') : language === 'zh' ? '暂无资料' : 'No documents'}</div>
+                    : filteredTree.map((capability) => {
+                      const expanded = searching || !collapsedCapabilities.has(capability.capabilityId)
+                      return <section className="library-capability-node" key={capability.capabilityId}>
+                        <button type="button" className="library-capability-heading" aria-expanded={expanded} disabled={searching} onClick={() => setCollapsedCapabilities((current) => toggleKey(current, capability.capabilityId))}>
+                          <ChevronRightIcon className={`library-tree-chevron ${expanded ? 'is-expanded' : ''}`} /><span><strong>{capability.capabilityName}</strong></span><em>{capability.documentCount}</em>
+                        </button>
+                        {expanded && !capability.documentCount && <p className="library-section-empty">{language === 'zh' ? '选择资料后移入此栏目，或保存对话时选择这里。' : 'Move selected documents here, or choose this section when saving a conversation.'}</p>}
+                        {expanded && capability.collections.map((collection) => <div key={collection.key}>
+                          {capability.collections.length > 1 && <div className="library-collection-caption">{collection.name}</div>}
+                          {collection.months.flatMap((month) => month.documents).map((doc) => <div className={`library-selectable-document ${selectedId === doc.id && !sourceTarget ? 'is-active' : ''}`} key={doc.id}>
+                            <input type="checkbox" aria-label={`${language === 'zh' ? '选择' : 'Select'} ${doc.title}`} checked={selectedInputs.has(doc.id)} onChange={() => setSelectedInputs((current) => toggleKey(current, doc.id))} />
+                            <button type="button" className="library-document-link" aria-current={selectedId === doc.id && !sourceTarget ? 'true' : undefined} onClick={() => { setSourceTarget(null); setSelectedId(doc.id) }}><span><strong>{doc.title}</strong><small>{doc.documentDate}</small></span></button>
+                            <button className="icon-button library-row-delete" aria-label={`${language === 'zh' ? '删除' : 'Delete'} ${doc.title}`} title={language === 'zh' ? '删除资料' : 'Delete document'} onClick={() => setDeleteIds([doc.id])}><TrashIcon /></button>
+                          </div>)}
+                        </div>)}
+                      </section>
+                    })}
+                </nav>
+
+                <article className="library-reader" key={sourceTarget ? `${sourceTarget.documentId}:${sourceTarget.revision}` : selectedId}>
+                  {source ? <><header className="library-reader-header"><span>{language === 'zh' ? '引用原文 · 使用时保存的快照' : 'Cited source · snapshot captured when used'}</span><h2>{source.reference.title}</h2><small>{source.documentDate} · {source.reference.revision}</small><button className="quiet-button" onClick={() => { setSourceTarget(null); setSelectedId(source.reference.documentId) }}>{language === 'zh' ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><div className="library-reader-document"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></div></> : currentDocument ? <>
+                    <header className="library-reader-header">
+                      <h2>{currentDocument.title}</h2>
+                      <div className="library-reader-details"><div className="library-reader-meta"><small>{t('libraryUpdated')} {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(currentDocument.updatedAt))}</small></div>
+                      <div className="library-document-actions"><button className="quiet-button" onClick={() => setEditing(currentDocument)}>{language === 'zh' ? '修订' : 'Revise'}</button><button className="quiet-button" onClick={() => setHistory(currentDocument)}>{language === 'zh' ? '版本历史' : 'Version history'}</button><button className="quiet-button" onClick={() => onAddToConversation([currentDocument.id])}>{language === 'zh' ? '继续讨论' : 'Discuss document'}</button><button className="quiet-button library-delete-action" onClick={() => setDeleteIds([currentDocument.id])}><TrashIcon />{language === 'zh' ? '删除' : 'Delete'}</button>{origins[currentDocument.id] && <button className="quiet-button" onClick={() => window.dispatchEvent(new CustomEvent('workbench:open-conversation', { detail: origins[currentDocument.id].threadId }))}>{language === 'zh' ? '原始对话' : 'Original conversation'}</button>}</div></div>
+                    </header>
+                    <div className="library-reader-content"><div className="library-reader-document"><LibraryMarkdown content={currentDocument.content} onDocument={onDocument} /></div></div>
+                  </> : documentError ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{documentError}</span></div> : <div className="library-state"><FileTextIcon /><strong>{!visibleIds.length ? (language === 'zh' ? '这里还没有资料' : 'No documents here') : t('librarySelectDocument')}</strong><span>{!visibleIds.length ? (searching || thisWeek ? (language === 'zh' ? '试试其他关键词或日期范围。' : 'Try another search or date range.') : scopeIds ? (language === 'zh' ? '在全部资料中选择资料，再加入这个专题。' : 'Select documents in All documents and add them to this topic.') : t('libraryEmptyHint')) : ''}</span></div>}
+                </article>
+              </>}
+      </div>
+    </div>
+  )
+}
+
+function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNotice }: { installed: InstalledCapability[]; onRefresh: () => Promise<void>; onOpenCapability: (id: string) => void; onNotice: (message: string) => void }) {
+  const { t } = useTranslation()
+  const { language } = useWorkbench()
+  const [importOpen, setImportOpen] = useState(false)
+  const [integrationOpen, setIntegrationOpen] = useState(false)
+  const [filter, setFilter] = useState<CapabilityFilter>('all')
+  const available = listAvailableCapabilities()
+  const installedById = new Map(installed.map((capability) => [capability.manifest.id, capability]))
+  const enabledCount = installed.filter((capability) => capability.enabled).length
+  const disabledCount = installed.length - enabledCount
+  const filters: Array<{ id: CapabilityFilter; label: string; count: number }> = [
+    { id: 'all', label: t('all'), count: available.length },
+    { id: 'enabled', label: t('enabled'), count: enabledCount },
+    { id: 'disabled', label: t('disabled'), count: disabledCount },
+  ]
+  const filteredCapabilities = available.filter((capability) => {
+    const current = installedById.get(capability.manifest.id)
+    return filter === 'all' || (filter === 'enabled' ? current?.enabled === true : current?.enabled === false)
+  })
+
+  const install = async (id: string) => {
+    try {
+      await installCapabilityPackage(id)
+      await onRefresh()
+      onNotice(t('capabilityInstalled'))
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : t('capabilityInstallFailed'))
+    }
+  }
+
+  const toggle = async (id: string, enabled: boolean) => {
+    try {
+      await setCapabilityPackageEnabled(id, enabled)
+      await onRefresh()
+      onNotice(enabled ? t('capabilityEnabled') : t('capabilityDisabled'))
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : t('capabilityUpdateFailed'))
+    }
+  }
+
+  const rollback = async (id: string) => {
+    try { await rollbackCapabilityPackage(id); await onRefresh() }
+    catch (error) { onNotice(String(error)) }
+  }
+
+  const uninstall = async (id: string) => {
+    try {
+      await uninstallCapabilityPackage(id)
+      await onRefresh()
+      onNotice(t('capabilityUninstalled'))
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : t('capabilityUpdateFailed'))
+    }
+  }
+
+  return (
+    <div className="content-column capabilities-page">
+      <div className="page-header-row">
+        <div><h1 className="capabilities-intro-title"><span>{t('capabilitiesHeadline')}</span><span>{t('capabilitiesHeadlineEnding')}</span></h1><p>{t('capabilitiesIntro')}</p></div>
+        <button className="primary-button" onClick={() => setImportOpen(true)}><PlusIcon />{t('importCapability')}</button>
+      </div>
+
+      <div className="capability-toolbar">
+        <div className="capability-filters" role="group" aria-label={t('filterCapabilities')}>
+          {filters.map((option) => <button key={option.id} className={`filter-chip ${filter === option.id ? 'active' : ''}`} aria-pressed={filter === option.id} onClick={() => setFilter(option.id)}>{option.label} <span>{option.count}</span></button>)}
+        </div>
+        <div className="toolbar-spacer" />
+        <button className="quiet-button developer-center-trigger" onClick={() => setIntegrationOpen(true)}><CodeIcon />{t('developerCenter')}</button>
+      </div>
+
+      {installed.length === 0 && filter === 'all' && <section className="capability-empty">
+        <div className="capability-empty-art" aria-hidden="true"><div className="art-window"><span /><span /><span /></div><div className="art-plus"><PlusIcon /></div></div>
+        <div className="capability-empty-copy"><h2>{t('quietWorkbench')}</h2><p>{t('capabilityModulesCopy')}</p><button className="text-button" onClick={() => setImportOpen(true)}>{t('importLocalCapability')}<ArrowRightIcon /></button></div>
+      </section>}
+
+      <section className="capability-catalog" aria-label={t('availableCapabilities')}>
+        <div className="section-heading-row"><div><span className="section-kicker">AVAILABLE PACKAGES</span><h2>{t('availableCapabilities')}</h2></div></div>
+        <div className="capability-cards">
+          {filteredCapabilities.map((capability) => {
+            const current = installedById.get(capability.manifest.id)
+            const copy = capabilityCopy(capability, language)
+            return <article className="capability-card" key={capability.manifest.id}>
+              <div className="capability-card-icon"><CapabilityIcon name={capability.manifest.icon} /></div>
+              <div className="capability-card-copy"><div className="capability-card-title"><h3>{copy.name}</h3><span className={`capability-status ${current ? current.enabled ? 'enabled' : 'disabled' : 'available'}`}>{current ? current.enabled ? t('enabled') : t('disabled') : t('available')}</span></div><p>{copy.description}</p><small>{capability.manifest.id} · v{capability.manifest.version}</small>{getCapabilityLoadError(capability.manifest.id) && <p role="alert">{getCapabilityLoadError(capability.manifest.id)}</p>}</div>
+              <div className="capability-card-actions">{current ? <><button className="quiet-button" onClick={() => onOpenCapability(capability.manifest.id)} disabled={!current.enabled || Boolean(getCapabilityLoadError(capability.manifest.id))}>{t('openCapability')}<ArrowRightIcon /></button><button className="quiet-button" onClick={() => void toggle(capability.manifest.id, !current.enabled)}>{current.enabled ? t('disableCapability') : t('enableCapability')}</button>{current.previousPackageVersion && <button className="quiet-button" onClick={() => void rollback(capability.manifest.id)}>{language === 'zh' ? '回退版本' : 'Roll back'}</button>}<button className="capability-uninstall" onClick={() => void uninstall(capability.manifest.id)}>{t('uninstallCapability')}</button></> : <button className="primary-button" onClick={() => void install(capability.manifest.id)}>{t('installCapability')}<ArrowRightIcon /></button>}</div>
+            </article>
+          })}
+          {filteredCapabilities.length === 0 && <div className="capability-filter-empty"><span>{t('noFilteredCapabilities')}</span><button className="text-button" onClick={() => setFilter('all')}>{t('showAllCapabilities')}<ArrowRightIcon /></button></div>}
+        </div>
+      </section>
+
+      <AnimatePresence>
+        {integrationOpen && <DeveloperCenterModal language={language} onClose={() => setIntegrationOpen(false)} />}
+        {importOpen && <PackageImportModal language={language} onClose={() => setImportOpen(false)} onInstalled={async () => { await onRefresh(); onNotice(t('capabilityInstalled')) }} />}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function SettingsPage({ onOpenConversation, installed, onNotice, providerStatus, onSelectProvider, onCheckProvider, onRefreshProvider }: { onOpenConversation(id: string): void; installed: InstalledCapability[]; onNotice: (message: string) => void; providerStatus: ProviderStatus | null; onSelectProvider: (kind: ProviderKind) => Promise<void>; onCheckProvider: () => Promise<ProviderStatus>; onRefreshProvider: () => void }) {
+  const { t } = useTranslation()
+  const { theme, setTheme, language, setLanguage, providerKind } = useWorkbench()
+  const [checking, setChecking] = useState(false)
+  const [testingProvider, setTestingProvider] = useState(false)
+
+  const runCheck = async () => {
+    setChecking(true)
+    const nextStatus = await onCheckProvider()
+    setChecking(false)
+    onNotice(nextStatus.state === 'ready' ? t('providerHealthy') : nextStatus.state === 'error' ? t('providerNeedsAttention') : t('providerCheckIncomplete'))
+  }
+
+  const testProvider = async () => {
+    setTestingProvider(true)
+    try {
+      const result = await testSelectedProvider(language)
+      onNotice(`${result.provider} · ${result.model} ${t('providerReturned')}`)
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : t('providerTestFailed'))
+    } finally {
+      setTestingProvider(false)
+    }
+  }
+
+  return (
+    <div className="content-column settings-page">
+      <div className="page-header-row"><div><div className="eyebrow">{t('preferences')}</div><h1>{t('settings')}</h1><p>{t('settingsIntro')}</p></div></div>
+
+      <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">01</span><div><h2>AI Provider</h2><p>{t('providerShared')}</p></div></div>
+        <div className="provider-options">
+          {(['codex-api', 'codex-subscription', 'compatible-api'] as ProviderKind[]).map((kind) => (
+            <button key={kind} className={`provider-option ${providerKind === kind ? 'selected' : ''}`} onClick={() => void onSelectProvider(kind)}>
+              <span className="provider-option-icon">{kind === 'compatible-api' ? <GlobeIcon /> : kind === 'codex-api' ? <LightningBoltIcon /> : <CodeIcon />}</span>
+              <span><strong>{providerLabel(t, kind)}</strong><small>{kind === 'codex-api' ? t('apiDescription') : kind === 'codex-subscription' ? t('subscriptionDescription') : t('compatibleDescription')}</small></span>
+              {providerKind === kind && <CheckIcon className="selected-check" />}
+            </button>
+          ))}
+        </div>
+        <div className="provider-detail"><div className="detail-icon"><UpdateIcon /></div><div><strong>{providerStatus?.label ?? providerLabel(t, providerKind)} · {providerStateLabel(t, providerStatus?.state)}</strong><span>{providerStatus?.detail ?? t('providerStatusLoading')}</span></div><div className="provider-detail-actions"><button className="quiet-button" onClick={runCheck} disabled={checking}>{checking ? t('checkingEllipsis') : t('healthCheck')}<ReloadIcon className={checking ? 'spin' : ''} /></button><button className="quiet-button" onClick={testProvider} disabled={testingProvider}>{testingProvider ? t('testingEllipsis') : t('testCall')}<ArrowRightIcon /></button></div></div>
+        {providerKind === 'compatible-api' && <CompatibleEndpointSettings language={language} onNotice={onNotice} onChanged={onRefreshProvider} />}
+      </section>
+
+      <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">02</span><div><h2>{t('appearance')}</h2><p>{t('appearanceIntro')}</p></div></div><div className="theme-options"><button className={`theme-option ${theme === 'light' ? 'selected' : ''}`} onClick={() => setTheme('light')}><span className="theme-preview theme-preview-light"><SunIcon /></span><span><strong>{t('light')}</strong><small>{t('lightDescription')}</small></span>{theme === 'light' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${theme === 'dark' ? 'selected' : ''}`} onClick={() => setTheme('dark')}><span className="theme-preview theme-preview-dark"><MoonIcon /></span><span><strong>{t('dark')}</strong><small>{t('darkDescription')}</small></span>{theme === 'dark' && <CheckIcon className="selected-check" />}</button></div></section>
+
+      <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">03</span><div><h2>{t('language')}</h2><p>{t('languageIntro')}</p></div></div><div className="theme-options language-options"><button className={`theme-option ${language === 'zh' ? 'selected' : ''}`} onClick={() => setLanguage('zh')}><span className="language-preview">中</span><span><strong>{t('chinese')}</strong><small>{t('chineseDescription')}</small></span>{language === 'zh' && <CheckIcon className="selected-check" />}</button><button className={`theme-option ${language === 'en' ? 'selected' : ''}`} onClick={() => setLanguage('en')}><span className="language-preview">EN</span><span><strong>{t('english')}</strong><small>{t('englishDescription')}</small></span>{language === 'en' && <CheckIcon className="selected-check" />}</button></div></section>
+
+      <section className="settings-section"><div className="settings-section-heading"><span className="settings-number">04</span><div><h2>{t('localData')}</h2><p>{t('localDataIntro')}</p></div></div><DataManagement language={language} installed={installed} /></section>
+      <ConversationArchives language={language} onRestore={onOpenConversation} />
+    </div>
+  )
+}
+
+function CommandPalette({ onClose, onNavigate, onNotice, theme, onToggleTheme }: { onClose: () => void; onNavigate: (view: View) => void; onNotice: (message: string) => void; theme: Theme; onToggleTheme: () => void }) {
+  const { t } = useTranslation()
+  const [query, setQuery] = useState('')
+  const [highlightedIndex, setHighlightedIndex] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => inputRef.current?.focus(), [])
+
+  const commands = useMemo(() => [
+    { label: t('openToday'), hint: t('navigation'), icon: CalendarIcon, action: () => onNavigate('today') },
+    { label: i18n.language.startsWith('zh') ? '打开对话' : 'Open conversations', hint: t('navigation'), icon: ChatBubbleIcon, action: () => onNavigate('conversations') },
+    { label: t('openLibrary'), hint: t('navigation'), icon: ArchiveIcon, action: () => onNavigate('library') },
+    { label: i18n.language.startsWith('zh') ? '打开技能池' : 'Open skill pool', hint: t('navigation'), icon: BackpackIcon, action: () => onNavigate('skills') },
+    { label: t('openCapabilities'), hint: t('navigation'), icon: CubeIcon, action: () => onNavigate('capabilities') },
+    { label: t('openSettings'), hint: t('navigation'), icon: GearIcon, action: () => onNavigate('settings') },
+    { label: theme === 'light' ? t('switchToDark') : t('switchToLight'), hint: t('appearanceHint'), icon: theme === 'light' ? MoonIcon : SunIcon, action: () => { onToggleTheme(); onClose() } },
+    { label: t('viewPlatformStatus'), hint: t('system'), icon: LightningBoltIcon, action: () => { onNavigate('settings'); onNotice(t('providerLocated')) } },
+  ].filter((command) => command.label.toLowerCase().includes(query.toLowerCase())), [onNavigate, onNotice, onToggleTheme, onClose, query, t, theme])
+
+  useEffect(() => setHighlightedIndex(0), [query])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setHighlightedIndex((index) => commands.length ? (index + 1) % commands.length : 0)
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setHighlightedIndex((index) => commands.length ? (index - 1 + commands.length) % commands.length : 0)
+      }
+      if (event.key === 'Enter' && commands[highlightedIndex]) {
+        event.preventDefault()
+        commands[highlightedIndex].action()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [commands, highlightedIndex])
+
+  return <div className="palette-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><motion.section className="command-palette" role="dialog" aria-modal="true" initial={{ opacity: 0, y: -10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.99 }}><div className="palette-search"><MagnifyingGlassIcon /><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('actionPlaceholder')} /><kbd>ESC</kbd></div><div className="palette-list">{commands.length > 0 ? commands.map((command, index) => { const Icon = command.icon; return <button key={command.label} className={`palette-item ${index === highlightedIndex ? 'is-highlighted' : ''}`} onMouseEnter={() => setHighlightedIndex(index)} onClick={command.action}><span className="palette-item-icon"><Icon /></span><span>{command.label}</span><small>{command.hint}</small><ChevronRightIcon /></button> }) : <div className="palette-no-results">{t('noMatchingActions')}</div>}</div><div className="palette-footer"><span><KeyboardIcon /> {t('arrowKeysToSelect')}</span><span><EnterIcon /> {t('enterToRun')}</span></div></motion.section></div>
+}
+
+export { App }

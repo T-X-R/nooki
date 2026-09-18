@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { generateReview, publishReview, citedContent, type WeeklyInput, type WeeklyDraft } from './review.ts'
 import { parseReferenceHref, referenceHref } from '../../packages/capability-contract/src/references.ts'
-import { createTaskRunner } from '../../src/task-runner.ts'
+import { createTaskRunner } from '../../src/platform/task-runner.ts'
 import type { CapabilityTaskContext, SelectedDocument, TaskRecord } from '../../packages/capability-contract/src/index.ts'
 
 const selected: SelectedDocument = { reference: { kind: 'library-document', documentId: 'com.personal.diary/diary/2026/09/day-1', title: 'My journal', grantId: 'grant-1', revision: 'v1' }, documentDate: '2026-09-08', content: 'Completed the release. Private source evidence.' }

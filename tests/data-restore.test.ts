@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createDataRestore, restoreJournalKey } from '../src/data-restore.ts'
+import { createDataRestore, restoreJournalKey } from '../src/platform/data-restore.ts'
 const setup = () => {
   const data = new Map([['user:notes', 'old'], ['unrelated', 'keep']])
   const storage = { get length() { return data.size }, key: (i: number) => [...data.keys()][i] ?? null, getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v) }, removeItem: (k: string) => { data.delete(k) } }
