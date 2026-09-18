@@ -47,13 +47,13 @@ export function TodayPage({ installed, onNavigate, onOpenCapability, onDocument,
 
         <section className="surface provider-surface">
           <div className="surface-heading">
-            <div><span className="section-kicker">AGENT</span><h2>{t('agentSurfaceTitle')}</h2></div>
+            <div><span className="section-kicker">AI</span><h2>{t('agentSurfaceTitle')}</h2></div>
             <LightningBoltIcon className="heading-icon" />
           </div>
           <div className="provider-status-line">
             <div className="provider-status-symbol"><LightningBoltIcon /></div>
             <div><strong>{agent?.name ?? capabilityAgent}</strong><span>{t(note.key, note.values)}</span></div>
-            <span className={`pill pill-${standing}`}>{t(`agent${standing.charAt(0).toUpperCase()}${standing.slice(1)}`)}</span>
+            <span className={`pill pill-${standing}`}>{t(standing === 'available' ? 'agentAvailable' : standing === 'notInstalled' ? 'agentNotInstalled' : 'agentPreview')}</span>
           </div>
           <p className="provider-copy">{t('agentSurfaceCopy')}</p>
           <button className="surface-link" onClick={() => onNavigate('settings')}>{t('agentSurfaceLink')}<ChevronRightIcon /></button>

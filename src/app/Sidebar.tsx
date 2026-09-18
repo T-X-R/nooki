@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { BackpackIcon, CalendarIcon, ClockIcon, CubeIcon, GearIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { CalendarIcon, ClockIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../platform/capability-host.ts'
 import type { Organization } from '../platform/library-store.ts'
 import { LibraryNavigation } from '../features/library/LibraryNavigation.tsx'
@@ -39,7 +39,7 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
         </button>
         <LibraryNavigation language={language} active={activeView === 'library'} topicId={libraryTopicId} organization={organization} error={organizationError} onEnter={() => onNavigate('library')} onSelect={onSelectTopic} />
         <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
-          <span className="nav-item-main"><BackpackIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
+          <span className="nav-item-main"><LayersIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
         </button>
         <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
         <button className={`nav-item ${activeView === 'tasks' ? 'is-active' : ''}`} aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}>

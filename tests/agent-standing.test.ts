@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { agentNote, agentStanding, chosenAgent, selectableAgents } from '../src/features/settings/agent-standing.ts'
+import { agentNote, agentStanding, canChoose, chosenAgent, listedAgents } from '../src/features/settings/agent-standing.ts'
 import type { AgentTool } from '../src/platform/agent-tools.ts'
 
 function tool(overrides: Partial<AgentTool> = {}): AgentTool {
@@ -22,40 +22,38 @@ test('a browser preview has no machine to report on', () => {
   assert.equal(agentStanding(null, false), 'preview')
 })
 
-test('an agent that is not here is missing, whatever its sign-in says', () => {
-  assert.equal(agentStanding(tool({ detected: false }), true), 'missing')
-  assert.equal(agentStanding(null, true), 'missing')
+test('an agent that is not here is the only thing called unavailable', () => {
+  assert.equal(agentStanding(tool({ detected: false }), true), 'notInstalled')
+  assert.equal(agentStanding(null, true), 'notInstalled')
 })
 
-test('an agent that says it is signed out is not called ready', () => {
+test('an agent with no login of its own is still available', () => {
+  // pi is configured with an API key in its own config. There is nothing to sign into.
+  const pi = tool({ id: 'pi', name: 'pi', signIn: { state: 'unknown', method: null, hint: null } })
+  assert.equal(agentStanding(pi, true), 'available')
+  assert.deepEqual(agentNote(pi, 'available'), { key: 'agentCredentialOwn' })
+  assert.ok(canChoose(pi))
+})
+
+test('an agent reports its credential in its own words when it has one to report', () => {
+  assert.deepEqual(agentNote(tool(), 'available'), { key: 'agentSignedInAs', values: { method: 'ChatGPT' } })
   const signedOut = tool({ signIn: { state: 'out', method: null, hint: 'codex login' } })
-  assert.equal(agentStanding(signedOut, true), 'signedOut')
-  assert.deepEqual(agentNote(signedOut, 'signedOut'), { key: 'agentSignInHint', values: { hint: 'codex login' } })
-})
-
-test('an agent that cannot report is left unknown rather than guessed at', () => {
-  const quiet = tool({ id: 'claude', name: 'Claude Code', signIn: { state: 'unknown', method: null, hint: null } })
-  assert.equal(agentStanding(quiet, true), 'unknown')
-  assert.deepEqual(agentNote(quiet, 'unknown'), { key: 'agentSignInUnknown' })
-})
-
-test('a signed-in agent is described in its own words', () => {
-  assert.deepEqual(agentNote(tool(), 'ready'), { key: 'agentSignedInAs', values: { method: 'ChatGPT' } })
-  assert.deepEqual(agentNote(tool({ signIn: { state: 'in', method: null, hint: null } }), 'ready'), { key: 'agentSignedIn' })
+  assert.deepEqual(agentNote(signedOut, 'available'), { key: 'agentSignInHint', values: { hint: 'codex login' } })
 })
 
 test('a choice that stopped working is still shown as the choice', () => {
   const tools = [tool({ detected: false, servesCapabilities: false }), tool({ id: 'pi', name: 'pi' })]
   assert.equal(chosenAgent(tools, 'codex')?.id, 'codex')
-  assert.equal(agentStanding(chosenAgent(tools, 'codex'), true), 'missing')
+  assert.equal(agentStanding(chosenAgent(tools, 'codex'), true), 'notInstalled')
   assert.equal(chosenAgent(tools, 'kimi'), null)
 })
 
-test('only installed built-in agents are offered as a choice', () => {
+test('installed agents come first, and a skills-only registration is not listed', () => {
   const tools = [
+    tool({ id: 'claude', name: 'Claude Code', detected: false, servesCapabilities: false }),
     tool(),
-    tool({ id: 'claude', name: 'Claude Code', detected: false }),
     tool({ id: 'zyx', name: 'zyx', custom: true, servesCapabilities: false }),
   ]
-  assert.deepEqual(selectableAgents(tools).map((entry) => entry.id), ['codex'])
+  assert.deepEqual(listedAgents(tools).map((entry) => entry.id), ['codex', 'claude'])
+  assert.ok(!canChoose(tools[0]))
 })

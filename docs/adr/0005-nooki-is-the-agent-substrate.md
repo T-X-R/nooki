@@ -75,8 +75,13 @@ So Nooki offers **one entry per installed agent**, never one entry per way of au
 Sign-in state, credentials, and model choice are detected and displayed read-only; a person who is
 not signed in is sent to that tool to sign in. Nooki reads no credential and stores none.
 
+Sign-in is displayed and never enforced. pi has no login at all — an API key in its own config is
+enough — and Claude Code keeps credentials where Nooki cannot look. Gating a choice on a state Nooki
+reads from the outside would block working setups in order to pre-empt an error message the agent
+itself delivers better. Installed is the condition; ready is the agent's own report to make.
+
 The Agent Tool the Skill Pool already detects is that entry. One detection, reused everywhere: skill
-distribution, Capability model access, and later the session ledger and asset distribution.
+distribution, Agent Access, and later the session ledger and asset distribution.
 
 ### The test
 

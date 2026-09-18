@@ -166,7 +166,7 @@ function App() {
               {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
-              {view === 'settings' && <SettingsPage onNavigate={navigate} installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} />}
+              {view === 'settings' && <SettingsPage installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} />}
             </motion.div>
           </AnimatePresence>
         </main>

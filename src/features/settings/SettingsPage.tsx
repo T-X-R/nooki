@@ -3,33 +3,32 @@ import { useTranslation } from 'react-i18next'
 import { ArrowRightIcon, CheckIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
 import { isDesktopHost, testCapabilityAgent, type AgentTool } from '../../platform/agent-tools.ts'
-import { useWorkbench, type View } from '../../platform/preferences.ts'
+import { useWorkbench } from '../../platform/preferences.ts'
 import { DataManagement } from './DataManagement.tsx'
-import { agentNote, agentStanding, chosenAgent, selectableAgents, type AgentStanding } from './agent-standing.ts'
-import { notesFor, visibleSections, type SettingsGroup, type SettingsSectionId } from './settings-sections.ts'
+import { agentNote, agentStanding, canChoose, listedAgents } from './agent-standing.ts'
+import { notesFor, visibleSections, type SettingsSectionId } from './settings-sections.ts'
 
 type SettingsPageProps = {
   installed: InstalledCapability[]
   onNotice: (message: string) => void
-  onNavigate: (view: View) => void
   agents: AgentTool[]
   capabilityAgent: string
   onChooseAgent: (id: string) => Promise<void>
   onRefreshAgents: () => void
 }
 
-export function SettingsPage({ installed, onNotice, onNavigate, agents, capabilityAgent, onChooseAgent, onRefreshAgents }: SettingsPageProps) {
+export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onChooseAgent, onRefreshAgents }: SettingsPageProps) {
   const { t } = useTranslation()
   const { theme, setTheme, language, setLanguage } = useWorkbench()
   const [testing, setTesting] = useState(false)
   const desktop = isDesktopHost()
-  const chosen = chosenAgent(agents, capabilityAgent)
+  const listed = listedAgents(agents)
 
   const runTest = async () => {
     setTesting(true)
     try {
       const result = await testCapabilityAgent(language)
-      onNotice([result.provider, result.model].filter(Boolean).join(' · ') + ` ${t('agentAnswered')}`)
+      onNotice(`${[result.provider, result.model].filter(Boolean).join(' · ')} ${t('agentAnswered')}`)
     } catch (error) {
       onNotice(error instanceof Error ? error.message : t('agentSaveFailed'))
     } finally {
@@ -38,40 +37,47 @@ export function SettingsPage({ installed, onNotice, onNavigate, agents, capabili
     }
   }
 
-  // One renderer per section id, so the grouping stays data and the layout stays markup.
+  // One renderer per section id, so the order stays data and the layout stays markup.
   const body: Partial<Record<SettingsSectionId, ReactNode>> = {
-    'agent-tools': (
-      <div className="agent-list">
-        {agents.length === 0 && <p className="settings-group-empty">{t(desktop ? 'agentNoAgents' : 'agentPreviewNote')}</p>}
-        {agents.map((tool) => <AgentRow key={tool.id} tool={tool} desktop={desktop} />)}
-      </div>
-    ),
-    'skills': (
-      <div className="settings-linked-row">
-        <button className="quiet-button" onClick={() => onNavigate('skills')}>{t('sectionSkillsOpen')}<ArrowRightIcon /></button>
-      </div>
-    ),
-    'model-access': (
-      <>
-        <div className="provider-options">
-          {selectableAgents(agents).map((tool) => (
-            <button key={tool.id} className={`provider-option ${capabilityAgent === tool.id ? 'selected' : ''}`} disabled={!tool.servesCapabilities} onClick={() => void onChooseAgent(tool.id)}>
-              <span><strong>{tool.name}</strong><small>{t(agentNote(tool, agentStanding(tool, desktop)).key, agentNote(tool, agentStanding(tool, desktop)).values)}</small></span>
-              {capabilityAgent === tool.id && <CheckIcon className="selected-check" />}
-            </button>
-          ))}
-          {selectableAgents(agents).length === 0 && <p className="settings-group-empty">{t(desktop ? 'agentChooseNone' : 'agentPreviewNote')}</p>}
-        </div>
-        <ScopeNotes section="model-access" />
-        {chosen && (
-          <div className="provider-detail">
-            <div><strong>{chosen.name}</strong><span>{t(agentNote(chosen, agentStanding(chosen, desktop)).key, agentNote(chosen, agentStanding(chosen, desktop)).values)}</span></div>
-            <div className="provider-detail-actions">
-              <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}<ArrowRightIcon /></button>
-            </div>
+    'agent-access': (
+      <div className="agent-access">
+        {listed.length === 0
+          ? <p className="settings-empty">{t('agentNoAgents')}</p>
+          : <ul className="agent-list">
+              {listed.map((tool) => {
+                const standing = agentStanding(tool, desktop)
+                const note = agentNote(tool, standing)
+                const selected = capabilityAgent === tool.id
+                const choosable = canChoose(tool)
+                return (
+                  <li key={tool.id}>
+                    <button
+                      type="button"
+                      className={`agent-option ${selected ? 'is-selected' : ''} ${choosable ? '' : 'is-unavailable'}`}
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={!choosable}
+                      onClick={() => void onChooseAgent(tool.id)}
+                    >
+                      <span className="agent-mark" aria-hidden="true">{selected && <CheckIcon />}</span>
+                      <span className="agent-body">
+                        <strong>{tool.name}</strong>
+                        <small>{t(note.key, note.values)}</small>
+                      </span>
+                      {!choosable && <span className="agent-tag">{t('agentNotInstalled')}</span>}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>}
+        <ScopeNotes section="agent-access" />
+        {listed.some(canChoose) && (
+          <div className="agent-actions">
+            <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}<ArrowRightIcon /></button>
+            <span>{t('agentRunTestNote')}</span>
           </div>
         )}
-      </>
+      </div>
     ),
     'appearance': (
       <div className="theme-options">
@@ -91,81 +97,34 @@ export function SettingsPage({ installed, onNotice, onNavigate, agents, capabili
   return (
     <div className="content-column settings-page">
       <div className="page-header-row"><div><div className="eyebrow">{t('preferences')}</div><h1>{t('settings')}</h1><p>{t('settingsIntro')}</p></div></div>
-      <SettingsGroupView group="machine" desktop={desktop} body={body} />
-      <SettingsGroupView group="nooki" desktop={desktop} body={body} />
-    </div>
-  )
-}
-
-function AgentRow({ tool, desktop }: { tool: AgentTool; desktop: boolean }) {
-  const { t } = useTranslation()
-  const standing = agentStanding(tool, desktop)
-  const note = agentNote(tool, standing)
-  return (
-    <div className={`agent-row agent-row-${standing}`}>
-      <div className="agent-row-name">
-        <strong>{tool.name}</strong>
-        <span className={`pill pill-${standing}`}>{t(standingLabel(standing))}</span>
-      </div>
-      <p className="agent-row-note">{t(note.key, note.values)}</p>
-      <p className="agent-row-path"><span>{t('agentSkillsDirectory')}</span><code>{tool.directory}</code></p>
-    </div>
-  )
-}
-
-function standingLabel(standing: AgentStanding): string {
-  return `agent${standing.charAt(0).toUpperCase()}${standing.slice(1)}`
-}
-
-const SECTION_TITLE: Record<SettingsSectionId, string> = {
-  'agent-tools': 'sectionAgentTools',
-  'skills': 'sectionSkills',
-  'mcp': 'sectionMcp',
-  'conventions': 'sectionConventions',
-  'model-access': 'modelAccess',
-  'appearance': 'appearance',
-  'language': 'language',
-  'local-data': 'localData',
-}
-
-const SECTION_INTRO: Record<SettingsSectionId, string> = {
-  'agent-tools': 'sectionAgentToolsIntro',
-  'skills': 'sectionSkillsIntro',
-  'mcp': 'sectionMcpIntro',
-  'conventions': 'sectionConventionsIntro',
-  'model-access': 'modelAccessIntro',
-  'appearance': 'appearanceIntro',
-  'language': 'languageIntro',
-  'local-data': 'localDataIntro',
-}
-
-function SettingsGroupView({ group, desktop, body }: { group: SettingsGroup; desktop: boolean; body: Partial<Record<SettingsSectionId, ReactNode>> }) {
-  const { t } = useTranslation()
-  const sections = visibleSections(group, desktop)
-  const hidden = !desktop && group === 'machine'
-  if (!sections.length && !hidden) return null
-
-  return (
-    <section className={`settings-group settings-group-${group}`} aria-label={t(group === 'machine' ? 'machineGroup' : 'nookiGroup')}>
-      <header className="settings-group-heading">
-        <h2>{t(group === 'machine' ? 'machineGroup' : 'nookiGroup')}</h2>
-        <p>{t(group === 'machine' ? 'machineGroupIntro' : 'nookiGroupIntro')}</p>
-      </header>
-      {hidden && <p className="settings-group-empty">{t('machinePreviewOnly')}</p>}
-      {sections.map((section, index) => (
-        <section key={section.id} className={`settings-section ${section.reserved ? 'is-reserved' : ''}`}>
+      {visibleSections(desktop).map((section, index) => (
+        <section key={section.id} className="settings-section">
           <div className="settings-section-heading">
             <span className="settings-number">{String(index + 1).padStart(2, '0')}</span>
             <div>
-              <h3>{t(SECTION_TITLE[section.id])}{section.reserved && <span className="settings-reserved-tag">{t('sectionReserved')}</span>}</h3>
+              <h2>{t(SECTION_TITLE[section.id])}</h2>
               <p>{t(SECTION_INTRO[section.id])}</p>
             </div>
           </div>
           {body[section.id]}
         </section>
       ))}
-    </section>
+    </div>
   )
+}
+
+const SECTION_TITLE: Record<SettingsSectionId, string> = {
+  'agent-access': 'agentAccess',
+  'appearance': 'appearance',
+  'language': 'language',
+  'local-data': 'localData',
+}
+
+const SECTION_INTRO: Record<SettingsSectionId, string> = {
+  'agent-access': 'agentAccessIntro',
+  'appearance': 'appearanceIntro',
+  'language': 'languageIntro',
+  'local-data': 'localDataIntro',
 }
 
 function ScopeNotes({ section }: { section: SettingsSectionId }) {

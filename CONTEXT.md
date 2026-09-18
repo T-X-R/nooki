@@ -47,15 +47,15 @@ _Avoid_: Agent platform, AI platform
 **Shared Asset**:
 Something more than one agent on this machine can use, that Nooki distributes from one place: a skill today, an MCP server and a conventions file later. A credential is not a Shared Asset.
 
-**Capability Model Access**:
-The Agent Tool that serves `ai.invoke` for Capability Packages. It is a choice among the agents installed here, never a protocol, endpoint, model, or key. Invocations spend that agent's quota.
-_Avoid_: AI Provider, compatible endpoint
+**Agent Access**:
+The Agent Tool that serves `ai.invoke` for Capability Packages. It is a choice among the agents installed here, never a protocol, endpoint, model, or key. Invocations spend that agent's quota, and Conversations are unaffected by it.
+_Avoid_: AI Provider, compatible endpoint, capability model access
 
 **Agent Sign-in**:
-Whether an Agent Tool reports itself as signed in, read from that tool's own files and never declared by a person. An agent that keeps its credentials where Nooki cannot look is reported as unknown rather than guessed at. Nooki never collects or stores a credential.
+Whether an Agent Tool reports itself as signed in, read from that tool's own files and never declared by a person. An agent that keeps its credentials where Nooki cannot look is reported as unknown rather than guessed at. Sign-in is shown and never enforced: an agent with no login of its own, such as pi, is still selectable. Nooki never collects or stores a credential.
 
 **Model Gateway**:
-The single model invocation interface exposed to Capabilities. It checks installation, enablement, and `ai.invoke` permission, then hands the request to the Agent Tool chosen for Capability Model Access.
+The single model invocation interface exposed to Capabilities. It checks installation, enablement, and `ai.invoke` permission, then hands the request to the Agent Tool chosen for Agent Access.
 
 **Agent Host**:
 The platform interface for agent work involving tools, input references, and execution progress. It may use the Model Gateway or a dedicated Agent Runtime.

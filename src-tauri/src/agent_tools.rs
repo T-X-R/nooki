@@ -217,11 +217,14 @@ impl AgentTools {
     }
   }
 
-  /// An agent may serve a Capability when it is here, is not known to be signed out, and Nooki knows
-  /// how to ask it for a single answer. `unknown` is allowed through: refusing to try would be a
-  /// guess dressed as a fact.
-  pub fn serves_capabilities(&self, id: &str, detected: bool, sign_in: &SignIn) -> bool {
-    detected && sign_in.state != "out" && one_shot(id).is_some()
+  /// An agent may serve a Capability when it is here and Nooki knows how to ask it for one answer.
+  ///
+  /// Sign-in is not a condition. pi has no login — an API key in its own config is enough — and an
+  /// agent that does have one can report its own refusal far better than Nooki can predict it.
+  /// Gating on a state Nooki reads from the outside would block working setups to prevent an error
+  /// message that is already clear.
+  pub fn serves_capabilities(&self, id: &str, detected: bool) -> bool {
+    detected && one_shot(id).is_some()
   }
 
   pub fn overview(&self, pool: &Path, custom: &[(String, String, String)]) -> Vec<AgentToolView> {
@@ -231,7 +234,7 @@ impl AgentTools {
       .map(|tool| {
         let sign_in = self.sign_in(tool.id);
         AgentToolView {
-          serves_capabilities: self.serves_capabilities(tool.id, tool.detected, &sign_in),
+          serves_capabilities: self.serves_capabilities(tool.id, tool.detected),
           id: tool.id.into(),
           name: tool.name.into(),
           directory: tool.skills.to_string_lossy().into_owned(),
@@ -281,7 +284,7 @@ impl AgentTools {
       .builtin(pool)
       .into_iter()
       .find(|tool| tool.id == id)
-      .is_some_and(|tool| self.serves_capabilities(id, tool.detected, &self.sign_in(id)));
+      .is_some_and(|tool| self.serves_capabilities(id, tool.detected));
     let recipe = match one_shot(id) {
       Some(recipe) if available => recipe,
       _ => return Err(InvocationError::Unavailable(name)),
@@ -402,10 +405,18 @@ mod tests {
     let home = sandbox("claude-unknown");
     let tools = AgentTools { apps: Vec::new(), binaries: Vec::new(), ..AgentTools::new(home) };
     assert_eq!(tools.sign_in("claude").state, "unknown");
-    // Unknown still serves: refusing would be a guess dressed as a fact.
-    assert!(tools.serves_capabilities("claude", true, &SignIn::unknown()));
-    assert!(!tools.serves_capabilities("codex", true, &SignIn::out("codex login")));
-    assert!(!tools.serves_capabilities("codex", false, &SignIn::signed("ChatGPT")));
+  }
+
+  #[test]
+  fn being_installed_is_the_only_condition_for_serving() {
+    let home = sandbox("serving");
+    let tools = AgentTools { apps: Vec::new(), binaries: Vec::new(), ..AgentTools::new(home) };
+    // pi has no login to detect, and a signed-out Codex may be signed in a moment later.
+    assert!(tools.serves_capabilities("pi", true));
+    assert!(tools.serves_capabilities("codex", true));
+    assert!(!tools.serves_capabilities("codex", false));
+    // A tool Nooki has no way to run is refused whatever its state.
+    assert!(!tools.serves_capabilities("zyx", true));
   }
 
   #[test]

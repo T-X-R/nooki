@@ -50,18 +50,14 @@ server and a conventions file later. Every Shared Asset is authored in Nooki and
 the Skill Pool's distribution mechanism — a copy, a Mirror Receipt, and no silent overwrite. A model
 endpoint is deliberately not one; see ADR 0005.
 
-**Machine Settings**: The Settings group that configures the Agent Substrate. What is changed here
-affects tools other than Nooki.
-
-**Nooki Settings**: The Settings group that configures Nooki itself. Nothing here leaves Nooki.
-
-**Capability Model Access**: The choice of which Agent Tool serves Capability `ai.invoke`. It selects
-an agent, never a credential and never a model. It has no effect on Conversations.
-_Avoid_: AI Provider, model settings
+**Agent Access**: The choice of which Agent Tool serves Capability `ai.invoke`. It selects an agent,
+never a credential and never a model. It has no effect on Conversations.
+_Avoid_: AI Provider, model settings, capability model access
 
 **Agent Sign-in**: The state Nooki detects and displays for an Agent Tool — signed in, and by what
-method, as the tool reports it. Nooki never collects, stores, or forwards a credential, and sends a
-person to the tool itself to sign in.
+method, as the tool reports it. It is shown and never enforced: an agent with no login of its own is
+still selectable. Nooki never collects, stores, or forwards a credential, and sends a person to the
+tool itself to sign in.
 
 Terms removed from `CONTEXT.md` when this spec is approved: **AI Provider**, **Compatible Endpoint**,
 **Credential Broker**. Nooki no longer calls a model service or resolves a credential, so nothing is
@@ -71,13 +67,14 @@ left for them to name. **Model Gateway** stays exactly as written.
 
 | Question | Decision |
 |---|---|
-| What Settings is | The configuration surface of the Agent Substrate, plus Nooki's own preferences, in two groups that never mix |
+| What Settings is | One list of what Nooki itself uses. Not a console for the machine: Nooki does not own the agents, so it only says which one it reaches |
 | Nooki's own model client | Removed. `compatible_provider.rs`, the HTTP invocation path, the endpoint list, the stored key, and the `api.config.toml` reader all go |
 | What serves `ai.invoke` | A one-shot turn on the selected Agent Tool, over the resident app-server connection rather than a fresh process per call |
 | How agents are listed | One entry per detected agent. Never one entry per way of signing into one |
-| Sign-in and model choice | Detected and shown read-only, with a link to manage them in that tool |
-| The `AI Provider` heading | Becomes **Capability model access**, and says in one line that Conversations do not use it |
-| Agent Tools registry | Moves to Machine Settings. Registering a tool is machine configuration; deciding which skills it receives is Skill Pool work |
+| Sign-in and model choice | Detected and shown read-only, never a condition for selection. Installed is the condition |
+| The `AI Provider` heading | Becomes **Agent access**, and says in one line that Conversations do not use it |
+| Agent Tools registry | Stays on the Skill Pool page, with the distribution matrix it exists to serve |
+| Skills, MCP, conventions | Not in Settings. Skills have a page, and a reserved empty section is a promise rendered as furniture |
 | No agent installed | Stated plainly, with no control that cannot succeed. Documents, skills, and tasks keep working |
 | Conversation archives | Leaves Settings. Archived conversations are Conversation data and belong on that page |
 | Existing endpoint configuration | Migrated, not deleted underneath the person. See Migration |
@@ -95,73 +92,61 @@ honest shape of a product that sits above the agents rather than beside them.
 
 ```
 Settings
-├── This machine  ·  shared with every agent on this computer
-│   ├── Agent tools        detected agents, sign-in state, skills directory, custom registrations
-│   ├── Skills             count and a link to the Skill Pool, which stays the place to distribute
-│   ├── MCP servers        reserved, empty, states what will live here
-│   └── Conventions        reserved, empty
-└── Nooki  ·  this app only
-    ├── Capability model access   which agent serves Capability invocations
-    ├── Appearance
-    ├── Language
-    └── Local data
+├── Agent access   which agent runs Capability invocations
+├── Appearance
+├── Language
+└── Local data
 ```
 
-Two group headings carry most of the correction. A person reading "This machine · shared with every
-agent on this computer" cannot mistake a setting under it for a Nooki preference, and a person
-reading "Capability model access" cannot mistake it for what Conversations use.
+One list, because Settings answers one question: what does Nooki itself use. An earlier draft of this
+spec split it into "This machine" and "Nooki", which was wrong in a way worth recording. Nooki does
+not own the agents on this machine, so it has no business presenting them as a machine it configures.
+It only gets to say which one it reaches. Splitting the page implied a second kind of authority Nooki
+does not have, and cost a heading, a subtitle, and a grouping rule to imply it.
 
-### Agent tools
+Skills are not here either. They have a page, and a page beats a section that links to a page. MCP
+servers and conventions files are not here until they exist; a reserved empty section is a promise
+rendered as furniture.
 
-One row per agent, from the same detection the Skill Pool uses — promoted into `agent_tools.rs` so
-both surfaces read one probe — extended with sign-in state:
+### Agent access
+
+Every agent Nooki knows how to detect, installed ones first, as one list:
 
 ```
-Codex          READY      Signed in · ChatGPT              Skills directory  ~/.codex/skills
-Claude Code    UNKNOWN    Sign-in is managed in that tool  Skills directory  ~/.claude/skills
-pi             READY      Sign-in is managed in that tool  Skills directory  ~/.agents/skills
+ ●  Codex                     Signed in · ChatGPT
+ ○  Claude Code               It manages its own credentials. Nothing to configure in Nooki.
+ ○  pi                        It manages its own credentials. Nothing to configure in Nooki.
+ ○  kimi                      It was not found on this machine.       NOT INSTALLED
+
+    Conversations use the Codex CLI and its login session. This setting does not change them.
+    Capability invocations spend the quota of the agent selected here.
+
+    [ Run one invocation ]   This really runs, and spends the selected agent's quota.
 ```
 
-Sign-in state is read, never entered. For Codex it comes from `~/.codex/auth.json`. Claude Code and pi
-keep credentials where Nooki cannot look, so they report `unknown`: a badge that guessed would be
-wrong about half the time with no way for a person to tell which half they were in. A tool that is not
-signed in shows the command that signs it in, and nothing else.
+A single bordered list with dividers, capped in width. One agent does not look lost in a three-column
+grid and ten do not turn into a wall; nothing reflows between those two cases.
+
+**Installed is the only condition.** Sign-in is shown and never enforced. pi has no login — an API key
+in its own config is enough — and Claude Code keeps credentials where Nooki cannot look. Gating on a
+state read from the outside would block working setups to pre-empt an error message the agent itself
+delivers better. An agent that is not installed is listed, greyed, and cannot be selected, so a person
+can see what Nooki is able to use.
+
+What sits under the name is a statement, not a warning. An agent holding its own credentials is the
+arrangement Nooki wants, not a problem to fix. Only Codex has a sign-in Nooki can read, from
+`~/.codex/auth.json`; when it reports itself signed out, the row repeats that tool's own command and
+offers nothing else.
 
 Detection reads files. It never runs an agent binary — opening Settings should not start four
 processes, and a state a file already records needs no subprocess to confirm.
 
-Custom tool registration stays on the Skill Pool page for now. Moving it is a separate change and
-would not be improved by being rushed into this one.
-
-### Capability model access
-
-```
-Which agent serves Capability invocations?
-
-  ● Codex          Signed in · ChatGPT
-  ○ Claude Code    Sign-in is managed in that tool, and Nooki does not look
-  ○ pi             Sign-in is managed in that tool, and Nooki does not look
-
-  Conversations use the Codex CLI and its login session. This setting does not change them.
-  Capability invocations spend the quota of the agent selected here.
-
-  [ Run one invocation ]
-```
-
-Detected agents are selectable, including those reporting `unknown`: refusing to try would be a guess
-dressed as a fact. An agent that reports itself signed out is shown and cannot be chosen. With none
-available the section says a Capability cannot reach a model until an agent is installed, and offers
-no control that would fail.
-
 There is no health check separate from the work. The only honest check is one real invocation, so the
-single button runs one, on the chosen agent, spending the same quota a Capability would.
+single button runs one, on the chosen agent, and says plainly that it spends quota.
 
 A choice a person made is kept even while it is broken, so Settings can explain the problem rather
 than quietly substituting something else. Only a default nobody chose gives way to an agent that is
 actually here.
-
-The note about Conversations does not move and cannot be dismissed. It sits where the wrong
-conclusion is currently drawn, not in a document no one opens.
 
 ## Migration
 
@@ -185,16 +170,16 @@ accepted. An endpoint configured in Nooki often could not be handed to Codex at 
 
 | Stage | Content | State |
 |---|---|---|
-| 1 | Two groups, honest headings, the Conversation note, archives moved out | this version |
+| 1 | One honest list, the Conversation note on the control, archives moved out | this version |
 | 2 | Agent tools with sign-in state; Capability model access selects an agent; the model client, endpoint store, and `api.config.toml` reader are removed; migration notice | this version |
-| — | Custom tool registration moves from the Skill Pool page into Machine Settings | deferred, unrelated to model access |
-| 3 | MCP servers and conventions files become Shared Assets | later, separate spec |
+| — | Custom tool registration stays on the Skill Pool page | decided, not deferred |
+| 3 | MCP servers and conventions files become Shared Assets, with their own home | later, separate spec |
 
 ## Project Structure
 
 ```
-src/features/settings/SettingsPage.tsx        → the two groups and one renderer per section
-src/features/settings/settings-sections.ts    → which section belongs to which group, as data
+src/features/settings/SettingsPage.tsx        → the section order and one renderer per section
+src/features/settings/settings-sections.ts    → what Settings shows and where a correction lands
 src/features/settings/agent-standing.ts       → how an agent stands, in one word, as pure functions
 src/platform/agent-tools.ts                   → the detected-agent model shared by settings and today
 src/platform/preferences.ts                   → drops `providerKind`; arms the one-time notice
@@ -229,12 +214,12 @@ Desktop dev:      npm run desktop:dev
 
 ## Testing Strategy
 
-- `tests/settings-sections.test.ts` covers the rules as data, with no rendering: every section
-  belongs to exactly one group, and the Conversation note is attached to the model selector rather
-  than to a group.
-- `tests/agent-standing.test.ts` covers preview, an agent detected but not signed in, one that cannot
-  report, one signed in, a choice that stopped working, and which agents are offered — with no
-  filesystem access.
+- `tests/settings-sections.test.ts` covers the rules as data, with no rendering: what Settings covers,
+  what a browser preview hides, and that both corrections sit on the agent choice rather than
+  floating in a heading.
+- `tests/agent-standing.test.ts` covers preview, an agent with no login of its own, one reporting a
+  sign-in, one reporting itself signed out, a choice that stopped working, and the listing order —
+  with no filesystem access.
 - Rust tests in `agent_tools.rs` cover sign-in detection against a temporary `HOME`, a machine with no
   agent, a custom tool that is listed but cannot be invoked, each agent's output shape, refusal
   before a process starts, and a real one-shot turn against a stub agent installed behind a Node
@@ -254,14 +239,15 @@ Desktop dev:      npm run desktop:dev
 
 ## Success Criteria
 
-1. Settings shows two groups, and every section sits in exactly one of them.
+1. Settings shows one list, and everything in it is something Nooki itself uses.
 2. Codex appears once, with its sign-in method shown as detected, and cannot be configured in Nooki.
-3. A person who selects an agent for Capability access sees, without scrolling or hovering, that
-   Conversations do not use it.
+3. A person who selects an agent sees, without scrolling or hovering, that Conversations do not use
+   it.
 4. A Capability that invoked a model before this change still invokes one after it, through the
    selected agent, with no key entered.
-5. On a machine with no agent installed, Settings explains the situation and offers no control that
-   fails; the Library, Skill Pool, and tasks are unaffected.
+5. An agent with no login of its own is selectable. On a machine with no agent at all, Settings
+   explains the situation and offers no control that fails; the Library, Skill Pool, and tasks are
+   unaffected.
 6. A previously configured endpoint produces exactly one migration notice, its file is not deleted,
    and its key is never displayed.
 7. Nooki's source contains no HTTP client for a model service and no credential store.

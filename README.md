@@ -32,9 +32,9 @@ Conversations and the agents installed on this machine are only reachable from t
 Nooki has no model credentials of its own and never calls a model service. Install a coding agent —
 Codex, Claude Code, or pi — and sign into it in that tool. Nooki detects what is here.
 
-Open **Settings → This machine → Agent tools** to see which agents were detected and what each one
-reports about its sign-in. Under **Nooki → Capability model access**, pick the agent that runs
-`ai.invoke` for Capability Packages; those invocations spend that agent's quota.
+Open **Settings → Agent access** to see which agents were detected and pick the one that runs
+`ai.invoke` for Capability Packages. Being installed is enough — pi has no login of its own, and that
+is fine. Those invocations spend the selected agent's quota.
 
 Conversations always use the local Codex CLI and its login session, whatever is chosen there.
 
