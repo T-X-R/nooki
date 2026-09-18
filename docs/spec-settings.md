@@ -113,39 +113,52 @@ reading "Capability model access" cannot mistake it for what Conversations use.
 
 ### Agent tools
 
-One row per detected agent, rendered from the same `skill_pool_overview` data the Skill Pool already
-produces, extended with sign-in state:
+One row per agent, from the same detection the Skill Pool uses — promoted into `agent_tools.rs` so
+both surfaces read one probe — extended with sign-in state:
 
 ```
-Codex          ~/.codex/skills          Signed in · ChatGPT subscription     Manage in Codex ↗
-Claude Code    ~/.claude/skills         Signed in                            Manage in Claude Code ↗
-pi             ~/.agents/skills         Reads the pool directly              —
+Codex          READY      Signed in · ChatGPT              Skills directory  ~/.codex/skills
+Claude Code    UNKNOWN    Sign-in is managed in that tool  Skills directory  ~/.claude/skills
+pi             READY      Sign-in is managed in that tool  Skills directory  ~/.agents/skills
 ```
 
-Sign-in state is read, never entered. For Codex it comes from `auth.json` and, when the app-server is
-already connected, from `account/read`. A tool that cannot report its state says so rather than
-guessing. A tool that is not signed in shows the command that signs it in, and nothing else: the
-sign-in happens in that tool.
+Sign-in state is read, never entered. For Codex it comes from `~/.codex/auth.json`. Claude Code and pi
+keep credentials where Nooki cannot look, so they report `unknown`: a badge that guessed would be
+wrong about half the time with no way for a person to tell which half they were in. A tool that is not
+signed in shows the command that signs it in, and nothing else.
 
-Custom tool registration moves here from the Skill Pool page, because registering a tool is machine
-configuration. The Skill Pool keeps the distribution matrix and links here.
+Detection reads files. It never runs an agent binary — opening Settings should not start four
+processes, and a state a file already records needs no subprocess to confirm.
+
+Custom tool registration stays on the Skill Pool page for now. Moving it is a separate change and
+would not be improved by being rushed into this one.
 
 ### Capability model access
 
 ```
 Which agent serves Capability invocations?
 
-  ● Codex          Signed in · ChatGPT subscription
-  ○ Claude Code    Signed in
-  ○ pi             Not detected
+  ● Codex          Signed in · ChatGPT
+  ○ Claude Code    Sign-in is managed in that tool, and Nooki does not look
+  ○ pi             Sign-in is managed in that tool, and Nooki does not look
 
   Conversations use the Codex CLI and its login session. This setting does not change them.
   Capability invocations spend the quota of the agent selected here.
+
+  [ Run one invocation ]
 ```
 
-Only detected, signed-in agents are selectable. With none available the section states that a
-Capability cannot invoke a model until an agent is installed and signed in, and says which agents
-Nooki can use. It offers no control that would fail.
+Detected agents are selectable, including those reporting `unknown`: refusing to try would be a guess
+dressed as a fact. An agent that reports itself signed out is shown and cannot be chosen. With none
+available the section says a Capability cannot reach a model until an agent is installed, and offers
+no control that would fail.
+
+There is no health check separate from the work. The only honest check is one real invocation, so the
+single button runs one, on the chosen agent, spending the same quota a Capability would.
+
+A choice a person made is kept even while it is broken, so Settings can explain the problem rather
+than quietly substituting something else. Only a default nobody chose gives way to an agent that is
+actually here.
 
 The note about Conversations does not move and cannot be dismissed. It sits where the wrong
 conclusion is currently drawn, not in a document no one opens.
@@ -154,16 +167,19 @@ conclusion is currently drawn, not in a document no one opens.
 
 A person may have an endpoint configured and a key stored. Nothing is deleted underneath them.
 
-1. On first run after the change, an endpoint that was configured is shown once, in Machine Settings,
-   as a notice: the label, base URL, model, and protocol it held, and the sentence that Nooki no
-   longer calls model services directly. The key is not displayed.
-2. The notice names where to put it instead — the selected agent's own configuration — and records
-   the constraint that decides whether that is even possible: Codex accepts only
-   `wire_api = "responses"`. `chat` was removed in Codex 0.155 and Anthropic's Messages format was
-   never accepted.
-3. The stored file is left in place, unread, until the following release removes it. A person who
-   needs the key back can still reach it in the meantime.
-4. Dismissing the notice is remembered.
+1. Preferences that still name a Provider are migrated once. The person is told, once, that Nooki no
+   longer calls a model service and that Capability invocations now run on an agent installed here.
+2. The notice names where the old settings are: `compatible-endpoints.json` in the Nooki data folder,
+   left unread and undeleted. Nooki does not display the key, and no longer contains code that could
+   read it. A person who needs it back opens that file themselves.
+3. The persisted `selectedProvider` value is read through an alias, so a settings file written before
+   this change still loads. All three old values — `codex-api`, `codex-subscription`,
+   `compatible-api` — land on Codex, which is what each of them actually reached or replaced.
+4. The notice is shown exactly once and never again.
+
+One constraint worth recording for anyone tempted to bridge the gap: Codex accepts only
+`wire_api = "responses"`. `chat` was removed in Codex 0.155 and Anthropic's Messages format was never
+accepted. An endpoint configured in Nooki often could not be handed to Codex at all.
 
 ## Stages
 
@@ -171,29 +187,36 @@ A person may have an endpoint configured and a key stored. Nothing is deleted un
 |---|---|---|
 | 1 | Two groups, honest headings, the Conversation note, archives moved out | this version |
 | 2 | Agent tools with sign-in state; Capability model access selects an agent; the model client, endpoint store, and `api.config.toml` reader are removed; migration notice | this version |
+| — | Custom tool registration moves from the Skill Pool page into Machine Settings | deferred, unrelated to model access |
 | 3 | MCP servers and conventions files become Shared Assets | later, separate spec |
 
 ## Project Structure
 
 ```
-src/features/settings/SettingsPage.tsx        → the two groups and their sections
-src/features/settings/MachineSettings.tsx     → agent tools, sign-in state, skills summary
-src/features/settings/CapabilityModelAccess.tsx → the agent selector and its scope notes
-src/features/settings/EndpointMigrationNotice.tsx → the one-time notice
+src/features/settings/SettingsPage.tsx        → the two groups and one renderer per section
 src/features/settings/settings-sections.ts    → which section belongs to which group, as data
-src/platform/agent-tools.ts                   → the detected-agent model shared by settings and skills
+src/features/settings/agent-standing.ts       → how an agent stands, in one word, as pure functions
+src/platform/agent-tools.ts                   → the detected-agent model shared by settings and today
+src/platform/preferences.ts                   → drops `providerKind`; arms the one-time notice
 src/shared/i18n.ts                            → English and Simplified Chinese strings
-src-tauri/src/agent_tools.rs                  → detection and sign-in state, promoted from skill_pool
+src-tauri/src/agent_tools.rs                  → detection, sign-in state, and the one-shot turn
+src-tauri/src/capability_runtime.rs           → the chosen agent, with the old key read by alias
+src-tauri/src/skill_pool.rs                   → detection delegated to `agent_tools`
 src-tauri/src/lib.rs                          → `ai.invoke` served by an agent turn
 tests/settings-sections.test.ts               → grouping and scope rules
-tests/agent-tools.test.ts                     → selectable agents, sign-in shaping, empty machine
+tests/agent-standing.test.ts                  → standing, notes, and which agents are selectable
 docs/spec-settings.md                         → this spec
 docs/adr/0005-nooki-is-the-agent-substrate.md → the decision this follows
 ```
 
-Removed: `src-tauri/src/compatible_provider.rs`, the invocation path in
-`src-tauri/src/managed_provider.rs`, `load_codex_api_profile`,
-`src/features/settings/CompatibleEndpointSettings.tsx`, and the `ProviderKind` enum.
+The migration notice is one line in `App.tsx` rather than a component: it is a sentence shown once,
+and a component would have been scaffolding around a string.
+
+Removed: `src-tauri/src/compatible_provider.rs`, `src-tauri/src/managed_provider.rs`,
+`load_codex_api_profile`, their tests, `src/platform/ai-provider.ts`,
+`src/features/settings/CompatibleEndpointSettings.tsx`,
+`src/features/settings/provider-labels.ts`, the `ProviderKind` enum, and every endpoint and
+credential string in `i18n.ts`.
 
 ## Commands
 
@@ -209,10 +232,13 @@ Desktop dev:      npm run desktop:dev
 - `tests/settings-sections.test.ts` covers the rules as data, with no rendering: every section
   belongs to exactly one group, and the Conversation note is attached to the model selector rather
   than to a group.
-- `tests/agent-tools.test.ts` covers selection with no agent detected, an agent detected but not
-  signed in, and several signed in, with no filesystem access.
-- Rust tests cover sign-in detection against a temporary `HOME`, including a machine with no agent,
-  and `ai.invoke` returning a result through an agent turn.
+- `tests/agent-standing.test.ts` covers preview, an agent detected but not signed in, one that cannot
+  report, one signed in, a choice that stopped working, and which agents are offered — with no
+  filesystem access.
+- Rust tests in `agent_tools.rs` cover sign-in detection against a temporary `HOME`, a machine with no
+  agent, a custom tool that is listed but cannot be invoked, each agent's output shape, refusal
+  before a process starts, and a real one-shot turn against a stub agent installed behind a Node
+  launcher with a stripped `PATH`.
 - Manual check in the desktop build: a Capability invocation succeeds with Codex selected, and still
   works after signing Codex out and selecting another agent.
 

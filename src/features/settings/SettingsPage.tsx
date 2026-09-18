@@ -1,52 +1,51 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowRightIcon, CheckIcon, CodeIcon, GlobeIcon, LightningBoltIcon, MoonIcon, ReloadIcon, SunIcon, UpdateIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, CheckIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
-import { isDesktopHost, testSelectedProvider, type ProviderKind, type ProviderStatus } from '../../platform/ai-provider.ts'
+import { isDesktopHost, testCapabilityAgent, type AgentTool } from '../../platform/agent-tools.ts'
 import { useWorkbench, type View } from '../../platform/preferences.ts'
-import { CompatibleEndpointSettings } from './CompatibleEndpointSettings.tsx'
 import { DataManagement } from './DataManagement.tsx'
-import { providerLabel, providerStateLabel } from './provider-labels.ts'
+import { agentNote, agentStanding, chosenAgent, selectableAgents, type AgentStanding } from './agent-standing.ts'
 import { notesFor, visibleSections, type SettingsGroup, type SettingsSectionId } from './settings-sections.ts'
 
 type SettingsPageProps = {
   installed: InstalledCapability[]
   onNotice: (message: string) => void
   onNavigate: (view: View) => void
-  providerStatus: ProviderStatus | null
-  onSelectProvider: (kind: ProviderKind) => Promise<void>
-  onCheckProvider: () => Promise<ProviderStatus>
-  onRefreshProvider: () => void
+  agents: AgentTool[]
+  capabilityAgent: string
+  onChooseAgent: (id: string) => Promise<void>
+  onRefreshAgents: () => void
 }
 
-export function SettingsPage({ installed, onNotice, onNavigate, providerStatus, onSelectProvider, onCheckProvider, onRefreshProvider }: SettingsPageProps) {
+export function SettingsPage({ installed, onNotice, onNavigate, agents, capabilityAgent, onChooseAgent, onRefreshAgents }: SettingsPageProps) {
   const { t } = useTranslation()
-  const { theme, setTheme, language, setLanguage, providerKind } = useWorkbench()
-  const [checking, setChecking] = useState(false)
-  const [testingProvider, setTestingProvider] = useState(false)
+  const { theme, setTheme, language, setLanguage } = useWorkbench()
+  const [testing, setTesting] = useState(false)
   const desktop = isDesktopHost()
+  const chosen = chosenAgent(agents, capabilityAgent)
 
-  const runCheck = async () => {
-    setChecking(true)
-    const nextStatus = await onCheckProvider()
-    setChecking(false)
-    onNotice(nextStatus.state === 'ready' ? t('providerHealthy') : nextStatus.state === 'error' ? t('providerNeedsAttention') : t('providerCheckIncomplete'))
-  }
-
-  const testProvider = async () => {
-    setTestingProvider(true)
+  const runTest = async () => {
+    setTesting(true)
     try {
-      const result = await testSelectedProvider(language)
-      onNotice(`${result.provider} · ${result.model} ${t('providerReturned')}`)
+      const result = await testCapabilityAgent(language)
+      onNotice([result.provider, result.model].filter(Boolean).join(' · ') + ` ${t('agentAnswered')}`)
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : t('providerTestFailed'))
+      onNotice(error instanceof Error ? error.message : t('agentSaveFailed'))
     } finally {
-      setTestingProvider(false)
+      setTesting(false)
+      onRefreshAgents()
     }
   }
 
   // One renderer per section id, so the grouping stays data and the layout stays markup.
   const body: Partial<Record<SettingsSectionId, ReactNode>> = {
+    'agent-tools': (
+      <div className="agent-list">
+        {agents.length === 0 && <p className="settings-group-empty">{t(desktop ? 'agentNoAgents' : 'agentPreviewNote')}</p>}
+        {agents.map((tool) => <AgentRow key={tool.id} tool={tool} desktop={desktop} />)}
+      </div>
+    ),
     'skills': (
       <div className="settings-linked-row">
         <button className="quiet-button" onClick={() => onNavigate('skills')}>{t('sectionSkillsOpen')}<ArrowRightIcon /></button>
@@ -55,24 +54,23 @@ export function SettingsPage({ installed, onNotice, onNavigate, providerStatus, 
     'model-access': (
       <>
         <div className="provider-options">
-          {(['codex-api', 'codex-subscription', 'compatible-api'] as ProviderKind[]).map((kind) => (
-            <button key={kind} className={`provider-option ${providerKind === kind ? 'selected' : ''}`} onClick={() => void onSelectProvider(kind)}>
-              <span className="provider-option-icon">{kind === 'compatible-api' ? <GlobeIcon /> : kind === 'codex-api' ? <LightningBoltIcon /> : <CodeIcon />}</span>
-              <span><strong>{providerLabel(t, kind)}</strong><small>{kind === 'codex-api' ? t('apiDescription') : kind === 'codex-subscription' ? t('subscriptionDescription') : t('compatibleDescription')}</small></span>
-              {providerKind === kind && <CheckIcon className="selected-check" />}
+          {selectableAgents(agents).map((tool) => (
+            <button key={tool.id} className={`provider-option ${capabilityAgent === tool.id ? 'selected' : ''}`} disabled={!tool.servesCapabilities} onClick={() => void onChooseAgent(tool.id)}>
+              <span><strong>{tool.name}</strong><small>{t(agentNote(tool, agentStanding(tool, desktop)).key, agentNote(tool, agentStanding(tool, desktop)).values)}</small></span>
+              {capabilityAgent === tool.id && <CheckIcon className="selected-check" />}
             </button>
           ))}
+          {selectableAgents(agents).length === 0 && <p className="settings-group-empty">{t(desktop ? 'agentChooseNone' : 'agentPreviewNote')}</p>}
         </div>
         <ScopeNotes section="model-access" />
-        <div className="provider-detail">
-          <div className="detail-icon"><UpdateIcon /></div>
-          <div><strong>{providerStatus?.label ?? providerLabel(t, providerKind)} · {providerStateLabel(t, providerStatus?.state)}</strong><span>{providerStatus?.detail ?? t('providerStatusLoading')}</span></div>
-          <div className="provider-detail-actions">
-            <button className="quiet-button" onClick={runCheck} disabled={checking}>{checking ? t('checkingEllipsis') : t('healthCheck')}<ReloadIcon className={checking ? 'spin' : ''} /></button>
-            <button className="quiet-button" onClick={testProvider} disabled={testingProvider}>{testingProvider ? t('testingEllipsis') : t('testCall')}<ArrowRightIcon /></button>
+        {chosen && (
+          <div className="provider-detail">
+            <div><strong>{chosen.name}</strong><span>{t(agentNote(chosen, agentStanding(chosen, desktop)).key, agentNote(chosen, agentStanding(chosen, desktop)).values)}</span></div>
+            <div className="provider-detail-actions">
+              <button className="quiet-button" onClick={runTest} disabled={testing || !desktop}>{testing ? t('agentTesting') : t('agentRunTest')}<ArrowRightIcon /></button>
+            </div>
           </div>
-        </div>
-        {providerKind === 'compatible-api' && <CompatibleEndpointSettings language={language} onNotice={onNotice} onChanged={onRefreshProvider} />}
+        )}
       </>
     ),
     'appearance': (
@@ -97,6 +95,26 @@ export function SettingsPage({ installed, onNotice, onNavigate, providerStatus, 
       <SettingsGroupView group="nooki" desktop={desktop} body={body} />
     </div>
   )
+}
+
+function AgentRow({ tool, desktop }: { tool: AgentTool; desktop: boolean }) {
+  const { t } = useTranslation()
+  const standing = agentStanding(tool, desktop)
+  const note = agentNote(tool, standing)
+  return (
+    <div className={`agent-row agent-row-${standing}`}>
+      <div className="agent-row-name">
+        <strong>{tool.name}</strong>
+        <span className={`pill pill-${standing}`}>{t(standingLabel(standing))}</span>
+      </div>
+      <p className="agent-row-note">{t(note.key, note.values)}</p>
+      <p className="agent-row-path"><span>{t('agentSkillsDirectory')}</span><code>{tool.directory}</code></p>
+    </div>
+  )
+}
+
+function standingLabel(standing: AgentStanding): string {
+  return `agent${standing.charAt(0).toUpperCase()}${standing.slice(1)}`
 }
 
 const SECTION_TITLE: Record<SettingsSectionId, string> = {

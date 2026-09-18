@@ -25,16 +25,18 @@ To preview the interface in a browser:
 npm run dev
 ```
 
-Codex sessions and native AI Provider access require the desktop app.
+Conversations and the agents installed on this machine are only reachable from the desktop app.
 
 ## AI setup
 
-Open **Settings → AI Provider** to configure AI access for capabilities:
+Nooki has no model credentials of its own and never calls a model service. Install a coding agent —
+Codex, Claude Code, or pi — and sign into it in that tool. Nooki detects what is here.
 
-- **Managed API key** reads the model, endpoint, and credential source from `~/.codex/api.config.toml`.
-- **Codex subscription** uses the local Codex CLI configuration and login session.
+Open **Settings → This machine → Agent tools** to see which agents were detected and what each one
+reports about its sign-in. Under **Nooki → Capability model access**, pick the agent that runs
+`ai.invoke` for Capability Packages; those invocations spend that agent's quota.
 
-Conversations use the local Codex CLI directly. Install Codex and sign in before using them.
+Conversations always use the local Codex CLI and its login session, whatever is chosen there.
 
 ## Build for macOS
 

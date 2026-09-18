@@ -43,27 +43,27 @@ fn installed_capability_uses_the_platform_selected_provider() {
 
   assert_eq!(
     state
-      .provider_for_capability("com.personal.test-ai")
+      .agent_for_capability("com.personal.test-ai")
       .expect("AI invocation should be authorized"),
-    "codex-api",
+    "codex",
   );
 
   state
-    .set_selected_provider("codex-subscription")
-    .expect("provider selection should persist");
+    .set_capability_agent("claude")
+    .expect("agent selection should persist");
   assert_eq!(
     state
-      .provider_for_capability("com.personal.test-ai")
-      .expect("capability should follow the new provider"),
-    "codex-subscription",
+      .agent_for_capability("com.personal.test-ai")
+      .expect("capability should follow the new agent"),
+    "claude",
   );
 
   let reloaded = PlatformState::load(data_dir.clone()).expect("platform state should reload");
   assert_eq!(
     reloaded
-      .provider_for_capability("com.personal.test-ai")
+      .agent_for_capability("com.personal.test-ai")
       .expect("registry and settings should persist"),
-    "codex-subscription",
+    "claude",
   );
   fs::remove_dir_all(data_dir).expect("test data should be removed");
 }
@@ -87,7 +87,7 @@ fn disabled_or_unpermitted_capabilities_cannot_invoke_ai() {
 
   assert_eq!(
     state
-      .provider_for_capability("com.personal.no-ai")
+      .agent_for_capability("com.personal.no-ai")
       .expect_err("missing permission must fail"),
     "能力未获得 ai.invoke 权限",
   );
@@ -102,13 +102,13 @@ fn disabled_or_unpermitted_capabilities_cannot_invoke_ai() {
   );
   assert_eq!(
     state
-      .provider_for_capability("com.personal.disabled-ai")
+      .agent_for_capability("com.personal.disabled-ai")
       .expect_err("disabled capability must fail"),
     "能力已停用",
   );
   assert_eq!(
     state
-      .provider_for_capability("com.personal.missing")
+      .agent_for_capability("com.personal.missing")
       .expect_err("missing capability must fail"),
     "能力尚未安装",
   );

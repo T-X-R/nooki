@@ -162,6 +162,10 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .pill-ready { background: color-mix(in srgb, var(--positive) 12%, transparent); color: var(--positive); }
 .pill-configured { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .pill-error { background: #f8e1e2; color: #a5575d; }
+/* An agent that cannot report its sign-in is neither green nor red, and should not look like either. */
+.pill-unknown { background: color-mix(in srgb, var(--ink-muted) 12%, transparent); color: var(--ink-muted); }
+.pill-missing { background: color-mix(in srgb, var(--ink-muted) 10%, transparent); color: var(--ink-muted); }
+.pill-signedOut { background: #f8e1e2; color: #a5575d; }
 .provider-copy { margin: 15px 0; color: var(--ink-muted); font-size: 11px; line-height: 1.7; }
 .surface-link { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink); }
 .surface-link svg { color: var(--accent); }
@@ -325,6 +329,16 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .settings-scope-notes { margin: 12px 0 0; padding-left: 47px; list-style: none; }
 .settings-scope-notes li { position: relative; margin-top: 5px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 .settings-scope-notes li::before { content: ''; position: absolute; left: -13px; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+
+.agent-list { margin-top: 14px; padding-left: 47px; display: grid; gap: 10px; }
+.agent-row { padding: 13px 15px; border: 1px solid var(--line); border-radius: 10px; }
+.agent-row-missing { opacity: .68; }
+.agent-row-name { display: flex; align-items: center; gap: 9px; }
+.agent-row-name strong { font-size: 13px; font-weight: 600; }
+.agent-row-note { margin: 5px 0 0; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+.agent-row-path { margin: 7px 0 0; display: flex; align-items: baseline; gap: 8px; font-size: 10px; }
+.agent-row-path span { color: var(--ink-muted); }
+.agent-row-path code { overflow: hidden; color: var(--ink-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
 .provider-options, .theme-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 19px 0 12px 47px; }
 .provider-option, .theme-option { position: relative; display: flex; align-items: flex-start; gap: 10px; min-height: 80px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); text-align: left; transition: border-color .18s ease, background .18s ease; }
 .provider-option:hover, .theme-option:hover { border-color: var(--line-strong); background: var(--surface-strong); }

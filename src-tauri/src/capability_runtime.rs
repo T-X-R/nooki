@@ -10,7 +10,9 @@ use std::{
 const SETTINGS_FILE: &str = "platform-settings.json";
 const REGISTRY_FILE: &str = "capability-registry.json";
 const INSTALLED_CAPABILITIES_DIR: &str = "installed-capabilities";
-const DEFAULT_PROVIDER: &str = "codex-api";
+/// The agent a Capability invokes through when a person has not chosen one. Codex, because it is
+/// the agent Nooki already integrates most deeply.
+pub const DEFAULT_AGENT: &str = "codex";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -82,13 +84,16 @@ struct CapabilityRegistry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PlatformSettings {
-  selected_provider: String,
+  /// Was `selectedProvider`, when Nooki called model services itself. The alias keeps a settings
+  /// file written before that changed readable.
+  #[serde(alias = "selectedProvider")]
+  capability_agent: String,
 }
 
 impl Default for PlatformSettings {
   fn default() -> Self {
     Self {
-      selected_provider: DEFAULT_PROVIDER.into(),
+      capability_agent: DEFAULT_AGENT.into(),
     }
   }
 }
@@ -120,21 +125,21 @@ impl PlatformState {
 
   pub fn data_dir(&self) -> &Path { &self.data_dir }
 
-  pub fn selected_provider(&self) -> Result<String, String> {
+  pub fn capability_agent(&self) -> Result<String, String> {
     self.settings
       .read()
-      .map(|settings| settings.selected_provider.clone())
+      .map(|settings| adopt_agent(&settings.capability_agent))
       .map_err(|_| "平台设置暂时不可用".to_string())
   }
 
-  pub fn set_selected_provider(&self, provider: &str) -> Result<(), String> {
-    validate_provider(provider)?;
+  pub fn set_capability_agent(&self, agent: &str) -> Result<(), String> {
+    validate_agent(agent)?;
     let mut settings = self
       .settings
       .write()
       .map_err(|_| "平台设置暂时不可用".to_string())?;
     let next = PlatformSettings {
-      selected_provider: provider.to_string(),
+      capability_agent: agent.to_string(),
     };
     persist_json(&self.data_dir.join(SETTINGS_FILE), &next)?;
     *settings = next;
@@ -350,9 +355,9 @@ impl PlatformState {
     document_library::read_document(&self.data_dir, id)
   }
 
-  pub fn provider_for_capability(&self, id: &str) -> Result<String, String> {
+  pub fn agent_for_capability(&self, id: &str) -> Result<String, String> {
     self.authorize_permission(id, CapabilityPermission::AiInvoke)?;
-    self.selected_provider()
+    self.capability_agent()
   }
 
   pub fn authorize_permission(
@@ -413,10 +418,20 @@ impl CapabilityPermission {
   }
 }
 
-fn validate_provider(provider: &str) -> Result<(), String> {
-  match provider {
-    "codex-api" | "codex-subscription" | "compatible-api" => Ok(()),
-    _ => Err("未知的 Provider 类型".into()),
+fn validate_agent(agent: &str) -> Result<(), String> {
+  match agent {
+    "codex" | "claude" | "pi" => Ok(()),
+    _ => Err("未知的 Agent".into()),
+  }
+}
+
+/// A settings file written when Nooki still chose between its own endpoint and two ways of reaching
+/// Codex names something that is no longer a choice. All three land on Codex, which is what every
+/// one of them actually reached or replaced.
+fn adopt_agent(stored: &str) -> String {
+  match stored {
+    "codex-api" | "codex-subscription" | "compatible-api" => DEFAULT_AGENT.into(),
+    other => other.to_string(),
   }
 }
 

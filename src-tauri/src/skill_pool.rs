@@ -119,7 +119,7 @@ pub struct DeleteReport { pub name: String, pub trash: String, pub removed: Vec<
 
 struct Tool { id: String, name: String, directory: PathBuf, detected: bool, reads_pool: bool, custom: bool }
 
-pub struct SkillPool { pool: PathBuf, data: PathBuf, home: PathBuf, codex_home: PathBuf, claude_home: PathBuf, pi_home: PathBuf, binaries: Vec<PathBuf>, apps: Vec<PathBuf>, gate: Mutex<()> }
+pub struct SkillPool { pool: PathBuf, data: PathBuf, agents: crate::agent_tools::AgentTools, gate: Mutex<()> }
 
 fn digest(bytes: &[u8]) -> String { format!("{:x}", Sha256::digest(bytes)) }
 
@@ -189,30 +189,22 @@ fn modified_at(directory: &Path) -> String {
 
 impl SkillPool {
   pub fn new(home: PathBuf, data: PathBuf) -> Self {
-    Self {
-      pool: home.join(".agents/skills"),
-      codex_home: home.join(".codex"), claude_home: home.join(".claude"), pi_home: home.join(".pi"),
-      binaries: vec![home.join(".local/bin"), home.join(".npm-global/bin"), home.join(".hermes/node/bin")],
-      apps: Vec::new(),
-      home, data, gate: Mutex::new(()),
-    }
+    Self { pool: home.join(".agents/skills"), data, agents: crate::agent_tools::AgentTools::new(home), gate: Mutex::new(()) }
   }
 
   pub fn from_environment(data: PathBuf) -> Result<Self, String> {
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).filter(|p| p.is_absolute()).ok_or("Cannot locate the current user's home directory")?;
-    let mut pool = Self::new(home, data);
-    if let Some(path) = std::env::var_os("CODEX_HOME").map(PathBuf::from).filter(|p| p.is_absolute()) { pool.codex_home = path; }
-    if let Some(path) = std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from).filter(|p| p.is_absolute()) { pool.claude_home = path; }
-    if let Some(path) = std::env::var_os("PATH") { pool.binaries.extend(std::env::split_paths(&path)); }
-    pool.binaries.extend([PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin")]);
-    pool.apps = vec![PathBuf::from("/Applications/Codex.app"), pool.home.join("Applications/Codex.app")];
-    Ok(pool)
+    let agents = crate::agent_tools::AgentTools::from_environment()?;
+    Ok(Self { pool: agents.home.join(".agents/skills"), data, agents, gate: Mutex::new(()) })
   }
 
   pub fn directory(&self) -> &Path { &self.pool }
 
-  fn binary(&self, name: &str) -> bool {
-    self.binaries.iter().any(|dir| dir.join(name).is_file() || dir.join(format!("{name}.cmd")).is_file() || dir.join(format!("{name}.exe")).is_file())
+  /// Agent detection is shared with Settings: one probe, every surface that needs to know.
+  pub fn agents(&self) -> &crate::agent_tools::AgentTools { &self.agents }
+
+  /// The custom tools a person registered, as the shape `AgentTools::overview` expects.
+  pub fn custom_tools(&self) -> Vec<(String, String, String)> {
+    self.settings().custom_tools.into_iter().map(|tool| (tool.id, tool.name, tool.directory)).collect()
   }
 
   fn settings(&self) -> Settings {
@@ -228,12 +220,10 @@ impl SkillPool {
   }
 
   fn tools(&self, settings: &Settings) -> Vec<Tool> {
-    let mut tools = vec![
-      Tool { id: "codex".into(), name: "Codex".into(), directory: self.codex_home.join("skills"), detected: self.codex_home.is_dir() || self.binary("codex") || self.apps.iter().any(|path| path.is_dir()), reads_pool: false, custom: false },
-      Tool { id: "claude".into(), name: "Claude Code".into(), directory: self.claude_home.join("skills"), detected: self.claude_home.is_dir() || self.binary("claude"), reads_pool: false, custom: false },
-      // pi reads ~/.agents/skills itself, so mirroring into its own directory would duplicate the pool.
-      Tool { id: "pi".into(), name: "pi".into(), directory: self.pool.clone(), detected: self.pi_home.is_dir() || self.binary("pi"), reads_pool: true, custom: false },
-    ];
+    // pi reads ~/.agents/skills itself, so mirroring into its own directory would duplicate the pool.
+    let mut tools: Vec<Tool> = self.agents.builtin(&self.pool).into_iter()
+      .map(|tool| Tool { id: tool.id.into(), name: tool.name.into(), directory: tool.skills, detected: tool.detected, reads_pool: tool.reads_pool, custom: false })
+      .collect();
     for custom in &settings.custom_tools {
       let directory = PathBuf::from(&custom.directory);
       let detected = directory.is_dir();
@@ -544,7 +534,7 @@ impl SkillPool {
     let mut settings = self.settings();
     let name = name.trim().to_string();
     if name.is_empty() { return Err("Name the coding tool".into()); }
-    let path = PathBuf::from(shell_expand(&directory, &self.home));
+    let path = PathBuf::from(shell_expand(&directory, &self.agents.home));
     if !path.is_absolute() || path.components().any(|part| matches!(part, Component::ParentDir)) { return Err("Give the tool's skills directory as an absolute path".into()); }
     if !path.is_dir() { return Err("That directory does not exist".into()); }
     let tools = self.tools(&settings);

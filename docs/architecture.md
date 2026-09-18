@@ -65,95 +65,50 @@ The first version delivers a personal desktop app shell that can be maintained f
 - Capability packages import and roll back independently. If a platform upgrade fails, the previous
   registry and a data backup are kept.
 
-### AI Provider and unified credentials
+### Model access, and why Nooki has none of its own
 
-The platform gains a global `Model Gateway` and `Agent Host`. A capability requests the `ai.invoke`
-permission and calls through them; it stores no API key of its own. The call chain is:
+Nooki holds no model credentials and sends no model requests. A Capability requests the `ai.invoke`
+permission and calls through the `Model Gateway`, which hands the request to one of the coding agents
+installed on this machine. See [ADR 0005](adr/0005-nooki-is-the-agent-substrate.md) for why.
 
 ```text
-Capability → Model Gateway → Provider Resolver → Credential Broker → Responses API Adapter
-Capability → Agent Host ──────────────────────────────────────────→ Codex Agent Runtime
+Capability → Model Gateway → the chosen Agent Tool → one one-shot turn
+Capability → Agent Host ───→ Codex Agent Runtime
 ```
 
-#### The two credential sources must stay distinct
+#### Detection reads files; only work starts a process
 
-1. **Codex/ChatGPT subscription login** belongs to the Codex client on this machine. The platform
-   neither reads nor copies the login token; the `Codex Subscription Adapter` invokes the local
-   `codex exec` and lets Codex use its own default configuration and login state.
-2. **API key**: the host imports the current model, the Responses protocol endpoint, and the
-   credential source from `~/.codex/api.config.toml`, and the `Responses API Adapter` calls the
-   endpoint directly. The key never reaches the frontend and is never handed to a capability package.
+`AgentTools` finds an agent by looking for its home directory and its binary, and reads its sign-in
+state from that tool's own files — `~/.codex/auth.json` for Codex. Opening Settings starts no
+processes. An agent that keeps its credentials where Nooki cannot look is reported as `unknown`
+rather than guessed at, and is still offered, because refusing to try would be a guess dressed as a
+fact.
 
-This is what makes "configure once, shared by the platform and every capability" possible without
-treating a subscription as a general-purpose API key. A capability package no longer configures
-credentials, but it still declares data permissions such as `activity.read` and tool permissions.
+Nooki never reads, copies, or stores a credential. The sign-in hint it shows is the command a person
+would run in that tool.
 
-What the platform persists is a provider reference, never the secret itself:
+#### One one-shot turn per invocation
 
-```ts
-type ProviderProfile = {
-  id: string;
-  kind: 'codex-api' | 'codex-subscription' | 'compatible-api';
-  codexHome?: string;
-  profile?: string;
-  model?: string;
-  baseUrl?: string;
-  credentialRef?: string; // OS keychain / environment reference
-};
-```
+Each agent is asked for a single answer with no session, no write access, and no Nooki-supplied
+tools:
 
-#### Compatibility with an existing local Codex setup
+- Codex: `codex exec --ephemeral --json --sandbox read-only --skip-git-repo-check`
+- Claude Code: `claude -p … --output-format json`
+- pi: `pi --print --mode json …`
 
-At startup the platform can discover `CODEX_HOME` and the Codex profile the person selected, and read
-the current model, provider, wire API, and base URL. The current desktop version offers two entry
-points: `codex-api` imports a managed provider from `~/.codex/api.config.toml`, and
-`codex-subscription` uses the default `~/.codex/config.toml` together with the Codex login state.
-Each source is then handled on its own terms:
+Each prints its own shape, and each is parsed on its own terms. Where a shape is not recognised the
+raw output is preferred over an error, because a person would rather read an unexpected answer than
+lose one. Timeouts, non-zero exits, and empty output map to one structured `InvocationError` that
+knows how to say itself in either language.
 
-- Subscription/login state: go straight through `codex exec`, without copying the auth file.
-- An API key from an environment variable or an API profile: resolved on demand by the host adapter
-  and used directly, with no second entry by the capability.
-- Migrating an inline plaintext API key into the system keychain later: only after an explicit prompt
-  and confirmation, cleaning up the original afterwards. The platform database always holds a
-  credential reference only.
+The guards that remain Nooki's are Nooki's own: an empty request and an oversized one are refused
+before any process starts.
 
-That makes "no extra configuration for the platform or its capability packages" true, without
-coupling Codex's private credential storage into the workbench.
+#### What this costs
 
-#### Recommended provider strategy
-
-- Settings offers one switchable call source: managed API key, Codex subscription, or a custom
-  compatible endpoint.
-- Importing non-sensitive Codex configuration (model, provider, base URL, profile) is supported.
-  Authentication stays with the Codex CLI or the keychain; auth files are not parsed.
-- A provider health check returns only available/unavailable and a reason. It never echoes a token, a
-  request header, or a secret buried in a full error.
-- Ordinary API key model calls go through the Responses API. Codex subscription agent work uses the
-  CLI's `--ephemeral` flag and a restricted sandbox.
-- Never switch providers automatically. The person can see the actual provider, model, and data scope
-  for every agent task.
-- The `Codex Agent Runtime` starts a child process with an argument array and an explicit
-  `CODEX_HOME`, never a concatenated shell string. Timeouts, cancellation, and non-zero exits map to
-  platform errors uniformly.
-
-#### Compatible endpoints
-
-The third Provider entry, `compatible-api`, is configured by the person rather than imported from a
-Codex file. Nooki ships no vendor catalogue and no example endpoints: the person states a name, a
-base URL, a model, a request protocol, and a credential.
-
-- One managed adapter serves three request protocols: `responses` (OpenAI Responses), `chat` (OpenAI
-  Chat Completions), and `anthropic` (Anthropic Messages). The adapter appends the protocol path to
-  the configured base URL, sends the matching payload, and reads the matching text output.
-- A credential is either stored on this device or read from a named environment variable. A loopback
-  base URL may run without a credential, which keeps local runtimes usable.
-- Stored endpoints live in `compatible-endpoints.json` inside the platform data directory, written
-  through a temporary file and restricted to the current user on Unix.
-- The interface never receives a key. Endpoint listings carry only a credential kind and a masked
-  hint such as `••••1234`, and an update that leaves the key field empty keeps the stored credential.
-- The person keeps several endpoints and switches the active one. The Model Gateway, the health
-  check, and the test invocation all resolve that single active endpoint, so Capability Packages
-  still request only `ai.invoke`.
+A machine with no agent installed has no AI inside Nooki. That is the honest consequence of not
+shipping a model client, and Settings says so rather than offering a configuration that would not
+work.
 
 #### The minimum interface for the Model Gateway and Agent Host
 
@@ -164,7 +119,7 @@ type ModelRequest = {
 };
 
 type ModelResult = {
-  providerId: string;
+  provider: string;
   model: string;
   output: string;
 };

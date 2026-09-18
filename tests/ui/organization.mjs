@@ -10,7 +10,7 @@ const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.addInitScript(() => {
-    localStorage.setItem('personal-workbench-preferences', JSON.stringify({ state: { view: 'library', language: localStorage.getItem('qa-language') || 'zh', theme: 'light', providerKind: 'codex-api' }, version: 0 }));
+    localStorage.setItem('personal-workbench-preferences', JSON.stringify({ state: { view: 'library', language: localStorage.getItem('qa-language') || 'zh', theme: 'light' }, version: 0 }));
     const data = JSON.parse(localStorage.getItem('qa-organization') || 'null') || {
       docs: [{ id: 'diary/notes/2026/09/entry', capabilityId: 'diary', capabilityName: '日记', collectionKey: 'notes', collectionName: '笔记', title: '周末的阅读计划', content: '# 阅读计划\n\n整理想读的书，以及接下来想了解的问题。', documentDate: '2026-09-09', createdAt: '2026-09-09T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', revision: 'first', format: 'markdown', sizeBytes: 120 }],
       organization: { topics: [{ id: 'research', name: '阅读与思考', documentIds: ['diary/notes/2026/09/entry'] }, { id: 'empty', name: '旅行灵感', documentIds: [] }], customSections: [], sections: {}, origins: {}, trash: {} },
@@ -21,8 +21,8 @@ try {
     let callbackId = 0;
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback: () => ++callbackId, unregisterCallback: () => {}, invoke: async (command, args = {}) => {
       if (command.startsWith('plugin:')) return null;
-      if (command === 'get_selected_provider') return 'codex-api';
-      if (command === 'provider_status') return { kind: 'codex-api', state: 'ready', label: 'Codex', detail: 'Fixture' };
+      if (command === 'capability_agent') return 'codex';
+      if (command === 'agent_tools') return [{ id: 'codex', name: 'Codex', directory: '/tmp/.codex/skills', detected: true, readsPool: false, custom: false, signIn: { state: 'in', method: 'ChatGPT', hint: null }, servesCapabilities: true }];
       if (['list_capabilities', 'library_search_content'].includes(command)) return [];
       if (command === 'tasks_read') return [{ id: 'task-current', capabilityId: 'workbench.conversations', capabilityVersion: '1', job: 'respond', input: { threadId: 'current', message: '整理本周的想法' }, status: 'completed', result: { threadId: 'current', turnId: 'turn' }, stage: null, attempt: 1, checkpoints: {}, error: null, createdAt: '2026-09-09T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z' }];
       if (command === 'tasks_write') return;
