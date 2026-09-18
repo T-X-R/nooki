@@ -2,7 +2,8 @@
 // Set PLAYWRIGHT_MODULE for an external Playwright installation.
 // Native IPC is mocked; this suite never mutates real conversations or Library data.
 import assert from 'node:assert/strict';
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = playwright.chromium ? playwright : playwright.default;
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1240, height: 820 } });
 const errors = [];
