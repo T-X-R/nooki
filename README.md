@@ -97,7 +97,9 @@ See [Capability infrastructure](INFRASTRUCTURE.md) and [Domain concepts](CONTEXT
 details.
 
 `docs/` holds the design record: the [architecture](docs/architecture.md) the first version was
-built from, the [decision records](docs/adr/), and the [Skill Pool spec](docs/spec-skill-pool.md).
+built from, the [decision records](docs/adr/), and the feature specs. Start with
+[what Nooki is](docs/adr/0005-nooki-is-the-agent-substrate.md), then the
+[Skill Pool spec](docs/spec-skill-pool.md) and the [Settings spec](docs/spec-settings.md).
 Notes that are not meant for the repository live in `docs/local/`, which stays untracked.
 
 Write repository documentation and pull request titles and descriptions in English.
