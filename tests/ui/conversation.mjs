@@ -1,4 +1,4 @@
-// Start npm run dev -- --host 127.0.0.1 --port 5193, then run node tests/conversation-ui.browser.mjs.
+// Browser suite. Run `npm run dev -- --host 127.0.0.1 --port 5193`, then `npm run test:ui`.
 // Use PLAYWRIGHT_MODULE for an external Playwright installation; requires Chrome.
 // CONVERSATION_TEST_URL defaults to http://127.0.0.1:5193/. No real Codex calls are made.
 import assert from 'node:assert/strict';

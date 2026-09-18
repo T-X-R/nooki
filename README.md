@@ -51,14 +51,46 @@ Open **Capability Center → Developer center** to install the development skill
 
 Only install packages you trust: capabilities execute code inside the desktop host.
 
+## Project layout
+
+```
+src/app/          entry point, the App shell, and global styles
+src/features/     user-facing areas: activity, capabilities, conversation,
+                  library, settings, skills, tasks
+src/platform/     host infrastructure shared by features: capability runtime,
+                  document library, task runner, activity store, AI provider,
+                  user data
+src/shared/       framework-level helpers with no domain knowledge
+src-tauri/        the Rust desktop host
+packages/         the capability contract and shared capability UI
+capabilities/     first-party capabilities, each with colocated tests
+skills/           the capability development skill published to the skill pool
+tests/            platform tests; tests/ui holds the browser suites
+```
+
+Features may import from `platform`, from `shared`, and from each other;
+`platform` and `shared` must not import from `features`. The one exception is
+`platform/tasks.ts`, which reaches into `features/conversation/conversation-jobs.ts`
+to register the built-in conversation job — see the note in that file.
+
+Relative imports inside `src` carry an explicit `.ts`/`.tsx` extension, because
+`node --test` resolves the same modules without a bundler.
+
 ## Development
 
 ```sh
 npm run build
-npm run test:platform
-npm run test:capabilities
+npm test
 cd src-tauri
 cargo test -- --test-threads=1
+```
+
+`npm test` runs the platform and capability suites. The browser suites need a
+dev server on port 5193 and a Playwright install:
+
+```sh
+npm run dev -- --host 127.0.0.1 --port 5193
+npm run test:ui
 ```
 
 See [Capability infrastructure](INFRASTRUCTURE.md) and [Domain concepts](CONTEXT.md) for technical details.

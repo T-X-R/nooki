@@ -1,4 +1,5 @@
-// Start Vite on port 5193. Set PLAYWRIGHT_MODULE for an external Playwright installation.
+// Browser suite. Run `npm run dev -- --host 127.0.0.1 --port 5193`, then `npm run test:ui`.
+// Set PLAYWRIGHT_MODULE for an external Playwright installation.
 // Native IPC is mocked; this suite never mutates real conversations or Library data.
 import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
