@@ -193,14 +193,6 @@ impl ConversationHost {
                     json!({"threadId": request.thread_id, "turnId": turn["id"], "artifacts": turn["artifacts"].clone()}),
                 );
             }
-            let mut catalog = self.load()?;
-            let stored = catalog
-                .sessions
-                .get_mut(&request.thread_id)
-                .ok_or("Native conversation disappeared")?;
-            stored.native_started = true;
-            let session = stored.clone();
-            self.save(&catalog)?;
             let inserted = self
                 .running
                 .lock()
@@ -218,7 +210,14 @@ impl ConversationHost {
                 .map_err(|_| "Native conversation state unavailable")?
                 .remove(&request.thread_id);
             let native = native_result?;
+            // Only a completed turn proves the agent really created its session. Recording the
+            // start beforehand stranded a conversation on `--resume` whenever the launch failed,
+            // because the id Nooki claimed to have used was never persisted by the agent. Reload
+            // rather than reusing the pre-run clone so a turn cannot revert an archive toggled
+            // while it was running.
+            let mut catalog = self.load()?;
             if let Some(stored) = catalog.sessions.get_mut(&request.thread_id) {
+                stored.native_started = true;
                 stored.preview = request.message.chars().take(120).collect();
                 stored.updated_at = Self::now();
                 stored.turns.push(native.turn);

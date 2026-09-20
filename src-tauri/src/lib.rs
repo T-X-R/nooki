@@ -1,6 +1,7 @@
 pub mod codex_conversations;
 pub mod conversation_documents;
 pub mod conversation_host;
+pub mod conversation_instructions;
 pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;

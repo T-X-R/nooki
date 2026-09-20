@@ -38,7 +38,7 @@ test('document context carries exact retained references and supports ordinary c
   assert.ok(!fileContext.includes('Evidence'))
   assert.ok(fileContext.includes(referenceHref(reference)))
   assert.deepEqual(parseReferenceHref(referenceHref(reference)), reference)
-  assert.match(libraryContext([]), /No new Library documents/)
+  assert.match(libraryContext([]), /No Library documents are attached/)
 })
 
 test('platform tasks share the existing runner, isolate concurrent sessions and keep publication retry independent', async () => {
