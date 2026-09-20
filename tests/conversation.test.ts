@@ -1,8 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyConversationEvent, libraryContext, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
+import { applyConversationEvent, conversationAgentName, libraryContext, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
 import { createTaskRunner } from '../src/platform/task-runner.ts'
 import { parseReferenceHref, referenceHref } from '../packages/capability-contract/src/references.ts'
+
+test('conversation runtime label follows the native session agent', () => {
+  assert.equal(conversationAgentName('pi'), 'pi')
+  assert.equal(conversationAgentName('claude'), 'Claude Code')
+  assert.equal(conversationAgentName('codex'), 'Codex')
+})
 
 test('Codex events preserve turn/item order, stream summaries and replace deltas with authoritative completed items', () => {
   let thread: Conversation = { id: 'session-a', preview: '', updatedAt: 0, turns: [] }
