@@ -10,7 +10,8 @@ const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.addInitScript(() => {
-    localStorage.setItem('personal-workbench-preferences', JSON.stringify({ state: { view: 'library', language: localStorage.getItem('qa-language') || 'zh', theme: 'light', providerKind: 'codex-api' }, version: 0 }));
+    localStorage.setItem('personal-workbench-preferences', JSON.stringify({ state: { view: 'library', language: localStorage.getItem('qa-language') || 'zh', theme: 'light' }, version: 0 }));
+    localStorage.setItem('personal-workbench:capability:diary:entries', JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ id: i, text: '一条日记' }))));
     const data = JSON.parse(localStorage.getItem('qa-organization') || 'null') || {
       docs: [{ id: 'diary/notes/2026/09/entry', capabilityId: 'diary', capabilityName: '日记', collectionKey: 'notes', collectionName: '笔记', title: '周末的阅读计划', content: '# 阅读计划\n\n整理想读的书，以及接下来想了解的问题。', documentDate: '2026-09-09', createdAt: '2026-09-09T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', revision: 'first', format: 'markdown', sizeBytes: 120 }],
       organization: { topics: [{ id: 'research', name: '阅读与思考', documentIds: ['diary/notes/2026/09/entry'] }, { id: 'empty', name: '旅行灵感', documentIds: [] }], customSections: [], sections: {}, origins: {}, trash: {} },
@@ -21,8 +22,8 @@ try {
     let callbackId = 0;
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback: () => ++callbackId, unregisterCallback: () => {}, invoke: async (command, args = {}) => {
       if (command.startsWith('plugin:')) return null;
-      if (command === 'get_selected_provider') return 'codex-api';
-      if (command === 'provider_status') return { kind: 'codex-api', state: 'ready', label: 'Codex', detail: 'Fixture' };
+      if (command === 'capability_agent') return 'codex';
+      if (command === 'agent_tools') return [{ id: 'codex', name: 'Codex', directory: '/tmp/.codex/skills', detected: true, readsPool: false, custom: false, signIn: { state: 'in', method: 'ChatGPT', hint: null }, servesCapabilities: true }];
       if (['list_capabilities', 'library_search_content'].includes(command)) return [];
       if (command === 'tasks_read') return [{ id: 'task-current', capabilityId: 'workbench.conversations', capabilityVersion: '1', job: 'respond', input: { threadId: 'current', message: '整理本周的想法' }, status: 'completed', result: { threadId: 'current', turnId: 'turn' }, stage: null, attempt: 1, checkpoints: {}, error: null, createdAt: '2026-09-09T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z' }];
       if (command === 'tasks_write') return;
@@ -126,7 +127,9 @@ try {
   await page.screenshot({ path: '/private/tmp/nooki-library-dark.png' });
   await page.getByRole('button', { name: '对话', exact: true }).click();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).click();
-  assert.equal(await page.locator('#sidebar-conversation-history').getByRole('button', { name: '已归档', exact: true }).count(), 0);
+  // The conversation surface carries one conversation and its composer, and nothing put away.
+  assert.equal(await page.locator('.conversation-page .settings-archive-section').count(), 0);
+  assert.equal(await page.locator('#sidebar-conversation-history').getByRole('button', { name: '已归档会话', exact: true }).count(), 0);
   await page.mouse.move(1200, 800);
   await page.waitForTimeout(200);
   assert.notEqual(await page.getByRole('button', { name: '对话', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), await page.getByRole('button', { name: '整理本周的想法', exact: true }).evaluate(el => getComputedStyle(el.closest('.nav-list-row')).backgroundColor));
@@ -137,34 +140,41 @@ try {
   await page.evaluate(() => window.qa.failArchive = false);
   await page.getByRole('button', { name: '归档会话：整理本周的想法', exact: true }).click();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).waitFor({ state: 'hidden' });
-  await page.locator('.sidebar-settings').click();
-  await page.getByRole('button', { name: '已归档会话', exact: true }).waitFor();
-  assert.equal(await page.locator('.settings-archive-section').evaluate(el => el.previousElementSibling.querySelector('h2').textContent), '本地数据');
-  assert.equal(await page.getByRole('button', { name: '已归档会话', exact: true }).getAttribute('aria-expanded'), 'false');
-  assert.equal(await page.getByRole('region', { name: '已归档会话列表', exact: true }).count(), 0);
-  await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === String(window.qa.data.sessions.filter(session => session.archived).length));
-  await page.getByRole('button', { name: '已归档会话', exact: true }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: '/private/tmp/nooki-refined-archive-settings.png', animations: 'disabled' });
-  await page.getByRole('button', { name: '已归档会话', exact: true }).click();
+  const archiveToggle = page.getByRole('button', { name: '已归档会话', exact: true });
   const archive = page.getByRole('region', { name: '已归档会话列表', exact: true });
+  const openArchive = async () => {
+    await page.locator('.sidebar-settings').click();
+    await archiveToggle.waitFor();
+    // Last section of Settings, after local data, and folded until it is asked for.
+    assert.equal(await page.locator('.settings-archive-section').evaluate(el => el.previousElementSibling.querySelector('h2').textContent), '本地数据');
+    assert.equal(await page.locator('.settings-archive-section .settings-number').textContent(), '05');
+    assert.equal(await archiveToggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await archive.count(), 0);
+    await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === String(window.qa.data.sessions.filter(session => session.archived).length));
+    await archiveToggle.scrollIntoViewIfNeeded();
+    await archiveToggle.click();
+    await archive.waitFor();
+  };
+  await openArchive();
+  // Local data keeps one folded line per block, so the page reads as a list of headings.
+  const capabilityData = page.locator('details.data-retained');
+  assert.equal(await capabilityData.evaluate(el => el.open), false);
+  assert.equal(await capabilityData.getByRole('button', { name: '清理', exact: true }).count(), 0);
+  await capabilityData.getByRole('heading', { name: '能力数据', exact: true }).click();
+  assert.equal(await capabilityData.evaluate(el => el.open), true);
+  await capabilityData.getByRole('button', { name: '清理', exact: true }).waitFor();
+  await capabilityData.getByRole('heading', { name: '能力数据', exact: true }).click();
+  assert.equal(await capabilityData.evaluate(el => el.open), false);
   assert.equal(await page.getByRole('dialog').count(), 0);
   await archive.getByRole('button', { name: '恢复会话：整理本周的想法', exact: true }).waitFor();
   assert.equal(await archive.locator('.conversation-archive-row').count(), 44);
-  await page.locator('.settings-archive-section').screenshot({ path: '/private/tmp/nooki-inline-archives-expanded.png', animations: 'disabled' });
+  await page.locator('.settings-archive-section').screenshot({ path: '/private/tmp/nooki-archive-settings-section.png', animations: 'disabled' });
   assert.ok((await page.evaluate(() => window.qa.pages)).includes(40));
   await archive.getByRole('button', { name: '恢复会话：整理本周的想法', exact: true }).click();
   await archive.waitFor({ state: 'hidden' });
   await page.locator('.conversation-page').waitFor();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).waitFor();
-  await page.locator('.sidebar-settings').click();
-  await page.getByRole('button', { name: '已归档会话', exact: true }).waitFor();
-  assert.equal(await page.locator('.settings-archive-section').evaluate(el => el.previousElementSibling.querySelector('h2').textContent), '本地数据');
-  assert.equal(await page.getByRole('button', { name: '已归档会话', exact: true }).getAttribute('aria-expanded'), 'false');
-  assert.equal(await page.getByRole('region', { name: '已归档会话列表', exact: true }).count(), 0);
-  await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === String(window.qa.data.sessions.filter(session => session.archived).length));
-  await page.getByRole('button', { name: '已归档会话', exact: true }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: '/private/tmp/nooki-refined-archive-settings.png', animations: 'disabled' });
-  await page.getByRole('button', { name: '已归档会话', exact: true }).click();
+  await openArchive();
   await archive.getByRole('button', { name: '删除会话：往期对话 1', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: '删除归档会话', exact: true });
   await confirmation.waitFor();
@@ -196,13 +206,19 @@ try {
   await page.evaluate(() => window.qa.failDelete = '');
   await confirmation.getByRole('button', { name: '永久删除', exact: true }).click();
   await archive.getByText('还没有归档会话', { exact: true }).waitFor();
+  // Settings caps paragraphs at 500px, so an empty archive has to be centred on the section itself.
+  const offCentre = await page.evaluate(() => {
+    const line = document.querySelector('.conversation-archive-empty p').getBoundingClientRect();
+    const section = document.querySelector('.settings-archive-section').getBoundingClientRect();
+    return Math.abs((line.left + line.right) / 2 - (section.left + section.right) / 2);
+  });
+  assert.ok(offCentre <= 1, `Empty archive line centres on the section, off by ${offCentre}px`);
   assert.equal(await page.evaluate(() => window.qa.deleted.length), 43);
   assert.equal(await page.evaluate(() => window.qa.data.sessions[0].id), 'current');
   await page.screenshot({ path: '/private/tmp/nooki-archive-empty.png' });
   assert.equal(await page.locator('.conversation-archive-count').textContent(), '0');
-  await page.getByRole('button', { name: '已归档会话', exact: true }).click();
+  await archiveToggle.click();
   await archive.waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('.conversation-archive-count').textContent(), '0');
   await page.evaluate(() => localStorage.setItem('qa-language', 'en'));
   await page.reload();
   await page.getByRole('button', { name: 'New section', exact: true }).waitFor();
@@ -214,12 +230,14 @@ try {
   await page.screenshot({ path: '/private/tmp/nooki-library-english.png', animations: 'disabled' });
   await page.locator('.sidebar-settings').click();
   const englishToggle = page.getByRole('button', { name: 'Archived conversations', exact: true });
+  const englishArchive = page.getByRole('region', { name: 'Archived conversation list', exact: true });
   assert.equal(await englishToggle.getAttribute('aria-expanded'), 'false');
   await englishToggle.focus(); await page.keyboard.press('Enter');
-  await page.getByRole('region', { name: 'Archived conversation list', exact: true }).waitFor();
+  await englishArchive.waitFor();
   assert.equal(await page.getByRole('dialog').count(), 0);
+  await englishArchive.getByText('No archived conversations', { exact: true }).waitFor();
   await englishToggle.focus(); await page.keyboard.press('Space');
-  await page.getByRole('region', { name: 'Archived conversation list', exact: true }).waitFor({ state: 'hidden' });
+  await englishArchive.waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.locator('.library-page').waitFor();
   await englishToggle.waitFor({ state: 'hidden' });
@@ -227,10 +245,10 @@ try {
   await page.locator('.sidebar-settings').click();
   await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === '—');
   await englishToggle.click();
-  await page.getByRole('region', { name: 'Archived conversation list', exact: true }).getByRole('alert').waitFor();
+  await englishArchive.getByRole('alert').filter({ hasText: 'Archive unavailable' }).waitFor();
   await page.evaluate(() => window.qa.failList = false);
-  await page.getByRole('region', { name: 'Archived conversation list', exact: true }).getByRole('button', { name: 'Retry', exact: true }).click();
+  await englishArchive.getByRole('button', { name: 'Retry', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === '0');
   assert.deepEqual(errors, []);
-  console.log('PASS: inline topics, empty scope, section persistence, duplicate validation, moving documents, theme/viewport QA, archive failure, restore, pagination, cancel, single deletion and partial bulk retry');
+  console.log('PASS: inline topics, empty scope, section persistence, duplicate validation, moving documents, theme/viewport QA, archive failure, restore from Settings, pagination, cancel, single deletion and partial bulk retry');
 } finally { await browser.close(); }

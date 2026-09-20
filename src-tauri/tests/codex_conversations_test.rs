@@ -1,7 +1,21 @@
-use app_lib::{codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, source_snapshots, document_library::{self, DocumentPublication}};
+use app_lib::{codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, conversation_host::ConversationHost, source_snapshots, document_library::{self, DocumentPublication}};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::{Arc, Mutex}};
 use tokio_util::sync::CancellationToken;
+#[tokio::test]
+async fn native_conversation_creation_stays_with_the_selected_agent() {
+  let root = std::env::temp_dir().join(format!("workbench-agent-test-{}", std::process::id()));
+  let _ = std::fs::remove_dir_all(&root);
+  let host = ConversationHost::new("codex".into(), root.clone(), Arc::new(|_| {}));
+  let pi = host.create("pi").await.unwrap();
+  let claude = host.create("claude").await.unwrap();
+  assert_eq!(pi["agent"], "pi");
+  assert_eq!(claude["agent"], "claude");
+  assert_eq!(host.read(pi["id"].as_str().unwrap(), None).await.unwrap()["agent"], "pi");
+  assert_eq!(host.read(claude["id"].as_str().unwrap(), None).await.unwrap()["agent"], "claude");
+  assert!(root.join("conversation-agents.json").is_file());
+  let _ = std::fs::remove_dir_all(root);
+}
 #[cfg(unix)]
 fn fixture() -> (PathBuf, CodexConversations, Arc<Mutex<Vec<Value>>>) {
   use std::os::unix::fs::PermissionsExt;

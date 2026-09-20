@@ -1,6 +1,6 @@
 # ADR 0002: The platform manages the AI Provider; Capability Packages hold no credentials
 
-- Status: proposed
+- Status: superseded by [ADR 0005](0005-nooki-is-the-agent-substrate.md)
 - Date: 2026-09-03
 
 ## Context

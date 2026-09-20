@@ -2,15 +2,18 @@ import { useTranslation } from 'react-i18next'
 import { ArrowRightIcon, ChevronRightIcon, LightningBoltIcon, PlusIcon } from '@radix-ui/react-icons'
 import type { DocumentReference } from '../../../packages/capability-contract/src/index.ts'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
-import type { ProviderStatus } from '../../platform/ai-provider.ts'
+import { isDesktopHost, type AgentTool } from '../../platform/agent-tools.ts'
 import { capabilityCopy } from '../capabilities/capability-presentation.tsx'
-import { providerLabel, providerStateLabel } from '../settings/provider-labels.ts'
+import { agentNote, agentStanding, chosenAgent } from '../settings/agent-standing.ts'
 import { useWorkbench, type View } from '../../platform/preferences.ts'
 import { TodayActivity } from './TodayActivity.tsx'
 
-export function TodayPage({ installed, onNavigate, onOpenCapability, onDocument, onTask, providerStatus }: { installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void; onDocument: (reference: DocumentReference) => void; onTask: (id: string) => void; providerStatus: ProviderStatus | null }) {
+export function TodayPage({ installed, onNavigate, onOpenCapability, onDocument, onTask, agents, capabilityAgent }: { installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void; onDocument: (reference: DocumentReference) => void; onTask: (id: string) => void; agents: AgentTool[]; capabilityAgent: string }) {
   const { t } = useTranslation()
-  const { language, providerKind } = useWorkbench()
+  const { language } = useWorkbench()
+  const agent = chosenAgent(agents, capabilityAgent)
+  const standing = agentStanding(agent, isDesktopHost())
+  const note = agentNote(agent, standing)
   const enabled = installed.filter((capability) => capability.enabled)
   const primaryCapability = enabled[0]
   const primaryCapabilityName = primaryCapability ? capabilityCopy(primaryCapability, language).name : null
@@ -44,16 +47,18 @@ export function TodayPage({ installed, onNavigate, onOpenCapability, onDocument,
 
         <section className="surface provider-surface">
           <div className="surface-heading">
-            <div><span className="section-kicker">AI PROVIDER</span><h2>{t('unifiedAi')}</h2></div>
+            <div><span className="section-kicker">AI</span><h2>{t('agentSurfaceTitle')}</h2></div>
             <LightningBoltIcon className="heading-icon" />
           </div>
           <div className="provider-status-line">
             <div className="provider-status-symbol"><LightningBoltIcon /></div>
-            <div><strong>{providerStatus?.label ?? providerLabel(t, providerKind)}</strong><span>{providerStatus?.detail ?? t('providerChecking')}</span></div>
-            <span className={`pill pill-${providerStatus?.state ?? 'preview'}`}>{providerStateLabel(t, providerStatus?.state)}</span>
+            <div><strong>{agent?.name ?? capabilityAgent}</strong><span>{t(note.key, note.values)}</span></div>
+            {/* No badge: the line under the name already says the state, and saying it twice in
+                four words of space reads as decoration. */}
+            <span className={`agent-dot agent-dot-${standing}`} aria-hidden="true" />
           </div>
-          <p className="provider-copy">{t('providerCopy')}</p>
-          <button className="surface-link" onClick={() => onNavigate('settings')}>{t('viewProviderSettings')}<ChevronRightIcon /></button>
+          <p className="provider-copy">{t('agentSurfaceCopy')}</p>
+          <button className="surface-link" onClick={() => onNavigate('settings')}>{t('agentSurfaceLink')}<ChevronRightIcon /></button>
         </section>
       </div>
 

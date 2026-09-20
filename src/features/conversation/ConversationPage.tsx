@@ -6,7 +6,7 @@ import type { DocumentReference, SelectedDocument, TaskRecord } from '../../../p
 import { parseReferenceHref } from '../../../packages/capability-contract/src/references.ts'
 import { taskRunner } from '../../platform/tasks.ts'
 import { conversationClient } from './conversation-client.ts'
-import { CONVERSATION_OWNER, LEGACY_REVIEW, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type ConversationInput, type ConversationItem, type ConversationResult, type ConversationTurn, type SaveAnswerInput } from './conversation-model.ts'
+import { CONVERSATION_OWNER, LEGACY_REVIEW, conversationAgentName, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type ConversationInput, type ConversationItem, type ConversationResult, type ConversationTurn, type SaveAnswerInput } from './conversation-model.ts'
 import { listLibraryDocuments, searchLibraryContent, type LibraryDocumentMetadata } from '../../platform/document-library.ts'
 import './conversation.css'
 import { createGreetingRotation, type conversationGreetings } from './conversation-greetings.ts'
@@ -14,7 +14,7 @@ import { ConversationSaveDialog } from './ConversationSaveDialog.tsx'
 import { ConversationArtifacts } from './ConversationArtifacts.tsx'
 import { artifactTitle, decodeAttachment, validateAttachments, type ConversationAttachment } from './conversation-documents.ts'
 
-// UI drafts only; Codex is the authority for session history and messages.
+// UI drafts only; the selected agent's native session is the authority for session history and messages.
 const openingGreetings = createGreetingRotation()
 const drafts = new Map<string, { text: string; ids: string[]; uploads: ConversationAttachment[] }>()
 let currentSession: string | null = null
@@ -153,13 +153,13 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
     return task?.status === 'completed' ? <button className="quiet-button" onClick={() => onDocument(task.result as DocumentReference)}><CheckIcon />{zh ? '已保存 · 打开' : 'Saved · Open'}</button> : task && ['failed', 'interrupted', 'cancelled'].includes(task.status) ? <button className="quiet-button" disabled={busy} onClick={() => void act(() => taskRunner.retry(task.id))}>{zh ? '重试保存' : 'Retry save'}</button> : <button className="quiet-button" disabled={task?.status === 'running'} onClick={() => save(item.id, item.text ?? '', title, artifactId)}><FileTextIcon />{task?.status === 'running' ? (zh ? '保存中…' : 'Saving…') : (zh ? '保存到资料库' : 'Save to Library')}</button>
   }
   const renderItem = (turn: ConversationTurn, item: ConversationItem) => item.type === 'userMessage' ? <article className="conversation-user" key={item.id}>{item.content?.filter((part) => part.type === 'text').map((part) => part.text).join('\n')}{!!attachments(item).length && <div className="conversation-message-sources">{attachments(item).map((doc) => <button key={doc.reference.documentId} onClick={() => onDocument(doc.reference)}><FileTextIcon />{doc.reference.title}</button>)}</div>}{!!uploadAttachments(item).length && <div className="conversation-message-sources">{uploadAttachments(item).map((file) => <span key={file.id}><FileTextIcon />{file.name}</span>)}</div>}</article> : item.type === 'agentMessage' ? <article className={`conversation-answer ${item.phase === 'commentary' ? 'is-commentary' : ''}`} key={item.id}><div className="conversation-markdown"><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} /></div>{turn.status === 'completed' && item.phase !== 'commentary' && item.text && <div className="conversation-answer-actions">{saveAction(item)}</div>}</article> : ['reasoning', 'plan', 'commandExecution', 'fileChange', 'mcpToolCall', 'dynamicToolCall', 'webSearch', 'contextCompaction', 'collabAgentToolCall'].includes(item.type) ? <ProcessItem key={item.id} item={item} zh={zh} /> : null
-  const taskHint = (task: TaskRecord) => task.status === 'interrupted' ? (zh ? '上次执行已中断，可从 Codex 会话继续。' : 'Execution was interrupted. Continue from the Codex session.') : task.status === 'cancelled' ? (zh ? '已停止生成。' : 'Response stopped.') : task.error
+  const taskHint = (task: TaskRecord) => task.status === 'interrupted' ? (zh ? '上次执行已中断，可从原 agent 会话继续。' : 'Execution was interrupted. Continue from the native agent session.') : task.status === 'cancelled' ? (zh ? '已停止生成。' : 'Response stopped.') : task.error
   const showInitialPlaceholder = conversationTasks.filter((task) => task.job === 'respond').length <= 1 && waitingForInitialResponse(thread?.turns ?? [], !!thread?.nextCursor)
   const empty = !showLegacy && !loading && !pending && !thread?.turns.length && !running
   return <div className="conversation-page">
     <header className="conversation-toolbar">
       {selected && <span className="conversation-thread-title">{thread?.name || thread?.preview}</span>}
-      <span className="conversation-runtime">Codex</span>
+      <span className="conversation-runtime">{conversationAgentName(thread?.agent)}</span>
       {!!legacy.length && <button className="quiet-button" onClick={() => setShowLegacy(!showLegacy)}>{zh ? '以前的回顾草稿' : 'Previous review drafts'}</button>}
       {selected && <button className="icon-button" aria-label={zh ? '刷新对话' : 'Refresh conversation'} onClick={() => void act(() => conversationClient.read(selected))}><ReloadIcon /></button>}
     </header>

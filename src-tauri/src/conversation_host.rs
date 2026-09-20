@@ -1,0 +1,256 @@
+//! One Conversation surface with an adapter selected per session.
+//!
+//! The host owns only routing and the durable mapping from a Nooki conversation to the native
+//! session an agent owns. Each adapter still speaks that agent's own protocol.
+
+use crate::{
+    codex_conversations::{CodexConversations, ConversationAction},
+    conversation_documents::DocumentInputs,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use sha2::Digest;
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
+};
+use tokio_util::sync::CancellationToken;
+
+pub struct ConversationHost {
+    root: PathBuf,
+    codex: CodexConversations,
+    sink: Arc<dyn Fn(Value) + Send + Sync>,
+    running: Mutex<HashSet<String>>,
+}
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+struct Catalog {
+    sessions: BTreeMap<String, NativeSession>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct NativeSession {
+    pub(crate) id: String,
+    pub(crate) agent: String,
+    pub(crate) native_id: String,
+    pub(crate) session_file: Option<String>,
+    #[serde(default)]
+    pub(crate) native_started: bool,
+    pub(crate) preview: String,
+    pub(crate) updated_at: u64,
+    pub(crate) archived: bool,
+    pub(crate) turns: Vec<Value>,
+}
+
+impl ConversationHost {
+    pub fn new(binary: String, root: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self {
+        Self {
+            root: root.clone(),
+            codex: CodexConversations::new(binary, root, sink.clone()),
+            sink,
+            running: Mutex::new(HashSet::new()),
+        }
+    }
+    fn catalog_path(&self) -> PathBuf {
+        self.root.join("conversation-agents.json")
+    }
+    fn load(&self) -> Result<Catalog, String> {
+        if !self.catalog_path().exists() {
+            return Ok(Catalog::default());
+        }
+        serde_json::from_slice(
+            &std::fs::read(self.catalog_path()).map_err(|_| "无法读取会话 agent 映射")?,
+        )
+        .map_err(|_| "会话 agent 映射损坏".into())
+    }
+    fn save(&self, catalog: &Catalog) -> Result<(), String> {
+        std::fs::create_dir_all(&self.root).map_err(|_| "无法创建会话 agent 映射目录")?;
+        let temporary = self.catalog_path().with_extension("json.tmp");
+        std::fs::write(
+            &temporary,
+            serde_json::to_vec_pretty(catalog).map_err(|_| "无法保存会话 agent 映射")?,
+        )
+        .map_err(|_| "无法写入会话 agent 映射")?;
+        std::fs::rename(temporary, self.catalog_path())
+            .map_err(|_| "无法保存会话 agent 映射".to_string())
+    }
+    fn now() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|value| value.as_millis() as u64)
+            .unwrap_or_default()
+    }
+    fn id(agent: &str) -> String {
+        format!("{agent}-{}-{}", Self::now(), std::process::id())
+    }
+    fn view(session: &NativeSession) -> Value {
+        json!({"id": session.id, "agent": session.agent, "preview": session.preview, "updatedAt": session.updated_at, "archived": session.archived, "status": {"type": "idle"}, "turns": session.turns})
+    }
+    pub fn owns(&self, id: &str) -> Result<bool, String> {
+        Ok(self.load()?.sessions.contains_key(id))
+    }
+    pub async fn list(&self, cursor: Option<String>, archived: bool) -> Result<Value, String> {
+        let external: Vec<Value> = self
+            .load()?
+            .sessions
+            .values()
+            .filter(|session| session.archived == archived)
+            .map(Self::view)
+            .collect();
+        match self.codex.list(cursor, archived).await {
+            Ok(mut result) => {
+                if let Some(data) = result["data"].as_array_mut() {
+                    data.extend(external);
+                }
+                Ok(result)
+            }
+            Err(error) if !external.is_empty() => {
+                Ok(json!({"data": external, "nextCursor": null, "warning": error}))
+            }
+            Err(error) => Err(error),
+        }
+    }
+    pub async fn create(&self, agent: &str) -> Result<Value, String> {
+        if agent == "codex" {
+            return self.codex.create().await;
+        }
+        if !matches!(agent, "claude" | "pi") {
+            return Err("该 agent 没有 Conversation adapter".into());
+        }
+        let id = Self::id(agent);
+        let native_id = if agent == "claude" {
+            uuid_for(&id)
+        } else {
+            id.clone()
+        };
+        let session = NativeSession {
+            id: id.clone(),
+            agent: agent.into(),
+            native_id,
+            session_file: (agent == "pi").then(|| format!("agent-sessions/{id}.jsonl")),
+            native_started: false,
+            preview: String::new(),
+            updated_at: Self::now(),
+            archived: false,
+            turns: Vec::new(),
+        };
+        let mut catalog = self.load()?;
+        catalog.sessions.insert(id, session.clone());
+        self.save(&catalog)?;
+        Ok(Self::view(&session))
+    }
+    pub async fn read(&self, id: &str, cursor: Option<String>) -> Result<Value, String> {
+        if let Some(session) = self.load()?.sessions.get(id).cloned() {
+            return Ok(Self::view(&session));
+        }
+        self.codex.read(id, cursor).await
+    }
+    pub async fn change(&self, id: &str, action: ConversationAction) -> Result<(), String> {
+        let action_name = match action {
+            ConversationAction::Archive => "archive",
+            ConversationAction::Restore => "restore",
+            ConversationAction::Delete => "delete",
+        };
+        let mut catalog = self.load()?;
+        if let Some(session) = catalog.sessions.get_mut(id) {
+            match action_name {
+                "archive" => session.archived = true,
+                "restore" => session.archived = false,
+                "delete" if session.archived => {
+                    catalog.sessions.remove(id);
+                }
+                "delete" => {
+                    return Err(
+                        "只有已归档会话可以永久删除 / Only archived conversations can be deleted"
+                            .into(),
+                    )
+                }
+                _ => unreachable!(),
+            }
+            self.save(&catalog)?;
+            return Ok(());
+        }
+        self.codex.change(id, action).await
+    }
+    pub async fn run(
+        &self,
+        request: &ConversationRequest,
+        tools: &crate::agent_tools::AgentTools,
+        cancelled: CancellationToken,
+    ) -> Result<Value, String> {
+        if let Some(session) = self.load()?.sessions.get(&request.thread_id).cloned() {
+            if let Some(turn) = session.turns.iter().find(|turn| {
+                turn["items"].as_array().is_some_and(|items| {
+                    items
+                        .iter()
+                        .any(|item| item["clientId"] == request.request_id)
+                })
+            }) {
+                return Ok(
+                    json!({"threadId": request.thread_id, "turnId": turn["id"], "artifacts": turn["artifacts"].clone()}),
+                );
+            }
+            let inserted = self
+                .running
+                .lock()
+                .map_err(|_| "Native conversation state unavailable")?
+                .insert(request.thread_id.clone());
+            if !inserted {
+                return Err("This conversation is already running. Wait for it to finish before sending another message.".into());
+            }
+            let native_result = crate::native_agent_sessions::run(
+                &self.root, &self.sink, &session, tools, request, cancelled,
+            )
+            .await;
+            self.running
+                .lock()
+                .map_err(|_| "Native conversation state unavailable")?
+                .remove(&request.thread_id);
+            let native = native_result?;
+            // Only a completed turn proves the agent really created its session. Recording the
+            // start beforehand stranded a conversation on `--resume` whenever the launch failed,
+            // because the id Nooki claimed to have used was never persisted by the agent. Reload
+            // rather than reusing the pre-run clone so a turn cannot revert an archive toggled
+            // while it was running.
+            let mut catalog = self.load()?;
+            if let Some(stored) = catalog.sessions.get_mut(&request.thread_id) {
+                stored.native_started = true;
+                stored.preview = request.message.chars().take(120).collect();
+                stored.updated_at = Self::now();
+                stored.turns.push(native.turn);
+            }
+            self.save(&catalog)?;
+            return Ok(native.result);
+        }
+        self.codex
+            .run_with_documents(
+                &request.thread_id,
+                &request.message,
+                &request.context,
+                &request.request_id,
+                &request.documents,
+                cancelled,
+            )
+            .await
+    }
+}
+
+pub struct ConversationRequest {
+    pub thread_id: String,
+    pub message: String,
+    pub context: String,
+    pub request_id: String,
+    pub documents: DocumentInputs,
+}
+
+fn uuid_for(seed: &str) -> String {
+    let digest = sha2::Sha256::digest(seed.as_bytes());
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    format!("{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}", bytes[0],bytes[1],bytes[2],bytes[3],bytes[4],bytes[5],bytes[6],bytes[7],bytes[8],bytes[9],bytes[10],bytes[11],bytes[12],bytes[13],bytes[14],bytes[15])
+}

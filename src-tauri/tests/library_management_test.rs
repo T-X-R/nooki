@@ -102,6 +102,18 @@ fn backup_restores_document_working_copies_and_retained_turn_results_together() 
 }
 
 #[test]
+fn backup_retains_native_conversation_mapping_and_pi_sessions() {
+  let root = Fixture::new();
+  fs::create_dir_all(&root.0).unwrap();
+  fs::write(root.0.join("conversation-agents.json"), r#"{"sessions":{}}"#).unwrap();
+  fs::create_dir_all(root.0.join("agent-sessions")).unwrap();
+  fs::write(root.0.join("agent-sessions/pi-session.jsonl"), "{\"type\":\"session\"}\n").unwrap();
+  let backup = user_data::capture(&root.0, BTreeMap::new(), serde_json::json!([])).unwrap();
+  assert_eq!(backup.files.get("conversation-agents.json").unwrap(), r#"{"sessions":{}}"#);
+  assert_eq!(backup.files.get("agent-sessions/pi-session.jsonl").unwrap(), "{\"type\":\"session\"}\n");
+}
+
+#[test]
 fn conversation_placement_keeps_source_and_atomically_links_topic_with_idempotent_retry() {
   let root = Fixture::new();
   let doc = library::publish_document(&root.0, "workbench.conversations", "Conversations", document("conversation result")).unwrap();

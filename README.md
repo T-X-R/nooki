@@ -5,7 +5,7 @@ Nooki is a local-first desktop app for your notes, documents, and AI conversatio
 ## Features
 
 - **Document Library** — import, search, organize, and edit documents, with version history and Markdown export.
-- **Conversations** — discuss and revise Library documents or Markdown/text attachments with Codex, preview document changes, and save selected results to the Library.
+- **Conversations** — discuss and revise Library documents or Markdown/text attachments with the selected agent, preview document changes, and save selected results to the Library.
 - **Skill pool** — keep every agent skill in `~/.agents/skills`, resolve duplicates by hand, and distribute them to the coding tools installed on your machine.
 - **Capabilities** — add tools such as Diary and Codex Daily Review from the Capability Center.
 - **Local workspace** — manage tasks, back up your data, and choose between English and Simplified Chinese or light and dark themes.
@@ -25,16 +25,18 @@ To preview the interface in a browser:
 npm run dev
 ```
 
-Codex sessions and native AI Provider access require the desktop app.
+Conversations and the agents installed on this machine are only reachable from the desktop app.
 
 ## AI setup
 
-Open **Settings → AI Provider** to configure AI access for capabilities:
+Nooki has no model credentials of its own and never calls a model service. Install a coding agent —
+Codex, Claude Code, or pi — and sign into it in that tool. Nooki detects what is here.
 
-- **Managed API key** reads the model, endpoint, and credential source from `~/.codex/api.config.toml`.
-- **Codex subscription** uses the local Codex CLI configuration and login session.
+Open **Settings → Agent access** to see which agents were detected and pick the one that runs
+`ai.invoke` for Capability Packages. Being installed is enough — pi has no login of its own, and that
+is fine. Those invocations spend the selected agent's quota.
 
-Conversations use the local Codex CLI directly. Install Codex and sign in before using them.
+New Conversations use the selected local agent and its native session. Existing Conversations stay bound to the agent that created them.
 
 ## Build for macOS
 
@@ -97,7 +99,9 @@ See [Capability infrastructure](INFRASTRUCTURE.md) and [Domain concepts](CONTEXT
 details.
 
 `docs/` holds the design record: the [architecture](docs/architecture.md) the first version was
-built from, the [decision records](docs/adr/), and the [Skill Pool spec](docs/spec-skill-pool.md).
+built from, the [decision records](docs/adr/), and the feature specs. Start with
+[what Nooki is](docs/adr/0005-nooki-is-the-agent-substrate.md), then the
+[Skill Pool spec](docs/spec-skill-pool.md) and the [Settings spec](docs/spec-settings.md).
 Notes that are not meant for the repository live in `docs/local/`, which stays untracked.
 
 Write repository documentation and pull request titles and descriptions in English.

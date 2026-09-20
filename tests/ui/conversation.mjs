@@ -10,17 +10,17 @@ const errors = [];
 page.on('pageerror', e=>errors.push(e.message));
 try {
 await page.addInitScript(()=>{
- localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light',providerKind:'codex-api'},version:0}));
+ localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
  const old={id:'old',preview:'历史测试会话',updatedAt:1,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []}))]}]};
  const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
- window.qa={old,docs,organization,readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:codex-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
+ window.qa={old,docs,organization,readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:conversation-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
   if(command==='plugin:event|listen'){events.set(args.event,args.handler);return args.handler}
   if(command.startsWith('plugin:'))return null;
-  if(command==='get_selected_provider')return 'codex-api';
-  if(command==='provider_status')return {kind:'codex-api',state:'ready',label:'Codex',detail:'Fixture'};
+  if(command==='capability_agent')return 'codex';
+  if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
   if(['list_capabilities','library_search_content','library_capture_sources'].includes(command))return [];
   if(command==='library_list_documents')return structuredClone(docs);
   if(command==='library_organization')return structuredClone(organization);
