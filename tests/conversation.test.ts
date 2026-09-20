@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyConversationEvent, conversationAgentName, libraryContext, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
+import { applyConversationEvent, conversationAgentName, conversationRuntimeName, libraryContext, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
 import { createTaskRunner } from '../src/platform/task-runner.ts'
 import { parseReferenceHref, referenceHref } from '../packages/capability-contract/src/references.ts'
 
@@ -8,6 +8,18 @@ test('conversation runtime label follows the native session agent', () => {
   assert.equal(conversationAgentName('pi'), 'pi')
   assert.equal(conversationAgentName('claude'), 'Claude Code')
   assert.equal(conversationAgentName('codex'), 'Codex')
+})
+
+test('an open conversation names its own agent and only an empty page speaks for the selection', () => {
+  const thread = (agent?: string): Conversation => ({ id: 'session-a', agent, preview: '', updatedAt: 0, turns: [] })
+  // Nothing open yet: the toolbar is the only hint about what the next conversation will use.
+  assert.equal(conversationRuntimeName(undefined, 'pi'), 'pi')
+  assert.equal(conversationRuntimeName(undefined, 'codex'), 'Codex')
+  // A native session carries its agent and outranks the current selection.
+  assert.equal(conversationRuntimeName(thread('claude'), 'pi'), 'Claude Code')
+  // Codex threads carry no agent field, so an open Codex conversation must not borrow the label of
+  // whichever agent happens to be selected now.
+  assert.equal(conversationRuntimeName(thread(undefined), 'pi'), 'Codex')
 })
 
 test('Codex events preserve turn/item order, stream summaries and replace deltas with authoritative completed items', () => {

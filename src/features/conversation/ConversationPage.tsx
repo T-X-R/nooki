@@ -6,7 +6,7 @@ import type { DocumentReference, SelectedDocument, TaskRecord } from '../../../p
 import { parseReferenceHref } from '../../../packages/capability-contract/src/references.ts'
 import { taskRunner } from '../../platform/tasks.ts'
 import { conversationClient } from './conversation-client.ts'
-import { CONVERSATION_OWNER, LEGACY_REVIEW, conversationAgentName, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type ConversationInput, type ConversationItem, type ConversationResult, type ConversationTurn, type SaveAnswerInput } from './conversation-model.ts'
+import { CONVERSATION_OWNER, LEGACY_REVIEW, conversationRuntimeName, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type ConversationInput, type ConversationItem, type ConversationResult, type ConversationTurn, type SaveAnswerInput } from './conversation-model.ts'
 import { listLibraryDocuments, searchLibraryContent, type LibraryDocumentMetadata } from '../../platform/document-library.ts'
 import './conversation.css'
 import { createGreetingRotation, type conversationGreetings } from './conversation-greetings.ts'
@@ -42,7 +42,7 @@ function TurnProcess({ turn, zh, children }: { turn: ConversationTurn; zh: boole
   </details>
 }
 
-export function ConversationPage({ onSelected, language, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
+export function ConversationPage({ onSelected, language, selectedAgent, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
   const zh = language === 'zh'
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const cache = useSyncExternalStore(conversationClient.subscribe, conversationClient.getSnapshot, conversationClient.getSnapshot)
@@ -159,7 +159,7 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
   return <div className="conversation-page">
     <header className="conversation-toolbar">
       {selected && <span className="conversation-thread-title">{thread?.name || thread?.preview}</span>}
-      <span className="conversation-runtime">{conversationAgentName(thread?.agent)}</span>
+      <span className="conversation-runtime">{conversationRuntimeName(thread, selectedAgent)}</span>
       {!!legacy.length && <button className="quiet-button" onClick={() => setShowLegacy(!showLegacy)}>{zh ? '以前的回顾草稿' : 'Previous review drafts'}</button>}
       {selected && <button className="icon-button" aria-label={zh ? '刷新对话' : 'Refresh conversation'} onClick={() => void act(() => conversationClient.read(selected))}><ReloadIcon /></button>}
     </header>
