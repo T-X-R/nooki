@@ -123,8 +123,8 @@ const SECTION_TITLE: Record<SettingsSectionId, string> = {
 }
 
 const SECTION_INTRO: Partial<Record<SettingsSectionId, string>> = {
+  'agent-access': 'agentAccessIntro',
   'appearance': 'appearanceIntro',
   'language': 'languageIntro',
   'local-data': 'localDataIntro',
 }
-
