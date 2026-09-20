@@ -189,7 +189,7 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archive-row small { font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .conversation-archive-row .icon-button { flex: none; width: 30px; height: 30px; }
 .conversation-archive-row svg { width: 14px; height: 14px; }
-.conversation-archive-dialog .quiet-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.conversation-archives .quiet-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .conversation-archive-empty { padding: 36px 0; text-align: center; color: var(--ink-soft); font-size: 12px; }
 @media (hover: none) { .nav-row-actions { opacity: 1; } }
 @media (max-width: 850px) {
@@ -200,10 +200,18 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
   .nav-row-actions { opacity: 1; }
 }
 
-/* The archive opens over the workspace from the conversation list, not inside a conversation. */
-.conversation-archive-dialog .conversation-archive-copy { margin: 0 0 4px; }
-.conversation-archive-dialog .conversation-archive-clear { margin-right: auto; padding: 8px 0; }
+/* The archive is the last Settings section, so its header shares that page's number/title grid. */
+.conversation-archive-header { display: grid; grid-template-columns: 35px minmax(0, 1fr) auto auto 16px; align-items: center; column-gap: 12px; }
+.settings-archive-section .conversation-archive-heading { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; grid-row: 1; margin: 0; }
+.conversation-archive-clear { position: relative; grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 12px; }
 .conversation-archive-clear svg { width: 14px; height: 14px; }
-.conversation-archive-confirm { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-.conversation-archive-confirm > .modal-copy { margin: 0; }
-.conversation-archive-confirm > .modal-footer { margin-top: 14px; }
+.conversation-archive-toggle { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; gap: 12px; width: 100%; padding: 4px 0; text-align: left; background: transparent; color: var(--ink); border-radius: 6px; }
+.conversation-archive-toggle > svg { width: 14px; height: 14px; color: var(--ink-muted); transition: transform .18s ease; }
+.conversation-archive-toggle[aria-expanded="true"] > svg { transform: rotate(90deg); }
+.conversation-archive-toggle:hover > svg { color: var(--ink); }
+.conversation-archive-count { min-width: 24px; padding: 3px 7px; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 11px; font-weight: 500; letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums; }
+.conversation-archives { margin-left: 47px; padding-top: 16px; animation: archive-reveal .16s ease-out; }
+.conversation-archives .archive-copy { margin: 0 0 12px; color: var(--ink-muted); font-size: 12px; line-height: 1.7; }
+@keyframes archive-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .conversation-archives { animation: none; } .conversation-archive-toggle > svg { transition: none; } }
+@media (max-width: 640px) { .conversation-archive-header { grid-template-columns: 28px minmax(0, 1fr) auto auto 16px; column-gap: 8px; } .conversation-archive-toggle { gap: 8px; } .conversation-archives { margin-left: 0; } }

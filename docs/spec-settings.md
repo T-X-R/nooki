@@ -76,7 +76,7 @@ left for them to name. **Model Gateway** stays exactly as written.
 | Agent Tools registry | Stays on the Skill Pool page, with the distribution matrix it exists to serve |
 | Skills, MCP, conventions | Not in Settings. Skills have a page, and a reserved empty section is a promise rendered as furniture |
 | No agent installed | Stated plainly, with no control that cannot succeed. Documents, skills, and tasks keep working |
-| Conversation archives | Leaves Settings. Archived conversations are Conversation data, so they are reached from the conversation list in the sidebar and open in a dialog, never as a band above the open conversation |
+| Conversation archives | Stays in Settings as its last section, folded. Putting a conversation away and clearing it out is local-data maintenance, not part of the conversation; a band above the open conversation reads as a heading over the thread |
 | Existing endpoint configuration | Migrated, not deleted underneath the person. See Migration |
 
 ### Why the agent, and not the endpoint
@@ -187,7 +187,7 @@ accepted. An endpoint configured in Nooki often could not be handed to Codex at 
 
 | Stage | Content | State |
 |---|---|---|
-| 1 | One honest list, the Conversation note on the control, archives moved out | this version |
+| 1 | One honest list, the Conversation note on the control, archives kept as the folded last section | this version |
 | 2 | Agent tools with sign-in state; Capability model access selects an agent; the model client, endpoint store, and `api.config.toml` reader are removed; migration notice | this version |
 | — | Custom tool registration stays on the Skill Pool page | decided, not deferred |
 | 3 | MCP servers and conventions files become Shared Assets, with their own home | later, separate spec |

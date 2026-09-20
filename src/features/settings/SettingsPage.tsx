@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { CheckIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
 import { isDesktopHost, testCapabilityAgent, type AgentTool } from '../../platform/agent-tools.ts'
+import { ConversationArchives } from '../conversation/ConversationArchives.tsx'
 import { useWorkbench } from '../../platform/preferences.ts'
 import { DataManagement } from './DataManagement.tsx'
 import { agentNote, agentStanding, canChoose, listedAgents } from './agent-standing.ts'
 import { visibleSections, type SettingsSectionId } from './settings-sections.ts'
 
 type SettingsPageProps = {
+  onOpenConversation: (id: string) => void
   installed: InstalledCapability[]
   onNotice: (message: string) => void
   agents: AgentTool[]
@@ -17,12 +19,13 @@ type SettingsPageProps = {
   onRefreshAgents: () => void
 }
 
-export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onChooseAgent, onRefreshAgents }: SettingsPageProps) {
+export function SettingsPage({ onOpenConversation, installed, onNotice, agents, capabilityAgent, onChooseAgent, onRefreshAgents }: SettingsPageProps) {
   const { t } = useTranslation()
   const { theme, setTheme, language, setLanguage } = useWorkbench()
   const [testing, setTesting] = useState(false)
   const desktop = isDesktopHost()
   const listed = listedAgents(agents)
+  const sections = visibleSections(desktop)
 
   const runTest = async () => {
     setTesting(true)
@@ -91,7 +94,7 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
   return (
     <div className="content-column settings-page">
       <div className="page-header-row"><div><div className="eyebrow">{t('preferences')}</div><h1>{t('settings')}</h1></div></div>
-      {visibleSections(desktop).map((section, index) => (
+      {sections.map((section, index) => (
         <section key={section.id} className="settings-section">
           <div className="settings-section-heading">
             <span className="settings-number">{String(index + 1).padStart(2, '0')}</span>
@@ -105,6 +108,9 @@ export function SettingsPage({ installed, onNotice, agents, capabilityAgent, onC
           {body[section.id]}
         </section>
       ))}
+      {/* Its heading carries its own count and clear action, so it renders its own section rather
+          than passing through the generic one, and takes the number after the list. */}
+      <ConversationArchives language={language} number={String(sections.length + 1).padStart(2, '0')} onRestore={onOpenConversation} />
     </div>
   )
 }
