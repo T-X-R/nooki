@@ -127,9 +127,17 @@ dialog.library-revision-dialog[open] { display: flex; flex-direction: column; he
 .data-backup-details { padding: 0 0 13px 42px; color: var(--ink-muted); font-size: 11px; }
 .data-backup-details summary { cursor: pointer; width: fit-content; }
 .data-backup-details p { margin-top: 9px; max-width: 650px; }
-.data-retained { padding-top: 24px; }
-.data-retained-heading { display: flex; align-items: center; justify-content: space-between; }
+.data-retained { padding-top: 18px; }
+.data-retained > summary { list-style: none; cursor: pointer; padding: 4px 0; border-radius: 6px; }
+.data-retained > summary::-webkit-details-marker { display: none; }
+.data-retained-heading { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.data-retained-heading h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
+/* The disclosure arrow sits with the title, and turns down when the list is open. */
+.data-retained-heading h3::before { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-muted); border-bottom: 1.5px solid var(--ink-muted); transform: rotate(-45deg); transition: transform .18s ease; }
+.data-retained[open] > summary .data-retained-heading h3::before { transform: rotate(45deg); }
+.data-retained > summary:hover .data-retained-heading h3::before { border-color: var(--ink); }
 .data-retained-heading > span { color: var(--ink-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.data-retained > p { margin: 9px 0 0; color: var(--ink-muted); font-size: 11px; line-height: 1.7; }
 .data-capability-list { margin-top: 12px; }
 .data-capability-list > div { display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); padding: 13px 0; }
 .data-capability-list > div:last-child { border-bottom: 0; }
@@ -181,6 +189,8 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .library-section-caption svg { width: 13px; height: 13px; }
 .library-section-empty { margin: 2px 6px 12px 24px; color: var(--ink-soft); font-size: 10px; line-height: 1.7; }
 .library-page .library-period-filter { margin: 0; padding-left: 0; border-left: 0; }
+/* Rows keep the section's content indent; an empty archive centres on the section instead. */
+.conversation-archive-row, .conversation-archives .library-error { margin-left: 47px; }
 .conversation-archive-list { max-height: 48dvh; overflow: auto; }
 .conversation-archive-row { display: flex; align-items: center; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .conversation-archive-row:last-child { border-bottom: 0; }
@@ -190,7 +200,10 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archive-row .icon-button { flex: none; width: 30px; height: 30px; }
 .conversation-archive-row svg { width: 14px; height: 14px; }
 .conversation-archives .quiet-button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
-.conversation-archive-empty { padding: 36px 0; text-align: center; color: var(--ink-soft); font-size: 12px; }
+/* Settings caps paragraphs at 500px, which would park a centred line left of the section. */
+.conversation-archive-empty { padding: 14px 0 2px; text-align: center; color: var(--ink-soft); font-size: 12px; }
+.conversation-archive-empty p, .conversation-archives .library-empty-copy { max-width: none; margin: 0; }
+.conversation-archives .library-empty-copy { padding: 14px 0 2px; }
 @media (hover: none) { .nav-row-actions { opacity: 1; } }
 @media (max-width: 850px) {
   .sidebar:has(.nav-conversations > [aria-expanded="true"]) { width: 190px; flex-basis: 190px; align-items: stretch; }
@@ -210,8 +223,7 @@ dialog.library-import-dialog[open] { display: flex; flex-direction: column; heig
 .conversation-archive-toggle[aria-expanded="true"] > svg { transform: rotate(90deg); }
 .conversation-archive-toggle:hover > svg { color: var(--ink); }
 .conversation-archive-count { min-width: 24px; padding: 3px 7px; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 11px; font-weight: 500; letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums; }
-.conversation-archives { margin-left: 47px; padding-top: 16px; animation: archive-reveal .16s ease-out; }
-.conversation-archives .archive-copy { margin: 0 0 12px; color: var(--ink-muted); font-size: 12px; line-height: 1.7; }
+.conversation-archives { padding-top: 8px; animation: archive-reveal .16s ease-out; }
 @keyframes archive-reveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .conversation-archives { animation: none; } .conversation-archive-toggle > svg { transition: none; } }
-@media (max-width: 640px) { .conversation-archive-header { grid-template-columns: 28px minmax(0, 1fr) auto auto 16px; column-gap: 8px; } .conversation-archive-toggle { gap: 8px; } .conversation-archives { margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .conversation-archives { animation: none; } .conversation-archive-toggle > svg, .data-retained-heading h3::before { transition: none; } }
+@media (max-width: 640px) { .conversation-archive-header { grid-template-columns: 28px minmax(0, 1fr) auto auto 16px; column-gap: 8px; } .conversation-archive-toggle { gap: 8px; } .conversation-archive-row, .conversation-archives .library-error { margin-left: 0; } }

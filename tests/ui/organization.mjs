@@ -11,6 +11,7 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   await page.addInitScript(() => {
     localStorage.setItem('personal-workbench-preferences', JSON.stringify({ state: { view: 'library', language: localStorage.getItem('qa-language') || 'zh', theme: 'light' }, version: 0 }));
+    localStorage.setItem('personal-workbench:capability:diary:entries', JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ id: i, text: '一条日记' }))));
     const data = JSON.parse(localStorage.getItem('qa-organization') || 'null') || {
       docs: [{ id: 'diary/notes/2026/09/entry', capabilityId: 'diary', capabilityName: '日记', collectionKey: 'notes', collectionName: '笔记', title: '周末的阅读计划', content: '# 阅读计划\n\n整理想读的书，以及接下来想了解的问题。', documentDate: '2026-09-09', createdAt: '2026-09-09T10:00:00Z', updatedAt: '2026-09-09T10:00:00Z', revision: 'first', format: 'markdown', sizeBytes: 120 }],
       organization: { topics: [{ id: 'research', name: '阅读与思考', documentIds: ['diary/notes/2026/09/entry'] }, { id: 'empty', name: '旅行灵感', documentIds: [] }], customSections: [], sections: {}, origins: {}, trash: {} },
@@ -155,6 +156,15 @@ try {
     await archive.waitFor();
   };
   await openArchive();
+  // Local data keeps one folded line per block, so the page reads as a list of headings.
+  const capabilityData = page.locator('details.data-retained');
+  assert.equal(await capabilityData.evaluate(el => el.open), false);
+  assert.equal(await capabilityData.getByRole('button', { name: '清理', exact: true }).count(), 0);
+  await capabilityData.getByRole('heading', { name: '能力数据', exact: true }).click();
+  assert.equal(await capabilityData.evaluate(el => el.open), true);
+  await capabilityData.getByRole('button', { name: '清理', exact: true }).waitFor();
+  await capabilityData.getByRole('heading', { name: '能力数据', exact: true }).click();
+  assert.equal(await capabilityData.evaluate(el => el.open), false);
   assert.equal(await page.getByRole('dialog').count(), 0);
   await archive.getByRole('button', { name: '恢复会话：整理本周的想法', exact: true }).waitFor();
   assert.equal(await archive.locator('.conversation-archive-row').count(), 44);
@@ -196,6 +206,13 @@ try {
   await page.evaluate(() => window.qa.failDelete = '');
   await confirmation.getByRole('button', { name: '永久删除', exact: true }).click();
   await archive.getByText('还没有归档会话', { exact: true }).waitFor();
+  // Settings caps paragraphs at 500px, so an empty archive has to be centred on the section itself.
+  const offCentre = await page.evaluate(() => {
+    const line = document.querySelector('.conversation-archive-empty p').getBoundingClientRect();
+    const section = document.querySelector('.settings-archive-section').getBoundingClientRect();
+    return Math.abs((line.left + line.right) / 2 - (section.left + section.right) / 2);
+  });
+  assert.ok(offCentre <= 1, `Empty archive line centres on the section, off by ${offCentre}px`);
   assert.equal(await page.evaluate(() => window.qa.deleted.length), 43);
   assert.equal(await page.evaluate(() => window.qa.data.sessions[0].id), 'current');
   await page.screenshot({ path: '/private/tmp/nooki-archive-empty.png' });
