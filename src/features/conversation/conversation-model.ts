@@ -19,6 +19,13 @@ export function conversationAgentName(agent?: string): string {
   return 'Codex'
 }
 
+/** A conversation that already exists names its own agent and is the authority; only a page with no
+ *  conversation open yet can speak for the agent the next one will use. Codex threads carry no agent
+ *  field at all, so an absent field means Codex, never "whichever agent is selected right now". */
+export function conversationRuntimeName(thread: Conversation | undefined, selectedAgent: string): string {
+  return conversationAgentName(thread ? thread.agent : selectedAgent)
+}
+
 export function isConversationProcessItem(item: ConversationItem): boolean {
   if (item.type === 'agentMessage') return item.phase === 'commentary'
   if (item.type === 'reasoning') return !!item.summary?.some((text) => text.trim())
