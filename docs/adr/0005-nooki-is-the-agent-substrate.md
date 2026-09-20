@@ -11,8 +11,9 @@ different directions.
 The **Skill Pool** treats the coding agents on the machine as peers to be supplied. It owns one copy
 of each skill and distributes it to Codex, Claude Code, and anything else the person registers.
 
-The **Conversation** treats one of those agents — Codex — as Nooki's own engine. It speaks the Codex
-app-server protocol directly and depends on that protocol staying still.
+The **Conversation** is a document-native surface backed by the agent selected for the new session.
+Codex, Claude Code, and pi each keep their own protocol; Nooki adapts their native session APIs to
+one presentation without becoming a fourth agent.
 
 The **Compatible Endpoint** treats Nooki as a model client in its own right. It keeps a private list
 of endpoints, stores API keys on disk, builds its own HTTP stack, and translates three vendor wire
@@ -54,9 +55,9 @@ only Nooki can see the whole. The ledger is Nooki's data, and the verbatim trans
 tool that produced it.
 
 **Nooki keeps exactly one execution surface of its own.** The Conversation exists because work on
-Library documents has no home inside a code-native agent. It is the document-native agent, not the
-unified entry point for agents. It stays a single, deep integration, and it is the only place Nooki
-speaks an agent's protocol.
+Library documents has no home inside a code-native agent. It stays one shared surface with a small
+adapter per installed agent; Nooki owns routing and document context, while each agent owns its
+native session, tools, and model behavior.
 
 And three refusals. Nooki does not implement an agent loop, does not implement a model client, and
 does not implement a sandbox. Every one of those is maintained by a vendor spending more on it each

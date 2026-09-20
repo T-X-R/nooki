@@ -268,7 +268,7 @@ impl AgentTools {
     self.overview(pool, &[]).into_iter().find(|tool| tool.serves_capabilities).map(|tool| tool.id)
   }
 
-  fn command(&self, binary: &str) -> std::io::Result<tokio::process::Command> {
+  pub(crate) fn command(&self, binary: &str) -> std::io::Result<tokio::process::Command> {
     let resolved = self.binary_path(binary).map(|path| path.to_string_lossy().into_owned()).unwrap_or_else(|| binary.to_string());
     with_launcher_path(&resolved).map(tokio::process::Command::from)
   }

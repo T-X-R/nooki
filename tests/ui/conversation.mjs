@@ -15,7 +15,7 @@ await page.addInitScript(()=>{
  const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
- window.qa={old,docs,organization,readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:codex-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
+ window.qa={old,docs,organization,readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:conversation-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
   if(command==='plugin:event|listen'){events.set(args.event,args.handler);return args.handler}
   if(command.startsWith('plugin:'))return null;

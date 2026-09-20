@@ -40,7 +40,7 @@ export function retainPublicSummary(previous: ConversationItem | undefined, item
     ? { ...item, summary: previous.summary } : item
 }
 
-// History always comes from Codex. This reducer only renders live notifications in memory.
+// Native adapters own history; this reducer only renders normalized live notifications.
 export function applyConversationEvent(thread: Conversation, event: ConversationEvent): Conversation {
   const p = event.params
   if (!p || p.threadId !== thread.id) return thread

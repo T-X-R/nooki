@@ -1,5 +1,6 @@
 pub mod codex_conversations;
 pub mod conversation_documents;
+pub mod conversation_host;
 pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;
@@ -7,6 +8,7 @@ pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
 pub mod library_management;
+pub mod native_agent_sessions;
 pub mod user_data;
 pub mod package_installer;
 pub mod task_execution;
@@ -191,27 +193,27 @@ fn capability_documents_publish(
 }
 
 #[tauri::command]
-async fn conversation_list(cursor: Option<String>, archived: Option<bool>, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
+async fn conversation_list(cursor: Option<String>, archived: Option<bool>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   bridge.list(cursor, archived.unwrap_or(false)).await
 }
 #[tauri::command]
-async fn conversation_change(id: String, action: codex_conversations::ConversationAction, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<(), String> {
+async fn conversation_change(id: String, action: codex_conversations::ConversationAction, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
   bridge.change(&id, action).await
 }
 #[tauri::command]
-async fn conversation_create(bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
-  bridge.create().await
+async fn conversation_create(state: tauri::State<'_, PlatformState>, pool: tauri::State<'_, skill_pool::SkillPool>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  bridge.create(&resolved_agent(&state, &pool)?).await
 }
 #[tauri::command]
-async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, codex_conversations::CodexConversations>) -> Result<serde_json::Value, String> {
+async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   bridge.read(&id, cursor).await
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
 #[tauri::command]
-async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, codex_conversations::CodexConversations>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
-  bridge.run_with_documents(&request.thread_id, &request.message, &request.context, &request.request_id, &request.documents, executions.token(&request.execution_id)?).await
+async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  bridge.run(&conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents }, pool.agents(), executions.token(&request.execution_id)?).await
 }
 #[tauri::command]
 fn library_capture_sources(id: String, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<Vec<source_snapshots::SnapshotDocument>, String> {
@@ -448,7 +450,7 @@ pub fn run() {
       let data_dir = app.path().app_data_dir()?;
       user_data::recover(&data_dir).map_err(std::io::Error::other)?;
       let event_app = app.handle().clone();
-      app.manage(codex_conversations::CodexConversations::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:codex-event", event); })));
+      app.manage(conversation_host::ConversationHost::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:conversation-event", event); })));
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);

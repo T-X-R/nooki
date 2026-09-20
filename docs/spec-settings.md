@@ -10,10 +10,10 @@ Settings becomes the place where a person configures **this machine's shared age
 separated from Nooki's own preferences. Two claims the page currently makes stop being made, because
 neither is true.
 
-**"AI Provider" reads as the model Nooki uses.** It is not. It governs Capability `ai.invoke` and
-nothing else. Conversations run on Codex regardless of what is selected there, so a person who
-configures Claude on that page and then opens a Conversation is silently talking to a different
-vendor.
+**"AI Provider" reads as the model Nooki uses.** It is not. Agent Access chooses the native agent
+that serves Capability `ai.invoke` and new Conversations. Existing Conversations remain bound to
+the agent that created them, so their native session and history are never silently changed to a
+different vendor.
 
 **Three options read as three services.** They are two: one endpoint Nooki calls itself, and Codex —
 listed twice, once per way of signing into it. Whether Codex holds a subscription or an API key is
@@ -143,12 +143,9 @@ credentials is true of every row, so it is said once in the section intro. Repea
 put one identical sentence on consecutive lines, where the second occurrence carried nothing. The row
 states what differs: `Signed in · ChatGPT`, `Installed`, `Not installed`.
 
-The intro also carries the scope correction — Conversations always use the Codex CLI and are
-unaffected — and the fact that invocations spend the selected agent's quota. These were a bulleted
-list under the control. Two bullets restating the section in a heavier shape is not emphasis, and the
-facts fit the sentence that was already there. A consequence worth recording: the correction is no
-longer a piece of data a test can assert against, only a string, so `settings-sections.ts` lost its
-scope-note registry. A rule that exists in one sentence does not need a registry to hold it.
+The intro carries the scope correction — the selected agent handles Capability invocations and new
+Conversations, while existing Conversations stay bound — and the fact that invocations spend the
+selected agent's quota.
 
 What a row states is a statement, not a warning. An agent holding its own credentials is the
 arrangement Nooki wants, not a problem to fix. Only Codex has a sign-in Nooki can read, from
@@ -258,8 +255,8 @@ Desktop dev:      npm run desktop:dev
 
 1. Settings shows one list, and everything in it is something Nooki itself uses.
 2. Codex appears once, with its sign-in method shown as detected, and cannot be configured in Nooki.
-3. A person who selects an agent sees, without scrolling or hovering, that Conversations do not use
-   it.
+3. A person who selects an agent sees, without scrolling or hovering, that new Conversations use it
+   and existing Conversations keep their creating agent.
 4. A Capability that invoked a model before this change still invokes one after it, through the
    selected agent, with no key entered.
 5. An agent with no login of its own is selectable. On a machine with no agent at all, Settings

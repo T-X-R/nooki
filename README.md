@@ -5,7 +5,7 @@ Nooki is a local-first desktop app for your notes, documents, and AI conversatio
 ## Features
 
 - **Document Library** — import, search, organize, and edit documents, with version history and Markdown export.
-- **Conversations** — discuss and revise Library documents or Markdown/text attachments with Codex, preview document changes, and save selected results to the Library.
+- **Conversations** — discuss and revise Library documents or Markdown/text attachments with the selected agent, preview document changes, and save selected results to the Library.
 - **Skill pool** — keep every agent skill in `~/.agents/skills`, resolve duplicates by hand, and distribute them to the coding tools installed on your machine.
 - **Capabilities** — add tools such as Diary and Codex Daily Review from the Capability Center.
 - **Local workspace** — manage tasks, back up your data, and choose between English and Simplified Chinese or light and dark themes.
@@ -36,7 +36,7 @@ Open **Settings → Agent access** to see which agents were detected and pick th
 `ai.invoke` for Capability Packages. Being installed is enough — pi has no login of its own, and that
 is fine. Those invocations spend the selected agent's quota.
 
-Conversations always use the local Codex CLI and its login session, whatever is chosen there.
+New Conversations use the selected local agent and its native session. Existing Conversations stay bound to the agent that created them.
 
 ## Build for macOS
 
