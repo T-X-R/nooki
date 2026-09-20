@@ -1,6 +1,7 @@
 import { ArchiveIcon, ChatBubbleIcon, ChevronRightIcon, PlusIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { conversationClient } from './conversation-client.ts'
+import { ConversationArchivesDialog } from './ConversationArchivesDialog.tsx'
 import { CONVERSATION_OWNER, type Conversation, type ConversationInput } from './conversation-model.ts'
 import { taskRunner } from '../../platform/tasks.ts'
 
@@ -12,6 +13,7 @@ export function ConversationNavigation({ language, active, selectedId, onEnter, 
   const [refresh, setRefresh] = useState(0)
   useEffect(() => { const changed = () => setRefresh((value) => value + 1); window.addEventListener('workbench:conversations-changed', changed); return () => window.removeEventListener('workbench:conversations-changed', changed) }, [])
   const [expanded, setExpanded] = useState(active)
+  const [archives, setArchives] = useState(false)
   const [sessions, setSessions] = useState<Conversation[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -63,6 +65,8 @@ export function ConversationNavigation({ language, active, selectedId, onEnter, 
       {error && <><p role="alert">{error}</p><button disabled={busy} onClick={() => setRefresh((value) => value + 1)}>{zh ? '重试' : 'Retry'}</button></>}
       {!busy && !error && !visibleSessions.length && <p>{zh ? '还没有历史会话' : 'No conversations yet'}</p>}
       {cursor && <button disabled={busy} onClick={() => void more()}>{zh ? '更早的对话' : 'Older conversations'}</button>}
+      <button className="nav-conversation-archives" onClick={() => setArchives(true)}><ArchiveIcon /><span>{zh ? '已归档会话' : 'Archived conversations'}</span></button>
     </div>}
+    {archives && <ConversationArchivesDialog language={language} onRestore={onSelect} onClose={() => setArchives(false)} />}
   </div>
 }

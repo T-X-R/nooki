@@ -12,7 +12,6 @@ import './conversation.css'
 import { createGreetingRotation, type conversationGreetings } from './conversation-greetings.ts'
 import { ConversationSaveDialog } from './ConversationSaveDialog.tsx'
 import { ConversationArtifacts } from './ConversationArtifacts.tsx'
-import { ConversationArchives } from './ConversationArchives.tsx'
 import { artifactTitle, decodeAttachment, validateAttachments, type ConversationAttachment } from './conversation-documents.ts'
 
 // UI drafts only; Codex is the authority for session history and messages.
@@ -43,7 +42,7 @@ function TurnProcess({ turn, zh, children }: { turn: ConversationTurn; zh: boole
   </details>
 }
 
-export function ConversationPage({ onSelected, language, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument, onOpen }: { onSelected(id: string | null): void; language: 'zh' | 'en'; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void; onOpen(id: string): void }) {
+export function ConversationPage({ onSelected, language, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
   const zh = language === 'zh'
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const cache = useSyncExternalStore(conversationClient.subscribe, conversationClient.getSnapshot, conversationClient.getSnapshot)
@@ -164,8 +163,6 @@ export function ConversationPage({ onSelected, language, incomingIds, onConsumed
       {!!legacy.length && <button className="quiet-button" onClick={() => setShowLegacy(!showLegacy)}>{zh ? '以前的回顾草稿' : 'Previous review drafts'}</button>}
       {selected && <button className="icon-button" aria-label={zh ? '刷新对话' : 'Refresh conversation'} onClick={() => void act(() => conversationClient.read(selected))}><ReloadIcon /></button>}
     </header>
-    {/* Archived conversations are Conversation data. They used to sit in Settings, which is for configuration. */}
-    <ConversationArchives language={language} onRestore={onOpen} />
     <div className="conversation-layout">
       <section className={`conversation-main ${empty ? 'is-empty' : ''}`} aria-label={zh ? '当前对话' : 'Current conversation'}>
 

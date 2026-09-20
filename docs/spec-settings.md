@@ -76,7 +76,7 @@ left for them to name. **Model Gateway** stays exactly as written.
 | Agent Tools registry | Stays on the Skill Pool page, with the distribution matrix it exists to serve |
 | Skills, MCP, conventions | Not in Settings. Skills have a page, and a reserved empty section is a promise rendered as furniture |
 | No agent installed | Stated plainly, with no control that cannot succeed. Documents, skills, and tasks keep working |
-| Conversation archives | Leaves Settings. Archived conversations are Conversation data and belong on that page |
+| Conversation archives | Leaves Settings. Archived conversations are Conversation data, so they are reached from the conversation list in the sidebar and open in a dialog, never as a band above the open conversation |
 | Existing endpoint configuration | Migrated, not deleted underneath the person. See Migration |
 
 ### Why the agent, and not the endpoint
