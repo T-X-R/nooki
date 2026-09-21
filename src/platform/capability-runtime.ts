@@ -14,7 +14,8 @@ export type { CapabilityModule } from '../../packages/capability-contract/src/in
 
 const browserInstalledKey = 'personal-workbench-installed-capabilities'
 
-const discoveredModules = import.meta.glob('../capabilities/*/index.tsx', {
+// The capability sources live at the repository root, one directory above `src`.
+const discoveredModules = import.meta.glob('../../capabilities/*/index.tsx', {
   eager: true,
   import: 'default',
 }) as Record<string, CapabilityModule>
