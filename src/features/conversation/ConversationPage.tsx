@@ -128,7 +128,8 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   }, [query])
   const filtered = documents.filter((doc) => !query.trim() || [doc.title, doc.capabilityName, doc.collectionName, doc.documentDate].some((value) => value.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) || matches.includes(doc.id))
   const attached = attachedSkills(text, skills)
-  const suggestions = mention ? matchSkills(skills, mention.query).slice(0, 8) : []
+  // The whole pool is offered and the menu scrolls: a person who keeps 40 skills means to see them.
+  const suggestions = mention ? matchSkills(skills, mention.query) : []
   const editComposer = (next: { text: string; caret: number }) => {
     setText(next.text); setMention(null)
     requestAnimationFrame(() => { composer.current?.focus(); composer.current?.setSelectionRange(next.caret, next.caret) })
@@ -212,7 +213,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
             {!!uploads.length && <div className="conversation-attachments">{uploads.map((file) => <span key={file.id}><span className="conversation-upload-name"><FileTextIcon />{file.name}</span><button type="button" aria-label={`${zh ? '移除附件' : 'Remove attachment'} ${file.name}`} onClick={() => setUploads((current) => current.filter((value) => value.id !== file.id))}><Cross2Icon /></button></span>)}</div>}
             <input ref={uploadInput} type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (files.length) void attachFiles(files) }} />
             {!!suggestions.length && <div className="conversation-skill-menu" role="listbox" aria-label={zh ? '技能池' : 'Skill pool'}>
-              {suggestions.map((skill, index) => <button key={skill.name} type="button" role="option" aria-selected={index === highlighted} className={index === highlighted ? 'is-highlighted' : ''} onMouseDown={(event) => { event.preventDefault(); chooseSkill(skill) }} onMouseEnter={() => setHighlighted(index)}>
+              {suggestions.map((skill, index) => <button key={skill.name} type="button" role="option" aria-selected={index === highlighted} className={index === highlighted ? 'is-highlighted' : ''} ref={(element) => { if (index === highlighted) element?.scrollIntoView({ block: 'nearest' }) }} onMouseDown={(event) => { event.preventDefault(); chooseSkill(skill) }} onMouseEnter={() => setHighlighted(index)}>
                 <strong>{skill.name}</strong><small>{skill.description}</small>
               </button>)}
             </div>}
