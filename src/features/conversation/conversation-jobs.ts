@@ -26,7 +26,7 @@ export const respond: TaskJob = {
     return step('codex-turn', async (): Promise<ConversationResult> => {
       signal.throwIfAborted()
       if (!window.__TAURI_INTERNALS__) throw new Error('请在桌面 App 中连接 agent / Desktop Nooki and an installed agent are required')
-      return invoke('conversation_run', { request: { threadId: input.threadId, message: input.message, context, snapshotId: input.snapshotId, uploads: input.uploads ?? [], requestId: executionId.split(':')[0], executionId } })
+      return invoke('conversation_run', { request: { threadId: input.threadId, message: input.message, context, snapshotId: input.snapshotId, uploads: input.uploads ?? [], skills: input.skills ?? [], requestId: executionId.split(':')[0], executionId } })
     })
   },
 }

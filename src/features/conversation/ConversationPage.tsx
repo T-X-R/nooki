@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { ArrowUpIcon, CheckIcon, ChevronDownIcon, Cross2Icon, FileTextIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, StopIcon, UploadIcon } from '@radix-ui/react-icons'
+import { invoke } from '@tauri-apps/api/core'
+import { ArrowUpIcon, CheckIcon, ChevronDownIcon, Cross2Icon, FileTextIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, Share1Icon, StopIcon, UploadIcon } from '@radix-ui/react-icons'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { DocumentReference, SelectedDocument, TaskRecord } from '../../../packages/capability-contract/src/index.ts'
@@ -13,6 +14,8 @@ import { createGreetingRotation, type conversationGreetings } from './conversati
 import { ConversationSaveDialog } from './ConversationSaveDialog.tsx'
 import { ConversationArtifacts } from './ConversationArtifacts.tsx'
 import { artifactTitle, decodeAttachment, validateAttachments, type ConversationAttachment } from './conversation-documents.ts'
+import { applySkillMention, attachedSkills, matchSkills, skillMention, type SkillMention } from './conversation-skills.ts'
+import type { PoolSkill } from '../skills/skill-pool.ts'
 
 // UI drafts only; the selected agent's native session is the authority for session history and messages.
 const openingGreetings = createGreetingRotation()
@@ -54,6 +57,9 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const [greeting, setGreeting] = useState<(typeof conversationGreetings)[number] | null>(null)
   const handledNewOpening = useRef(false)
   const [documents, setDocuments] = useState<LibraryDocumentMetadata[]>([])
+  const [skills, setSkills] = useState<PoolSkill[]>([])
+  const [mention, setMention] = useState<SkillMention | null>(null)
+  const [highlighted, setHighlighted] = useState(0)
   const [picker, setPicker] = useState(false)
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<string[]>([])
@@ -77,12 +83,19 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const legacy = tasks.filter((t) => t.capabilityId === LEGACY_REVIEW && t.job === 'generate' && t.status === 'completed')
   const act = async (action: () => Promise<unknown>) => { setBusy(true); setError(null); try { await action() } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   const select = (id: string | null) => {
-    drafts.set(selected ?? 'new', { text, ids, uploads }); currentSession = id; setSelected(id)
+    drafts.set(selected ?? 'new', { text, ids, uploads }); currentSession = id; setSelected(id); setMention(null)
     const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setUploads(draft?.uploads ?? []); setPicker(false); setShowLegacy(false); setError(null); follow.current = true
   }
   useEffect(() => {
     let current = true
     void listLibraryDocuments().then((docs) => { if (current) setDocuments(docs) }).catch((e) => { if (current) setError(String(e)) })
+    return () => { current = false }
+  }, [])
+  // The pool is the list; Nooki only passes the name on. A machine without one simply has no menu.
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return
+    let current = true
+    void invoke<PoolSkill[]>('skill_pool_list').then((pooled) => { if (current) setSkills(pooled) }).catch(() => {})
     return () => { current = false }
   }, [])
   useEffect(() => { if (targetId) { if (targetId === 'new') select(null); else if (targetId !== selected) select(targetId); onTargetConsumed() } }, [targetId])
@@ -114,6 +127,17 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     return () => { current = false; window.clearTimeout(timer) }
   }, [query])
   const filtered = documents.filter((doc) => !query.trim() || [doc.title, doc.capabilityName, doc.collectionName, doc.documentDate].some((value) => value.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) || matches.includes(doc.id))
+  const attached = attachedSkills(text, skills)
+  const suggestions = mention ? matchSkills(skills, mention.query).slice(0, 8) : []
+  const editComposer = (next: { text: string; caret: number }) => {
+    setText(next.text); setMention(null)
+    requestAnimationFrame(() => { composer.current?.focus(); composer.current?.setSelectionRange(next.caret, next.caret) })
+  }
+  const trackMention = (element: HTMLTextAreaElement) => {
+    const found = element.selectionStart === element.selectionEnd ? skillMention(element.value, element.selectionStart) : null
+    setMention(found); setHighlighted(0)
+  }
+  const chooseSkill = (skill: PoolSkill) => { if (mention) editComposer(applySkillMention(text, mention, skill)) }
   const send = () => void act(async () => {
     if (!text.trim() || running || thread?.turns.some((t) => t.status === 'inProgress')) return
     validateAttachments(uploads, ids.length)
@@ -121,7 +145,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     try {
       let id = selected
       if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id); setPreparing((value) => value ? { ...value, threadId: id } : value) }
-      const input: ConversationInput = { threadId: id, message: text.trim(), documentIds: ids, uploads, snapshotId: crypto.randomUUID() }
+      const input: ConversationInput = { threadId: id, message: text.trim(), documentIds: ids, uploads, skills: attached, snapshotId: crypto.randomUUID() }
       await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
       setText(''); setUploads([]); drafts.set(id, { text: '', ids, uploads: [] }); drafts.delete('new'); openingGreetings.clearDraft(); follow.current = true
     } finally { setPreparing(null) }
@@ -187,7 +211,25 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
             {!!ids.length && <div className="conversation-attachments">{ids.map((id) => <span key={id}><button type="button" onClick={() => onDocument({ kind: 'library-document', documentId: id, title: documents.find((d) => d.id === id)?.title ?? id })}><FileTextIcon />{documents.find((d) => d.id === id)?.title ?? id}</button><button type="button" aria-label={`${zh ? '移除引用' : 'Remove reference'} ${documents.find((d) => d.id === id)?.title ?? id}`} onClick={() => setIds((current) => current.filter((value) => value !== id))}><Cross2Icon /></button></span>)}</div>}
             {!!uploads.length && <div className="conversation-attachments">{uploads.map((file) => <span key={file.id}><span className="conversation-upload-name"><FileTextIcon />{file.name}</span><button type="button" aria-label={`${zh ? '移除附件' : 'Remove attachment'} ${file.name}`} onClick={() => setUploads((current) => current.filter((value) => value.id !== file.id))}><Cross2Icon /></button></span>)}</div>}
             <input ref={uploadInput} type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (files.length) void attachFiles(files) }} />
-            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={zh ? '输入消息，或添加一份文档开始修改…' : 'Write a message, or add a document to revise…'} value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!busy) send() } }} />
+            {!!suggestions.length && <div className="conversation-skill-menu" role="listbox" aria-label={zh ? '技能池' : 'Skill pool'}>
+              {suggestions.map((skill, index) => <button key={skill.name} type="button" role="option" aria-selected={index === highlighted} className={index === highlighted ? 'is-highlighted' : ''} onMouseDown={(event) => { event.preventDefault(); chooseSkill(skill) }} onMouseEnter={() => setHighlighted(index)}>
+                <strong>{skill.name}</strong><small>{skill.description}</small>
+              </button>)}
+            </div>}
+            {!!attached.length && <div className="conversation-attachments conversation-skill-chips">{attached.map((name) => <span key={name}><span><Share1Icon />{name}</span></span>)}</div>}
+            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…'} value={text}
+              onChange={(event) => { setText(event.target.value); trackMention(event.target) }}
+              onClick={(event) => trackMention(event.currentTarget)}
+              onBlur={() => setMention(null)}
+              onKeyUp={(event) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) trackMention(event.currentTarget) }}
+              onKeyDown={(event) => {
+                if (suggestions.length) {
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setHighlighted((current) => (current + (event.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length); return }
+                  if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); chooseSkill(suggestions[highlighted]); return }
+                  if (event.key === 'Escape') { event.preventDefault(); setMention(null); return }
+                }
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!busy) send() }
+              }} />
             <footer><button className={`quiet-button ${picker ? 'is-active' : ''}`} type="button" onClick={() => { setPicker(!picker); void listLibraryDocuments().then(setDocuments).catch((e) => setError(String(e))) }}><PlusIcon />{zh ? '引用资料' : 'Add documents'}</button><button className="quiet-button" type="button" disabled={busy} onClick={() => uploadInput.current?.click()}><UploadIcon />{zh ? '上传附件' : 'Attach file'}</button><span>{zh ? 'Enter 发送 · Shift Enter 换行' : 'Enter to send · Shift Enter for a new line'}</span>{running ? <button className="conversation-send" type="button" aria-label={zh ? '停止生成' : 'Stop response'} onClick={() => void act(() => taskRunner.cancel(running.id))}><StopIcon /></button> : <button className="conversation-send" type="submit" disabled={!text.trim() || busy || !!thread?.turns.some((turn) => turn.status === 'inProgress')} aria-label={zh ? '发送消息' : 'Send message'}><ArrowUpIcon /></button>}</footer>
           </form>
         </div>

@@ -6,6 +6,8 @@
 use crate::{
     codex_conversations::{CodexConversations, ConversationAction},
     conversation_documents::DocumentInputs,
+    conversation_skills,
+    skill_pool::SkillPool,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -178,9 +180,12 @@ impl ConversationHost {
     pub async fn run(
         &self,
         request: &ConversationRequest,
-        tools: &crate::agent_tools::AgentTools,
+        pool: &SkillPool,
         cancelled: CancellationToken,
     ) -> Result<Value, String> {
+        // Resolved once, before any agent starts, so a skill that is no longer in the pool stops
+        // the turn here instead of reaching an agent as a command it cannot answer.
+        let skills = conversation_skills::resolve(pool, &request.skills)?;
         if let Some(session) = self.load()?.sessions.get(&request.thread_id).cloned() {
             if let Some(turn) = session.turns.iter().find(|turn| {
                 turn["items"].as_array().is_some_and(|items| {
@@ -202,7 +207,7 @@ impl ConversationHost {
                 return Err("This conversation is already running. Wait for it to finish before sending another message.".into());
             }
             let native_result = crate::native_agent_sessions::run(
-                &self.root, &self.sink, &session, tools, request, cancelled,
+                &self.root, &self.sink, &session, pool.agents(), request, &skills, cancelled,
             )
             .await;
             self.running
@@ -232,6 +237,7 @@ impl ConversationHost {
                 &request.context,
                 &request.request_id,
                 &request.documents,
+                &skills,
                 cancelled,
             )
             .await
@@ -244,6 +250,8 @@ pub struct ConversationRequest {
     pub context: String,
     pub request_id: String,
     pub documents: DocumentInputs,
+    /// Pool skills the person attached to this message, by directory name.
+    pub skills: Vec<String>,
 }
 
 fn uuid_for(seed: &str) -> String {

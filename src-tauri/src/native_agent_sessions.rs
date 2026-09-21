@@ -5,6 +5,7 @@ use crate::{
     conversation_documents,
     conversation_host::{ConversationRequest, NativeSession},
     conversation_instructions::{CONVERSATION_INSTRUCTIONS, UNTRUSTED_CONTEXT},
+    conversation_skills::{self, SkillReference},
 };
 use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
@@ -38,9 +39,11 @@ pub(crate) async fn run(
     session: &NativeSession,
     tools: &AgentTools,
     request: &ConversationRequest,
+    skills: &[SkillReference],
     cancelled: CancellationToken,
 ) -> Result<NativeTurn, String> {
-    if request.message.trim().is_empty() || request.message.len() + request.context.len() > 100_000
+    if request.message.trim().is_empty()
+        || request.message.len() + request.context.len() > 100_000
     {
         return Err("Message and references must contain between 1 and 100000 UTF-8 bytes".into());
     }
@@ -69,9 +72,14 @@ pub(crate) async fn run(
     );
     // Codex carries this boundary structurally through additionalContext.kind. These transports
     // offer no such channel, so it has to travel inside the message -- once, not once per section.
+    // Neither CLI takes a structured skill reference, so the skill command leads the message, the
+    // way it would if the person had typed it into that CLI. Everything after it is its argument.
     let message = format!(
-        "{}\n\n{UNTRUSTED_CONTEXT}\n{}\n\n{}",
-        request.message, request.context, document_context
+        "{}{}\n\n{UNTRUSTED_CONTEXT}\n{}\n\n{}",
+        conversation_skills::command_prefix(&session.agent, skills),
+        request.message,
+        request.context,
+        document_context
     );
     let context = TurnContext {
         tools,
@@ -99,9 +107,7 @@ pub(crate) async fn run(
                 .ok_or("pi session file missing")?;
             run_pi(&context, &session_file).await?
         }
-        "claude" => {
-            run_claude(&context, &session.native_id, !session.native_started).await?
-        }
+        "claude" => run_claude(&context, &session.native_id, !session.native_started).await?,
         _ => return Err("Unsupported native Conversation agent".into()),
     };
     let artifacts =
@@ -281,7 +287,9 @@ async fn claude_turn(
     command
         .args(["--permission-mode", "acceptEdits"])
         .args(["--append-system-prompt", CONVERSATION_INSTRUCTIONS])
-        .args(["--allowed-tools", "Read", "Edit", "Write", "--add-dir"])
+        // Skill is on the list so a skill the person named can be dispatched the way Claude Code
+        // dispatches its own; the rest of the list is unchanged.
+        .args(["--allowed-tools", "Read", "Edit", "Write", "Skill", "--add-dir"])
         .arg(ctx.workspace);
     let mut child = command
         .stdin(std::process::Stdio::piped())
@@ -434,6 +442,7 @@ mod tests {
             context: "ctx".into(),
             request_id: "request-1".into(),
             documents: DocumentInputs::default(),
+            skills: Vec::new(),
         };
         let result = run(
             &root,
@@ -441,6 +450,7 @@ mod tests {
             &session,
             &tools,
             &request,
+            &[],
             CancellationToken::new(),
         )
         .await
@@ -469,6 +479,7 @@ mod tests {
             context: String::new(),
             request_id: "request-2".into(),
             documents: DocumentInputs::default(),
+            skills: Vec::new(),
         };
         let result = run(
             &root,
@@ -476,6 +487,7 @@ mod tests {
             &session,
             &tools,
             &request,
+            &[],
             CancellationToken::new(),
         )
         .await
@@ -518,6 +530,7 @@ printf '%s\n' 'IGNORED'
                 context: String::new(),
                 request_id: "request-flags".into(),
                 documents: DocumentInputs::default(),
+                skills: Vec::new(),
             };
             run(
                 &root,
@@ -525,6 +538,7 @@ printf '%s\n' 'IGNORED'
                 &session,
                 &tools,
                 &request,
+                &[],
                 CancellationToken::new(),
             )
             .await
@@ -536,12 +550,71 @@ printf '%s\n' 'IGNORED'
             if agent == "claude" {
                 // Claude Code rejects streamed stream-json output without it.
                 assert!(argv.lines().any(|line| line == "--verbose"));
+                // A skill the person named is dispatched by Claude Code's own Skill tool.
+                assert!(argv.lines().any(|line| line == "Skill"));
             } else {
                 // Pi has no sandbox, so its own flags carry the whole boundary.
                 assert!(argv.lines().any(|line| line == "read,edit,write,ls"));
                 assert!(argv.lines().any(|line| line == "--no-approve"));
                 assert!(argv.lines().any(|line| line == "--no-context-files"));
             }
+            let _ = fs::remove_dir_all(root);
+        }
+    }
+
+    /// Nooki is the bridge, not the interpreter: the skill reaches each CLI as the command that
+    /// CLI expands itself, ahead of the person's own words.
+    #[tokio::test]
+    async fn an_attached_skill_leads_the_prompt_as_that_cli_writes_it() {
+        for (agent, expected) in [("pi", "/skill:pdf hello"), ("claude", "/pdf hello")] {
+            let (root, tools, mut session, _events) = fixture(agent, "skills", "");
+            session.agent = agent.into();
+            let recorded = root.join("prompt");
+            let script = r#"#!/bin/sh
+head -n 1 > "RECORDED"
+printf '%s\n' 'IGNORED'
+"#
+            .replace("RECORDED", &recorded.to_string_lossy())
+            .replace(
+                "IGNORED",
+                if agent == "pi" {
+                    r#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}"#
+                } else {
+                    r#"{"type":"result","result":"done"}"#
+                },
+            );
+            let binary = root.join(format!(".local/bin/{agent}"));
+            fs::write(&binary, script).unwrap();
+            fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).unwrap();
+            let sink: Arc<dyn Fn(Value) + Send + Sync> = Arc::new(|_| {});
+            let request = ConversationRequest {
+                thread_id: session.id.clone(),
+                message: "hello".into(),
+                context: String::new(),
+                request_id: "request-skill".into(),
+                documents: DocumentInputs::default(),
+                skills: vec!["pdf-tools".into()],
+            };
+            let skills = [SkillReference {
+                directory: "pdf-tools".into(),
+                invocation: "pdf".into(),
+                path: root.join(".agents/skills/pdf-tools"),
+            }];
+            run(
+                &root,
+                &sink,
+                &session,
+                &tools,
+                &request,
+                &skills,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+            let sent = fs::read_to_string(&recorded).unwrap();
+            let sent: Value = serde_json::from_str(sent.trim()).unwrap();
+            let prompt = if agent == "pi" { sent["message"].as_str() } else { sent["message"]["content"].as_str() }.unwrap();
+            assert!(prompt.starts_with(expected), "{agent} received {prompt}");
             let _ = fs::remove_dir_all(root);
         }
     }
@@ -569,6 +642,7 @@ fi
             context: String::new(),
             request_id: "request-3".into(),
             documents: DocumentInputs::default(),
+            skills: Vec::new(),
         };
         let result = run(
             &root,
@@ -576,6 +650,7 @@ fi
             &session,
             &tools,
             &request,
+            &[],
             CancellationToken::new(),
         )
         .await

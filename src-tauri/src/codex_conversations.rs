@@ -1,5 +1,6 @@
 use crate::conversation_documents::{self, DocumentInputs};
 use crate::conversation_instructions::CONVERSATION_INSTRUCTIONS;
+use crate::conversation_skills::SkillReference;
 use serde_json::{json, Value};
 use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}, process::Stdio, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}};
 use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, process::{Child, ChildStdin}, sync::{broadcast, oneshot, Mutex as AsyncMutex}};
@@ -168,9 +169,9 @@ impl CodexConversations {
     }
   }
   pub async fn run(&self, thread_id: &str, message: &str, context: &str, request_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
-    self.run_with_documents(thread_id, message, context, request_id, &DocumentInputs::default(), cancelled).await
+    self.run_with_documents(thread_id, message, context, request_id, &DocumentInputs::default(), &[], cancelled).await
   }
-  pub async fn run_with_documents(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, cancelled: CancellationToken) -> Result<Value, String> {
+  pub async fn run_with_documents(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken) -> Result<Value, String> {
     if message.trim().is_empty() || message.len() + context.len() > 100_000 { return Err("Message and references must contain between 1 and 100000 UTF-8 bytes".into()); }
     if request_id.is_empty() || !request_id.bytes().all(|b|b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
     let client = self.connect().await?;
@@ -191,7 +192,11 @@ impl CodexConversations {
       if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
       // An uncertain start must reconcile history before it can be retried.
       client.fresh.lock().map_err(|_| "Codex session state unavailable")?.remove(thread_id);
-      let result = client.request("turn/start", json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","sandboxPolicy":{"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true},"input":[{"type":"text","text":message}],"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"})).await?;
+      // A skill the person picked travels as Codex's own skill input element -- the same thing its
+      // composer sends for `$skill`. Codex loads it; Nooki neither reads nor repeats it.
+      let mut input: Vec<Value> = skills.iter().map(|skill| json!({"type":"skill","name":skill.invocation,"path":skill.path})).collect();
+      input.push(json!({"type":"text","text":message}));
+      let result = client.request("turn/start", json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","sandboxPolicy":{"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true},"input":input,"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"})).await?;
       let turn = result["turn"].clone();
       if let Err(error) = write_receipt(&receipt, &json!({"threadId":thread_id,"turnId":turn["id"]})) {
         let _ = client.request("turn/interrupt",json!({"threadId":thread_id,"turnId":turn["id"]})).await;
