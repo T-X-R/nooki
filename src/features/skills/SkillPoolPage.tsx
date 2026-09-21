@@ -84,7 +84,7 @@ export function SkillPoolPage({ language }: { language: 'zh' | 'en' }) {
     <div className="page-header-row skill-pool-heading">
       <div>
         <span className="section-kicker">ONE PLACE FOR YOUR SKILLS</span>
-        <h1>{zh ? '技能池' : 'Skill pool'}</h1>
+        <h1 className="skill-pool-intro-title"><span>{zh ? '会的东西，' : 'Everything it can do, '}</span><span>{zh ? '都放在一处。' : 'kept in one place.'}</span></h1>
         <p className="skill-pool-path"><code>{overview.poolDirectory}</code> · {overview.poolExists
           ? `${overview.skills.length} ${zh ? '个技能' : 'skills'}`
           : (zh ? '尚未创建，收编或安装第一个技能时自动建立' : 'not created yet; it appears with the first skill you adopt or install')}</p>

@@ -76,7 +76,7 @@
 .skill-pool-reader-meta > div { display: grid; grid-template-columns: minmax(96px, 140px) minmax(0, 1fr); align-items: start; gap: 4px 28px; padding: 14px 20px; }
 .skill-pool-reader-meta > div + div { border-top: 1px solid var(--line); }
 .skill-pool-reader-meta dt { padding-top: 3px; color: var(--accent-strong, var(--accent)); }
-.skill-pool-reader-meta dd { max-width: 74ch; font-size: 12.5px; line-height: 1.9; color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; white-space: pre-wrap; }
+.skill-pool-reader-meta dd { font-size: 12.5px; line-height: 1.9; color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; white-space: pre-wrap; }
 .skill-pool-reader-meta > div:first-child dd { font-weight: 640; }
 @media (max-width: 880px) { .skill-pool-reader-meta > div { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
 .skill-pool-reader-image { max-width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-muted); }
@@ -85,8 +85,9 @@
 /* One dark code surface, borrowed from the github-dark tokens the highlighter emits. */
 .skill-pool-page, .skill-pool-reader { --code-surface: #0d1117; --code-ink: #e6edf3; }
 
-/* Reading a skill should feel like reading a document, not a config dump. */
-.skill-pool-markdown { max-width: 78ch; overflow-wrap: anywhere; font-size: 13px; line-height: 1.9; color: var(--ink); text-wrap: pretty; }
+/* Reading a skill should feel like reading a document, not a config dump.
+   The instructions share the reader column with the card above them, so both end at the same edge. */
+.skill-pool-markdown { overflow-wrap: anywhere; font-size: 13px; line-height: 1.9; color: var(--ink); text-wrap: pretty; }
 .skill-pool-markdown > :first-child { margin-top: 0; }
 .skill-pool-markdown h1, .skill-pool-markdown h2, .skill-pool-markdown h3 { line-height: 1.4; text-wrap: balance; }
 .skill-pool-markdown h1 { margin: 34px 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line); font-size: 24px; font-weight: 700; letter-spacing: -.04em; }
