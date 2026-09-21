@@ -182,8 +182,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .task-intro-title > span:last-child { color: #91633b; }
 :root[data-theme="dark"] .task-intro-title > span:last-child { color: #d6af82; }
 .page-header-row .skill-pool-intro-title { margin: 6px 0 14px; color: var(--ink); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
-.skill-pool-intro-title > span:last-child { color: #4d5ba6; }
-:root[data-theme="dark"] .skill-pool-intro-title > span:last-child { color: #a5b2e8; }
+.skill-pool-intro-title > span:last-child { color: #7a4a86; }
+:root[data-theme="dark"] .skill-pool-intro-title > span:last-child { color: #d0a8dc; }
 
 .capability-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 30px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .capability-filters { display: flex; align-items: center; gap: 4px; }
