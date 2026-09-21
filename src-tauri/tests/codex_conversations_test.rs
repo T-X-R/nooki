@@ -97,13 +97,13 @@ async fn document_turns_edit_working_copies_and_retain_outputs_across_followups_
   source_snapshots::capture(&root, "snapshot-edit", std::slice::from_ref(&original.id)).unwrap();
   let inputs = DocumentInputs { snapshot_id: Some("snapshot-edit".into()), uploads: vec![Attachment { id:"upload-1".into(), name:"附件.txt".into(), content:"Uploaded text".into() }] };
   let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap();
-  let first = bridge.run_with_documents(id, "revise-documents", "", "edit-1", &inputs, CancellationToken::new()).await.unwrap();
+  let first = bridge.run_with_documents(id, "revise-documents", "", "edit-1", &inputs, &[], CancellationToken::new()).await.unwrap();
   let artifacts = first["artifacts"].as_array().unwrap();
   assert_eq!(artifacts.len(), 2);
   assert!(artifacts.iter().any(|a| a["name"] == "附件.txt" && a["content"] == "Uploaded text\nEdited by fixture"));
   assert!(artifacts.iter().any(|a| a["source"]["documentId"] == original.id && a["before"] == "Original Library text"));
   assert_eq!(document_library::read_document(&root, &original.id).unwrap().content, "Original Library text");
-  let second = bridge.run_with_documents(id, "revise-documents", "", "edit-2", &inputs, CancellationToken::new()).await.unwrap();
+  let second = bridge.run_with_documents(id, "revise-documents", "", "edit-2", &inputs, &[], CancellationToken::new()).await.unwrap();
   assert!(second["artifacts"].as_array().unwrap().iter().all(|a| a["content"].as_str().unwrap().ends_with("Edited by fixture\nEdited by fixture")));
   let other = bridge.create().await.unwrap(); let other_id = other["id"].as_str().unwrap();
   let new_document = bridge.run(other_id, "write-document", "", "new-1", CancellationToken::new()).await.unwrap();
@@ -121,7 +121,7 @@ async fn document_turns_edit_working_copies_and_retain_outputs_across_followups_
   }
   drop(bridge);
   let reopened = CodexConversations::new(root.join("codex").to_string_lossy().into(), root.clone(), Arc::new(|_| {}));
-  let recovered = reopened.run_with_documents(id, "revise-documents", "", "edit-1", &inputs, CancellationToken::new()).await.unwrap();
+  let recovered = reopened.run_with_documents(id, "revise-documents", "", "edit-1", &inputs, &[], CancellationToken::new()).await.unwrap();
   assert_eq!(recovered, first);
   assert_eq!(reopened.read(id, None).await.unwrap()["turns"].as_array().unwrap().len(), 2);
   drop(reopened); let _ = std::fs::remove_dir_all(root);

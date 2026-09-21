@@ -233,6 +233,11 @@ impl SkillPool {
     tools
   }
 
+  /// Every skill in the pool, read and never written. The Conversation composer lists these.
+  pub fn list(&self) -> Result<Vec<PoolSkill>, String> {
+    self.skills()
+  }
+
   fn skills(&self) -> Result<Vec<PoolSkill>, String> {
     let mut skills = Vec::new();
     let Ok(entries) = fs::read_dir(&self.pool) else { return Ok(skills) };
@@ -590,6 +595,20 @@ impl SkillPool {
 
   pub fn skill_hashes(&self, name: &str) -> Result<Hashes, String> { hashes(&self.pool.join(name)) }
 
+  /// Where one pool skill lives, and what it calls itself.
+  ///
+  /// A Conversation passes this to the agent it is talking to. Nooki reads no further: what the
+  /// skill says is between the skill and that agent.
+  pub fn locate(&self, name: &str) -> Result<crate::conversation_skills::SkillReference, String> {
+    safe_name(name)?;
+    let path = self.pool.join(name);
+    if !path.is_dir() { return Err(format!("The skill pool has no skill named {name}")); }
+    if !path.join(SKILL_FILE).is_file() { return Err(format!("{name} has no {SKILL_FILE}")); }
+    // A CLI's own skill command is named after the skill's declared name, not its directory.
+    let declared = describe(&path).map(|value| value.0).filter(|value| !value.is_empty());
+    Ok(crate::conversation_skills::SkillReference { directory: name.into(), invocation: declared.unwrap_or_else(|| name.into()), path })
+  }
+
   /// Read one pool skill for display. Instructions are shown, never executed.
   pub fn read(&self, name: &str) -> Result<SkillDetail, String> {
     safe_name(name)?;
@@ -681,6 +700,9 @@ pub fn skill_pool_resolve(tool: String, name: String, action: String, rename: Op
   state.resolve(&tool, &name, &action, rename)?;
   state.overview()
 }
+
+#[tauri::command]
+pub fn skill_pool_list(state: tauri::State<'_, SkillPool>) -> Result<Vec<PoolSkill>, String> { state.list() }
 
 #[tauri::command]
 pub fn skill_pool_read(name: String, state: tauri::State<'_, SkillPool>) -> Result<SkillDetail, String> { state.read(&name) }

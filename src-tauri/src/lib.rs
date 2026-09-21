@@ -2,6 +2,7 @@ pub mod codex_conversations;
 pub mod conversation_documents;
 pub mod conversation_host;
 pub mod conversation_instructions;
+pub mod conversation_skills;
 pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;
@@ -211,10 +212,10 @@ async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::St
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
+struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
 #[tauri::command]
 async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
-  bridge.run(&conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents }, pool.agents(), executions.token(&request.execution_id)?).await
+  bridge.run(&conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents, skills: request.skills }, &pool, executions.token(&request.execution_id)?).await
 }
 #[tauri::command]
 fn library_capture_sources(id: String, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<Vec<source_snapshots::SnapshotDocument>, String> {
@@ -465,6 +466,7 @@ pub fn run() {
       developer_integration::developer_integration_install,
       developer_integration::developer_kit_export,
       skill_pool::skill_pool_overview,
+      skill_pool::skill_pool_list,
       skill_pool::skill_pool_set_selection,
       skill_pool::skill_pool_resolve,
       skill_pool::skill_pool_read,

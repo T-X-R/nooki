@@ -135,6 +135,10 @@ Moving a skill that lives in an Agent Tool's directory into the Skill Pool, afte
 **Duplicate Review**:
 The decision Nooki asks for when skills collide: the same name with different content, an edited mirror, a hand-made link, or two pool skills holding identical content. Nothing is overwritten before the person chooses.
 
+**Attached Skill**:
+A Pool Skill the person names in a Conversation message with `$` or `/`. Nooki resolves the name against the pool and passes the reference to the agent in that agent's own form — a skill input element for Codex, `/skill:name` for pi, `/name` for Claude Code. It never reads, copies or quotes what the skill says.
+_Avoid_: Skill prompt, injected instructions
+
 **Skill Uninstallation**:
 Removing a Pool Skill from every Agent Tool that holds it, including its Mirror Receipt entry, before moving the pool copy to trash. Deleting files in one place is not an uninstallation.
 
