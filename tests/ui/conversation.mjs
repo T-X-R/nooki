@@ -71,7 +71,7 @@ const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});
 assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), ['Codex 每日总结', '日记']);
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await page.locator('#sidebar-installed-capabilities').count(), 0);
-const explore = page.locator('.brand-lockup').getByRole('button', {name:'探索',exact:true});
+const explore = page.locator('.brand-lockup').getByRole('button', {name:'探索灵感',exact:true});
 await explore.focus(); await page.keyboard.press('Enter');
 await page.locator('.capabilities-page').waitFor();
 assert.equal(await explore.getAttribute('aria-current'), 'page');
