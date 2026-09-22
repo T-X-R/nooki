@@ -11,6 +11,10 @@ function desktop() { if (!window.__TAURI_INTERNALS__) throw new Error('对话需
 export const conversationClient = {
   subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
   getSnapshot: () => cache,
+  async answerQuestion(threadId: string, turnId: string, itemId: string, answers: string[]) {
+    await this.connect()
+    await invoke('conversation_answer_question', { threadId, turnId, itemId, answers })
+  },
   async connect() {
     desktop()
     listening ??= listen<ConversationEvent>('workbench:conversation-event', ({ payload }) => {

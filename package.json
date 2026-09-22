@@ -9,7 +9,7 @@
     "test": "npm run test:platform && npm run test:capabilities",
     "test:capabilities": "node --test capabilities/*/*.test.ts",
     "test:platform": "node --test tests/*.test.ts",
-    "test:ui": "node tests/ui/conversation.mjs && node tests/ui/organization.mjs",
+    "test:ui": "node tests/ui/conversation.mjs && node tests/ui/conversation-questions.mjs && node tests/ui/organization.mjs",
     "preview": "vite preview",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build --bundles app",

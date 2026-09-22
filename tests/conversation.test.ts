@@ -1,8 +1,29 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyConversationEvent, conversationAgentName, conversationRuntimeName, libraryContext, isConversationProcessItem, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
+import { applyConversationEvent, conversationAgentName, conversationRuntimeName, libraryContext, isConversationProcessItem, isConversationAnswer, isAsyncQuestion, asyncQuestionAnswered, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
 import { createTaskRunner } from '../src/platform/task-runner.ts'
 import { parseReferenceHref, referenceHref } from '../packages/capability-contract/src/references.ts'
+
+test('async questions stay distinct from final answers through streaming, completion and history', () => {
+  const question = { id: 'question', type: 'agentMessage', phase: 'final_answer', delivery: 'async', text: 'Which source?', questions: [{ title: 'Which source?', options: ['Notes', 'Documents'] }] }
+  let thread: Conversation = { id: 'session', preview: '', createdAt: 0, updatedAt: 0, turns: [] }
+  thread = applyConversationEvent(thread, { method: 'item/completed', params: { threadId: thread.id, turnId: 'turn', item: question } })
+  assert.equal(thread.turns[0].status, 'inProgress')
+  assert.equal(isAsyncQuestion(thread.turns[0].items[0]), true)
+  assert.equal(isConversationAnswer(question), false)
+  assert.equal(isConversationProcessItem(question), false)
+  assert.equal(isAsyncQuestion({ ...question, delivery: undefined }), false)
+  assert.equal(isAsyncQuestion({ ...question, questions: [] }), false)
+  assert.equal(isConversationAnswer({ ...question, questions: undefined }), false, 'Async messages without structured questions are still not final answers')
+  assert.equal(asyncQuestionAnswered(thread.turns, question.id), false)
+  const user = { id: 'reply', type: 'userMessage', clientId: 'async-answer-question', content: [{ type: 'text', text: 'Notes' }] }
+  const answer = { id: 'final', type: 'agentMessage', phase: 'final_answer', text: 'Done' }
+  thread = applyConversationEvent(thread, { method: 'turn/completed', params: { threadId: thread.id, turn: { id: 'turn', status: 'completed', items: [question, user, answer] } } })
+  const history: Conversation = JSON.parse(JSON.stringify(thread))
+  assert.equal(asyncQuestionAnswered(history.turns, question.id), true)
+  assert.deepEqual(history.turns[0].items.filter(isConversationAnswer), [answer])
+  assert.equal(isConversationAnswer({ id: 'legacy', type: 'agentMessage', text: 'Legacy answer' }), true)
+})
 
 test('conversation runtime label follows the native session agent', () => {
   assert.equal(conversationAgentName('pi'), 'pi')

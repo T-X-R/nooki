@@ -49,6 +49,12 @@ for line in sys.stdin:
         event('turn/started',{'threadId':t['id'],'turn':turn})
         if text=='disconnect' and n==1:sys.exit(0)
         if text=='slow':continue
+        if text=='async-question':
+            question={'id':'question-'+str(n),'type':'agentMessage','phase':'final_answer','delivery':'async','text':'Which source?','questions':[{'title':'Which source?','options':['Notes','Documents']}]}
+            turn['items'].append(question);persist()
+            event('item/completed',{'threadId':t['id'],'turnId':turn['id'],'item':question})
+            event('item/reasoning/summaryTextDelta',{'threadId':t['id'],'turnId':turn['id'],'itemId':'still-working','summaryIndex':0,'delta':'Work continues'})
+            continue
         if text=='revise-documents':
             for file in Path(t['cwd']).iterdir():
                 if file.suffix in ('.md','.txt'):file.write_text(file.read_text()+'\nEdited by fixture')
@@ -63,6 +69,12 @@ for line in sys.stdin:
         if turn['status']=='failed':turn['error']={'message':'fixture failure'}
         t['status']={'type':'idle'}
         persist();event('item/completed',{'threadId':t['id'],'turnId':turn['id'],'item':answer});event('turn/completed',{'threadId':t['id'],'turn':turn})
+    elif method=='turn/steer':
+        t=threads[p['threadId']];turn=t['turns'][-1]
+        if turn['status']!='inProgress' or turn['id']!=p['expectedTurnId']:error('active turn changed');continue
+        user={'id':'steered-user','type':'userMessage','clientId':p['clientUserMessageId'],'content':p['input']}
+        turn['items'].append(user);persist();reply({'turnId':turn['id']})
+        event('item/completed',{'threadId':t['id'],'turnId':turn['id'],'item':user})
     elif method=='turn/interrupt':
         t=threads[p['threadId']];turn=next(x for x in t['turns'] if x['id']==p['turnId']);turn['status']='interrupted';t['status']={'type':'idle'};persist();reply({});event('turn/completed',{'threadId':t['id'],'turn':turn})
     else:error('unsupported method '+str(method))

@@ -25,6 +25,7 @@ struct Client {
   alive: AtomicBool,
   events: broadcast::Sender<Value>,
   fresh: Mutex<HashSet<String>>,
+  answers: AsyncMutex<HashSet<(String, String)>>,
 }
 impl Client {
   async fn send(&self, value: Value) -> Result<(), String> {
@@ -65,7 +66,7 @@ impl CodexConversations {
     let stdin = process.stdin.take().ok_or("Codex stdin unavailable")?;
     let stdout = process.stdout.take().ok_or("Codex stdout unavailable")?;
     let (events, _) = broadcast::channel(2048);
-    let client = Arc::new(Client { _process: AsyncMutex::new(process), stdin: AsyncMutex::new(stdin), pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), alive: AtomicBool::new(true), events, fresh: Mutex::new(HashSet::new()) });
+    let client = Arc::new(Client { _process: AsyncMutex::new(process), stdin: AsyncMutex::new(stdin), pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), alive: AtomicBool::new(true), events, fresh: Mutex::new(HashSet::new()), answers: AsyncMutex::new(HashSet::new()) });
     let weak = Arc::downgrade(&client);
     let sink = self.sink.clone();
     tokio::spawn(async move {
@@ -156,6 +157,25 @@ impl CodexConversations {
     thread["turns"] = json!(turns);
     thread["nextCursor"] = page["nextCursor"].clone();
     Ok(thread)
+  }
+  pub async fn answer_question(&self, thread_id: &str, turn_id: &str, item_id: &str, answers: &[String]) -> Result<(), String> {
+    let client = self.connect().await?;
+    self.owned_thread(&client, thread_id).await?;
+    let mut sent = client.answers.lock().await;
+    let key = (thread_id.to_string(), item_id.to_string());
+    let reply_id = format!("async-answer-{item_id}");
+    // Accepted steering may be queued before a userMessage appears in native history.
+    if sent.contains(&key) || self.find_turn(&client, thread_id, None, &reply_id).await?.is_some() { return Ok(()); }
+    let turn = self.find_turn(&client, thread_id, Some(turn_id), "").await?.ok_or("Question turn not found")?;
+    let question = turn["items"].as_array().and_then(|items| items.iter().find(|item| item["id"] == item_id && item["type"] == "agentMessage" && item["delivery"] == "async"))
+      .and_then(|item| item["questions"].as_array()).filter(|questions| !questions.is_empty()).ok_or("Async question not found")?;
+    if turn["status"] != "inProgress" { return Err("本轮已结束，请在输入框继续发送回答 / This turn has ended. Send your answer in the composer.".into()); }
+    if answers.len() != question.len() || answers.iter().any(|answer| answer.trim().is_empty()) { return Err("请回答每个问题 / Answer each question".into()); }
+    let message = question.iter().zip(answers).map(|(question, answer)| format!("{}\n{}", question["title"].as_str().unwrap_or(""), answer.trim())).collect::<Vec<_>>().join("\n\n");
+    if message.len() > 100_000 { return Err("回答过长 / Answers exceed 100 KB".into()); }
+    client.request("turn/steer", json!({"threadId":thread_id,"expectedTurnId":turn_id,"clientUserMessageId":reply_id,"input":[{"type":"text","text":message}]})).await?;
+    sent.insert(key);
+    Ok(())
   }
   async fn find_turn(&self, client: &Client, thread_id: &str, turn_id: Option<&str>, request_id: &str) -> Result<Option<Value>, String> {
     let mut cursor = Value::Null;

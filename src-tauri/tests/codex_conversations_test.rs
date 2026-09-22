@@ -3,6 +3,44 @@ use serde_json::{json, Value};
 use std::{path::PathBuf, sync::{Arc, Mutex}};
 use tokio_util::sync::CancellationToken;
 #[tokio::test]
+async fn async_question_answers_steer_the_original_turn_and_survive_history() {
+  let (root, bridge, events) = fixture(); let bridge = Arc::new(bridge);
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  let token = CancellationToken::new(); let run_token = token.clone(); let running = bridge.clone(); let session = id.clone();
+  let handle = tokio::spawn(async move { running.run(&session, "async-question", "", "question-run", run_token).await });
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    loop {
+      if events.lock().unwrap().iter().any(|event| event["params"]["item"]["delivery"] == "async") { break; }
+      tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+  }).await.unwrap();
+  assert!(!handle.is_finished(), "An async question does not complete the running task");
+  let history = bridge.read(&id, None).await.unwrap();
+  assert_eq!(history["turns"][0]["items"][1]["questions"][0]["options"], json!(["Notes", "Documents"]));
+  assert!(bridge.answer_question(&id, "turn-1", "question-1", &[]).await.is_err());
+  assert!(bridge.answer_question(&id, "turn-1", "question-1", &[" ".into()]).await.is_err());
+  assert!(bridge.answer_question(&id, "turn-1", "other", &["Notes".into()]).await.is_err());
+  assert!(bridge.answer_question("unrelated", "turn-1", "question-1", &["Notes".into()]).await.is_err());
+  bridge.answer_question(&id, "turn-1", "question-1", &["Notes".into()]).await.unwrap();
+  bridge.answer_question(&id, "turn-1", "question-1", &["Notes".into()]).await.unwrap();
+  assert!(!handle.is_finished(), "Answering steers instead of interrupting or starting a second task");
+  let history = bridge.read(&id, None).await.unwrap();
+  assert_eq!(history["turns"].as_array().unwrap().len(), 1);
+  assert_eq!(history["turns"][0]["items"][2]["clientId"], "async-answer-question-1");
+  assert_eq!(history["turns"][0]["items"][2]["content"][0]["text"], "Which source?\nNotes");
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  let steers: Vec<_> = requests.iter().filter(|request| request["method"] == "turn/steer").collect();
+  assert_eq!(steers.len(), 1, "Duplicate submissions do not steer twice");
+  assert_eq!(steers[0]["params"]["expectedTurnId"], "turn-1");
+  token.cancel(); assert!(handle.await.unwrap().is_err());
+  drop(bridge);
+  let reopened = CodexConversations::new(root.join("codex").to_string_lossy().into(), root.clone(), Arc::new(|_| {}));
+  reopened.answer_question(&id, "turn-1", "question-1", &["Notes".into()]).await.unwrap();
+  assert_eq!(reopened.read(&id, None).await.unwrap()["turns"][0]["items"].as_array().unwrap().len(), 3);
+  drop(reopened); let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
 async fn native_conversation_creation_stays_with_the_selected_agent() {
   let root = std::env::temp_dir().join(format!("workbench-agent-test-{}", std::process::id()));
   let _ = std::fs::remove_dir_all(&root);

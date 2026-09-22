@@ -210,6 +210,10 @@ async fn conversation_create(state: tauri::State<'_, PlatformState>, pool: tauri
 async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   bridge.read(&id, cursor).await
 }
+#[tauri::command]
+async fn conversation_answer_question(thread_id: String, turn_id: String, item_id: String, answers: Vec<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+  bridge.answer_question(&thread_id, &turn_id, &item_id, &answers).await
+}
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
@@ -474,7 +478,7 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
-      conversation_list, conversation_change, conversation_create, conversation_read, conversation_run, conversation_publish,
+      conversation_list, conversation_change, conversation_create, conversation_read, conversation_answer_question, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
       library_management::library_history, library_management::library_trash,

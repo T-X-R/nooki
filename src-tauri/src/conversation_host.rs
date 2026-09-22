@@ -158,6 +158,10 @@ impl ConversationHost {
         }
         self.codex.read(id, cursor).await
     }
+    pub async fn answer_question(&self, thread_id: &str, turn_id: &str, item_id: &str, answers: &[String]) -> Result<(), String> {
+        if self.owns(thread_id)? { return Err("This agent does not support async questions".into()); }
+        self.codex.answer_question(thread_id, turn_id, item_id, answers).await
+    }
     pub async fn change(&self, id: &str, action: ConversationAction) -> Result<(), String> {
         let action_name = match action {
             ConversationAction::Archive => "archive",
