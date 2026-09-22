@@ -82,7 +82,7 @@ svg { flex: none; }
 .brand-mark { display: block; width: 29px; height: 29px; border-radius: 7px; object-fit: cover; }
 .brand-name { display: block; width: 80px; height: 30px; color: var(--ink); flex-shrink: 0; }
 .brand-name svg { display: block; width: 100%; height: 100%; }
-.brand-explore { flex: none; margin-left: auto; padding: 6px 8px; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
+.brand-explore { flex: none; margin-left: auto; transform: translate(4px, 2px); padding: 6px 8px; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
 .brand-explore:hover { color: var(--ink); }
 .brand-explore.is-active { background: var(--accent-soft); color: var(--accent-strong); }
 kbd { display: inline-flex; align-items: center; justify-content: center; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-muted); color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; line-height: 1; }
