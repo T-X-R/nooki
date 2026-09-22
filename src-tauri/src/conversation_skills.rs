@@ -10,6 +10,7 @@ use crate::skill_pool::SkillPool;
 use std::path::PathBuf;
 
 /// One skill the person attached to a message.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SkillReference {
     /// The pool directory name, which is how Nooki identifies a skill.
     pub directory: String,

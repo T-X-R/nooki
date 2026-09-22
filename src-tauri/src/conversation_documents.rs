@@ -7,7 +7,7 @@ use std::{collections::BTreeMap, fs, io::{Read, Write}, path::{Path, PathBuf}};
 const FILE_LIMIT: u64 = 2_000_000;
 const TOTAL_LIMIT: usize = 8_000_000;
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentInputs {
   pub snapshot_id: Option<String>,

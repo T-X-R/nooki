@@ -1,7 +1,7 @@
 import type { CapabilityTaskContext, TaskRecord } from '../../packages/capability-contract/src/index.ts'
 
 export type TaskContext = Pick<CapabilityTaskContext, 'signal' | 'step'> & { executionId: string }
-export type TaskJob = { run(input: unknown, context: TaskContext): Promise<unknown> }
+export type TaskJob = { run(input: unknown, context: TaskContext): Promise<unknown>; recover?(input: unknown, context: TaskContext): Promise<unknown> }
 export type TaskRunnerDependencies = {
   read(): Promise<TaskRecord[]>
   write(records: readonly TaskRecord[]): Promise<void>
@@ -30,11 +30,22 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
     return operation
   }
   const initialize = () => initialized ??= (async () => {
-    records = (await dependencies.read()).map((record) => record.status === 'running'
-      ? { ...record, status: 'interrupted' as const, error: 'Execution interrupted when Nooki closed' }
-      : record)
+    const recoveries: { record: TaskRecord; definition: TaskJob }[] = []
+    records = (await dependencies.read()).map((record) => {
+      if (!['running', 'interrupted'].includes(record.status)) return record
+      try {
+        const definition = resolve(record)
+        if (definition.recover) {
+          const next = { ...record, status: 'running' as const, error: null }
+          recoveries.push({ record: next, definition })
+          return next
+        }
+      } catch { /* Unavailable jobs remain interrupted until their owner is available. */ }
+      return { ...record, status: 'interrupted' as const, error: 'Execution interrupted when Nooki closed' }
+    })
     await dependencies.write(records)
     emit()
+    for (const { record, definition } of recoveries) execute(record, definition, true)
   })()
   const find = (id: string) => {
     const record = records.find((item) => item.id === id)
@@ -53,7 +64,7 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
     return resolved.definition
   }
 
-  const execute = (record: TaskRecord, definition: TaskJob) => {
+  const execute = (record: TaskRecord, definition: TaskJob, recovering = false) => {
     const controller = new AbortController()
     const signal = controller.signal
     const assertActive = () => {
@@ -67,7 +78,8 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
         await Promise.resolve()
         assertActive()
         let stepActive = false
-        const result = await definition.run(structuredClone(record.input), {
+        const operation = recovering ? definition.recover! : definition.run
+        const result = await operation(structuredClone(record.input), {
           executionId: `${record.id}:${record.attempt}`,
           signal,
           async step<T>(key: string, operation: () => Promise<T>): Promise<T> {
@@ -122,6 +134,21 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
     await commit((current) => current.map((item) => item.id === id && item.attempt === record.attempt && item.status === 'running' ? { ...item, status: 'cancelled', error: null, updatedAt: new Date().toISOString() } : item))
   }
 
+  const restart = async (id: string, reconnect: boolean) => {
+    await initialize()
+    const record = find(id)
+    if (!['failed', 'interrupted', 'cancelled'].includes(record.status)) throw new Error('Only stopped tasks can be retried')
+    const definition = resolve(record)
+    if (reconnect && !definition.recover) throw new Error('This job cannot reconnect to an existing execution')
+    const next = { ...record, status: 'running' as const, attempt: record.attempt + 1, error: null }
+    await commit((current) => {
+      resolve(record)
+      if (current.some((item) => item.capabilityId === record.capabilityId && item.job === record.job && item.scope === record.scope && item.status === 'running')) throw new Error('This job is already running')
+      return current.map((item) => item.id === id ? next : item)
+    })
+    execute(next, definition, reconnect)
+  }
+
   return {
     initialize,
     getSnapshot: () => records,
@@ -145,19 +172,8 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
       return record.id
     },
     cancel,
-    async retry(id: string) {
-      await initialize()
-      const record = find(id)
-      if (!['failed', 'interrupted', 'cancelled'].includes(record.status)) throw new Error('Only stopped tasks can be retried')
-      const definition = resolve(record)
-      const next = { ...record, status: 'running' as const, attempt: record.attempt + 1, error: null }
-      await commit((current) => {
-        resolve(record)
-        if (current.some((item) => item.capabilityId === record.capabilityId && item.job === record.job && item.scope === record.scope && item.status === 'running')) throw new Error('This job is already running')
-        return current.map((item) => item.id === id ? next : item)
-      })
-      execute(next, definition)
-    },
+    retry: (id: string) => restart(id, false),
+    reconnect: (id: string) => restart(id, true),
     async withCapabilityStopped<T>(capabilityId: string, action: () => Promise<T>): Promise<T> {
       await initialize()
       if (pausedCapabilities.has(capabilityId)) throw new Error('Capability lifecycle change in progress')

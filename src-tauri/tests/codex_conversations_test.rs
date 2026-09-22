@@ -54,6 +54,52 @@ async fn native_conversation_creation_stays_with_the_selected_agent() {
   assert!(root.join("conversation-agents.json").is_file());
   let _ = std::fs::remove_dir_all(root);
 }
+
+#[tokio::test]
+async fn closing_the_ui_keeps_the_worker_and_reconnects_without_another_user_message() {
+  let (root, initial, _) = fixture();
+  let binary = root.join("codex").to_string_lossy().to_string();
+  drop(initial);
+  for finish_while_closed in [false, true] {
+    let events = Arc::new(Mutex::new(Vec::<Value>::new())); let sink = events.clone();
+    let bridge = Arc::new(CodexConversations::new(binary.clone(), root.clone(), Arc::new(move |e| sink.lock().unwrap().push(e))));
+    let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+    let request = if finish_while_closed { "closed-complete" } else { "closed-running" };
+    let running = bridge.clone(); let session = id.clone();
+    let handle = tokio::spawn(async move { running.run(&session, "slow", "", request, CancellationToken::new()).await });
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+      while !events.lock().unwrap().iter().any(|e| e["method"] == "turn/started") { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+    }).await.unwrap();
+    let pid = std::fs::read_to_string(root.join("conversation-workspace/fake-daemon.pid")).unwrap();
+    // Dropping the app-side observer and connection is not user cancellation.
+    handle.abort(); let _ = handle.await; drop(bridge);
+    if finish_while_closed {
+      std::fs::write(root.join("conversation-workspace/finish-background"), "").unwrap();
+      tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while root.join("conversation-workspace/finish-background").exists() { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+      }).await.unwrap();
+    }
+    let reopened = Arc::new(CodexConversations::new(binary.clone(), root.clone(), Arc::new(|_| {})));
+    let session = id.clone(); let observing = reopened.clone();
+    let recovery = tokio::spawn(async move { observing.reconnect(&session, request, CancellationToken::new()).await });
+    if !finish_while_closed {
+      assert_eq!(reopened.read(&id, None).await.unwrap()["turns"][0]["status"], "inProgress");
+      assert!(!recovery.is_finished());
+      std::fs::write(root.join("conversation-workspace/finish-background"), "").unwrap();
+    }
+    let result = tokio::time::timeout(std::time::Duration::from_secs(5), recovery).await.unwrap().unwrap().unwrap();
+    assert_eq!(result["artifacts"][0]["content"], "Completed by the background worker");
+    assert_eq!(std::fs::read_to_string(root.join("conversation-workspace/fake-daemon.pid")).unwrap(), pid, "The same CLI process survived disconnection");
+    let history = reopened.read(&id, None).await.unwrap();
+    assert_eq!(history["turns"].as_array().unwrap().len(), 1);
+    assert_eq!(history["turns"][0]["items"].as_array().unwrap().iter().filter(|item| item["type"] == "userMessage").count(), 1);
+    drop(reopened);
+  }
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|r| r["method"] == "turn/start").count(), 2);
+  assert!(!requests.iter().any(|r| r["method"] == "turn/interrupt"));
+  let _ = std::fs::remove_dir_all(root);
+}
 #[tokio::test]
 async fn native_creation_time_survives_updates_and_legacy_catalogs() {
   let root = std::env::temp_dir().join(format!("workbench-creation-test-{}", std::process::id()));
@@ -96,7 +142,7 @@ fn fixture() -> (PathBuf, CodexConversations, Arc<Mutex<Vec<Value>>>) {
   use std::os::unix::fs::PermissionsExt;
   static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
   let sequence = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-  let root = std::env::temp_dir().join(format!("workbench-codex-test-{}-{}-{sequence}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+  let root = PathBuf::from("/private/tmp").join(format!("workbench-codex-test-{}-{}-{sequence}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
   std::fs::create_dir_all(&root).unwrap();
   let script = root.join("codex");
   std::fs::write(&script, include_str!("fixtures/fake_codex.py")).unwrap();
@@ -128,7 +174,7 @@ async fn native_sessions_stream_resume_and_recover_completed_turns_without_dupli
   drop(reopened); let _=std::fs::remove_dir_all(root);
 }
 #[tokio::test]
-async fn cancel_interrupts_codex_and_a_failed_turn_can_be_retried() {
+async fn cancel_interrupts_codex_and_retry_never_replays_a_failed_prompt() {
   let (root, bridge, _) = fixture(); let bridge=Arc::new(bridge);
   let thread=bridge.create().await.unwrap();let id=thread["id"].as_str().unwrap().to_string();
   let token=CancellationToken::new();let run_token=token.clone();let running=bridge.clone();let session=id.clone();
@@ -138,15 +184,23 @@ async fn cancel_interrupts_codex_and_a_failed_turn_can_be_retried() {
   assert_eq!(bridge.read(&id,None).await.unwrap()["turns"][0]["status"],"interrupted");
   let other=bridge.create().await.unwrap();let other_id=other["id"].as_str().unwrap();
   assert!(bridge.run(other_id,"fail-once","","request-2",CancellationToken::new()).await.is_err());
-  bridge.run(other_id,"fail-once","","request-2",CancellationToken::new()).await.unwrap();
+  assert!(bridge.run(other_id,"fail-once","","request-2",CancellationToken::new()).await.is_err());
+  assert_eq!(bridge.read(other_id, None).await.unwrap()["turns"].as_array().unwrap().len(), 1);
+  bridge.run(other_id,"Continue the previous task","","request-3",CancellationToken::new()).await.unwrap();
   drop(bridge);let _=std::fs::remove_dir_all(root);
 }
 #[tokio::test]
-async fn connection_loss_is_visible_and_retry_uses_the_same_codex_session() {
+async fn daemon_failure_is_visible_and_reconnect_never_replays_the_prompt() {
   let (root,bridge,_)=fixture();let thread=bridge.create().await.unwrap();let id=thread["id"].as_str().unwrap();
-  assert!(bridge.run(id,"disconnect","","request-1",CancellationToken::new()).await.unwrap_err().contains("disconnected"));
-  bridge.run(id,"disconnect","","request-1",CancellationToken::new()).await.unwrap();
-  assert_eq!(bridge.read(id,None).await.unwrap()["turns"].as_array().unwrap().len(),2);
+  assert!(bridge.run(id,"disconnect","","request-1",CancellationToken::new()).await.is_err());
+  // A transport close can precede process exit; wait for the simulated crashed daemon to exit.
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    while std::os::unix::net::UnixStream::connect(root.join("codex.sock")).is_ok() { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+  }).await.unwrap();
+  let error = bridge.reconnect(id,"request-1",CancellationToken::new()).await.unwrap_err();
+  assert!(error.contains("interrupted"), "{error}");
+  assert!(bridge.run(id,"disconnect","","request-1",CancellationToken::new()).await.is_err());
+  assert_eq!(bridge.read(id,None).await.unwrap()["turns"].as_array().unwrap().len(),1);
   drop(bridge);let _=std::fs::remove_dir_all(root);
 }
 #[test]

@@ -178,12 +178,26 @@ async fn read_pi_events<R: tokio::io::AsyncRead + Unpin>(
     let mut lines = lines.lines();
     let mut text = String::new();
     let mut model = String::new();
+    let mut settled = false;
+    let mut failure = None;
     loop {
         let line = tokio::select! { _ = ctx.cancelled.cancelled() => { let _ = child.kill().await; return Err("Task cancelled".into()); }, line = lines.next_line() => line.map_err(|_| "pi 输出读取失败")? };
         let Some(line) = line else { break };
         let Ok(event) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
+        if event["type"] == "response" && event["command"] == "prompt" && event["success"] == false {
+            return Err(event["error"].as_str().unwrap_or("pi rejected the prompt").into());
+        }
+        if event["type"] == "agent_start" {
+            (ctx.sink)(json!({"method":"session/started","params":{"threadId":ctx.thread_id,"turnId":ctx.request_id}}));
+        }
+        if matches!(event["type"].as_str(), Some("tool_execution_start" | "tool_execution_end")) {
+            let done = event["type"] == "tool_execution_end";
+            let mut item = json!({"id":event["toolCallId"],"type":"commandExecution","status":if done {if event["isError"] == true {"failed"} else {"completed"}} else {"inProgress"}});
+            if !done { item["command"] = json!(format!("{} {}",event["toolName"].as_str().unwrap_or("tool"),event["args"])); }
+            (ctx.sink)(json!({"method":if done {"item/completed"} else {"item/started"},"params":{"threadId":ctx.thread_id,"turnId":ctx.request_id,"item":item}}));
+        }
         if let Some(named) = event["message"]["model"]
             .as_str()
             .or_else(|| event["model"].as_str())
@@ -201,6 +215,8 @@ async fn read_pi_events<R: tokio::io::AsyncRead + Unpin>(
             }
         }
         if event["type"] == "message_end" && event["message"]["role"] == "assistant" {
+            failure = matches!(event["message"]["stopReason"].as_str(), Some("error" | "aborted"))
+                .then(|| event["message"]["errorMessage"].as_str().unwrap_or("pi did not complete the request").to_string());
             if let Some(final_text) = event["message"]["content"]
                 .as_array()
                 .and_then(|items| items.iter().find_map(|item| item["text"].as_str()))
@@ -208,19 +224,22 @@ async fn read_pi_events<R: tokio::io::AsyncRead + Unpin>(
                 text = final_text.to_string();
             }
         }
-        if event["type"] == "turn_end" {
+        if event["type"] == "agent_settled" {
+            settled = true;
             let _ = child.kill().await;
             break;
         }
     }
+    if !settled { return Err("pi disconnected before completing the request".into()); }
+    if let Some(error) = failure { return Err(error); }
     if text.trim().is_empty() {
         return Err("pi 没有返回文本结果。".into());
     }
     Ok((text, model))
 }
 
-/// Claude Code owns whether a session exists. Nooki only guesses which mode to open with, so a
-/// failure that produced no output stays retryable rather than becoming permanent.
+/// Only an explicit session lookup failure permits changing launch mode. Unknown failures may
+/// follow real work and must never cause an automatic resubmission.
 struct ClaudeFailure {
     message: String,
     retryable: bool,
@@ -247,9 +266,7 @@ async fn run_claude(
     if !failure.retryable || ctx.cancelled.is_cancelled() {
         return Err(failure.message);
     }
-    // There is only one other thing this can be: Nooki asked Claude to create a session it already
-    // has, or to resume one that a failed launch never created. One retry beats a conversation
-    // that can never be opened again.
+    // This is a CLI session lookup rejection before execution, never a connection recovery.
     claude_turn(ctx, native_id, !first)
         .await
         .map_err(|fallback| fallback.message)
@@ -278,6 +295,7 @@ async fn claude_turn(
         "--output-format",
         "stream-json",
         "--verbose",
+        "--include-partial-messages",
     ]);
     if first {
         command.args(["--session-id", native_id]);
@@ -330,12 +348,27 @@ async fn read_claude_events<R: tokio::io::AsyncRead + Unpin>(
     let mut lines = lines.lines();
     let mut text = String::new();
     let mut model = String::new();
-    let mut streamed = false;
-    while let Some(line) = tokio::select! { _ = ctx.cancelled.cancelled() => { let _ = child.kill().await; return Err(ClaudeFailure::fatal("Task cancelled")); }, line = lines.next_line() => line.map_err(|_| ClaudeFailure { message: "Claude 输出读取失败".into(), retryable: !streamed })? }
+    let mut started = false;
+    let mut completed = false;
+    while let Some(line) = tokio::select! { _ = ctx.cancelled.cancelled() => { let _ = child.kill().await; return Err(ClaudeFailure::fatal("Task cancelled")); }, line = lines.next_line() => line.map_err(|_| ClaudeFailure { message: "Claude 输出读取失败".into(), retryable: false })? }
     {
         let Ok(event) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
+        if event["type"] == "system" && event["subtype"] == "init" {
+            started = true;
+            (ctx.sink)(json!({"method":"session/started","params":{"threadId":ctx.thread_id,"turnId":ctx.request_id}}));
+        }
+        if event["type"] == "assistant" {
+            for item in event["message"]["content"].as_array().into_iter().flatten().filter(|item| item["type"] == "tool_use") {
+                (ctx.sink)(json!({"method":"item/started","params":{"threadId":ctx.thread_id,"turnId":ctx.request_id,"item":{"id":item["id"],"type":"commandExecution","command":format!("{} {}",item["name"].as_str().unwrap_or("tool"),item["input"]),"status":"inProgress"}}}));
+            }
+        }
+        if event["type"] == "user" {
+            for item in event["message"]["content"].as_array().into_iter().flatten().filter(|item| item["type"] == "tool_result") {
+                (ctx.sink)(json!({"method":"item/completed","params":{"threadId":ctx.thread_id,"turnId":ctx.request_id,"item":{"id":item["tool_use_id"],"type":"commandExecution","status":if item["is_error"] == true {"failed"} else {"completed"}}}}));
+            }
+        }
         if let Some(named) = event["model"]
             .as_str()
             .or_else(|| event["message"]["model"].as_str())
@@ -348,16 +381,14 @@ async fn read_claude_events<R: tokio::io::AsyncRead + Unpin>(
         {
             if let Some(delta) = event["event"]["delta"]["text"].as_str() {
                 text.push_str(delta);
-                streamed = true;
+                started = true;
                 (ctx.sink)(
                     json!({"method":"item/agentMessage/delta","params":{"threadId":ctx.thread_id,"turnId":ctx.request_id,"itemId":format!("assistant-{}", ctx.request_id),"delta":delta}}),
                 );
             }
         }
         if event["type"] == "result" {
-            // A failed run reports its error in the same field a successful one uses for the
-            // answer. Passing it through would render Claude's error text as the assistant's reply
-            // and hide a session mismatch that retrying the other mode would fix.
+            // Failed result text is an error, not an assistant answer.
             if event["is_error"] == true {
                 let _ = child.kill().await;
                 return Err(ClaudeFailure {
@@ -365,18 +396,20 @@ async fn read_claude_events<R: tokio::io::AsyncRead + Unpin>(
                         .as_str()
                         .unwrap_or("Claude Code 未能完成这次会话请求。")
                         .into(),
-                    retryable: !streamed,
+                    retryable: !started && event["result"].as_str().is_some_and(|message| message.starts_with("No conversation found with session ID") || message.starts_with("Session ID") && message.contains("already in use")),
                 });
             }
             if let Some(result) = event["result"].as_str() {
                 text = result.to_string();
             }
+            completed = true;
         }
     }
+    if !completed { return Err(ClaudeFailure::fatal("Claude Code disconnected before completing the request")); }
     if text.trim().is_empty() {
         return Err(ClaudeFailure {
             message: "Claude Code 没有返回文本结果。".into(),
-            retryable: !streamed,
+            retryable: false,
         });
     }
     Ok((text, model))
@@ -421,6 +454,7 @@ mod tests {
             ),
             native_started: false,
             preview: String::new(),
+            created_at: None,
             updated_at: 0,
             archived: false,
             turns: Vec::new(),
@@ -431,7 +465,7 @@ mod tests {
 
     #[tokio::test]
     async fn pi_rpc_events_are_normalized_without_replaying_history() {
-        let output = r#"{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"hello"}}\n{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"hello"}],"model":"pi-model"}}\n{"type":"turn_end"}"#;
+        let output = r#"{"type":"message_update","assistantMessageEvent":{"type":"text_delta","delta":"hello"}}\n{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"hello"}],"model":"pi-model"}}\n{"type":"agent_settled"}"#;
         let (root, tools, session, events) = fixture("pi", "stream", output);
         let sink_events = events.clone();
         let sink: Arc<dyn Fn(Value) + Send + Sync> =
@@ -509,13 +543,13 @@ mod tests {
             let recorded = root.join("argv");
             let script = r#"#!/bin/sh
 for argument in "$@"; do printf '%s\n' "$argument" >> "RECORDED"; done
-printf '%s\n' 'IGNORED'
+printf '%b\n' 'IGNORED'
 "#
             .replace("RECORDED", &recorded.to_string_lossy())
             .replace(
                 "IGNORED",
                 if agent == "pi" {
-                    r#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}"#
+                    r#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}\n{"type":"agent_settled"}"#
                 } else {
                     r#"{"type":"result","result":"done"}"#
                 },
@@ -572,13 +606,13 @@ printf '%s\n' 'IGNORED'
             let recorded = root.join("prompt");
             let script = r#"#!/bin/sh
 head -n 1 > "RECORDED"
-printf '%s\n' 'IGNORED'
+printf '%b\n' 'IGNORED'
 "#
             .replace("RECORDED", &recorded.to_string_lossy())
             .replace(
                 "IGNORED",
                 if agent == "pi" {
-                    r#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}"#
+                    r#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}\n{"type":"agent_settled"}"#
                 } else {
                     r#"{"type":"result","result":"done"}"#
                 },
