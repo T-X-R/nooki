@@ -2,6 +2,9 @@
 // Use PLAYWRIGHT_MODULE for an external Playwright installation; requires Chrome.
 // CONVERSATION_TEST_URL defaults to http://127.0.0.1:5193/. No real Codex calls are made.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const installed = await Promise.all(['codex-daily-review', 'diary'].map(async name => ({manifest: JSON.parse(await readFile(new URL(`../../capabilities/${name}/manifest.json`, import.meta.url), 'utf8')), enabled: true})));
+installed.push({manifest: {...installed[1].manifest, id:'qa.disabled', name:'Disabled capability', locales:{}}, enabled:false});
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { chromium } = playwright.chromium ? playwright : playwright.default;
 const browser = await chromium.launch({headless:true, channel:'chrome'});
@@ -9,7 +12,7 @@ const page = await browser.newPage({viewport:{width:1240,height:820}});
 const errors = [];
 page.on('pageerror', e=>errors.push(e.message));
 try {
-await page.addInitScript(()=>{
+await page.addInitScript((installed)=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
  const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []}))]}]};
  const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
@@ -21,7 +24,8 @@ await page.addInitScript(()=>{
   if(command.startsWith('plugin:'))return null;
   if(command==='capability_agent')return 'codex';
   if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
-  if(['list_capabilities','library_search_content','library_capture_sources'].includes(command))return [];
+  if(command==='list_capabilities')return installed;
+  if(['library_search_content','library_capture_sources'].includes(command))return [];
   if(command==='library_list_documents')return structuredClone(docs);
   if(command==='library_organization')return structuredClone(organization);
   if(command==='conversation_publish'){
@@ -57,10 +61,36 @@ await page.addInitScript(()=>{
   });
   throw new Error('Unexpected '+command);
  }};
-});
+}, installed);
 await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
 await page.getByRole('button',{name:'历史测试会话',exact:true}).waitFor();
-assert.deepEqual(await page.locator('.primary-nav > :nth-last-child(-n+2) .nav-item-main').allTextContents(), ['能力中心', '对话'], 'Conversations follow Capability Center at the bottom');
+assert.deepEqual(await page.locator('.primary-nav > button .nav-item-main, .primary-nav > div > button .nav-item-main').allTextContents(), ['创建会话', '今日', '技能池', '资料库', '能力']);
+assert.equal(await page.locator('.sidebar').getByRole('button', {name:'任务',exact:true}).count(), 0);
+assert.equal(await page.locator('.sidebar-content > :last-child').getAttribute('class'), 'nav-conversations sidebar-conversations');
+const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});
+assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), ['Codex 每日总结', '日记']);
+await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
+assert.equal(await page.locator('#sidebar-installed-capabilities').count(), 0);
+await page.keyboard.press('Enter');
+assert.equal(await capabilitiesToggle.getAttribute('aria-expanded'), 'true');
+await page.locator('#sidebar-installed-capabilities').getByRole('button', {name:'日记',exact:true}).click();
+await page.locator('.diary-page').waitFor();
+assert.equal(await page.locator('#sidebar-installed-capabilities').getByRole('button', {name:'日记',exact:true}).getAttribute('aria-current'), 'page');
+await page.getByRole('button', {name:'今日',exact:true}).click();
+await page.getByRole('heading', {level:1}).waitFor();
+await page.getByRole('button', {name:'会话',exact:true}).click();
+assert.equal(await page.locator('.conversation-page').count(), 0, 'Collapsing history does not navigate away from Today');
+await page.getByRole('button', {name:'会话',exact:true}).click();
+await page.getByRole('button', {name:'创建会话',exact:true}).click();
+await page.locator('.conversation-page').waitFor();
+for (const width of [980, 1240, 1440]) {
+  await page.setViewportSize({width, height:680});
+  await page.screenshot({path:`/private/tmp/nooki-sidebar-${width}.png`});
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  const settings = await page.locator('.sidebar-settings').boundingBox();
+  assert.ok(settings.y + settings.height <= 680, 'Settings stays visible at the minimum desktop height');
+}
+await page.setViewportSize({width:1240, height:820});
 const historyRows = page.locator('#sidebar-conversation-history .nav-row-label');
 const showMore = page.getByRole('button', {name:'显示更多', exact:true});
 assert.equal(await historyRows.count(), 1);
@@ -82,8 +112,8 @@ assert.equal(await historyRows.count(), 10, 'Show more reveals five more convers
 await showMore.click();
 assert.equal(await historyRows.count(), 12);
 assert.equal(await showMore.count(), 0, 'Show more disappears when every conversation is visible');
-await page.getByRole('button', {name:'对话',exact:true}).click();
-await page.getByRole('button', {name:'对话',exact:true}).click();
+await page.getByRole('button', {name:'会话',exact:true}).click();
+await page.getByRole('button', {name:'会话',exact:true}).click();
 await showMore.waitFor();
 assert.equal(await historyRows.count(), 5, 'Closing and reopening the section restores the compact list');
 await page.evaluate(() => { window.qa.additional = []; window.dispatchEvent(new Event('workbench:conversations-changed')); });
@@ -131,7 +161,7 @@ await page.evaluate(()=>{
 await page.getByRole('button',{name:'刷新对话',exact:true}).click();
 await page.waitForTimeout(1700);
 assert.equal(await page.locator('.conversation-reasoning').filter({hasText:'保留已经收到的公开摘要'}).count(),1);
-await page.getByRole('button',{name:'新对话',exact:true}).click();
+await page.getByRole('button',{name:'创建会话',exact:true}).click();
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('马上显示的新会话');
 await page.getByRole('button',{name:'发送消息',exact:true}).click();
 await page.getByText('正在准备对话…',{exact:true}).waitFor({state:'visible',timeout:500});
