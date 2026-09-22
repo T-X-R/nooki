@@ -625,6 +625,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .nav-conversation-history > button[aria-current="page"] { background: var(--accent-soft); color: var(--accent-strong); }
 .nav-conversation-history button > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .nav-conversation-history button > svg { width: 12px; height: 12px; }
+.nav-conversation-history > .nav-conversation-more { width: fit-content; margin-top: 4px; font-size: 10px; font-weight: 400; color: var(--accent-strong); }
+.nav-conversation-history > .nav-conversation-more:hover { color: var(--accent-strong); }
+.nav-conversation-more > svg { flex: none; }
 .nav-conversation-history p { padding: 4px 8px; margin: 0; font-size: 9px; line-height: 1.6; color: var(--ink-soft); overflow-wrap: anywhere; }
 .activity-section .activity-heading { align-items: baseline; margin-top: 8px; }
 .activity-section .activity-heading h2 { margin: 0; }

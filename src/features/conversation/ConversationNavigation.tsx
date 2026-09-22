@@ -1,4 +1,4 @@
-import { ArchiveIcon, ChatBubbleIcon, ChevronRightIcon, PlusIcon } from '@radix-ui/react-icons'
+import { ArchiveIcon, ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon, PlusIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { conversationClient } from './conversation-client.ts'
 import { CONVERSATION_OWNER, type Conversation, type ConversationInput } from './conversation-model.ts'
@@ -65,7 +65,7 @@ export function ConversationNavigation({ language, active, selectedId, onEnter, 
       {busy && <p role="status">{zh ? '正在读取会话…' : 'Loading conversations…'}</p>}
       {error && <><p role="alert">{error}</p><button disabled={busy} onClick={() => setRefresh((value) => value + 1)}>{zh ? '重试' : 'Retry'}</button></>}
       {!busy && !error && !visibleSessions.length && <p>{zh ? '还没有历史会话' : 'No conversations yet'}</p>}
-      {(visibleCount < visibleSessions.length || cursor) && <button disabled={busy} onClick={() => void more()}>{zh ? '显示更多' : 'Show more'}</button>}
+      {(visibleCount < visibleSessions.length || cursor) && <button className="nav-conversation-more" disabled={busy} onClick={() => void more()}><span>{zh ? '显示更多' : 'Show more'}</span><ChevronDownIcon aria-hidden="true" /></button>}
     </div>}
   </div>
 }
