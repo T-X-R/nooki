@@ -36,7 +36,7 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
 
       <div className="sidebar-content">
         <nav className="primary-nav" aria-label={t('mainNavigation')}>
-          <button className={`nav-item nav-create-conversation ${activeView === 'conversations' && !activeConversationId ? 'is-active' : ''}`} aria-current={activeView === 'conversations' && !activeConversationId ? 'page' : undefined} onClick={() => onOpenConversation(null)}>
+          <button className={`nav-item ${activeView === 'conversations' && !activeConversationId ? 'is-active' : ''}`} aria-current={activeView === 'conversations' && !activeConversationId ? 'page' : undefined} onClick={() => onOpenConversation(null)}>
             <span className="nav-item-main"><Pencil2Icon />{language === 'zh' ? '创建会话' : 'New conversation'}</span>
           </button>
           <button className={`nav-item ${activeView === 'today' ? 'is-active' : ''}`} aria-current={activeView === 'today' ? 'page' : undefined} onClick={() => onNavigate('today')}>
