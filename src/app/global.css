@@ -78,10 +78,13 @@ svg { flex: none; }
 .app-workspace { display: flex; min-height: 0; flex: 1; overflow: hidden; }
 .sidebar { width: 228px; min-height: 0; flex: 0 0 228px; display: flex; flex-direction: column; overflow: hidden; padding: 20px 13px 10px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 86%, transparent); }
 .window-titlebar + .app-workspace .sidebar { padding-top: 60px; }
-.brand-lockup { display: flex; align-items: center; gap: 10px; padding: 0 8px 25px; }
+.brand-lockup { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 0 8px 25px; }
 .brand-mark { display: block; width: 29px; height: 29px; border-radius: 7px; object-fit: cover; }
 .brand-name { display: block; width: 80px; height: 30px; color: var(--ink); flex-shrink: 0; }
 .brand-name svg { display: block; width: 100%; height: 100%; }
+.brand-explore { flex: none; margin-left: auto; padding: 6px 8px; border-radius: 6px; background: var(--surface-muted); color: var(--ink-muted); font-size: 10px; font-weight: 500; white-space: nowrap; }
+.brand-explore:hover { color: var(--ink); }
+.brand-explore.is-active { background: var(--accent-soft); color: var(--accent-strong); }
 kbd { display: inline-flex; align-items: center; justify-content: center; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-muted); color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; line-height: 1; }
 .primary-nav { display: grid; gap: 2px; }
 .nav-item { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 7px 10px; border-radius: 8px; background: transparent; color: var(--ink-muted); transition: background .18s ease, color .18s ease; }
@@ -102,7 +105,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .nav-conversation-empty strong { font-size: 11px; font-weight: 500; }
 .nav-capabilities .nav-conversation-history > button { font-size: 11px; }
 .nav-capabilities .nav-conversation-history > button > svg { flex: none; }
-.sidebar-settings, .sidebar-capability-center { flex: none; }
+.sidebar-settings { flex: none; }
 .sidebar-footer { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 6px 7px 0; border-top: 1px solid var(--line); }
 .version-label { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
 .icon-button { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: transparent; color: var(--ink-muted); transition: background .18s ease, color .18s ease; }
@@ -447,7 +450,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
   .window-controls { gap: 6px; padding-left: 10px; }
   .window-titlebar + .app-workspace .sidebar { padding-top: 56px; }
   .sidebar { width: 66px; flex-basis: 66px; align-items: center; padding: 16px 9px 12px; }
-  .brand-lockup { padding: 0 0 18px; }
+  .brand-lockup { padding: 0 0 18px; flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+  .brand-explore { margin-left: 0; padding-inline: 4px; }
   .brand-name, .nav-item-main:not(svg), .nav-item .nav-item-main { font-size: 0; }
   .brand-name { display: none; }
   .brand-mark { width: 30px; height: 30px; }

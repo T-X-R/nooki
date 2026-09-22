@@ -71,7 +71,12 @@ const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});
 assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), ['Codex 每日总结', '日记']);
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await page.locator('#sidebar-installed-capabilities').count(), 0);
-await page.keyboard.press('Enter');
+const explore = page.locator('.brand-lockup').getByRole('button', {name:'探索',exact:true});
+await explore.focus(); await page.keyboard.press('Enter');
+await page.locator('.capabilities-page').waitFor();
+assert.equal(await explore.getAttribute('aria-current'), 'page');
+assert.equal(await page.locator('.sidebar').getByRole('button', {name:'能力中心',exact:true}).count(), 0);
+await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await capabilitiesToggle.getAttribute('aria-expanded'), 'true');
 await page.locator('#sidebar-installed-capabilities').getByRole('button', {name:'日记',exact:true}).click();
 await page.locator('.diary-page').waitFor();
@@ -87,6 +92,9 @@ for (const width of [980, 1240, 1440]) {
   await page.setViewportSize({width, height:680});
   await page.screenshot({path:`/private/tmp/nooki-sidebar-${width}.png`});
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  const sidebar = await page.locator('.sidebar').boundingBox();
+  const exploreBounds = await explore.boundingBox();
+  assert.ok(exploreBounds.x + exploreBounds.width <= sidebar.x + sidebar.width, 'Explore fits alongside the Nooki brand');
   const settings = await page.locator('.sidebar-settings').boundingBox();
   assert.ok(settings.y + settings.height <= 680, 'Settings stays visible at the minimum desktop height');
 }

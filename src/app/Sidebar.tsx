@@ -32,6 +32,7 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
             <path d="M123 5c3 0 4 3 2 5s-6 2-6-1 2-4 4-4Z" fill="currentColor" />
           </svg>
         </span>
+        <button className={`brand-explore ${activeView === 'capabilities' ? 'is-active' : ''}`} aria-current={activeView === 'capabilities' ? 'page' : undefined} title={t('exploreCapabilitiesHint')} onClick={() => onNavigate('capabilities')}>{t('capabilities')}</button>
       </div>
 
       <div className="sidebar-content">
@@ -63,10 +64,6 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
         </nav>
         <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onSelect={onOpenConversation} />
       </div>
-
-      <button className={`nav-item sidebar-capability-center ${activeView === 'capabilities' ? 'is-active' : ''}`} aria-current={activeView === 'capabilities' ? 'page' : undefined} onClick={() => onNavigate('capabilities')}>
-        <span className="nav-item-main"><CubeIcon />{t('capabilities')}</span>
-      </button>
 
       <button className={`nav-item sidebar-settings ${activeView === 'settings' ? 'is-active' : ''}`} onClick={() => onNavigate('settings')}>
         <span className="nav-item-main"><GearIcon />{t('settings')}</span>
