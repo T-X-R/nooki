@@ -18,6 +18,14 @@ export function ConversationQuestion({ threadId, turnId, item, active, answered,
     catch (e) { setError(String(e)); void conversationClient.read(threadId).catch(() => {}) }
     finally { pending.current = false; setSending(false) }
   }
+  if (done) return <form className="conversation-question is-answered" aria-label={zh ? '执行中的提问' : 'Task question'}>
+    <details>
+      <summary><strong>{zh ? '已回答' : 'Answered'}</strong><span>{zh ? '查看问题' : 'View question'}</span></summary>
+      <div className="conversation-question-history">{questions.map((question, index) => <fieldset key={index} disabled>
+        <legend>{question.title}</legend><ul>{question.options?.map((option, optionIndex) => <li key={optionIndex}>{option}</li>)}</ul>
+      </fieldset>)}</div>
+    </details>
+  </form>
   return <form className="conversation-question" aria-label={zh ? '执行中的提问' : 'Task question'} onSubmit={(event) => { event.preventDefault(); void send() }}>
     <header role="status"><strong>{title}</strong><span>{active ? (zh ? '任务仍在继续' : 'The task is still running') : (zh ? '本轮已结束' : 'This turn has ended')}</span></header>
     {questions.map((question, index) => <fieldset key={index} disabled={done || sending}>

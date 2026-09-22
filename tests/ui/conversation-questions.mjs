@@ -19,7 +19,7 @@ try {
       thread.turns[0].status = 'completed';
       thread.turns[0].items.push({ id: 'final', type: 'agentMessage', phase: 'final_answer', text: '周报已完成。' });
       persist(); this.emit('turn/completed', { threadId: thread.id, turn: structuredClone(thread.turns[0]) });
-    }, continue() { this.emit('item/reasoning/summaryTextDelta', { threadId: thread.id, turnId: 'turn', itemId: 'reason', summaryIndex: 0, delta: '\n正在整理工作记录' }); } };
+    }, later() { const item = { id: 'later', type: 'reasoning', summary: ['正在完成后续工作'] }; thread.turns[0].items.push(item); persist(); this.emit('item/completed', { threadId: thread.id, turnId: 'turn', item }); }, continue() { this.emit('item/reasoning/summaryTextDelta', { threadId: thread.id, turnId: 'turn', itemId: 'reason', summaryIndex: 0, delta: '\n正在整理工作记录' }); } };
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback(fn) { const id = nextId++; callbacks.set(id, fn); return id; }, unregisterCallback(id) { callbacks.delete(id); }, async invoke(command, args = {}) {
       if (command === 'plugin:event|listen') { events.set(args.event, args.handler); return args.handler; }
       if (command.startsWith('plugin:')) return null;
@@ -71,14 +71,30 @@ try {
   await submit.focus(); await page.keyboard.press('Enter'); await page.keyboard.press('Enter');
   await card.getByText('已回答', { exact: true }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.qa.answers), [{ threadId: 'questions', turnId: 'turn', itemId: 'question', answers: ['粘贴或手动填写工作记录（推荐）', '按项目分组'] }]);
-  assert.equal(await card.getByText('任务仍在继续', { exact: true }).isVisible(), true);
+  assert.equal(await card.locator('details').getAttribute('open'), null, 'Answered questions collapse automatically');
+  assert.equal(await card.getByText('周报素材主要从哪里来？', { exact: true }).isVisible(), false);
+  await card.locator('summary').focus(); await page.keyboard.press('Enter');
+  assert.equal(await card.getByText('周报素材主要从哪里来？', { exact: true }).isVisible(), true, 'The question remains available through keyboard expansion');
+  await page.evaluate(() => window.qa.later());
+  await page.getByText('正在完成后续工作', { exact: true }).waitFor();
+  assert.equal(await page.locator('.conversation-turn-process-body').evaluate(el => {
+    const question = el.querySelector('.conversation-question');
+    const later = [...el.querySelectorAll('.conversation-reasoning')].find(el => el.textContent === '正在完成后续工作');
+    return !!(question.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }), true, 'New progress follows the answered question in the process history');
+  assert.notEqual(await card.locator('details').getAttribute('open'), null, 'New progress does not close a question being reviewed');
+  await card.locator('summary').click();
+  await page.screenshot({ path: '/private/tmp/nooki-answered-question-collapsed.png' });
   await page.reload(); await openThread();
   await card.getByText('已回答', { exact: true }).waitFor();
+  assert.equal(await card.locator('details').getAttribute('open'), null, 'Reload restores the compact answered state');
   await page.evaluate(() => window.qa.finish());
   await page.locator('.conversation-answer').getByText('周报已完成。', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: '保存到资料库', exact: true }).count(), 1, 'Only the final answer can be saved');
   await page.reload(); await openThread();
+  await page.locator('.conversation-turn-process > summary').click();
   await card.getByText('已回答', { exact: true }).waitFor();
+  assert.equal(await card.locator('details').getAttribute('open'), null);
   assert.equal(await page.locator('.conversation-answer').count(), 1);
   // The turn can end after the person chooses an answer but before native steering accepts it.
   await page.evaluate(() => localStorage.removeItem('qa-question-thread'));
@@ -94,5 +110,5 @@ try {
   assert.equal(await card.getByText('如需补充，请在下方输入框继续发送消息。', { exact: true }).isVisible(), true);
   assert.deepEqual(await page.evaluate(() => window.qa.answers), []);
   assert.deepEqual(errors, []);
-  console.log('PASS: async question classification, continuing progress, options/free text, failed-send retry, keyboard submission, persisted answers and turn-end races');
+  console.log('PASS: async question classification, continuing progress, options/free text, failed-send retry, keyboard submission, persisted answers, compact history, chronological progress and turn-end races');
 } finally { await browser.close(); }
