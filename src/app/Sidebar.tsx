@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarIcon, ClockIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { CalendarIcon, ChevronRightIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, Pencil2Icon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../platform/capability-host.ts'
 import type { Organization } from '../platform/library-store.ts'
 import { LibraryNavigation } from '../features/library/LibraryNavigation.tsx'
@@ -12,6 +13,8 @@ import nookiIcon from '../assets/nooki-icon.png'
 export function Sidebar({ organization, organizationError, libraryTopicId, onSelectTopic, activeConversationId, onOpenConversation, activeView, activeCapabilityId, installed, onNavigate, onOpenCapability }: { organization: Organization; organizationError: string; libraryTopicId: string; onSelectTopic(id: string): void; activeConversationId: string | null; onOpenConversation(id: string | null): void; activeView: View; activeCapabilityId: string | null; installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void }) {
   const { t } = useTranslation()
   const { theme, setTheme, language } = useWorkbench()
+  const [capabilitiesExpanded, setCapabilitiesExpanded] = useState(true)
+  useEffect(() => { if (activeView === 'capability') setCapabilitiesExpanded(true) }, [activeView, activeCapabilityId])
   const enabledCapabilities = installed.filter((capability) => capability.enabled && capability.manifest.id !== LEGACY_REVIEW)
 
   return (
@@ -29,37 +32,38 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
             <path d="M123 5c3 0 4 3 2 5s-6 2-6-1 2-4 4-4Z" fill="currentColor" />
           </svg>
         </span>
+        <button className={`brand-explore ${activeView === 'capabilities' ? 'is-active' : ''}`} aria-current={activeView === 'capabilities' ? 'page' : undefined} title={t('exploreCapabilitiesHint')} onClick={() => onNavigate('capabilities')}>{t('capabilities')}</button>
       </div>
 
-      <div className="sidebar-label">{t('workspace')}</div>
-      <nav className="primary-nav" aria-label={t('mainNavigation')}>
-        <button className={`nav-item ${activeView === 'today' ? 'is-active' : ''}`} aria-current={activeView === 'today' ? 'page' : undefined} onClick={() => onNavigate('today')}>
-          <span className="nav-item-main"><CalendarIcon />{t('today')}</span>
-          <span className="nav-hint">01</span>
-        </button>
-        <LibraryNavigation language={language} active={activeView === 'library'} topicId={libraryTopicId} organization={organization} error={organizationError} onEnter={() => onNavigate('library')} onSelect={onSelectTopic} />
-        <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
-          <span className="nav-item-main"><LayersIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
-        </button>
-        <button className={`nav-item ${activeView === 'tasks' ? 'is-active' : ''}`} aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}>
-          <span className="nav-item-main"><ClockIcon />{language === 'zh' ? '任务' : 'Tasks'}</span>
-        </button>
-        {enabledCapabilities.map((capability) => {
-          const active = activeView === 'capability' && activeCapabilityId === capability.manifest.id
-          return (
-            <button key={capability.manifest.id} className={`nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} onClick={() => onOpenCapability(capability.manifest.id)}>
-              <span className="nav-item-main"><CapabilityIcon name={capability.manifest.icon} />{capabilityCopy(capability, language).name}</span>
+      <div className="sidebar-content">
+        <nav className="primary-nav" aria-label={t('mainNavigation')}>
+          <button className={`nav-item ${activeView === 'conversations' && !activeConversationId ? 'is-active' : ''}`} aria-current={activeView === 'conversations' && !activeConversationId ? 'page' : undefined} onClick={() => onOpenConversation(null)}>
+            <span className="nav-item-main"><Pencil2Icon />{language === 'zh' ? '创建会话' : 'New conversation'}</span>
+          </button>
+          <button className={`nav-item ${activeView === 'today' ? 'is-active' : ''}`} aria-current={activeView === 'today' ? 'page' : undefined} onClick={() => onNavigate('today')}>
+            <span className="nav-item-main"><CalendarIcon />{t('today')}</span>
+          </button>
+          <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
+            <span className="nav-item-main"><LayersIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
+          </button>
+          <LibraryNavigation language={language} active={activeView === 'library'} topicId={libraryTopicId} organization={organization} error={organizationError} onEnter={() => onNavigate('library')} onSelect={onSelectTopic} />
+          <div className="nav-conversations nav-capabilities">
+            <button className="nav-item" aria-expanded={capabilitiesExpanded} aria-controls="sidebar-installed-capabilities" onClick={() => setCapabilitiesExpanded((value) => !value)}>
+              <span className="nav-item-main"><CubeIcon />{language === 'zh' ? '能力' : 'Capabilities'}</span><ChevronRightIcon />
             </button>
-          )
-        })}
-        <button className={`nav-item ${activeView === 'capabilities' ? 'is-active' : ''}`} aria-current={activeView === 'capabilities' ? 'page' : undefined} onClick={() => onNavigate('capabilities')}>
-          <span className="nav-item-main"><CubeIcon />{t('capabilities')}</span>
-          <span className="nav-hint">—</span>
-        </button>
-        <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
-      </nav>
-
-      <div className="sidebar-spacer" />
+            {capabilitiesExpanded && <div className="nav-conversation-history" id="sidebar-installed-capabilities">
+              {enabledCapabilities.map((capability) => {
+                const active = activeView === 'capability' && activeCapabilityId === capability.manifest.id
+                return <button key={capability.manifest.id} title={capabilityCopy(capability, language).name} aria-current={active ? 'page' : undefined} onClick={() => onOpenCapability(capability.manifest.id)}>
+                  <CapabilityIcon name={capability.manifest.icon} /><span>{capabilityCopy(capability, language).name}</span>
+                </button>
+              })}
+              {!enabledCapabilities.length && <p>{language === 'zh' ? '暂无已启用的能力' : 'No enabled capabilities yet'}</p>}
+            </div>}
+          </div>
+        </nav>
+        <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onSelect={onOpenConversation} />
+      </div>
 
       <button className={`nav-item sidebar-settings ${activeView === 'settings' ? 'is-active' : ''}`} onClick={() => onNavigate('settings')}>
         <span className="nav-item-main"><GearIcon />{t('settings')}</span>

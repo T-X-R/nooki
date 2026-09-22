@@ -125,14 +125,13 @@ try {
   await page.evaluate(() => document.documentElement.dataset.theme = 'dark');
   await page.waitForTimeout(300);
   await page.screenshot({ path: '/private/tmp/nooki-library-dark.png' });
-  await page.getByRole('button', { name: '对话', exact: true }).click();
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).click();
   // The conversation surface carries one conversation and its composer, and nothing put away.
   assert.equal(await page.locator('.conversation-page .settings-archive-section').count(), 0);
   assert.equal(await page.locator('#sidebar-conversation-history').getByRole('button', { name: '已归档会话', exact: true }).count(), 0);
   await page.mouse.move(1200, 800);
   await page.waitForTimeout(200);
-  assert.notEqual(await page.getByRole('button', { name: '对话', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), await page.getByRole('button', { name: '整理本周的想法', exact: true }).evaluate(el => getComputedStyle(el.closest('.nav-list-row')).backgroundColor));
+  assert.notEqual(await page.getByRole('button', { name: '会话', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), await page.getByRole('button', { name: '整理本周的想法', exact: true }).evaluate(el => getComputedStyle(el.closest('.nav-list-row')).backgroundColor));
   await page.evaluate(() => window.qa.failArchive = true);
   await page.getByRole('button', { name: '归档会话：整理本周的想法', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Archive failed' }).waitFor();
