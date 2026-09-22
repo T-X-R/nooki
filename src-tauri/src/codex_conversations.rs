@@ -117,7 +117,7 @@ impl CodexConversations {
   pub async fn list(&self, cursor: Option<String>, archived: bool) -> Result<Value, String> {
     let mut paths = conversation_documents::workspaces(&self.root)?;
     paths.push(self.workspace());
-    self.connect().await?.request("thread/list", json!({"cwd":paths,"cursor":cursor,"archived":archived,"limit":40,"sortKey":"updated_at","sourceKinds":[],"modelProviders":[]})).await
+    self.connect().await?.request("thread/list", json!({"cwd":paths,"cursor":cursor,"archived":archived,"limit":40,"sortKey":"created_at","sortDirection":"desc","sourceKinds":[],"modelProviders":[]})).await
   }
   pub async fn change(&self, id: &str, action: ConversationAction) -> Result<(), String> {
     let client = self.connect().await?;

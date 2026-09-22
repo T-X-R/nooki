@@ -42,6 +42,8 @@ pub(crate) struct NativeSession {
     #[serde(default)]
     pub(crate) native_started: bool,
     pub(crate) preview: String,
+    #[serde(default)]
+    pub(crate) created_at: Option<u64>,
     pub(crate) updated_at: u64,
     pub(crate) archived: bool,
     pub(crate) turns: Vec<Value>,
@@ -89,7 +91,11 @@ impl ConversationHost {
         format!("{agent}-{}-{}", Self::now(), std::process::id())
     }
     fn view(session: &NativeSession) -> Value {
-        json!({"id": session.id, "agent": session.agent, "preview": session.preview, "updatedAt": session.updated_at, "archived": session.archived, "status": {"type": "idle"}, "turns": session.turns})
+        // Older catalogs encode creation milliseconds in the native session ID.
+        let created_at = session.created_at.unwrap_or_else(|| {
+            session.id.split('-').nth(1).and_then(|value| value.parse::<u64>().ok()).unwrap_or_default()
+        });
+        json!({"id": session.id, "agent": session.agent, "preview": session.preview, "createdAt": created_at as f64 / 1000.0, "updatedAt": session.updated_at, "archived": session.archived, "status": {"type": "idle"}, "turns": session.turns})
     }
     pub fn owns(&self, id: &str) -> Result<bool, String> {
         Ok(self.load()?.sessions.contains_key(id))
@@ -128,6 +134,7 @@ impl ConversationHost {
         } else {
             id.clone()
         };
+        let now = Self::now();
         let session = NativeSession {
             id: id.clone(),
             agent: agent.into(),
@@ -135,7 +142,8 @@ impl ConversationHost {
             session_file: (agent == "pi").then(|| format!("agent-sessions/{id}.jsonl")),
             native_started: false,
             preview: String::new(),
-            updated_at: Self::now(),
+            created_at: Some(now),
+            updated_at: now,
             archived: false,
             turns: Vec::new(),
         };

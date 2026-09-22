@@ -11,7 +11,7 @@ test('conversation runtime label follows the native session agent', () => {
 })
 
 test('an open conversation names its own agent and only an empty page speaks for the selection', () => {
-  const thread = (agent?: string): Conversation => ({ id: 'session-a', agent, preview: '', updatedAt: 0, turns: [] })
+  const thread = (agent?: string): Conversation => ({ id: 'session-a', agent, preview: '', createdAt: 0, updatedAt: 0, turns: [] })
   // Nothing open yet: the toolbar is the only hint about what the next conversation will use.
   assert.equal(conversationRuntimeName(undefined, 'pi'), 'pi')
   assert.equal(conversationRuntimeName(undefined, 'codex'), 'Codex')
@@ -23,7 +23,7 @@ test('an open conversation names its own agent and only an empty page speaks for
 })
 
 test('Codex events preserve turn/item order, stream summaries and replace deltas with authoritative completed items', () => {
-  let thread: Conversation = { id: 'session-a', preview: '', updatedAt: 0, turns: [] }
+  let thread: Conversation = { id: 'session-a', preview: '', createdAt: 0, updatedAt: 0, turns: [] }
   const apply = (method: string, params: any) => { thread = applyConversationEvent(thread, { method, params: { threadId: thread.id, turnId: 't1', ...params } }) }
   apply('turn/started', { turn: { id: 't1', status: 'inProgress', items: [] } })
   apply('item/started', { item: { id: 'u1', type: 'userMessage', content: [{ type: 'text', text: 'Hello' }] } })
@@ -72,7 +72,7 @@ test('platform tasks share the existing runner, isolate concurrent sessions and 
 })
 
 test('sparse completion events retain the public summary received while streaming', () => {
-  let thread: Conversation = { id: 'summary-session', preview: '', updatedAt: 0, turns: [] }
+  let thread: Conversation = { id: 'summary-session', preview: '', createdAt: 0, updatedAt: 0, turns: [] }
   const apply = (method: string, params: any) => { thread = applyConversationEvent(thread, { method, params: { threadId: thread.id, turnId: 'turn', ...params } }) }
   apply('item/reasoning/summaryTextDelta', { itemId: 'reason', summaryIndex: 0, delta: 'Checking document sources' })
   apply('item/completed', { item: { id: 'reason', type: 'reasoning', summary: [], content: [] } })
@@ -128,7 +128,7 @@ test('completed turn duration uses runtime timing and formats hours, minutes and
   assert.equal(conversationDuration({ ...turn, startedAt: 200, completedAt: 100 }, true), null)
   assert.equal(conversationDuration({ ...turn, durationMs: Infinity }, true), null)
   assert.equal(conversationDuration({ ...turn, durationMs: 60_000 }, true), '1分')
-  let live: Conversation = { id: 'timed', preview: '', updatedAt: 0, turns: [{ ...turn, status: 'inProgress', startedAt: 100 }] }
+  let live: Conversation = { id: 'timed', preview: '', createdAt: 0, updatedAt: 0, turns: [{ ...turn, status: 'inProgress', startedAt: 100 }] }
   live = applyConversationEvent(live, { method: 'turn/completed', params: { threadId: 'timed', turn: { ...turn, completedAt: 165 } } })
   assert.equal(conversationDuration(live.turns[0], true), '1分 5秒')
 })
