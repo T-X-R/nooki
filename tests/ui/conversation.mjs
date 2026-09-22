@@ -37,7 +37,7 @@ await page.addInitScript(()=>{
   if(command==='tasks_read')return tasks;
   if(command==='tasks_write'){tasks=args.records;return}
   if(command==='conversation_list' && args.cursor)return {data:[{id:'earliest',preview:'更早创建但最近更新',createdAt:0,updatedAt:9999999999,turns:[]}],nextCursor:null};
-  if(command==='conversation_list')return {data:[...(current ? [{...current,turns:[]}] : []),{...old,turns:[]}],nextCursor:window.qa.more ? 'older-page' : null};
+  if(command==='conversation_list')return {data:[...(current ? [{...current,turns:[]}] : []),{...old,turns:[]},...(window.qa.additional || [])],nextCursor:window.qa.more ? 'older-page' : null};
   if(command==='conversation_read'){await new Promise(r=>setTimeout(r,window.qa.readDelay));return structuredClone(args.id==='old'?old:current??{id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]})}
   if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));return {id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]}}
   if(command==='conversation_run')return new Promise(resolve=>{
@@ -59,6 +59,35 @@ await page.addInitScript(()=>{
  }};
 });
 await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
+await page.getByRole('button',{name:'历史测试会话',exact:true}).waitFor();
+assert.deepEqual(await page.locator('.primary-nav > :nth-last-child(-n+2) .nav-item-main').allTextContents(), ['能力中心', '对话'], 'Conversations follow Capability Center at the bottom');
+const historyRows = page.locator('#sidebar-conversation-history .nav-row-label');
+const showMore = page.getByRole('button', {name:'显示更多', exact:true});
+assert.equal(await historyRows.count(), 1);
+assert.equal(await showMore.count(), 0, 'Short histories need no expansion button');
+await page.evaluate(() => {
+ window.qa.additional = Array.from({length:4}, (_,i) => ({id:'extra-'+i,preview:'较早会话 '+(i+1),createdAt:-i,updatedAt:999,turns:[]}));
+ window.dispatchEvent(new Event('workbench:conversations-changed'));
+});
+await page.waitForFunction(() => document.querySelectorAll('#sidebar-conversation-history .nav-row-label').length === 5);
+assert.equal(await showMore.count(), 0, 'Exactly five conversations need no expansion button');
+await page.evaluate(() => {
+ window.qa.additional = Array.from({length:11}, (_,i) => ({id:'extra-'+i,preview:'较早会话 '+(i+1),createdAt:-i,updatedAt:999,turns:[]}));
+ window.dispatchEvent(new Event('workbench:conversations-changed'));
+});
+await showMore.waitFor();
+assert.equal(await historyRows.count(), 5, 'Long histories initially show five conversations');
+await showMore.focus(); await page.keyboard.press('Enter');
+assert.equal(await historyRows.count(), 10, 'Show more reveals five more conversations using the keyboard');
+await showMore.click();
+assert.equal(await historyRows.count(), 12);
+assert.equal(await showMore.count(), 0, 'Show more disappears when every conversation is visible');
+await page.getByRole('button', {name:'对话',exact:true}).click();
+await page.getByRole('button', {name:'对话',exact:true}).click();
+await showMore.waitFor();
+assert.equal(await historyRows.count(), 5, 'Closing and reopening the section restores the compact list');
+await page.evaluate(() => { window.qa.additional = []; window.dispatchEvent(new Event('workbench:conversations-changed')); });
+await page.waitForFunction(() => document.querySelectorAll('#sidebar-conversation-history .nav-row-label').length === 1);
 await page.getByRole('button',{name:'历史测试会话',exact:true}).click();
 await page.getByText('正在读取对话…',{exact:true}).waitFor({state:'visible',timeout:500});
 const historyProcess=page.locator('.conversation-turn-process');
@@ -135,9 +164,9 @@ await page.evaluate(() => {
  window.qa.more = true;
  window.dispatchEvent(new Event('workbench:conversations-changed'));
 });
-await page.getByRole('button', {name:'更早的对话',exact:true}).waitFor();
+await page.getByRole('button', {name:'显示更多',exact:true}).waitFor();
 assert.deepEqual(await sidebarTitles(), ['马上显示的新会话', '历史测试会话'], 'Updating an older conversation must not move it');
-await page.getByRole('button', {name:'更早的对话',exact:true}).click();
+await page.getByRole('button', {name:'显示更多',exact:true}).click();
 await page.getByRole('button', {name:'更早创建但最近更新',exact:true}).waitFor();
 assert.deepEqual(await sidebarTitles(), ['马上显示的新会话', '历史测试会话', '更早创建但最近更新'], 'Older pages stay in creation order');
 

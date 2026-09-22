@@ -41,7 +41,6 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
         <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
           <span className="nav-item-main"><LayersIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
         </button>
-        <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
         <button className={`nav-item ${activeView === 'tasks' ? 'is-active' : ''}`} aria-current={activeView === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}>
           <span className="nav-item-main"><ClockIcon />{language === 'zh' ? '任务' : 'Tasks'}</span>
         </button>
@@ -57,6 +56,7 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
           <span className="nav-item-main"><CubeIcon />{t('capabilities')}</span>
           <span className="nav-hint">—</span>
         </button>
+        <ConversationNavigation language={language} active={activeView === 'conversations'} selectedId={activeConversationId} onEnter={() => onNavigate('conversations')} onSelect={onOpenConversation} />
       </nav>
 
       <div className="sidebar-spacer" />
