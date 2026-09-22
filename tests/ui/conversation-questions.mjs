@@ -47,6 +47,7 @@ try {
   await openThread();
   const card = page.getByRole('form', { name: '执行中的提问', exact: true });
   await card.waitFor();
+  assert.equal(await card.evaluate(el => !!el.closest('.conversation-turn-process-body')), true, 'Questions start inside the process history before being answered');
   assert.equal(await card.getByText('待你回答', { exact: true }).isVisible(), true);
   assert.equal(await card.getByText('任务仍在继续', { exact: true }).isVisible(), true);
   assert.equal(await page.locator('.conversation-answer').count(), 0, 'A final_answer phase on an async question does not create a final answer');
@@ -72,9 +73,11 @@ try {
   await card.getByText('已回答', { exact: true }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.qa.answers), [{ threadId: 'questions', turnId: 'turn', itemId: 'question', answers: ['粘贴或手动填写工作记录（推荐）', '按项目分组'] }]);
   assert.equal(await card.locator('details').getAttribute('open'), null, 'Answered questions collapse automatically');
+  assert.equal(await page.locator('.conversation-user').count(), 1, 'The clarification reply is not repeated as a top-level user bubble');
   assert.equal(await card.getByText('周报素材主要从哪里来？', { exact: true }).isVisible(), false);
   await card.locator('summary').focus(); await page.keyboard.press('Enter');
   assert.equal(await card.getByText('周报素材主要从哪里来？', { exact: true }).isVisible(), true, 'The question remains available through keyboard expansion');
+  assert.equal(await card.locator('.conversation-question-response p').innerText(), '粘贴或手动填写工作记录（推荐）\n按项目分组', 'Expanding history shows the submitted answers together with the questions');
   await page.evaluate(() => window.qa.later());
   await page.getByText('正在完成后续工作', { exact: true }).waitFor();
   assert.equal(await page.locator('.conversation-turn-process-body').evaluate(el => {
@@ -83,11 +86,16 @@ try {
     return !!(question.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING);
   }), true, 'New progress follows the answered question in the process history');
   assert.notEqual(await card.locator('details').getAttribute('open'), null, 'New progress does not close a question being reviewed');
+  await page.screenshot({ path: '/private/tmp/nooki-question-answer-expanded.png' });
   await card.locator('summary').click();
   await page.screenshot({ path: '/private/tmp/nooki-answered-question-collapsed.png' });
   await page.reload(); await openThread();
   await card.getByText('已回答', { exact: true }).waitFor();
   assert.equal(await card.locator('details').getAttribute('open'), null, 'Reload restores the compact answered state');
+  assert.equal(await page.locator('.conversation-user').count(), 1);
+  await card.locator('summary').click();
+  assert.equal(await card.locator('.conversation-question-response p').innerText(), '粘贴或手动填写工作记录（推荐）\n按项目分组', 'Native answer history survives refresh');
+  await card.locator('summary').click();
   await page.evaluate(() => window.qa.finish());
   await page.locator('.conversation-answer').getByText('周报已完成。', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: '保存到资料库', exact: true }).count(), 1, 'Only the final answer can be saved');
@@ -103,6 +111,8 @@ try {
   await card.getByRole('textbox').nth(1).fill('简短一些');
   await page.evaluate(() => { window.qa.endOnAnswer = true; });
   await submit.click();
+  await page.locator('.conversation-answer').getByText('周报已完成。', { exact: true }).waitFor();
+  await page.locator('.conversation-turn-process > summary').click();
   await card.getByText('本轮已结束', { exact: true }).waitFor();
   assert.equal(await card.getByText('已回答', { exact: true }).count(), 0);
   assert.equal(await card.getByRole('button').count(), 0);
@@ -110,5 +120,5 @@ try {
   assert.equal(await card.getByText('如需补充，请在下方输入框继续发送消息。', { exact: true }).isVisible(), true);
   assert.deepEqual(await page.evaluate(() => window.qa.answers), []);
   assert.deepEqual(errors, []);
-  console.log('PASS: async question classification, continuing progress, options/free text, failed-send retry, keyboard submission, persisted answers, compact history, chronological progress and turn-end races');
+  console.log('PASS: async question classification, continuing progress, options/free text, failed-send retry, keyboard submission, persisted answers, paired question/answer history, no duplicate reply bubbles, chronological progress and turn-end races');
 } finally { await browser.close(); }

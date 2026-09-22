@@ -2,14 +2,15 @@ import { useRef, useState } from 'react'
 import { conversationClient } from './conversation-client.ts'
 import type { ConversationItem } from './conversation-model.ts'
 
-export function ConversationQuestion({ threadId, turnId, item, active, answered, zh }: { threadId: string; turnId: string; item: ConversationItem; active: boolean; answered: boolean; zh: boolean }) {
+export function ConversationQuestion({ threadId, turnId, item, active, reply, zh }: { threadId: string; turnId: string; item: ConversationItem; active: boolean; reply?: ConversationItem; zh: boolean }) {
   const questions = item.questions ?? []
   const [answers, setAnswers] = useState<string[]>(() => questions.map(() => ''))
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pending = useRef(false)
-  const done = answered || sent
+  const done = !!reply || sent
+  const replyText = reply?.content?.filter((part) => part.type === 'text').map((part) => part.text).join('\n') ?? answers.join('\n')
   const title = done ? (zh ? '已回答' : 'Answered') : active ? (zh ? '待你回答' : 'Your input requested') : (zh ? '执行中的提问' : 'Question asked during the task')
   const send = async () => {
     if (pending.current || done || !active) return
@@ -20,10 +21,10 @@ export function ConversationQuestion({ threadId, turnId, item, active, answered,
   }
   if (done) return <form className="conversation-question is-answered" aria-label={zh ? '执行中的提问' : 'Task question'}>
     <details>
-      <summary><strong>{zh ? '已回答' : 'Answered'}</strong><span>{zh ? '查看问题' : 'View question'}</span></summary>
+      <summary><strong>{zh ? '已回答' : 'Answered'}</strong><span>{zh ? '查看问答' : 'View question and answer'}</span></summary>
       <div className="conversation-question-history">{questions.map((question, index) => <fieldset key={index} disabled>
-        <legend>{question.title}</legend><ul>{question.options?.map((option, optionIndex) => <li key={optionIndex}>{option}</li>)}</ul>
-      </fieldset>)}</div>
+        <legend>{question.title}</legend>
+      </fieldset>)}<div className="conversation-question-response"><strong>{zh ? '你的回答' : 'Your answer'}</strong><p>{replyText}</p></div></div>
     </details>
   </form>
   return <form className="conversation-question" aria-label={zh ? '执行中的提问' : 'Task question'} onSubmit={(event) => { event.preventDefault(); void send() }}>

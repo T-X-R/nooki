@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applyConversationEvent, conversationAgentName, conversationRuntimeName, libraryContext, isConversationProcessItem, isConversationAnswer, isAsyncQuestion, asyncQuestionAnswered, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
+import { applyConversationEvent, conversationAgentName, conversationRuntimeName, libraryContext, isConversationProcessItem, isConversationAnswer, isAsyncQuestion, asyncQuestionAnswered, asyncQuestionReply, waitingForInitialResponse, conversationDuration, type Conversation } from '../src/features/conversation/conversation-model.ts'
 import { createTaskRunner } from '../src/platform/task-runner.ts'
 import { parseReferenceHref, referenceHref } from '../packages/capability-contract/src/references.ts'
 
@@ -21,6 +21,9 @@ test('async questions stay distinct from final answers through streaming, comple
   thread = applyConversationEvent(thread, { method: 'turn/completed', params: { threadId: thread.id, turn: { id: 'turn', status: 'completed', items: [question, user, answer] } } })
   const history: Conversation = JSON.parse(JSON.stringify(thread))
   assert.equal(asyncQuestionAnswered(history.turns, question.id), true)
+  assert.deepEqual(asyncQuestionReply(history.turns, question.id), user)
+  assert.equal(asyncQuestionReply(history.turns, "missing"), undefined)
+  assert.deepEqual(asyncQuestionReply([{ id: "other-turn", status: "completed", items: [user] }], question.id), user)
   assert.deepEqual(history.turns[0].items.filter(isConversationAnswer), [answer])
   assert.equal(isConversationAnswer({ id: 'legacy', type: 'agentMessage', text: 'Legacy answer' }), true)
 })

@@ -41,8 +41,12 @@ export function isConversationAnswer(item: ConversationItem): boolean {
   return item.type === 'agentMessage' && item.delivery !== 'async' && item.phase !== 'commentary'
 }
 
+export function asyncQuestionReply(turns: readonly ConversationTurn[], itemId: string): ConversationItem | undefined {
+  return turns.flatMap((turn) => turn.items).find((item) => item.type === 'userMessage' && item.clientId === `async-answer-${itemId}`)
+}
+
 export function asyncQuestionAnswered(turns: readonly ConversationTurn[], itemId: string): boolean {
-  return turns.some((turn) => turn.items.some((item) => item.type === 'userMessage' && item.clientId === `async-answer-${itemId}`))
+  return !!asyncQuestionReply(turns, itemId)
 }
 
 export function waitingForInitialResponse(turns: readonly ConversationTurn[], hasEarlierTurns = false): boolean {
