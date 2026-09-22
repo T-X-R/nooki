@@ -95,8 +95,10 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .sidebar-content .primary-nav { overflow: visible; }
 .sidebar-conversations { margin-top: 24px; }
 .sidebar-conversations > .nav-item { color: var(--ink-soft); }
-.sidebar-conversations > .nav-item .nav-item-main { font-size: 10px; font-weight: 600; letter-spacing: .08em; }
-.sidebar-conversations > .nav-conversation-history { margin: 6px 0 0; padding: 8px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+.sidebar-conversations > .nav-item .nav-item-main { font-size: 10px; font-weight: 500; }
+.sidebar-conversations > .nav-conversation-history { margin: 2px 0 0; padding: 0; border: 0; }
+.sidebar-conversations .nav-list-row .nav-row-label { font-size: 12px; font-weight: 500; }
+.sidebar-conversations .nav-row-label:not([aria-current="page"]) { color: var(--ink); }
 .nav-conversation-empty { padding: 24px 8px; text-align: center; color: var(--ink-soft); }
 .nav-conversation-empty strong { font-size: 11px; font-weight: 500; }
 .nav-capabilities .nav-conversation-history > button { font-size: 11px; }
