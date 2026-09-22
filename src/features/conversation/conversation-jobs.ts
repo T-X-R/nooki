@@ -9,6 +9,13 @@ import { validateAttachments } from './conversation-documents.ts'
 export { CONVERSATION_OWNER } from './conversation-model.ts'
 
 export const respond: TaskJob = {
+  async recover(value, { step, executionId, signal }) {
+    const input = value as ConversationInput
+    return step('codex-turn', async (): Promise<ConversationResult> => {
+      signal.throwIfAborted()
+      return invoke('conversation_reconnect', { threadId: input.threadId, requestId: executionId.split(':')[0], executionId })
+    })
+  },
   async run(value, { step, executionId, signal }) {
     const input = value as ConversationInput
     if (!input.threadId || !input.message.trim() || !Array.isArray(input.documentIds) || input.documentIds.length > 50) throw new Error('Invalid conversation input')

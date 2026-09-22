@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::Digest;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio_util::sync::CancellationToken;
@@ -24,7 +24,7 @@ pub struct ConversationHost {
     root: PathBuf,
     codex: CodexConversations,
     sink: Arc<dyn Fn(Value) + Send + Sync>,
-    running: Mutex<HashSet<String>>,
+    worker_executable: PathBuf,
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -55,8 +55,12 @@ impl ConversationHost {
             root: root.clone(),
             codex: CodexConversations::new(binary, root, sink.clone()),
             sink,
-            running: Mutex::new(HashSet::new()),
+            worker_executable: std::env::current_exe().unwrap_or_default(),
         }
+    }
+    pub fn with_worker_executable(mut self, executable: PathBuf) -> Self {
+        self.worker_executable = executable;
+        self
     }
     fn catalog_path(&self) -> PathBuf {
         self.root.join("conversation-agents.json")
@@ -65,10 +69,11 @@ impl ConversationHost {
         if !self.catalog_path().exists() {
             return Ok(Catalog::default());
         }
-        serde_json::from_slice(
+        let mut catalog: Catalog = serde_json::from_slice(
             &std::fs::read(self.catalog_path()).map_err(|_| "无法读取会话 agent 映射")?,
-        )
-        .map_err(|_| "会话 agent 映射损坏".into())
+        ).map_err(|_| "会话 agent 映射损坏")?;
+        for session in catalog.sessions.values_mut() { crate::native_background::merge(&self.root, session)?; }
+        Ok(catalog)
     }
     fn save(&self, catalog: &Catalog) -> Result<(), String> {
         std::fs::create_dir_all(&self.root).map_err(|_| "无法创建会话 agent 映射目录")?;
@@ -95,7 +100,7 @@ impl ConversationHost {
         let created_at = session.created_at.unwrap_or_else(|| {
             session.id.split('-').nth(1).and_then(|value| value.parse::<u64>().ok()).unwrap_or_default()
         });
-        json!({"id": session.id, "agent": session.agent, "preview": session.preview, "createdAt": created_at as f64 / 1000.0, "updatedAt": session.updated_at, "archived": session.archived, "status": {"type": "idle"}, "turns": session.turns})
+        json!({"id": session.id, "agent": session.agent, "preview": session.preview, "createdAt": created_at as f64 / 1000.0, "updatedAt": session.updated_at, "archived": session.archived, "status": {"type": if session.turns.iter().any(|turn| turn["status"] == "inProgress") { "active" } else { "idle" }}, "turns": session.turns})
     }
     pub fn owns(&self, id: &str) -> Result<bool, String> {
         Ok(self.load()?.sessions.contains_key(id))
@@ -158,6 +163,20 @@ impl ConversationHost {
         }
         self.codex.read(id, cursor).await
     }
+    pub async fn answer_question(&self, thread_id: &str, turn_id: &str, item_id: &str, answers: &[String]) -> Result<(), String> {
+        if self.owns(thread_id)? { return Err("This agent does not support async questions".into()); }
+        self.codex.answer_question(thread_id, turn_id, item_id, answers).await
+    }
+    pub async fn reconnect(&self, thread_id: &str, request_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
+        if let Some(session) = self.load()?.sessions.get(thread_id) {
+            if let Some(turn) = session.turns.iter().find(|turn| turn["status"] == "completed" && turn["items"].as_array().is_some_and(|items| items.iter().any(|item| item["clientId"] == request_id))) {
+                (self.sink)(json!({"method":"turn/completed","params":{"threadId":thread_id,"turn":turn}}));
+                return Ok(json!({"threadId":thread_id,"turnId":turn["id"],"artifacts":turn["artifacts"]}));
+            }
+            return crate::native_background::observe(&self.root, thread_id, request_id, &self.sink, cancelled).await;
+        }
+        self.codex.reconnect(thread_id, request_id, cancelled).await
+    }
     pub async fn change(&self, id: &str, action: ConversationAction) -> Result<(), String> {
         let action_name = match action {
             ConversationAction::Archive => "archive",
@@ -195,48 +214,11 @@ impl ConversationHost {
         // the turn here instead of reaching an agent as a command it cannot answer.
         let skills = conversation_skills::resolve(pool, &request.skills)?;
         if let Some(session) = self.load()?.sessions.get(&request.thread_id).cloned() {
-            if let Some(turn) = session.turns.iter().find(|turn| {
-                turn["items"].as_array().is_some_and(|items| {
-                    items
-                        .iter()
-                        .any(|item| item["clientId"] == request.request_id)
-                })
-            }) {
-                return Ok(
-                    json!({"threadId": request.thread_id, "turnId": turn["id"], "artifacts": turn["artifacts"].clone()}),
-                );
+            if session.turns.iter().any(|turn| turn["items"].as_array().is_some_and(|items| items.iter().any(|item| item["clientId"] == request.request_id))) {
+                return self.reconnect(&request.thread_id, &request.request_id, cancelled).await;
             }
-            let inserted = self
-                .running
-                .lock()
-                .map_err(|_| "Native conversation state unavailable")?
-                .insert(request.thread_id.clone());
-            if !inserted {
-                return Err("This conversation is already running. Wait for it to finish before sending another message.".into());
-            }
-            let native_result = crate::native_agent_sessions::run(
-                &self.root, &self.sink, &session, pool.agents(), request, &skills, cancelled,
-            )
-            .await;
-            self.running
-                .lock()
-                .map_err(|_| "Native conversation state unavailable")?
-                .remove(&request.thread_id);
-            let native = native_result?;
-            // Only a completed turn proves the agent really created its session. Recording the
-            // start beforehand stranded a conversation on `--resume` whenever the launch failed,
-            // because the id Nooki claimed to have used was never persisted by the agent. Reload
-            // rather than reusing the pre-run clone so a turn cannot revert an archive toggled
-            // while it was running.
-            let mut catalog = self.load()?;
-            if let Some(stored) = catalog.sessions.get_mut(&request.thread_id) {
-                stored.native_started = true;
-                stored.preview = request.message.chars().take(120).collect();
-                stored.updated_at = Self::now();
-                stored.turns.push(native.turn);
-            }
-            self.save(&catalog)?;
-            return Ok(native.result);
+            crate::native_background::start(&self.root, &session, pool.agents(), request, &skills, &self.worker_executable)?;
+            return crate::native_background::observe(&self.root, &request.thread_id, &request.request_id, &self.sink, cancelled).await;
         }
         self.codex
             .run_with_documents(
@@ -252,6 +234,7 @@ impl ConversationHost {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ConversationRequest {
     pub thread_id: String,
     pub message: String,

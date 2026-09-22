@@ -2,8 +2,10 @@ use crate::conversation_documents::{self, DocumentInputs};
 use crate::conversation_instructions::CONVERSATION_INSTRUCTIONS;
 use crate::conversation_skills::SkillReference;
 use serde_json::{json, Value};
-use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}, process::Stdio, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}};
-use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, process::{Child, ChildStdin}, sync::{broadcast, oneshot, Mutex as AsyncMutex}};
+use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}};
+use futures_util::{SinkExt, StreamExt, stream::SplitSink};
+use tokio_tungstenite::tungstenite::Message;
+use tokio::sync::{broadcast, oneshot, Mutex as AsyncMutex};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone, Copy, serde::Deserialize)]
@@ -18,19 +20,25 @@ pub struct CodexConversations {
   sink: Arc<dyn Fn(Value) + Send + Sync>,
 }
 struct Client {
-  _process: AsyncMutex<Child>,
-  stdin: AsyncMutex<ChildStdin>,
+  connection: AsyncMutex<SplitSink<crate::codex_background::Connection, Message>>,
+  reader: Mutex<Option<tokio::task::AbortHandle>>,
   pending: Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>,
   next: AtomicU64,
   alive: AtomicBool,
   events: broadcast::Sender<Value>,
   fresh: Mutex<HashSet<String>>,
+  answers: AsyncMutex<HashSet<(String, String)>>,
+}
+impl Drop for Client {
+  fn drop(&mut self) {
+    if let Ok(reader) = self.reader.get_mut() { if let Some(reader) = reader.take() { reader.abort(); } }
+  }
 }
 impl Client {
   async fn send(&self, value: Value) -> Result<(), String> {
-    let mut bytes = serde_json::to_vec(&value).map_err(|_| "Could not encode Codex request")?;
-    bytes.push(b'\n');
-    self.stdin.lock().await.write_all(&bytes).await.map_err(|_| "Codex connection closed".into())
+    let result = self.connection.lock().await.send(Message::Text(value.to_string().into())).await;
+    if result.is_err() { self.alive.store(false, Ordering::Relaxed); }
+    result.map_err(|_| "Codex connection closed".into())
   }
   async fn request(&self, method: &str, params: Value) -> Result<Value, String> {
     let id = self.next.fetch_add(1, Ordering::Relaxed);
@@ -57,20 +65,16 @@ impl CodexConversations {
     let mut current = self.client.lock().await;
     if let Some(client) = current.as_ref().filter(|c| c.alive.load(Ordering::Relaxed)) { return Ok(client.clone()); }
     std::fs::create_dir_all(self.workspace()).map_err(|_| "Could not create conversation workspace")?;
-    let mut command = tokio::process::Command::from(crate::codex_command(&self.binary)
-      .map_err(|_| "Could not prepare Codex executable path")?);
-    let mut process = command.args(["app-server", "--listen", "stdio://"])
-      .current_dir(self.workspace()).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).kill_on_drop(true)
-      .spawn().map_err(|_| "Could not start Codex. Install Codex CLI and sign in first.")?;
-    let stdin = process.stdin.take().ok_or("Codex stdin unavailable")?;
-    let stdout = process.stdout.take().ok_or("Codex stdout unavailable")?;
+    let connection = crate::codex_background::ensure_running(&self.binary, &self.root, &self.workspace()).await?;
+    let (writer, mut reader) = connection.split();
     let (events, _) = broadcast::channel(2048);
-    let client = Arc::new(Client { _process: AsyncMutex::new(process), stdin: AsyncMutex::new(stdin), pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), alive: AtomicBool::new(true), events, fresh: Mutex::new(HashSet::new()) });
+    let client = Arc::new(Client { connection: AsyncMutex::new(writer), reader: Mutex::new(None), pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), alive: AtomicBool::new(true), events, fresh: Mutex::new(HashSet::new()), answers: AsyncMutex::new(HashSet::new()) });
     let weak = Arc::downgrade(&client);
     let sink = self.sink.clone();
-    tokio::spawn(async move {
-      let mut lines = BufReader::new(stdout).lines();
-      while let Ok(Some(line)) = lines.next_line().await {
+    let reading = tokio::spawn(async move {
+      while let Some(Ok(message)) = reader.next().await {
+        if message.is_close() { break; }
+        let Message::Text(line) = message else { continue };
         let Some(client) = weak.upgrade() else { break };
         let Ok(message) = serde_json::from_str::<Value>(&line) else { continue };
         if message.get("method").is_some() && message.get("id").is_some() {
@@ -102,6 +106,7 @@ impl CodexConversations {
         let _ = client.events.send(json!({"method":"workbench/disconnected"}));
       }
     });
+    *client.reader.lock().map_err(|_| "Codex reader unavailable")? = Some(reading.abort_handle());
     client.request("initialize", json!({"clientInfo":{"name":"personal_workbench","title":"Nooki","version":env!("CARGO_PKG_VERSION")},"capabilities":{"experimentalApi":true}})).await?;
     client.send(json!({"method":"initialized","params":{}})).await?;
     *current = Some(client.clone());
@@ -157,6 +162,25 @@ impl CodexConversations {
     thread["nextCursor"] = page["nextCursor"].clone();
     Ok(thread)
   }
+  pub async fn answer_question(&self, thread_id: &str, turn_id: &str, item_id: &str, answers: &[String]) -> Result<(), String> {
+    let client = self.connect().await?;
+    self.owned_thread(&client, thread_id).await?;
+    let mut sent = client.answers.lock().await;
+    let key = (thread_id.to_string(), item_id.to_string());
+    let reply_id = format!("async-answer-{item_id}");
+    // Accepted steering may be queued before a userMessage appears in native history.
+    if sent.contains(&key) || self.find_turn(&client, thread_id, None, &reply_id).await?.is_some() { return Ok(()); }
+    let turn = self.find_turn(&client, thread_id, Some(turn_id), "").await?.ok_or("Question turn not found")?;
+    let question = turn["items"].as_array().and_then(|items| items.iter().find(|item| item["id"] == item_id && item["type"] == "agentMessage" && item["delivery"] == "async"))
+      .and_then(|item| item["questions"].as_array()).filter(|questions| !questions.is_empty()).ok_or("Async question not found")?;
+    if turn["status"] != "inProgress" { return Err("本轮已结束，请在输入框继续发送回答 / This turn has ended. Send your answer in the composer.".into()); }
+    if answers.len() != question.len() || answers.iter().any(|answer| answer.trim().is_empty()) { return Err("请回答每个问题 / Answer each question".into()); }
+    let message = question.iter().zip(answers).map(|(question, answer)| format!("{}\n{}", question["title"].as_str().unwrap_or(""), answer.trim())).collect::<Vec<_>>().join("\n\n");
+    if message.len() > 100_000 { return Err("回答过长 / Answers exceed 100 KB".into()); }
+    client.request("turn/steer", json!({"threadId":thread_id,"expectedTurnId":turn_id,"clientUserMessageId":reply_id,"input":[{"type":"text","text":message}]})).await?;
+    sent.insert(key);
+    Ok(())
+  }
   async fn find_turn(&self, client: &Client, thread_id: &str, turn_id: Option<&str>, request_id: &str) -> Result<Option<Value>, String> {
     let mut cursor = Value::Null;
     loop {
@@ -171,24 +195,35 @@ impl CodexConversations {
   pub async fn run(&self, thread_id: &str, message: &str, context: &str, request_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
     self.run_with_documents(thread_id, message, context, request_id, &DocumentInputs::default(), &[], cancelled).await
   }
+  pub async fn reconnect(&self, thread_id: &str, request_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
+    if request_id.is_empty() || !request_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
+    let client = self.connect().await?;
+    self.owned_thread(&client, thread_id).await?;
+    let receipt = self.root.join("codex-turn-receipts").join(format!("{request_id}.json"));
+    let previous = read_receipt(&receipt, thread_id)?;
+    client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true})).await?;
+    let turn = self.find_turn(&client, thread_id, previous.as_ref().and_then(|p| p["turnId"].as_str()), request_id).await?
+      .ok_or("未找到原执行记录，未重新发送消息。请刷新会话后确认 / Original execution not found. No message was resent. Refresh the conversation to check.")?;
+    self.watch_turn(client, thread_id, request_id, turn["id"].as_str().ok_or("Missing turn ID")?, cancelled).await
+  }
   pub async fn run_with_documents(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken) -> Result<Value, String> {
     if message.trim().is_empty() || message.len() + context.len() > 100_000 { return Err("Message and references must contain between 1 and 100000 UTF-8 bytes".into()); }
     if request_id.is_empty() || !request_id.bytes().all(|b|b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
     let client = self.connect().await?;
     let session = self.owned_thread(&client, thread_id).await?;
-    let mut events = client.events.subscribe();
     let fresh = client.fresh.lock().map_err(|_| "Codex session state unavailable")?.contains(thread_id);
     let receipt = self.root.join("codex-turn-receipts").join(format!("{request_id}.json"));
-    let previous = if receipt.exists() { Some(serde_json::from_slice::<Value>(&std::fs::read(&receipt).map_err(|_|"Could not read turn receipt")?).map_err(|_|"Invalid turn receipt")?) } else { None };
-    if previous.as_ref().is_some_and(|p|p["threadId"] != thread_id) { return Err("Turn receipt belongs to another session".into()); }
+    let previous = read_receipt(&receipt, thread_id)?;
     let existing = if fresh { None } else { self.find_turn(&client, thread_id, previous.as_ref().and_then(|p|p["turnId"].as_str()), request_id).await? };
     if previous.is_some() && existing.is_none() { return Err("Could not reconcile the saved Codex turn. Refresh this session before sending another message.".into()); }
-    if existing.is_none() && session["status"]["type"] == "active" { return Err("This Codex session is already running. Wait for it to finish before sending another message.".into()); }
+    // A retry is a new observer of the same intent, never another copy of its prompt.
+    if let Some(turn) = existing { return self.watch_turn(client, thread_id, request_id, turn["id"].as_str().ok_or("Missing turn ID")?, cancelled).await; }
+    if session["status"]["type"] == "active" { return Err("This Codex session is already running. Wait for it to finish before sending another message.".into()); }
     if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
     let document_context = conversation_documents::prepare(&self.root, thread_id, request_id, inputs)?;
     let document_workspace = conversation_documents::workspace(&self.root, thread_id).canonicalize().map_err(|e| e.to_string())?;
     if !fresh { client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never","sandbox":"workspace-write","developerInstructions":CONVERSATION_INSTRUCTIONS,"config":{"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true}})).await?; }
-    let mut turn = if let Some(turn) = existing.filter(|t|t["status"] == "completed" || t["status"] == "inProgress") { turn } else {
+    let turn = {
       if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
       // An uncertain start must reconcile history before it can be retried.
       client.fresh.lock().map_err(|_| "Codex session state unavailable")?.remove(thread_id);
@@ -204,7 +239,13 @@ impl CodexConversations {
       }
       turn
     };
-    let turn_id = turn["id"].as_str().ok_or("Codex did not return a turn ID")?.to_string();
+    self.watch_turn(client, thread_id, request_id, turn["id"].as_str().ok_or("Codex did not return a turn ID")?, cancelled).await
+  }
+  async fn watch_turn(&self, client: Arc<Client>, thread_id: &str, request_id: &str, turn_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
+    let mut events = client.events.subscribe();
+    client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true})).await?;
+    let mut turn = self.find_turn(&client, thread_id, Some(turn_id), request_id).await?.ok_or("Original turn not found")?;
+    (self.sink)(public_event(json!({"method":if turn["status"] == "inProgress" { "turn/started" } else { "turn/completed" },"params":{"threadId":thread_id,"turn":turn.clone()}})));
     loop {
       match turn["status"].as_str() {
         Some("completed") => {
@@ -217,7 +258,7 @@ impl CodexConversations {
           return Ok(json!({"threadId":thread_id,"turnId":turn_id,"artifacts":artifacts}));
         },
         Some("failed") => return Err(turn["error"]["message"].as_str().unwrap_or("Codex turn failed").into()),
-        Some("interrupted") => return Err("Codex turn interrupted".into()),
+        Some("interrupted") => return Err("Codex 执行已中断；未重新发送原消息。可在输入框发送消息继续 / Codex turn interrupted. No message was resent. Send a message to continue.".into()),
         _ => {}
       }
       tokio::select! {
@@ -228,16 +269,21 @@ impl CodexConversations {
         },
         event = events.recv() => {
           match event {
-            Ok(event) if event["method"] == "workbench/disconnected" => return Err("Codex disconnected; retry to recover this turn".into()),
+            Ok(event) if event["method"] == "workbench/disconnected" => return Err("与 Codex 的连接已断开，可重新连接核对执行状态 / Codex disconnected. Reconnect to check this turn.".into()),
             Ok(event) if event["method"] == "turn/completed" && event["params"]["threadId"] == thread_id && event["params"]["turn"]["id"] == turn_id => { turn = event["params"]["turn"].clone(); },
             Err(broadcast::error::RecvError::Closed) => return Err("Codex event stream closed".into()),
-            Err(broadcast::error::RecvError::Lagged(_)) => { if let Some(current) = self.find_turn(&client, thread_id, Some(&turn_id), request_id).await? { turn = current; } },
+            Err(broadcast::error::RecvError::Lagged(_)) => { if let Some(current) = self.find_turn(&client, thread_id, Some(turn_id), request_id).await? { turn = current; } },
             _ => {}
           }
         }
       }
     }
   }
+}
+fn read_receipt(path: &Path, thread_id: &str) -> Result<Option<Value>, String> {
+  let receipt = if path.exists() { Some(serde_json::from_slice::<Value>(&std::fs::read(path).map_err(|_| "Could not read turn receipt")?).map_err(|_| "Invalid turn receipt")?) } else { None };
+  if receipt.as_ref().is_some_and(|p| p["threadId"] != thread_id) { return Err("Turn receipt belongs to another session".into()); }
+  Ok(receipt)
 }
 fn write_receipt(path: &Path, receipt: &Value) -> Result<(), String> {
   std::fs::create_dir_all(path.parent().ok_or("Invalid receipt path")?).map_err(|_|"Could not create receipt directory")?;

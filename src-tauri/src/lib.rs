@@ -1,4 +1,5 @@
 pub mod codex_conversations;
+mod codex_background;
 pub mod conversation_documents;
 pub mod conversation_host;
 pub mod conversation_instructions;
@@ -11,6 +12,7 @@ pub mod agent_tools;
 pub mod document_library;
 pub mod library_management;
 pub mod native_agent_sessions;
+pub mod native_background;
 pub mod user_data;
 pub mod package_installer;
 pub mod task_execution;
@@ -209,6 +211,14 @@ async fn conversation_create(state: tauri::State<'_, PlatformState>, pool: tauri
 #[tauri::command]
 async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   bridge.read(&id, cursor).await
+}
+#[tauri::command]
+async fn conversation_answer_question(thread_id: String, turn_id: String, item_id: String, answers: Vec<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+  bridge.answer_question(&thread_id, &turn_id, &item_id, &answers).await
+}
+#[tauri::command]
+async fn conversation_reconnect(thread_id: String, request_id: String, execution_id: String, bridge: tauri::State<'_, conversation_host::ConversationHost>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  bridge.reconnect(&thread_id, &request_id, executions.token(&execution_id)?).await
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -474,7 +484,7 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
-      conversation_list, conversation_change, conversation_create, conversation_read, conversation_run, conversation_publish,
+      conversation_list, conversation_change, conversation_create, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
       library_management::library_history, library_management::library_trash,

@@ -76,6 +76,41 @@ test('restart marks a running task interrupted without executing any business co
   pending.resolve()
 })
 
+test('restart reconnects durable work using the original execution identity without rerunning it', async () => {
+  const pending = deferred<void>()
+  const first = fixture({ run: async () => pending.promise })
+  const id = await first.runner.start('conversation', 'respond', { message: 'Original request' })
+  const recovered = deferred<string>()
+  let executions = 0
+  const identities: string[] = []
+  const second = fixture({ run: async () => { executions++; }, recover: async (_, { executionId }) => { identities.push(executionId); return recovered.promise } }, first.saved())
+  await second.runner.initialize()
+  assert.equal(second.runner.getSnapshot()[0].status, 'running')
+  assert.deepEqual(identities, [`${id}:1`])
+  assert.equal(executions, 0)
+  recovered.resolve('Finished in the background')
+  await second.runner.settled(id)
+  assert.equal(second.runner.getSnapshot()[0].result, 'Finished in the background')
+  assert.equal(second.runner.getSnapshot()[0].attempt, 1)
+  await first.runner.cancel(id); pending.resolve()
+})
+
+test('manual reconnect never invokes run and cancellation still reaches the recovered observer', async () => {
+  const entered = deferred<void>(), finish = deferred<void>()
+  let runs = 0
+  const first = fixture({ run: async () => { throw new Error('Connection lost') } })
+  const id = await first.runner.start('conversation', 'respond', {})
+  await first.runner.settled(id)
+  const second = fixture({ run: async () => { runs++; }, recover: async () => { entered.resolve(); return finish.promise } }, first.saved())
+  await second.runner.initialize()
+  assert.equal(second.runner.getSnapshot()[0].status, 'failed')
+  await second.runner.reconnect(id); await entered.promise
+  assert.equal(runs, 0)
+  await second.runner.cancel(id); finish.resolve(); await second.runner.settled(id)
+  assert.deepEqual(second.cancelled, [`${id}:2`])
+  assert.equal(second.runner.getSnapshot()[0].status, 'cancelled')
+})
+
 test('concurrent starts cannot duplicate a running job and lifecycle changes stop it', async () => {
   const pending = deferred<void>()
   const { runner, disable } = fixture({ run: async () => pending.promise })

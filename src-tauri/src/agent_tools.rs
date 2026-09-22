@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 /// Long enough for a Capability's summarisation, short enough that a wedged agent is not forever.
 const INVOCATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct AgentTools {
   pub home: PathBuf,
   pub codex_home: PathBuf,
