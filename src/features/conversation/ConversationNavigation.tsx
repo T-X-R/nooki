@@ -1,4 +1,4 @@
-import { ArchiveIcon, ChatBubbleIcon, ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons'
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { conversationClient } from './conversation-client.ts'
 import { CONVERSATION_OWNER, type Conversation, type ConversationInput } from './conversation-model.ts'
@@ -52,7 +52,7 @@ export function ConversationNavigation({ language, active, selectedId, onSelect 
     } catch (reason) { setError(String(reason)) } finally { setBusy(false) }
   }
   return <div className="nav-conversations sidebar-conversations">
-    <button className="nav-item" aria-label={zh ? '会话' : 'Conversations'} aria-expanded={expanded} aria-controls="sidebar-conversation-history" onClick={() => { if (expanded) setVisibleCount(5); setExpanded((value) => !value) }}><span className="nav-item-main"><ChatBubbleIcon />{zh ? '会话' : 'Conversations'}</span><ChevronRightIcon /></button>
+    <button className="nav-item" aria-label={zh ? '会话' : 'Conversations'} aria-expanded={expanded} aria-controls="sidebar-conversation-history" onClick={() => { if (expanded) setVisibleCount(5); setExpanded((value) => !value) }}><span className="nav-item-main">{zh ? '会话' : 'Conversations'}</span><ChevronRightIcon /></button>
     {expanded && <div className="nav-conversation-history" id="sidebar-conversation-history">
       {visibleSessions.slice(0, visibleCount).map((session) => {
         const running = tasks.some((task) => task.capabilityId === CONVERSATION_OWNER && task.job === 'respond' && (task.input as ConversationInput).threadId === session.id && task.status === 'running') || session.status?.type === 'active'
