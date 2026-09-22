@@ -224,12 +224,14 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
               onBlur={() => setMention(null)}
               onKeyUp={(event) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) trackMention(event.currentTarget) }}
               onKeyDown={(event) => {
+                // WebKit can end composition before its confirming Enter keydown.
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
                 if (suggestions.length) {
                   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setHighlighted((current) => (current + (event.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length); return }
                   if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); chooseSkill(suggestions[highlighted]); return }
                   if (event.key === 'Escape') { event.preventDefault(); setMention(null); return }
                 }
-                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); if (!busy) send() }
+                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (!busy) send() }
               }} />
             <footer><button className={`quiet-button ${picker ? 'is-active' : ''}`} type="button" onClick={() => { setPicker(!picker); void listLibraryDocuments().then(setDocuments).catch((e) => setError(String(e))) }}><PlusIcon />{zh ? '引用资料' : 'Add documents'}</button><button className="quiet-button" type="button" disabled={busy} onClick={() => uploadInput.current?.click()}><UploadIcon />{zh ? '上传附件' : 'Attach file'}</button><span>{zh ? 'Enter 发送 · Shift Enter 换行' : 'Enter to send · Shift Enter for a new line'}</span>{running ? <button className="conversation-send" type="button" aria-label={zh ? '停止生成' : 'Stop response'} onClick={() => void act(() => taskRunner.cancel(running.id))}><StopIcon /></button> : <button className="conversation-send" type="submit" disabled={!text.trim() || busy || !!thread?.turns.some((turn) => turn.status === 'inProgress')} aria-label={zh ? '发送消息' : 'Send message'}><ArrowUpIcon /></button>}</footer>
           </form>

@@ -170,8 +170,24 @@ await page.getByRole('button',{name:'刷新对话',exact:true}).click();
 await page.waitForTimeout(1700);
 assert.equal(await page.locator('.conversation-reasoning').filter({hasText:'保留已经收到的公开摘要'}).count(),1);
 await page.getByRole('button',{name:'创建会话',exact:true}).click();
+const composer = page.getByRole('textbox',{name:'消息',exact:true});
+await composer.fill('nooki');
+for (const isComposing of [true, false]) {
+ const allowed = await composer.evaluate((element, isComposing) => {
+  element.dispatchEvent(new CompositionEvent('compositionstart', {bubbles:true}));
+  if (!isComposing) element.dispatchEvent(new CompositionEvent('compositionend', {bubbles:true,data:'nooki'}));
+  const allowed = element.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',code:'Enter',keyCode:isComposing ? 13 : 229,isComposing,bubbles:true,cancelable:true}));
+  if (isComposing) element.dispatchEvent(new CompositionEvent('compositionend', {bubbles:true,data:'nooki'}));
+  return allowed;
+ }, isComposing);
+ assert.equal(allowed, true, 'IME confirmation must remain available to the input method, including WebKit compositionend-before-keydown');
+ assert.equal(await composer.inputValue(), 'nooki', 'IME confirmation preserves the draft');
+ assert.equal(await page.locator('.conversation-user').count(), 0, 'IME confirmation does not send a message');
+}
+await composer.press('Shift+Enter');
+assert.equal(await composer.inputValue(), 'nooki\n', 'Shift+Enter still inserts a newline');
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('马上显示的新会话');
-await page.getByRole('button',{name:'发送消息',exact:true}).click();
+await composer.press('Enter');
 await page.getByText('正在准备对话…',{exact:true}).waitFor({state:'visible',timeout:500});
 await page.waitForTimeout(900);
 const newSession=page.locator('#sidebar-conversation-history').getByRole('button',{name:'马上显示的新会话',exact:true});
