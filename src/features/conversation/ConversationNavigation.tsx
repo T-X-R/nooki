@@ -26,10 +26,10 @@ export function ConversationNavigation({ language, active, selectedId, onEnter, 
     if (!session) continue
     history.set(input.threadId, {
       ...session, id: input.threadId, preview: session?.preview || input.message,
-      updatedAt: Math.max(session?.updatedAt ?? 0, Date.parse(task.createdAt) / 1000), turns: [],
+      turns: [],
     })
   }
-  const visibleSessions = [...history.values()].filter((session) => !cache[session.id]?.archived).sort((a, b) => b.updatedAt - a.updatedAt)
+  const visibleSessions = [...history.values()].filter((session) => !cache[session.id]?.archived).sort((a, b) => b.createdAt - a.createdAt)
   const taskStatus = tasks.filter((task) => task.capabilityId === CONVERSATION_OWNER && task.job === 'respond').map((task) => `${task.id}:${task.status}`).join(',')
   useEffect(() => { if (active) setExpanded(true) }, [active])
   useEffect(() => {

@@ -16,6 +16,43 @@ async fn native_conversation_creation_stays_with_the_selected_agent() {
   assert!(root.join("conversation-agents.json").is_file());
   let _ = std::fs::remove_dir_all(root);
 }
+#[tokio::test]
+async fn native_creation_time_survives_updates_and_legacy_catalogs() {
+  let root = std::env::temp_dir().join(format!("workbench-creation-test-{}", std::process::id()));
+  let _ = std::fs::remove_dir_all(&root);
+  let host = ConversationHost::new("codex".into(), root.clone(), Arc::new(|_| {}));
+  for agent in ["pi", "claude"] {
+    let thread = host.create(agent).await.unwrap();
+    let id = thread["id"].as_str().unwrap();
+    let created = thread["createdAt"].as_f64().unwrap();
+    assert!(created > 1_000_000_000.0 && created < 10_000_000_000.0, "creation uses Unix seconds");
+    let path = root.join("conversation-agents.json");
+    let mut catalog: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    catalog["sessions"][id]["updatedAt"] = json!(9_999_999_999_999u64);
+    std::fs::write(&path, serde_json::to_vec(&catalog).unwrap()).unwrap();
+    assert_eq!(host.read(id, None).await.unwrap()["createdAt"], thread["createdAt"]);
+    catalog["sessions"][id].as_object_mut().unwrap().remove("createdAt");
+    std::fs::write(&path, serde_json::to_vec(&catalog).unwrap()).unwrap();
+    let expected = id.split('-').nth(1).unwrap().parse::<u64>().unwrap() as f64 / 1000.0;
+    assert_eq!(host.read(id, None).await.unwrap()["createdAt"], json!(expected));
+  }
+  let _ = std::fs::remove_dir_all(root);
+}
+#[tokio::test]
+async fn conversation_pages_request_creation_order() {
+  let (root, bridge, _) = fixture();
+  bridge.list(None, false).await.unwrap();
+  bridge.list(Some("next-page".into()), false).await.unwrap();
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  let pages: Vec<_> = requests.iter().filter(|request| request["method"] == "thread/list").collect();
+  assert_eq!(pages.len(), 2);
+  for page in &pages {
+    assert_eq!(page["params"]["sortKey"], "created_at");
+    assert_eq!(page["params"]["sortDirection"], "desc");
+  }
+  assert_eq!(pages[1]["params"]["cursor"], "next-page");
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
 #[cfg(unix)]
 fn fixture() -> (PathBuf, CodexConversations, Arc<Mutex<Vec<Value>>>) {
   use std::os::unix::fs::PermissionsExt;

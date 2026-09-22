@@ -11,7 +11,7 @@ page.on('pageerror', e=>errors.push(e.message));
 try {
 await page.addInitScript(()=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
- const old={id:'old',preview:'历史测试会话',updatedAt:1,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []}))]}]};
+ const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []}))]}]};
  const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
@@ -36,14 +36,15 @@ await page.addInitScript(()=>{
   }
   if(command==='tasks_read')return tasks;
   if(command==='tasks_write'){tasks=args.records;return}
-  if(command==='conversation_list')return {data:[...(current ? [{...current,turns:[]}] : []),{...old,turns:[]}],nextCursor:null};
-  if(command==='conversation_read'){await new Promise(r=>setTimeout(r,window.qa.readDelay));return structuredClone(args.id==='old'?old:current??{id:'new-session',preview:'',updatedAt:2,turns:[]})}
-  if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));return {id:'new-session',preview:'',updatedAt:2,turns:[]}}
+  if(command==='conversation_list' && args.cursor)return {data:[{id:'earliest',preview:'更早创建但最近更新',createdAt:0,updatedAt:9999999999,turns:[]}],nextCursor:null};
+  if(command==='conversation_list')return {data:[...(current ? [{...current,turns:[]}] : []),{...old,turns:[]}],nextCursor:window.qa.more ? 'older-page' : null};
+  if(command==='conversation_read'){await new Promise(r=>setTimeout(r,window.qa.readDelay));return structuredClone(args.id==='old'?old:current??{id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]})}
+  if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));return {id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]}}
   if(command==='conversation_run')return new Promise(resolve=>{
    window.qa.startTurn=()=>{
     const user={id:'native-user',type:'userMessage',clientId:args.request.requestId,content:[{type:'text',text:args.request.message}]};
     const turn={id:'native-turn',status:'inProgress',startedAt:100,items:[user,{id:'native-progress',type:'agentMessage',phase:'commentary',text:'核对资料的进展'},{id:'native-summary',type:'reasoning',summary:['公开思考摘要']},{id:'native-tool',type:'commandExecution',command:'read document',aggregatedOutput:'工具结果',status:'completed'}]};
-    current={id:'new-session',preview:args.request.message,updatedAt:Date.now()/1000,turns:[turn]};
+    current={id:'new-session',preview:args.request.message,createdAt:2,updatedAt:Date.now()/1000,turns:[turn]};
     window.qa.emit('turn/started',{threadId:current.id,turn});
    };
    window.qa.finish=()=>{
@@ -127,6 +128,19 @@ await liveProcess.locator('.conversation-process > summary').click();
 assert.equal(await liveProcess.getAttribute('open'),'', 'Tool disclosure must not toggle the whole process');
 await page.evaluate(()=>window.qa.finish()); await page.waitForTimeout(1700);
 assert.equal(await newSession.count(),1, 'Authoritative listing must not duplicate the new session');
+const sidebarTitles = () => page.locator('.nav-row-label').allTextContents();
+assert.deepEqual(await sidebarTitles(), ['马上显示的新会话', '历史测试会话']);
+await page.evaluate(() => {
+ window.qa.old.updatedAt = 9999999999;
+ window.qa.more = true;
+ window.dispatchEvent(new Event('workbench:conversations-changed'));
+});
+await page.getByRole('button', {name:'更早的对话',exact:true}).waitFor();
+assert.deepEqual(await sidebarTitles(), ['马上显示的新会话', '历史测试会话'], 'Updating an older conversation must not move it');
+await page.getByRole('button', {name:'更早的对话',exact:true}).click();
+await page.getByRole('button', {name:'更早创建但最近更新',exact:true}).waitFor();
+assert.deepEqual(await sidebarTitles(), ['马上显示的新会话', '历史测试会话', '更早创建但最近更新'], 'Older pages stay in creation order');
+
 assert.equal(await user.count(),1);
 assert.equal(await liveProcess.getAttribute('open'),null, 'Completion automatically collapses the process');
 assert.equal(await liveProcess.locator(':scope > summary').innerText(),'用时 1分 5秒');

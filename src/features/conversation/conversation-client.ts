@@ -26,7 +26,7 @@ export const conversationClient = {
     await this.connect()
     await invoke('conversation_change', { id, action })
     revisions[id] = (revisions[id] ?? 0) + 1
-    cache = { ...cache, [id]: action === 'restore' ? { ...(cache[id] ?? { id, preview: '', updatedAt: 0, turns: [] }), archived: false } : { id, preview: '', updatedAt: 0, turns: [], archived: true } }
+    cache = { ...cache, [id]: action === 'restore' ? { ...(cache[id] ?? { id, preview: '', createdAt: 0, updatedAt: 0, turns: [] }), archived: false } : { id, preview: '', createdAt: 0, updatedAt: 0, turns: [], archived: true } }
     emit()
     window.dispatchEvent(new Event('workbench:conversations-changed'))
   },
