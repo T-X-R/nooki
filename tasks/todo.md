@@ -20,8 +20,8 @@
 - [x] Agent checkpoint: verify common tool registration and relay wiring across Codex, Claude Code, and pi and commit.
 - [x] Slice 8: migrate the bundled Codex daily review to an explicit confirmed command.
 - [x] Slice 8: update capability authoring documentation, starter templates, and compatibility guidance.
-- [ ] Run the full platform, capability, UI, TypeScript, and Rust verification suite.
-- [ ] Manually verify discovery, confirmation, invocation, cancellation, failure, and conversation rendering.
-- [ ] Quit Nooki, run `npm run desktop:build`, and run `npm run desktop:install`.
-- [ ] Review the final diff for scope, security, compatibility, and generated artifacts.
+- [x] Run the full platform, capability, UI, TypeScript, and Rust verification suite. (The unrelated legacy `scratch_img_test` still requires its missing `/tmp/nooki-sandbox-home` fixture; all feature and application suites pass.)
+- [x] Manually verify discovery, confirmation, invocation, cancellation, failure, and conversation rendering.
+- [x] Quit Nooki, run `npm run desktop:build`, and run `npm run desktop:install`.
+- [x] Review the final diff for scope, security, compatibility, and generated artifacts.
 - [ ] Push `codex/conversation-capability-broker` and open an English pull request into `master`.
