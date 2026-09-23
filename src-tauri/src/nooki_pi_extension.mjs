@@ -1,0 +1,41 @@
+import { spawn } from "node:child_process";
+
+const parameters = {
+  type: "object",
+  properties: {
+    action: { type: "string", enum: ["search", "describe", "invoke"] },
+    query: { type: "string" },
+    capabilityId: { type: "string" },
+    commandId: { type: "string" },
+    input: {},
+    language: { type: "string", enum: ["zh", "en"] },
+  },
+  required: ["action"],
+  additionalProperties: false,
+};
+
+export default function (pi) {
+  pi.registerTool({
+    name: "nooki_capabilities",
+    label: "Nooki capabilities",
+    description: "Discover, inspect, or invoke an installed Nooki capability. Search before invoking when the capability or command ID is unknown.",
+    parameters,
+    async execute(toolCallId, input, signal) {
+      const helper = process.env.NOOKI_CAPABILITY_HELPER;
+      if (!helper) throw new Error("Nooki capability helper is unavailable");
+      const child = spawn(helper, ["--capability-call"], { env: process.env, stdio: ["pipe", "pipe", "pipe"] });
+      const stop = () => child.kill();
+      signal?.addEventListener("abort", stop, { once: true });
+      child.stdin.end(JSON.stringify({ ...input, invocationId: toolCallId }));
+      let stdout = "", stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += chunk; });
+      child.stderr.on("data", (chunk) => { stderr += chunk; });
+      const code = await new Promise((resolve, reject) => { child.on("error", reject); child.on("close", resolve); });
+      signal?.removeEventListener("abort", stop);
+      if (code !== 0) throw new Error(stderr.trim() || "Nooki capability helper failed");
+      const response = JSON.parse(stdout);
+      if (response.ok !== true) throw new Error(JSON.stringify(response.error));
+      return { content: [{ type: "text", text: JSON.stringify(response) }], details: response };
+    },
+  });
+}

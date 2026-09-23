@@ -19,6 +19,7 @@ pub mod task_execution;
 pub mod developer_integration;
 pub mod skill_pool;
 pub mod capability_bridge;
+pub mod capability_mcp;
 
 use capability_runtime::{CapabilityManifest, InstalledCapability, PlatformState};
 use codex_session_source::{read_daily_files, CodexDailySessionFiles};

@@ -41,21 +41,9 @@ impl Drop for Client {
 fn capability_dynamic_tool() -> Value {
   json!({
     "type":"function",
-    "name":"nooki_capabilities",
-    "description":"Discover, inspect, or invoke an installed Nooki capability. Search before invoking when the capability or command ID is unknown.",
-    "inputSchema":{
-      "type":"object",
-      "properties":{
-        "action":{"type":"string","enum":["search","describe","invoke"]},
-        "query":{"type":"string"},
-        "capabilityId":{"type":"string"},
-        "commandId":{"type":"string"},
-        "input":{},
-        "language":{"type":"string","enum":["zh","en"]}
-      },
-      "required":["action"],
-      "additionalProperties":false
-    }
+    "name":crate::capability_bridge::TOOL_NAME,
+    "description":crate::capability_bridge::TOOL_DESCRIPTION,
+    "inputSchema":crate::capability_bridge::tool_input_schema()
   })
 }
 impl Client {
@@ -125,7 +113,7 @@ impl CodexConversations {
         if message.get("method").is_some() && message.get("id").is_some() {
           // Workspace writes need no escalation. Interactive actions outside that scope stay declined.
           let method = message["method"].as_str().unwrap_or("");
-          if method == "item/tool/call" && message["params"]["tool"] == "nooki_capabilities" {
+          if method == "item/tool/call" && message["params"]["tool"] == crate::capability_bridge::TOOL_NAME {
             let client = client.clone();
             let bridge = capability_bridge.clone();
             tokio::spawn(async move {

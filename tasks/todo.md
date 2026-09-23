@@ -15,9 +15,9 @@
 - [x] Slice 4: implement and test the Rust renderer/native relay.
 - [x] Slice 4 checkpoint: verify authenticated socket relay, renderer response, and duplicate/late reply rejection and commit.
 - [x] Slice 5: implement and test the Codex dynamic-tool adapter and legacy-session messaging.
-- [ ] Slice 6: implement and test the Claude Code MCP adapter.
-- [ ] Slice 7: implement and test the pi extension adapter.
-- [ ] Agent checkpoint: verify equivalent broker behavior across Codex, Claude Code, and pi and commit.
+- [x] Slice 6: implement and test the Claude Code MCP adapter.
+- [x] Slice 7: implement and test the pi extension adapter.
+- [x] Agent checkpoint: verify common tool registration and relay wiring across Codex, Claude Code, and pi and commit.
 - [ ] Slice 8: migrate appropriate bundled capabilities to explicit commands.
 - [ ] Slice 8: update capability authoring documentation and starter templates.
 - [ ] Run the full platform, capability, UI, TypeScript, and Rust verification suite.

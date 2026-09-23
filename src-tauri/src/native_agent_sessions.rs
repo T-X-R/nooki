@@ -8,7 +8,8 @@ use crate::{
     conversation_skills::{self, SkillReference},
 };
 use serde_json::{json, Value};
-use std::{path::Path, sync::Arc};
+use serde::{Deserialize, Serialize};
+use std::{path::{Path, PathBuf}, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Child,
@@ -18,6 +19,12 @@ use tokio_util::sync::CancellationToken;
 pub struct NativeTurn {
     pub result: Value,
     pub turn: Value,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct CapabilityLaunch {
+    pub(crate) endpoint: crate::capability_bridge::CapabilityRelayEndpoint,
+    pub(crate) helper: PathBuf,
 }
 
 /// What every transport needs regardless of which agent answers. Only the handle to an agent's own
@@ -31,6 +38,7 @@ struct TurnContext<'a> {
     request_id: &'a str,
     sink: &'a Arc<dyn Fn(Value) + Send + Sync>,
     cancelled: CancellationToken,
+    capabilities: Option<&'a CapabilityLaunch>,
 }
 
 pub(crate) async fn run(
@@ -40,6 +48,7 @@ pub(crate) async fn run(
     tools: &AgentTools,
     request: &ConversationRequest,
     skills: &[SkillReference],
+    capabilities: Option<&CapabilityLaunch>,
     cancelled: CancellationToken,
 ) -> Result<NativeTurn, String> {
     if request.message.trim().is_empty()
@@ -89,6 +98,7 @@ pub(crate) async fn run(
         request_id: &request.request_id,
         sink,
         cancelled,
+        capabilities,
     };
     let (text, model) = match session.agent.as_str() {
         "pi" => {
@@ -122,6 +132,29 @@ pub(crate) async fn run(
     })
 }
 
+fn ensure_pi_extension(parent: &Path) -> Result<PathBuf, String> {
+    let directory = parent.join("nooki-agent-integrations");
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let path = directory.join("capabilities.mjs");
+    let source = include_str!("nooki_pi_extension.mjs");
+    if std::fs::read_to_string(&path).ok().as_deref() != Some(source) {
+        let temporary = path.with_extension("mjs.tmp");
+        std::fs::write(&temporary, source).map_err(|error| error.to_string())?;
+        std::fs::rename(temporary, &path).map_err(|error| error.to_string())?;
+    }
+    Ok(path)
+}
+
+fn capability_environment(command: &mut tokio::process::Command, launch: &CapabilityLaunch, ctx: &TurnContext<'_>, agent: &str) {
+    command
+        .env("NOOKI_CAPABILITY_SOCKET", &launch.endpoint.socket_path)
+        .env("NOOKI_CAPABILITY_TOKEN", &launch.endpoint.token)
+        .env("NOOKI_CAPABILITY_HELPER", &launch.helper)
+        .env("NOOKI_CAPABILITY_THREAD", ctx.thread_id)
+        .env("NOOKI_CAPABILITY_TURN", ctx.request_id)
+        .env("NOOKI_CAPABILITY_AGENT", agent);
+}
+
 async fn run_pi(ctx: &TurnContext<'_>, session_file: &str) -> Result<(String, String), String> {
     if !ctx.tools.binary("pi") {
         return Err("pi 现在无法承接会话请求，请先安装并配置它。".into());
@@ -135,6 +168,8 @@ async fn run_pi(ctx: &TurnContext<'_>, session_file: &str) -> Result<(String, St
     // allowlist keeps bash out of a document conversation; --no-approve refuses to treat Nooki's
     // scratch directory as a trusted pi project; --no-context-files stops an AGENTS.md the agent
     // itself just wrote from being read back as instructions on the next turn.
+    let extension = ctx.capabilities.map(|_| ensure_pi_extension(parent)).transpose()?;
+    let tools = if extension.is_some() { "read,edit,write,ls,nooki_capabilities" } else { "read,edit,write,ls" };
     command.current_dir(ctx.workspace).args([
         "--mode",
         "rpc",
@@ -143,10 +178,12 @@ async fn run_pi(ctx: &TurnContext<'_>, session_file: &str) -> Result<(String, St
         "--no-approve",
         "--no-context-files",
         "--tools",
-        "read,edit,write,ls",
+        tools,
         "--append-system-prompt",
         CONVERSATION_INSTRUCTIONS,
     ]);
+    if let Some(path) = extension { command.args(["--extension"]).arg(path); }
+    if let Some(capabilities) = ctx.capabilities { capability_environment(&mut command, capabilities, ctx, "pi"); }
     let mut child = command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -304,11 +341,17 @@ async fn claude_turn(
     }
     command
         .args(["--permission-mode", "acceptEdits"])
-        .args(["--append-system-prompt", CONVERSATION_INSTRUCTIONS])
-        // Skill is on the list so a skill the person named can be dispatched the way Claude Code
-        // dispatches its own; the rest of the list is unchanged.
-        .args(["--allowed-tools", "Read", "Edit", "Write", "Skill", "--add-dir"])
-        .arg(ctx.workspace);
+        .args(["--append-system-prompt", CONVERSATION_INSTRUCTIONS]);
+    if let Some(capabilities) = ctx.capabilities {
+        let config = json!({"mcpServers":{"nooki":{"type":"stdio","command":capabilities.helper,"args":["--capability-mcp"]}}}).to_string();
+        command.args(["--mcp-config", &config, "--strict-mcp-config"]);
+        capability_environment(&mut command, capabilities, ctx, "claude");
+    }
+    // Skill is on the list so a skill the person named can be dispatched the way Claude Code
+    // dispatches its own; the rest of the list is unchanged.
+    command.args(["--allowed-tools", "Read", "Edit", "Write", "Skill"]);
+    if ctx.capabilities.is_some() { command.arg("mcp__nooki__nooki_capabilities"); }
+    command.arg("--add-dir").arg(ctx.workspace);
     let mut child = command
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -485,6 +528,7 @@ mod tests {
             &tools,
             &request,
             &[],
+            None,
             CancellationToken::new(),
         )
         .await
@@ -522,6 +566,7 @@ mod tests {
             &tools,
             &request,
             &[],
+            None,
             CancellationToken::new(),
         )
         .await
@@ -566,6 +611,10 @@ printf '%b\n' 'IGNORED'
                 documents: DocumentInputs::default(),
                 skills: Vec::new(),
             };
+            let capabilities = CapabilityLaunch {
+                endpoint: crate::capability_bridge::CapabilityRelayEndpoint { socket_path: root.join("capability.sock"), token: "test-token".into() },
+                helper: root.join("Nooki"),
+            };
             run(
                 &root,
                 &sink,
@@ -573,6 +622,7 @@ printf '%b\n' 'IGNORED'
                 &tools,
                 &request,
                 &[],
+                Some(&capabilities),
                 CancellationToken::new(),
             )
             .await
@@ -586,11 +636,16 @@ printf '%b\n' 'IGNORED'
                 assert!(argv.lines().any(|line| line == "--verbose"));
                 // A skill the person named is dispatched by Claude Code's own Skill tool.
                 assert!(argv.lines().any(|line| line == "Skill"));
+                assert!(argv.lines().any(|line| line == "--mcp-config"));
+                assert!(argv.lines().any(|line| line == "--strict-mcp-config"));
+                assert!(argv.contains("mcp__nooki__nooki_capabilities"));
             } else {
                 // Pi has no sandbox, so its own flags carry the whole boundary.
-                assert!(argv.lines().any(|line| line == "read,edit,write,ls"));
+                assert!(argv.lines().any(|line| line == "read,edit,write,ls,nooki_capabilities"));
                 assert!(argv.lines().any(|line| line == "--no-approve"));
                 assert!(argv.lines().any(|line| line == "--no-context-files"));
+                assert!(argv.lines().any(|line| line == "--extension"));
+                assert!(root.join("agent-sessions/nooki-agent-integrations/capabilities.mjs").is_file());
             }
             let _ = fs::remove_dir_all(root);
         }
@@ -641,6 +696,7 @@ printf '%b\n' 'IGNORED'
                 &tools,
                 &request,
                 &skills,
+                None,
                 CancellationToken::new(),
             )
             .await
@@ -685,6 +741,7 @@ fi
             &tools,
             &request,
             &[],
+            None,
             CancellationToken::new(),
         )
         .await

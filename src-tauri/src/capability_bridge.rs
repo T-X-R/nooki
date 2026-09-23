@@ -19,6 +19,25 @@ const MAX_REQUEST_BYTES: u64 = 1_000_000;
 const RENDERER_READY_TIMEOUT: Duration = Duration::from_secs(30);
 const INVOCATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
+pub const TOOL_NAME: &str = "nooki_capabilities";
+pub const TOOL_DESCRIPTION: &str = "Discover, inspect, or invoke an installed Nooki capability. Search before invoking when the capability or command ID is unknown.";
+
+pub fn tool_input_schema() -> Value {
+    json!({
+      "type":"object",
+      "properties":{
+        "action":{"type":"string","enum":["search","describe","invoke"]},
+        "query":{"type":"string"},
+        "capabilityId":{"type":"string"},
+        "commandId":{"type":"string"},
+        "input":{},
+        "language":{"type":"string","enum":["zh","en"]}
+      },
+      "required":["action"],
+      "additionalProperties":false
+    })
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityRelayEndpoint {
