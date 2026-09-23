@@ -78,6 +78,38 @@ Declare `job` in manifest entrypoints and export a `jobs` map of `CapabilityJob`
 
 Use JSON-serializable data and idempotent sequential steps. Explicit retry reuses completed steps; startup marks unfinished runs interrupted without invoking business code. Package version changes invalidate checkpoint retry. See [INFRASTRUCTURE.md](../../INFRASTRUCTURE.md) for the complete behavior and a working standalone example.
 
+## Expose a conversation command
+
+Jobs are private execution units. To let conversations discover and invoke one safely, also declare `command` in `manifest.entrypoints` and export a `commands` map. Each command names its backing job and supplies user-facing copy, JSON Schema input/output contracts, an effect classification, and a confirmation policy.
+
+```ts
+export default {
+  manifest,
+  Page,
+  jobs: { summarize },
+  commands: {
+    summarize: {
+      job: 'summarize',
+      title: 'Summarize notes',
+      description: 'Create a draft summary from the supplied notes.',
+      inputSchema: {
+        type: 'object',
+        properties: { notes: { type: 'string', minLength: 1 } },
+        required: ['notes'],
+        additionalProperties: false,
+      },
+      outputSchema: { type: 'object' },
+      effect: 'draft',
+      confirmation: 'never',
+    },
+  },
+} satisfies CapabilityModule
+```
+
+Use `read` for inspection, `draft` for reversible generated output, `write` for local durable changes, and `external` when data leaves Nooki or an external system changes. `always` asks in the Nooki UI before execution; `when-needed` asks for `write` and `external`; `never` is intended for safe read/draft operations. Nooki validates schemas, enabled state, confirmation, task lifecycle, and results centrally. Agent-specific APIs must not be imported by a Capability.
+
+Packages without `commands` remain compatible but are not callable from conversations. Nooki never exposes every job automatically: adding a command is an explicit public API and safety decision by the package author.
+
 ## Record a business activity
 
 `host.activity.write({ type, title, key?, target? })` requires `activity.write`. Nooki assigns the source, timestamp and, inside a job, task ID. A stable `key` updates one fact within that Capability rather than appending duplicate rows. `target` is a `DocumentReference`; omit it for job activities that should open their task details. Legacy events remain readable and fall back to their source Capability when no exact target was recorded.

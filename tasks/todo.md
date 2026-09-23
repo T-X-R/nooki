@@ -18,8 +18,8 @@
 - [x] Slice 6: implement and test the Claude Code MCP adapter.
 - [x] Slice 7: implement and test the pi extension adapter.
 - [x] Agent checkpoint: verify common tool registration and relay wiring across Codex, Claude Code, and pi and commit.
-- [ ] Slice 8: migrate appropriate bundled capabilities to explicit commands.
-- [ ] Slice 8: update capability authoring documentation and starter templates.
+- [x] Slice 8: migrate the bundled Codex daily review to an explicit confirmed command.
+- [x] Slice 8: update capability authoring documentation, starter templates, and compatibility guidance.
 - [ ] Run the full platform, capability, UI, TypeScript, and Rust verification suite.
 - [ ] Manually verify discovery, confirmation, invocation, cancellation, failure, and conversation rendering.
 - [ ] Quit Nooki, run `npm run desktop:build`, and run `npm run desktop:install`.

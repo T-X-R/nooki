@@ -21,3 +21,5 @@ To follow the platform language and theme:
 See [`packages/capability-contract/README.md`](../packages/capability-contract/README.md) for the full interface and an example.
 
 Long-running work belongs in module `jobs`, submitted through `host.tasks`. See [INFRASTRUCTURE.md](../INFRASTRUCTURE.md) for task and package contracts.
+
+Conversation-callable operations are an explicit public surface. Declare `command` in the manifest and map command definitions to existing jobs; do not expose every job automatically. The platform supplies one common broker to Codex, Claude Code, pi, and future agent adapters, so capability packages never contain agent-specific integration code. See the contract README for schemas, effects, confirmation policies, and compatibility rules.

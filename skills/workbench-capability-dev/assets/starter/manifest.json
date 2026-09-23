@@ -4,7 +4,7 @@
   "description": "A small place to keep a note.",
   "version": "1.0.0",
   "minPlatformVersion": "0.3.0",
-  "entrypoints": ["page"],
+  "entrypoints": ["page", "job", "command"],
   "permissions": ["storage"],
   "locales": {
     "zh": { "name": "随手记", "description": "保存一段自己的记录。" },
