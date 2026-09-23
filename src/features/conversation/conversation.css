@@ -45,9 +45,12 @@
 .conversation-markdown ol { list-style: decimal; }
 .conversation-markdown a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .conversation-markdown pre { overflow-x: auto; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 11px; }
-.conversation-code-block { position: relative; margin: 12px 0; }
-.conversation-code-block pre { margin: 0; padding-right: 46px; }
-.conversation-code-copy { position: absolute; z-index: 1; top: 8px; right: 8px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-strong) 92%, transparent); }
+.conversation-code-block { margin: 12px 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.conversation-code-toolbar { display: flex; align-items: center; justify-content: space-between; min-height: 36px; padding: 4px 7px 4px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface-muted) 54%, var(--surface)); }
+.conversation-code-language { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; font-weight: 650; line-height: 1; }
+.conversation-code-block pre { margin: 0; border: 0; border-radius: 0; background: transparent; }
+.conversation-code-copy { border: 1px solid transparent; background: transparent; }
+.conversation-code-copy:hover { border-color: var(--line); background: var(--surface-strong); }
 .conversation-code-copy.is-copied { color: var(--positive); }
 .conversation-markdown code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
 .conversation-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }

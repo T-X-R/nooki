@@ -12,6 +12,12 @@ export function codeBlockText(children: ReactNode): string {
   return textFrom(children).replace(/\n$/, '')
 }
 
+export function codeBlockLanguage(children: ReactNode): string {
+  const code = Children.toArray(children).find((child) => isValidElement<{ className?: string }>(child))
+  const className = isValidElement<{ className?: string }>(code) ? code.props.className ?? '' : ''
+  return /(?:^|\s)language-([^\s]+)/i.exec(className)?.[1]?.toLowerCase() ?? 'text'
+}
+
 export function CopyableCodeBlock({ children, zh }: { children?: ReactNode; zh: boolean }) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   useEffect(() => {
@@ -29,14 +35,17 @@ export function CopyableCodeBlock({ children, zh }: { children?: ReactNode; zh: 
     }
   }
   return createElement('div', { className: 'conversation-code-block' },
-    createElement('button', {
-      type: 'button',
-      className: `icon-button conversation-code-copy ${status === 'copied' ? 'is-copied' : ''}`,
-      'aria-label': label,
-      title: label,
-      onClick: () => void copy(),
-    }, createElement(status === 'copied' ? CheckIcon : CopyIcon, { 'aria-hidden': true })),
-    createElement('span', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, status === 'idle' ? '' : label),
+    createElement('div', { className: 'conversation-code-toolbar' },
+      createElement('span', { className: 'conversation-code-language' }, codeBlockLanguage(children)),
+      createElement('button', {
+        type: 'button',
+        className: `icon-button conversation-code-copy ${status === 'copied' ? 'is-copied' : ''}`,
+        'aria-label': label,
+        title: label,
+        onClick: () => void copy(),
+      }, createElement(status === 'copied' ? CheckIcon : CopyIcon, { 'aria-hidden': true })),
+      createElement('span', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, status === 'idle' ? '' : label),
+    ),
     createElement('pre', null, children),
   )
 }

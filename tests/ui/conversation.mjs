@@ -15,7 +15,7 @@ page.on('pageerror', e=>errors.push(e.message));
 try {
 await page.addInitScript((installed)=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
- const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []})),{id:'old-answer',type:'agentMessage',phase:'final_answer',text:'安装包在这个目录：\n\n```\n/com.personal.workbench/conversation-workspaces/test/package.zip\n```\n\n配置：\n\n```json\n{"ready": true}\n```'}]}]};
+ const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []})),{id:'old-answer',type:'agentMessage',phase:'final_answer',text:'安装包在这个目录：\n\n```\n/com.personal.workbench/conversation-workspaces/bcbf704d041b7bddb40b1f02280ac7a4ec6f64f035adbe3ea2cec5f9915cd737/package.zip\n```\n\n配置：\n\n```json\n{"ready": true}\n```'}]}]};
  const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
@@ -133,13 +133,20 @@ const historyProcess=page.locator('.conversation-turn-process');
 await historyProcess.waitFor();
 const copyButtons=page.locator('.conversation-code-copy');
 assert.equal(await copyButtons.count(),2, 'Every fenced path or code block has one copy action');
+assert.deepEqual(await page.locator('.conversation-code-language').allTextContents(),['text','json']);
+assert.deepEqual(await page.locator('.conversation-code-block').evaluateAll(blocks=>blocks.map(block=>{
+ const toolbar=block.querySelector('.conversation-code-toolbar').getBoundingClientRect();
+ const content=block.querySelector('pre').getBoundingClientRect();
+ return toolbar.bottom<=content.top+1;
+})),[true,true], 'The toolbar occupies its own row above the content');
+assert.equal(await page.locator('.conversation-code-block pre').first().evaluate(element=>element.scrollWidth>element.clientWidth),true, 'Long paths scroll only inside the content row');
 await page.screenshot({path:'/private/tmp/nooki-code-copy.png'});
 await copyButtons.first().focus();
 assert.equal(await copyButtons.first().evaluate(element=>element===document.activeElement),true, 'The native copy button is keyboard focusable');
 await copyButtons.first().click();
 await page.waitForFunction(()=>document.querySelector('.conversation-code-copy')?.getAttribute('aria-label')!=='复制内容');
 assert.equal(await copyButtons.first().getAttribute('aria-label'),'已复制');
-assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'/com.personal.workbench/conversation-workspaces/test/package.zip');
+assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'/com.personal.workbench/conversation-workspaces/bcbf704d041b7bddb40b1f02280ac7a4ec6f64f035adbe3ea2cec5f9915cd737/package.zip');
 assert.equal(await historyProcess.getAttribute('open'),null, 'Completed history starts collapsed');
 await historyProcess.locator(':scope > summary').click();
 assert.equal(await page.locator('.conversation-reasoning').count(),30, 'Empty summaries stay hidden');
