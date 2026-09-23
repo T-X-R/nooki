@@ -472,11 +472,11 @@ pub fn run() {
       );
       let data_dir = app.path().app_data_dir()?;
       user_data::recover(&data_dir).map_err(std::io::Error::other)?;
-      let event_app = app.handle().clone();
-      app.manage(conversation_host::ConversationHost::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:conversation-event", event); })));
       let capability_app = app.handle().clone();
       let capability_bridge = std::sync::Arc::new(capability_bridge::CapabilityBridge::new(&data_dir, std::sync::Arc::new(move |event| { let _ = capability_app.emit("workbench:capability-request", event); })).map_err(std::io::Error::other)?);
       capability_bridge.start().map_err(std::io::Error::other)?;
+      let event_app = app.handle().clone();
+      app.manage(conversation_host::ConversationHost::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:conversation-event", event); })).with_capability_bridge(capability_bridge.clone()));
       app.manage(capability_bridge);
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;

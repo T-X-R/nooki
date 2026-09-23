@@ -1,3 +1,4 @@
+use crate::capability_bridge::CapabilityBridge;
 use crate::conversation_documents::{self, DocumentInputs};
 use crate::conversation_instructions::CONVERSATION_INSTRUCTIONS;
 use crate::conversation_skills::SkillReference;
@@ -18,6 +19,8 @@ pub struct CodexConversations {
   root: PathBuf,
   client: AsyncMutex<Option<Arc<Client>>>,
   sink: Arc<dyn Fn(Value) + Send + Sync>,
+  capability_bridge: Option<Arc<CapabilityBridge>>,
+  capability_threads: Mutex<HashSet<String>>,
 }
 struct Client {
   connection: AsyncMutex<SplitSink<crate::codex_background::Connection, Message>>,
@@ -33,6 +36,27 @@ impl Drop for Client {
   fn drop(&mut self) {
     if let Ok(reader) = self.reader.get_mut() { if let Some(reader) = reader.take() { reader.abort(); } }
   }
+}
+
+fn capability_dynamic_tool() -> Value {
+  json!({
+    "type":"function",
+    "name":"nooki_capabilities",
+    "description":"Discover, inspect, or invoke an installed Nooki capability. Search before invoking when the capability or command ID is unknown.",
+    "inputSchema":{
+      "type":"object",
+      "properties":{
+        "action":{"type":"string","enum":["search","describe","invoke"]},
+        "query":{"type":"string"},
+        "capabilityId":{"type":"string"},
+        "commandId":{"type":"string"},
+        "input":{},
+        "language":{"type":"string","enum":["zh","en"]}
+      },
+      "required":["action"],
+      "additionalProperties":false
+    }
+  })
 }
 impl Client {
   async fn send(&self, value: Value) -> Result<(), String> {
@@ -59,7 +83,27 @@ impl Client {
 }
 
 impl CodexConversations {
-  pub fn new(binary: String, root: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self { Self { binary, root, client: AsyncMutex::new(None), sink } }
+  pub fn new(binary: String, root: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self {
+    let capability_threads = std::fs::read(root.join("capability-tool-threads.json")).ok()
+      .and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
+    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads) }
+  }
+  pub fn with_capability_bridge(mut self, bridge: Arc<CapabilityBridge>) -> Self { self.capability_bridge = Some(bridge); self }
+  fn capability_tools_enabled(&self, thread_id: &str) -> bool {
+    self.capability_threads.lock().is_ok_and(|threads| threads.contains(thread_id))
+  }
+  fn remember_capability_tools(&self, thread_id: &str) -> Result<(), String> {
+    let mut threads = self.capability_threads.lock().map_err(|_| "Capability session registry unavailable")?;
+    threads.insert(thread_id.into());
+    let temporary = self.root.join("capability-tool-threads.json.tmp");
+    std::fs::write(&temporary, serde_json::to_vec(&*threads).map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
+    std::fs::rename(temporary, self.root.join("capability-tool-threads.json")).map_err(|error| error.to_string())
+  }
+  fn developer_instructions(&self, thread_id: &str) -> String {
+    if self.capability_bridge.is_some() && !self.capability_tools_enabled(thread_id) {
+      format!("{CONVERSATION_INSTRUCTIONS}\nThis conversation predates Nooki capability tools. If the user asks to use an installed Nooki capability, explain that they need to start a new conversation.")
+    } else { CONVERSATION_INSTRUCTIONS.into() }
+  }
   fn workspace(&self) -> PathBuf { let path = self.root.join("conversation-workspace"); path.canonicalize().unwrap_or(path) }
   async fn connect(&self) -> Result<Arc<Client>, String> {
     let mut current = self.client.lock().await;
@@ -71,6 +115,7 @@ impl CodexConversations {
     let client = Arc::new(Client { connection: AsyncMutex::new(writer), reader: Mutex::new(None), pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), alive: AtomicBool::new(true), events, fresh: Mutex::new(HashSet::new()), answers: AsyncMutex::new(HashSet::new()) });
     let weak = Arc::downgrade(&client);
     let sink = self.sink.clone();
+    let capability_bridge = self.capability_bridge.clone();
     let reading = tokio::spawn(async move {
       while let Some(Ok(message)) = reader.next().await {
         if message.is_close() { break; }
@@ -80,6 +125,23 @@ impl CodexConversations {
         if message.get("method").is_some() && message.get("id").is_some() {
           // Workspace writes need no escalation. Interactive actions outside that scope stay declined.
           let method = message["method"].as_str().unwrap_or("");
+          if method == "item/tool/call" && message["params"]["tool"] == "nooki_capabilities" {
+            let client = client.clone();
+            let bridge = capability_bridge.clone();
+            tokio::spawn(async move {
+              let mut request = message["params"]["arguments"].as_object().cloned().unwrap_or_default();
+              request.insert("invocationId".into(), message["params"]["callId"].clone());
+              request.insert("context".into(), json!({"threadId":message["params"]["threadId"],"turnId":message["params"]["turnId"],"agent":"codex"}));
+              let result = if let Some(bridge) = bridge { bridge.request(Value::Object(request)).await }
+                else { Err("Nooki capability broker is unavailable".into()) };
+              let (success, content) = match result {
+                Ok(response) => (response["ok"] == true, response),
+                Err(error) => (false, json!({"ok":false,"error":{"code":"RELAY_FAILED","message":error}})),
+              };
+              let _ = client.send(json!({"id":message["id"],"result":{"success":success,"contentItems":[{"type":"inputText","text":content.to_string()}]}})).await;
+            });
+            continue;
+          }
           let response = if method.ends_with("requestApproval") { json!({"id":message["id"],"result":{"decision":"decline"}}) }
             else { json!({"id":message["id"],"error":{"code":-32601,"message":"This Nooki conversation supports document edits in its workspace. Ask the user in your reply for other interactive actions."}}) };
           let _ = client.send(response).await;
@@ -144,14 +206,19 @@ impl CodexConversations {
   }
   pub async fn create(&self) -> Result<Value, String> {
     let client = self.connect().await?;
-    let result = client.request("thread/start", json!({"cwd":self.workspace(),"ephemeral":false,"approvalPolicy":"never","sandbox":"read-only","developerInstructions":CONVERSATION_INSTRUCTIONS})).await?;
+    let mut params = json!({"cwd":self.workspace(),"ephemeral":false,"approvalPolicy":"never","sandbox":"read-only","developerInstructions":CONVERSATION_INSTRUCTIONS});
+    if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool()]); }
+    let result = client.request("thread/start", params).await?;
     let thread = result["thread"].clone();
-    client.fresh.lock().map_err(|_| "Codex session state unavailable")?.insert(thread["id"].as_str().ok_or("Codex did not return a session ID")?.into());
+    let thread_id = thread["id"].as_str().ok_or("Codex did not return a session ID")?;
+    client.fresh.lock().map_err(|_| "Codex session state unavailable")?.insert(thread_id.into());
+    if self.capability_bridge.is_some() { self.remember_capability_tools(thread_id)?; }
     Ok(thread)
   }
   pub async fn read(&self, id: &str, cursor: Option<String>) -> Result<Value, String> {
     let client = self.connect().await?;
     let mut thread = self.owned_thread(&client, id).await?;
+    if self.capability_bridge.is_some() { thread["capabilityTools"] = json!(if self.capability_tools_enabled(id) { "available" } else { "new-conversation-required" }); }
     if client.fresh.lock().map_err(|_| "Codex session state unavailable")?.contains(id) { thread["nextCursor"] = Value::Null; return Ok(thread); }
     client.request("thread/resume", json!({"threadId":id,"excludeTurns":true})).await?;
     let page = client.request("thread/turns/list", json!({"threadId":id,"cursor":cursor,"limit":30,"sortDirection":"desc","itemsView":"full"})).await?;
@@ -222,7 +289,7 @@ impl CodexConversations {
     if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
     let document_context = conversation_documents::prepare(&self.root, thread_id, request_id, inputs)?;
     let document_workspace = conversation_documents::workspace(&self.root, thread_id).canonicalize().map_err(|e| e.to_string())?;
-    if !fresh { client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never","sandbox":"workspace-write","developerInstructions":CONVERSATION_INSTRUCTIONS,"config":{"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true}})).await?; }
+    if !fresh { client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never","sandbox":"workspace-write","developerInstructions":self.developer_instructions(thread_id),"config":{"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true}})).await?; }
     let turn = {
       if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
       // An uncertain start must reconcile history before it can be retried.

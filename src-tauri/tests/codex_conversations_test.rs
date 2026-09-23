@@ -1,4 +1,4 @@
-use app_lib::{codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, conversation_host::ConversationHost, source_snapshots, document_library::{self, DocumentPublication}};
+use app_lib::{capability_bridge::CapabilityBridge, codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, conversation_host::ConversationHost, source_snapshots, document_library::{self, DocumentPublication}};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::{Arc, Mutex}};
 use tokio_util::sync::CancellationToken;
@@ -151,6 +151,33 @@ fn fixture() -> (PathBuf, CodexConversations, Arc<Mutex<Vec<Value>>>) {
   let sink = events.clone();
   let bridge = CodexConversations::new(script.to_string_lossy().into(), root.clone(), Arc::new(move |e| sink.lock().unwrap().push(e)));
   (root, bridge, events)
+}
+
+#[tokio::test]
+async fn codex_dynamic_tool_uses_the_nooki_capability_bridge() {
+  let (root, unused, _) = fixture(); drop(unused);
+  let (events, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+  let capabilities = Arc::new(CapabilityBridge::new(&root, Arc::new(move |event| { let _ = events.send(event); })).unwrap());
+  capabilities.renderer_ready();
+  let bridge = Arc::new(CodexConversations::new(root.join("codex").to_string_lossy().into(), root.clone(), Arc::new(|_| {})).with_capability_bridge(capabilities.clone()));
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  assert_eq!(bridge.read(&id, None).await.unwrap()["capabilityTools"], "available");
+  let responder = capabilities.clone();
+  let handled = tokio::spawn(async move {
+    let event = receiver.recv().await.unwrap();
+    assert_eq!(event["request"]["action"], "search");
+    assert_eq!(event["request"]["invocationId"], "tool-call-1");
+    assert_eq!(event["request"]["context"], json!({"threadId":"session-1","turnId":"turn-1","agent":"codex"}));
+    responder.respond(event["id"].as_str().unwrap(), json!({"ok":true,"action":"search","commands":[]})).unwrap();
+  });
+  bridge.run(&id, "capability-tool", "", "request-tool", CancellationToken::new()).await.unwrap();
+  handled.await.unwrap();
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  let started = requests.iter().find(|request| request["method"] == "thread/start").unwrap();
+  assert_eq!(started["params"]["dynamicTools"][0]["name"], "nooki_capabilities");
+  let response = requests.iter().find(|request| request["id"] == 9001 && request.get("method").is_none()).unwrap();
+  assert_eq!(response["result"]["success"], true);
+  drop(bridge); drop(capabilities); let _ = std::fs::remove_dir_all(root);
 }
 #[tokio::test]
 async fn native_sessions_stream_resume_and_recover_completed_turns_without_duplicate_generation() {

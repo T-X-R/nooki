@@ -12,6 +12,7 @@ fixture_workspace=Path.cwd()
 Path('fake-daemon.pid').write_text(str(os.getpid()))
 path=Path('fake-history.json')
 threads=json.loads(path.read_text()) if path.exists() else {}
+pending_tools={}
 for thread in threads.values():
     for turn in thread['turns']:
         if turn['status']=='inProgress': turn['status']='interrupted';thread['status']={'type':'idle'}
@@ -75,6 +76,11 @@ for line in connections():
     request=json.loads(line);method=request.get('method');p=request.get('params',{});rid=request.get('id')
     if rid is None:continue
     with open('fake-requests.jsonl','a') as trace: trace.write(json.dumps(request)+'\n')
+    if method is None and rid in pending_tools:
+        t,turn=pending_tools.pop(rid)
+        turn['items'].append({'id':'answer-tool','type':'agentMessage','text':'Capability result received','phase':'final_answer'})
+        turn['status']='completed';t['status']={'type':'idle'};persist();event('turn/completed',{'threadId':t['id'],'turn':turn})
+        continue
     def reply(value):out({'id':rid,'result':value})
     def error(message):out({'id':rid,'error':{'code':-32600,'message':message}})
     if method=='initialize':reply({'userAgent':'fake-codex'})
@@ -108,6 +114,10 @@ for line in connections():
         t['status']={'type':'active'}
         t['turns'].append(turn);t['preview']=text;persist();reply({'turn':turn})
         event('turn/started',{'threadId':t['id'],'turn':turn})
+        if text=='capability-tool':
+            tool_id=9000+n;pending_tools[tool_id]=(t,turn)
+            out({'id':tool_id,'method':'item/tool/call','params':{'threadId':t['id'],'turnId':turn['id'],'callId':'tool-call-'+str(n),'tool':'nooki_capabilities','arguments':{'action':'search','query':'notes'}}})
+            continue
         if text=='disconnect' and n==1:sys.exit(0)
         if text=='slow':continue
         if text=='async-question':

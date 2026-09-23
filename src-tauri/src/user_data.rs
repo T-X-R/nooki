@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, io::{Cursor, Write}, path::{Component, Path}};
 use tauri::Manager;
 
-const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "agent-sessions", "tasks.json"];
+const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "capability-tool-threads.json", "agent-sessions", "tasks.json"];
 const LIMIT: usize = 128_000_000;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

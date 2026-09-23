@@ -4,6 +4,7 @@
 //! session an agent owns. Each adapter still speaks that agent's own protocol.
 
 use crate::{
+    capability_bridge::CapabilityBridge,
     codex_conversations::{CodexConversations, ConversationAction},
     conversation_documents::DocumentInputs,
     conversation_skills,
@@ -60,6 +61,10 @@ impl ConversationHost {
     }
     pub fn with_worker_executable(mut self, executable: PathBuf) -> Self {
         self.worker_executable = executable;
+        self
+    }
+    pub fn with_capability_bridge(mut self, bridge: Arc<CapabilityBridge>) -> Self {
+        self.codex = self.codex.with_capability_bridge(bridge);
         self
     }
     fn catalog_path(&self) -> PathBuf {
