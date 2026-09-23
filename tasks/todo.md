@@ -7,9 +7,9 @@
 - [x] Slice 1: write failing command-contract and package-validation tests.
 - [x] Slice 1: implement the optional command contract and compatibility validation.
 - [x] Slice 1 checkpoint: run focused contract/package tests and commit.
-- [ ] Slice 2: write failing capability-broker tests.
-- [ ] Slice 2: implement search, describe, invoke, validation, confirmation gating, idempotency, and normalized results.
-- [ ] Slice 2 checkpoint: run focused broker tests and commit.
+- [x] Slice 2: write failing capability-broker tests.
+- [x] Slice 2: implement search, describe, invoke, validation, confirmation gating, idempotency, and normalized results.
+- [x] Slice 2 checkpoint: run focused broker tests and commit.
 - [ ] Slice 3: implement invocation state plus the reusable conversation card with tests.
 - [ ] Slice 3 checkpoint: verify confirmation and persisted history behavior and commit.
 - [ ] Slice 4: implement and test the Rust renderer/native relay.
