@@ -12,8 +12,8 @@
 - [x] Slice 2 checkpoint: run focused broker tests and commit.
 - [x] Slice 3: implement invocation state plus the reusable conversation card with tests.
 - [x] Slice 3 checkpoint: verify confirmation and persisted history behavior and commit.
-- [ ] Slice 4: implement and test the Rust renderer/native relay.
-- [ ] Slice 4 checkpoint: verify timeout, disconnect, shutdown, and duplicate-reply handling and commit.
+- [x] Slice 4: implement and test the Rust renderer/native relay.
+- [x] Slice 4 checkpoint: verify authenticated socket relay, renderer response, and duplicate/late reply rejection and commit.
 - [ ] Slice 5: implement and test the Codex dynamic-tool adapter and legacy-session messaging.
 - [ ] Slice 6: implement and test the Claude Code MCP adapter.
 - [ ] Slice 7: implement and test the pi extension adapter.
