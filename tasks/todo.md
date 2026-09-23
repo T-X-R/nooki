@@ -24,4 +24,4 @@
 - [x] Manually verify discovery, confirmation, invocation, cancellation, failure, and conversation rendering.
 - [x] Quit Nooki, run `npm run desktop:build`, and run `npm run desktop:install`.
 - [x] Review the final diff for scope, security, compatibility, and generated artifacts.
-- [ ] Push `codex/conversation-capability-broker` and open an English pull request into `master`.
+- [x] Push `codex/conversation-capability-broker` and open an English pull request into `master`.
