@@ -1,0 +1,27 @@
+# Conversation Capability Broker TODO
+
+- [x] Inspect the existing capability runtime, task runner, conversation hosts, and all three agent protocols.
+- [x] Confirm current Codex dynamic-tool, Claude MCP, and pi extension integration points.
+- [x] Create a feature branch from the latest `origin/master`.
+- [x] Record architecture, safety boundaries, slices, and completion criteria.
+- [x] Slice 1: write failing command-contract and package-validation tests.
+- [x] Slice 1: implement the optional command contract and compatibility validation.
+- [x] Slice 1 checkpoint: run focused contract/package tests and commit.
+- [ ] Slice 2: write failing capability-broker tests.
+- [ ] Slice 2: implement search, describe, invoke, validation, confirmation gating, idempotency, and normalized results.
+- [ ] Slice 2 checkpoint: run focused broker tests and commit.
+- [ ] Slice 3: implement invocation state plus the reusable conversation card with tests.
+- [ ] Slice 3 checkpoint: verify confirmation and persisted history behavior and commit.
+- [ ] Slice 4: implement and test the Rust renderer/native relay.
+- [ ] Slice 4 checkpoint: verify timeout, disconnect, shutdown, and duplicate-reply handling and commit.
+- [ ] Slice 5: implement and test the Codex dynamic-tool adapter and legacy-session messaging.
+- [ ] Slice 6: implement and test the Claude Code MCP adapter.
+- [ ] Slice 7: implement and test the pi extension adapter.
+- [ ] Agent checkpoint: verify equivalent broker behavior across Codex, Claude Code, and pi and commit.
+- [ ] Slice 8: migrate appropriate bundled capabilities to explicit commands.
+- [ ] Slice 8: update capability authoring documentation and starter templates.
+- [ ] Run the full platform, capability, UI, TypeScript, and Rust verification suite.
+- [ ] Manually verify discovery, confirmation, invocation, cancellation, failure, and conversation rendering.
+- [ ] Quit Nooki, run `npm run desktop:build`, and run `npm run desktop:install`.
+- [ ] Review the final diff for scope, security, compatibility, and generated artifacts.
+- [ ] Push `codex/conversation-capability-broker` and open an English pull request into `master`.

@@ -35,6 +35,7 @@ test('released kit scaffolds an independent project with canonical Host types an
 test('kit check rejects unsupported entrypoints, permissions and global CSS', async () => {
   const manifest = JSON.parse(await readFile(new URL('../skills/workbench-capability-dev/assets/starter/manifest.json', import.meta.url), 'utf8'))
   assert.throws(() => validateManifest({ ...manifest, entrypoints: ['widget'] }))
+  validateManifest({ ...manifest, entrypoints: ['page', 'job', 'command'] })
   assert.throws(() => validateManifest({ ...manifest, permissions: ['filesystem.all'] }))
   assert.throws(() => validateStyle('body { color: red }', 'style.css'))
   assert.throws(() => validateStyle('.notes, :root { color: red }', 'style.css'))
