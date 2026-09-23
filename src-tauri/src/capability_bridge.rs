@@ -152,8 +152,11 @@ impl CapabilityBridge {
             }
             std::fs::remove_file(&self.endpoint.socket_path).map_err(|error| error.to_string())?;
         }
-        let listener = tokio::net::UnixListener::bind(&self.endpoint.socket_path)
+        let listener = std::os::unix::net::UnixListener::bind(&self.endpoint.socket_path)
             .map_err(|error| format!("Could not start capability relay: {error}"))?;
+        listener
+            .set_nonblocking(true)
+            .map_err(|error| format!("Could not configure capability relay: {error}"))?;
         std::fs::set_permissions(
             &self.endpoint.socket_path,
             std::fs::Permissions::from_mode(0o600),
@@ -161,6 +164,9 @@ impl CapabilityBridge {
         .map_err(|error| error.to_string())?;
         let weak = Arc::downgrade(self);
         tauri::async_runtime::spawn(async move {
+            let Ok(listener) = tokio::net::UnixListener::from_std(listener) else {
+                return;
+            };
             loop {
                 let Ok((stream, _)) = listener.accept().await else {
                     break;
@@ -294,6 +300,18 @@ pub async fn relay_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn relay_can_start_without_an_entered_tokio_runtime() {
+        let root = PathBuf::from(format!("/tmp/nooki-sync-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let bridge = Arc::new(CapabilityBridge::new(&root, Arc::new(|_| {})).unwrap());
+        bridge.start().unwrap();
+        assert!(std::fs::symlink_metadata(&bridge.endpoint.socket_path).is_ok());
+        drop(bridge);
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     #[tokio::test]
     async fn request_waits_for_renderer_response() {
