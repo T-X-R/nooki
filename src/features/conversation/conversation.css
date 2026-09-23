@@ -167,3 +167,15 @@ dialog.conversation-document-dialog[open] { display: flex; flex-direction: colum
 .conversation-turn-process + .conversation-answer { margin-top: 0; }
 .conversation-turn > .conversation-answer .conversation-markdown { margin-top: 0; }
 .conversation-turn > .conversation-answer .conversation-markdown > :first-child { margin-top: 0; }
+
+.capability-invocation { display: grid; gap: 10px; margin: 12px 0; padding: 13px 14px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-muted) 62%, var(--surface)); font-size: 12px; }
+.capability-invocation header { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 8px; }
+.capability-invocation header > span, .capability-invocation header > small { color: var(--ink-soft); font-size: 10px; }
+.capability-invocation header > strong { color: var(--ink); font-size: 12px; }
+.capability-invocation > p { margin: 0; color: var(--ink-muted); line-height: 1.6; }
+.capability-invocation details summary { cursor: pointer; color: var(--ink-muted); font-size: 10px; }
+.capability-invocation pre { max-height: 180px; margin: 8px 0 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
+.capability-invocation footer { display: flex; justify-content: flex-end; gap: 8px; }
+.capability-invocation footer button { display: inline-flex; align-items: center; gap: 5px; }
+.capability-invocation footer svg { width: 12px; height: 12px; }
+.capability-invocation-error { color: var(--danger); }

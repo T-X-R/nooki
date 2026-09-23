@@ -10,8 +10,8 @@
 - [x] Slice 2: write failing capability-broker tests.
 - [x] Slice 2: implement search, describe, invoke, validation, confirmation gating, idempotency, and normalized results.
 - [x] Slice 2 checkpoint: run focused broker tests and commit.
-- [ ] Slice 3: implement invocation state plus the reusable conversation card with tests.
-- [ ] Slice 3 checkpoint: verify confirmation and persisted history behavior and commit.
+- [x] Slice 3: implement invocation state plus the reusable conversation card with tests.
+- [x] Slice 3 checkpoint: verify confirmation and persisted history behavior and commit.
 - [ ] Slice 4: implement and test the Rust renderer/native relay.
 - [ ] Slice 4 checkpoint: verify timeout, disconnect, shutdown, and duplicate-reply handling and commit.
 - [ ] Slice 5: implement and test the Codex dynamic-tool adapter and legacy-session messaging.

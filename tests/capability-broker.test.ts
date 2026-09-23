@@ -105,6 +105,24 @@ test('requires platform-owned confirmation for side effects', async () => {
   assert.equal(accepted.executions.length, 1)
 })
 
+test('publishes one agent-independent invocation lifecycle', async () => {
+  const updates: string[] = []
+  const broker = createCapabilityBroker({
+    listCapabilities: () => [installed(commandModule)],
+    execute: async (_capabilityId, _job, _input, onStarted) => {
+      onStarted('task-lifecycle')
+      return { taskId: 'task-lifecycle', status: 'completed', result: { summary: 'Short' } }
+    },
+    confirm: async () => true,
+    onInvocation: (update) => updates.push(`${update.status}:${update.taskId ?? ''}`),
+  })
+  await broker.handle({
+    action: 'invoke', invocationId: 'call-lifecycle', capabilityId: 'test.notes', commandId: 'publish', input: { id: 'note-1' },
+    context: { threadId: 'thread-1', turnId: 'turn-1', agent: 'pi' },
+  })
+  assert.deepEqual(updates, ['proposed:', 'awaiting_confirmation:', 'running:task-lifecycle', 'completed:task-lifecycle'])
+})
+
 test('deduplicates identical invocation IDs and rejects conflicting reuse', async () => {
   const { broker, executions } = setup()
   const request = { action: 'invoke' as const, invocationId: 'call-once', capabilityId: 'test.notes', commandId: 'summarize', input: { notes: 'Hello' } }

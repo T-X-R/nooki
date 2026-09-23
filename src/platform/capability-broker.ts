@@ -33,6 +33,21 @@ export type BrokerConfirmationProposal = Readonly<{
   invocationId: string
   command: BrokerCommandDescription
   input: unknown
+  context?: BrokerInvocationContext
+}>
+
+export type BrokerInvocationContext = Readonly<{
+  threadId: string
+  turnId: string
+  agent: string
+}>
+
+export type BrokerInvocationStatus = 'proposed' | 'awaiting_confirmation' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
+export type BrokerInvocationUpdate = BrokerConfirmationProposal & Readonly<{
+  status: BrokerInvocationStatus
+  taskId?: string
+  result?: unknown
+  error?: string
 }>
 
 export type BrokerExecution = Readonly<{
@@ -44,14 +59,15 @@ export type BrokerExecution = Readonly<{
 
 export type CapabilityBrokerDependencies = Readonly<{
   listCapabilities(): readonly BrokerCatalogEntry[]
-  execute(capabilityId: string, job: string, input: unknown): Promise<BrokerExecution>
+  execute(capabilityId: string, job: string, input: unknown, onStarted: (taskId: string) => void): Promise<BrokerExecution>
   confirm(proposal: BrokerConfirmationProposal): Promise<boolean>
+  onInvocation?(update: BrokerInvocationUpdate): void
 }>
 
 export type CapabilityBrokerRequest =
   | Readonly<{ action: 'search'; query?: string; capabilityId?: string; language?: CapabilityLanguage }>
   | Readonly<{ action: 'describe'; capabilityId: string; commandId: string; language?: CapabilityLanguage }>
-  | Readonly<{ action: 'invoke'; invocationId: string; capabilityId: string; commandId: string; input: unknown; language?: CapabilityLanguage }>
+  | Readonly<{ action: 'invoke'; invocationId: string; capabilityId: string; commandId: string; input: unknown; language?: CapabilityLanguage; context?: BrokerInvocationContext }>
 
 export type CapabilityBrokerErrorCode =
   | 'COMMAND_NOT_AVAILABLE'
@@ -139,29 +155,57 @@ export function createCapabilityBroker(dependencies: CapabilityBrokerDependencie
     catch { return failure('INVALID_INPUT', 'Capability command has an invalid input schema') }
     if (!validate(request.input)) return failure('INVALID_INPUT', validationMessage(validate.errors))
 
-    if (needsConfirmation(selected.command) && !await dependencies.confirm({
-      invocationId: request.invocationId,
-      command: selected.description,
-      input: request.input,
-    })) return failure('CONFIRMATION_DENIED', 'Capability command was not confirmed')
+    const proposal = { invocationId: request.invocationId, command: selected.description, input: request.input, context: request.context }
+    dependencies.onInvocation?.({ ...proposal, status: 'proposed' })
+
+    if (needsConfirmation(selected.command)) {
+      dependencies.onInvocation?.({ ...proposal, status: 'awaiting_confirmation' })
+      if (!await dependencies.confirm(proposal)) {
+        dependencies.onInvocation?.({ ...proposal, status: 'cancelled', error: 'Capability command was not confirmed' })
+        return failure('CONFIRMATION_DENIED', 'Capability command was not confirmed')
+      }
+    }
 
     let execution: BrokerExecution
-    try { execution = await dependencies.execute(request.capabilityId, selected.command.job, request.input) }
-    catch (error) {
-      return failure('EXECUTION_FAILED', error instanceof Error && error.message ? error.message : 'Capability command failed')
+    let started = false
+    try {
+      execution = await dependencies.execute(request.capabilityId, selected.command.job, request.input, (taskId) => {
+        started = true
+        dependencies.onInvocation?.({ ...proposal, status: 'running', taskId })
+      })
     }
+    catch (error) {
+      const message = error instanceof Error && error.message ? error.message : 'Capability command failed'
+      dependencies.onInvocation?.({ ...proposal, status: 'failed', error: message })
+      return failure('EXECUTION_FAILED', message)
+    }
+    if (!started) dependencies.onInvocation?.({ ...proposal, status: 'running', taskId: execution.taskId })
 
     if (execution.status === 'completed') {
       if (selected.command.outputSchema) {
         let validateOutput
         try { validateOutput = ajv.compile(selected.command.outputSchema) }
-        catch { return failure('INVALID_OUTPUT', 'Capability command has an invalid output schema') }
-        if (!validateOutput(execution.result)) return failure('INVALID_OUTPUT', 'Capability command returned an invalid result')
+        catch {
+          dependencies.onInvocation?.({ ...proposal, status: 'failed', taskId: execution.taskId, error: 'Capability command has an invalid output schema' })
+          return failure('INVALID_OUTPUT', 'Capability command has an invalid output schema')
+        }
+        if (!validateOutput(execution.result)) {
+          dependencies.onInvocation?.({ ...proposal, status: 'failed', taskId: execution.taskId, error: 'Capability command returned an invalid result' })
+          return failure('INVALID_OUTPUT', 'Capability command returned an invalid result')
+        }
       }
+      dependencies.onInvocation?.({ ...proposal, status: 'completed', taskId: execution.taskId, result: execution.result })
       return { ok: true, action: 'invoke', invocationId: request.invocationId, taskId: execution.taskId, status: 'completed', result: execution.result }
     }
-    if (execution.status === 'cancelled') return failure('EXECUTION_CANCELLED', execution.error || 'Capability command was cancelled')
-    if (execution.status === 'interrupted') return failure('EXECUTION_INTERRUPTED', execution.error || 'Capability command was interrupted')
+    if (execution.status === 'cancelled') {
+      dependencies.onInvocation?.({ ...proposal, status: 'cancelled', taskId: execution.taskId, error: execution.error || undefined })
+      return failure('EXECUTION_CANCELLED', execution.error || 'Capability command was cancelled')
+    }
+    if (execution.status === 'interrupted') {
+      dependencies.onInvocation?.({ ...proposal, status: 'interrupted', taskId: execution.taskId, error: execution.error || undefined })
+      return failure('EXECUTION_INTERRUPTED', execution.error || 'Capability command was interrupted')
+    }
+    dependencies.onInvocation?.({ ...proposal, status: 'failed', taskId: execution.taskId, error: execution.error || 'Capability command failed' })
     return failure('EXECUTION_FAILED', execution.error || 'Capability command failed')
   }
 

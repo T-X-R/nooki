@@ -18,6 +18,8 @@ import { artifactTitle, decodeAttachment, validateAttachments, type Conversation
 import { applySkillMention, attachedSkills, matchSkills, skillMention, type SkillMention } from './conversation-skills.ts'
 import type { PoolSkill } from '../skills/skill-pool.ts'
 import { CopyableCodeBlock } from './CopyableCodeBlock.ts'
+import { CapabilityInvocationCard } from './CapabilityInvocationCard.tsx'
+import { capabilityInvocationStore } from './capability-invocations.ts'
 
 // UI drafts only; the selected agent's native session is the authority for session history and messages.
 const openingGreetings = createGreetingRotation()
@@ -51,6 +53,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const zh = language === 'zh'
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const cache = useSyncExternalStore(conversationClient.subscribe, conversationClient.getSnapshot, conversationClient.getSnapshot)
+  const capabilityInvocations = useSyncExternalStore(capabilityInvocationStore.subscribe, capabilityInvocationStore.getSnapshot, capabilityInvocationStore.getSnapshot)
   const [selected, setSelected] = useState<string | null>(targetId === 'new' ? null : targetId ?? currentSession)
   const [text, setText] = useState(() => drafts.get(targetId ?? currentSession ?? 'new')?.text ?? '')
   const [ids, setIds] = useState<string[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.ids ?? [])
@@ -202,6 +205,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
             {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.filter((item) => item.type === 'userMessage' && !questionReplyIds.has(item.id)).map((item) => renderItem(turn, item))}
               {turn.items.some(isProcessHistory) && <TurnProcess turn={turn} zh={zh}>{turn.items.filter(isProcessHistory).map((item) => isProcessMessage(item) ? renderQuestion(turn, item) : renderItem(turn, item))}</TurnProcess>}
+              {capabilityInvocations.filter((invocation) => invocation.context?.threadId === thread.id && invocation.context.turnId === turn.id).map((invocation) => <CapabilityInvocationCard key={invocation.invocationId} invocation={invocation} zh={zh} />)}
               {turn.items.filter(isConversationAnswer).map((item) => renderItem(turn, item))}{turn.error && <p className="conversation-error" role="alert">{turn.error.message}</p>}<ConversationArtifacts files={turnArtifacts(turn.id)} zh={zh} onDocument={onDocument} onSave={(file) => save(artifactSource(turn), file.content, artifactTitle(file.name), file.id)} saveAction={(file) => saveAction({ id: artifactSource(turn), type: 'agentMessage', text: file.content }, artifactTitle(file.name), file.id)} /></div>)}
             {pending && <div className="conversation-turn"><article className="conversation-user">{pending.message}
               {!!pending.documentIds.length && <div className="conversation-message-sources">{pending.documentIds.map((id) => <span key={id}><FileTextIcon />{documents.find((doc) => doc.id === id)?.title ?? id}</span>)}</div>}
