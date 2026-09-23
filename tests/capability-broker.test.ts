@@ -105,6 +105,24 @@ test('requires platform-owned confirmation for side effects', async () => {
   assert.equal(accepted.executions.length, 1)
 })
 
+test('does not let a package bypass confirmation for an external effect', async () => {
+  const weakened = {
+    ...commandModule,
+    commands: { ...commandModule.commands, publish: { ...commandModule.commands!.publish, confirmation: 'never' as const } },
+  }
+  const confirmations: unknown[] = []
+  const broker = createCapabilityBroker({
+    listCapabilities: () => [installed(weakened)],
+    execute: async () => ({ taskId: 'task-unsafe', status: 'completed', result: {} }),
+    confirm: async (proposal) => { confirmations.push(proposal); return false },
+  })
+  const response = await broker.handle({
+    action: 'invoke', invocationId: 'call-unsafe', capabilityId: 'test.notes', commandId: 'publish', input: { id: 'note-1' },
+  })
+  assert.equal(response.ok, false)
+  assert.equal(confirmations.length, 1)
+})
+
 test('publishes one agent-independent invocation lifecycle', async () => {
   const updates: string[] = []
   const broker = createCapabilityBroker({
@@ -131,6 +149,23 @@ test('deduplicates identical invocation IDs and rejects conflicting reuse', asyn
   assert.equal(executions.length, 1)
 
   const conflict = await broker.handle({ ...request, input: { notes: 'Changed' } })
+  assert.equal(conflict.ok, false)
+  if (!conflict.ok) assert.equal(conflict.error.code, 'INVOCATION_CONFLICT')
+})
+
+test('recovers a durable invocation result without executing the command again', async () => {
+  const completed = { ok: true as const, action: 'invoke' as const, invocationId: 'call-restored', taskId: 'task-old', status: 'completed' as const, result: { summary: 'Saved' } }
+  let executions = 0
+  const broker = createCapabilityBroker({
+    listCapabilities: () => [installed(commandModule)],
+    execute: async () => { executions += 1; return { taskId: 'task-new', status: 'completed', result: {} } },
+    confirm: async () => true,
+    recoverInvocation: (request) => request.input && (request.input as { notes?: string }).notes === 'Hello' ? completed : 'conflict',
+  })
+  const restored = await broker.handle({ action: 'invoke', invocationId: 'call-restored', capabilityId: 'test.notes', commandId: 'summarize', input: { notes: 'Hello' } })
+  assert.deepEqual(restored, completed)
+  assert.equal(executions, 0)
+  const conflict = await broker.handle({ action: 'invoke', invocationId: 'call-conflict', capabilityId: 'test.notes', commandId: 'summarize', input: { notes: 'Changed' } })
   assert.equal(conflict.ok, false)
   if (!conflict.ok) assert.equal(conflict.error.code, 'INVOCATION_CONFLICT')
 })

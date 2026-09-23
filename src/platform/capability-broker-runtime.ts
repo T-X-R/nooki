@@ -3,7 +3,11 @@ import { createCapabilityBroker } from './capability-broker.ts'
 import { getCapabilityModule, getRuntimeInstalledCapability, listAvailableCapabilities } from './capability-runtime.ts'
 import { taskRunner } from './tasks.ts'
 
-export function createRuntimeCapabilityBroker(confirm: (proposal: BrokerConfirmationProposal) => Promise<boolean>, onInvocation?: (update: BrokerInvocationUpdate) => void) {
+export function createRuntimeCapabilityBroker(
+  confirm: (proposal: BrokerConfirmationProposal) => Promise<boolean>,
+  onInvocation?: (update: BrokerInvocationUpdate) => void,
+  recoverInvocation?: Parameters<typeof createCapabilityBroker>[0]['recoverInvocation'],
+) {
   return createCapabilityBroker({
     listCapabilities: () => listAvailableCapabilities().flatMap((module) => {
       const installed = getRuntimeInstalledCapability(module.manifest.id)
@@ -22,5 +26,6 @@ export function createRuntimeCapabilityBroker(confirm: (proposal: BrokerConfirma
     },
     confirm,
     onInvocation,
+    recoverInvocation,
   })
 }

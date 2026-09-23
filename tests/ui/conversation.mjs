@@ -20,10 +20,13 @@ await page.addInitScript((installed)=>{
  const docs=[{id:'notes/notes/2026/09/one',capabilityId:'notes',capabilityName:'工作记录',collectionKey:'notes',collectionName:'笔记',title:'已有记录',documentDate:'2026-09-09'}, {id:'summary/reports/2026/09/one',capabilityId:'summary',capabilityName:'项目总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
- window.qa={old,docs,organization,uninstalled:[],readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:conversation-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
+ window.qa={old,docs,organization,uninstalled:[],readDelay:1500,emitEvent:(event,payload)=>{for(const [registered,handler] of events)if(registered===event) callbacks.get(handler)({event,id:handler,payload})}};
+ window.qa.emit=(method,params)=>window.qa.emitEvent('workbench:conversation-event',{method,params});
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
   if(command==='plugin:event|listen'){events.set(args.event,args.handler);return args.handler}
   if(command.startsWith('plugin:'))return null;
+  if(command==='capability_broker_ready')return null;
+  if(command==='capability_broker_respond'){window.qa.capabilityResponse=args;return null}
   if(command==='capability_agent')return 'codex';
   if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
   if(command==='list_capabilities')return installed;
@@ -215,6 +218,14 @@ assert.equal(await user.count(),1);
 assert.equal(await page.getByText('正在生成…',{exact:true}).isVisible(),true, 'First turn has a placeholder before output');
 await page.evaluate(()=>window.qa.startTurn()); await page.waitForTimeout(100);
 assert.equal(await user.count(),1, 'Native user event must replace the pending message');
+await page.evaluate(()=>window.qa.emitEvent('workbench:capability-request',{id:'bridge-1',request:{action:'invoke',invocationId:'agent-call-1',capabilityId:'com.personal.codex-daily-review',commandId:'daily-review',input:{date:'2026-09-23',language:'zh'},language:'zh',context:{threadId:'new-session',turnId:'native-turn',agent:'codex'}}}));
+const invocation=page.locator('.capability-invocation');
+await invocation.getByText('生成今天的 Codex 总结',{exact:true}).waitFor();
+assert.equal(await invocation.getByText('等待确认',{exact:true}).count(),1);
+assert.equal(await invocation.getByRole('button',{name:'确认执行',exact:true}).count(),1);
+await invocation.getByRole('button',{name:'取消',exact:true}).click();
+await page.waitForFunction(()=>window.qa.capabilityResponse?.response?.error?.code==='CONFIRMATION_DENIED');
+assert.equal(await invocation.getByText('已取消',{exact:true}).count(),1, 'The common invocation card owns confirmation and cancellation');
 const liveProcess=page.locator('.conversation-turn-process');
 assert.equal(await page.getByText('正在生成…',{exact:true}).count(),0, 'Process replaces the initial generation placeholder');
 assert.equal(await page.getByText('进展',{exact:true}).count(),0);
@@ -305,6 +316,6 @@ await page.locator('.conversation-user').filter({hasText:'第二轮继续修改'
 assert.equal(await page.getByText('正在生成…',{exact:true}).count(),0, 'Follow-up turns need no generation placeholder');
 assert.equal(await page.getByText('正在准备对话…',{exact:true}).count(),0);
 assert.deepEqual(errors,[]);
-console.log('PASS: loading feedback, public summaries, live scrolling, process scrolling, immediate session listing, message reconciliation and topic/section saving and per-turn process disclosure');
+console.log('PASS: loading feedback, public summaries, capability confirmation, live scrolling, process scrolling, immediate session listing, message reconciliation and topic/section saving and per-turn process disclosure');
 
 } finally { await browser.close(); }

@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 
+const maximumOutputBytes = 1_000_000;
+
 const parameters = {
   type: "object",
   properties: {
@@ -28,10 +30,17 @@ export default function (pi) {
       signal?.addEventListener("abort", stop, { once: true });
       child.stdin.end(JSON.stringify({ ...input, invocationId: toolCallId }));
       let stdout = "", stderr = "";
-      child.stdout.on("data", (chunk) => { stdout += chunk; });
-      child.stderr.on("data", (chunk) => { stderr += chunk; });
+      let oversized = false;
+      const append = (current, chunk) => {
+        const next = current + chunk;
+        if (Buffer.byteLength(next) > maximumOutputBytes) { oversized = true; child.kill(); }
+        return next.slice(0, maximumOutputBytes);
+      };
+      child.stdout.on("data", (chunk) => { stdout = append(stdout, chunk); });
+      child.stderr.on("data", (chunk) => { stderr = append(stderr, chunk); });
       const code = await new Promise((resolve, reject) => { child.on("error", reject); child.on("close", resolve); });
       signal?.removeEventListener("abort", stop);
+      if (oversized) throw new Error("Nooki capability helper output exceeds 1 MB");
       if (code !== 0) throw new Error(stderr.trim() || "Nooki capability helper failed");
       const response = JSON.parse(stdout);
       if (response.ok !== true) throw new Error(JSON.stringify(response.error));

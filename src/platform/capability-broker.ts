@@ -33,6 +33,7 @@ export type BrokerConfirmationProposal = Readonly<{
   invocationId: string
   command: BrokerCommandDescription
   input: unknown
+  language?: CapabilityLanguage
   context?: BrokerInvocationContext
 }>
 
@@ -62,6 +63,7 @@ export type CapabilityBrokerDependencies = Readonly<{
   execute(capabilityId: string, job: string, input: unknown, onStarted: (taskId: string) => void): Promise<BrokerExecution>
   confirm(proposal: BrokerConfirmationProposal): Promise<boolean>
   onInvocation?(update: BrokerInvocationUpdate): void
+  recoverInvocation?(request: Extract<CapabilityBrokerRequest, { action: 'invoke' }>): CapabilityBrokerResponse | 'conflict' | undefined
 }>
 
 export type CapabilityBrokerRequest =
@@ -75,6 +77,7 @@ export type CapabilityBrokerErrorCode =
   | 'INVALID_OUTPUT'
   | 'CONFIRMATION_DENIED'
   | 'INVOCATION_CONFLICT'
+  | 'INVOCATION_LIMIT'
   | 'EXECUTION_FAILED'
   | 'EXECUTION_CANCELLED'
   | 'EXECUTION_INTERRUPTED'
@@ -126,20 +129,32 @@ function validationMessage(errors: ErrorObject[] | null | undefined) {
   }).join('; ')
 }
 
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+export function canonicalBrokerValue(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalBrokerValue).join(',')}]`
   if (value && typeof value === 'object') {
-    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(',')}}`
+    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalBrokerValue(item)}`).join(',')}}`
   }
   return JSON.stringify(value) ?? String(value)
 }
 
+export function capabilityInvocationSignature(request: Extract<CapabilityBrokerRequest, { action: 'invoke' }>) {
+  return canonicalBrokerValue({
+    action: request.action,
+    invocationId: request.invocationId,
+    capabilityId: request.capabilityId,
+    commandId: request.commandId,
+    input: request.input,
+    language: request.language,
+    context: request.context,
+  })
+}
+
 function needsConfirmation(command: CapabilityCommand) {
-  if (command.confirmation === 'always') return true
-  return command.confirmation === 'when-needed' && ['write', 'external'].includes(command.effect)
+  return command.confirmation === 'always' || ['write', 'external'].includes(command.effect)
 }
 
 export function createCapabilityBroker(dependencies: CapabilityBrokerDependencies) {
+  const maximumInvocations = 1_000
   const invocations = new Map<string, { signature: string; response: Promise<CapabilityBrokerResponse> }>()
 
   const find = (capabilityId: string, commandId: string, language?: CapabilityLanguage) =>
@@ -155,7 +170,7 @@ export function createCapabilityBroker(dependencies: CapabilityBrokerDependencie
     catch { return failure('INVALID_INPUT', 'Capability command has an invalid input schema') }
     if (!validate(request.input)) return failure('INVALID_INPUT', validationMessage(validate.errors))
 
-    const proposal = { invocationId: request.invocationId, command: selected.description, input: request.input, context: request.context }
+    const proposal = { invocationId: request.invocationId, command: selected.description, input: request.input, language: request.language, context: request.context }
     dependencies.onInvocation?.({ ...proposal, status: 'proposed' })
 
     if (needsConfirmation(selected.command)) {
@@ -227,11 +242,18 @@ export function createCapabilityBroker(dependencies: CapabilityBrokerDependencie
           : failure('COMMAND_NOT_AVAILABLE', 'Capability command is not installed, enabled, or available')
       }
 
-      const signature = canonical(request)
+      const signature = capabilityInvocationSignature(request)
       const existing = invocations.get(request.invocationId)
       if (existing) return existing.signature === signature
         ? existing.response
         : failure('INVOCATION_CONFLICT', 'Invocation ID was already used with different arguments')
+      const recovered = dependencies.recoverInvocation?.(request)
+      if (recovered === 'conflict') return failure('INVOCATION_CONFLICT', 'Invocation ID was already used with different arguments')
+      if (recovered) {
+        invocations.set(request.invocationId, { signature, response: Promise.resolve(recovered) })
+        return recovered
+      }
+      if (invocations.size >= maximumInvocations) return failure('INVOCATION_LIMIT', 'Capability invocation limit reached; restart Nooki before starting more commands')
       const response = invoke(request)
       invocations.set(request.invocationId, { signature, response })
       return response

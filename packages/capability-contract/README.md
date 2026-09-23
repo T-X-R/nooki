@@ -106,7 +106,7 @@ export default {
 } satisfies CapabilityModule
 ```
 
-Use `read` for inspection, `draft` for reversible generated output, `write` for local durable changes, and `external` when data leaves Nooki or an external system changes. `always` asks in the Nooki UI before execution; `when-needed` asks for `write` and `external`; `never` is intended for safe read/draft operations. Nooki validates schemas, enabled state, confirmation, task lifecycle, and results centrally. Agent-specific APIs must not be imported by a Capability.
+Use `read` for inspection, `draft` for reversible generated output, `write` for local durable changes, and `external` when data leaves Nooki or an external system changes. `always` asks in the Nooki UI before execution; `when-needed` asks whenever the effect requires it; `never` is only for safe read/draft operations. Nooki always confirms `write` and `external` effects even if a package declares a weaker policy. Nooki validates schemas, enabled state, confirmation, task lifecycle, and results centrally. Agent-specific APIs must not be imported by a Capability.
 
 Packages without `commands` remain compatible but are not callable from conversations. Nooki never exposes every job automatically: adding a command is an explicit public API and safety decision by the package author.
 

@@ -131,6 +131,9 @@ pub async fn worker(dir: &Path) -> Result<(), String> {
     // Do not run a completed/interrupted intent even if someone starts this worker again.
     if dir.join("ready").exists() { return Err("Worker intent already consumed".into()); }
     let _session = lock(&dir.parent().unwrap().join("session.lock"), true)?;
+    let mut redacted_job = serde_json::to_value(&job).map_err(|e| e.to_string())?;
+    redacted_job["capabilities"] = Value::Null;
+    write(&dir.join("job.json"), &redacted_job)?;
     fs::write(dir.join("ready"), std::process::id().to_string()).map_err(|e| e.to_string())?;
     let state: Value = serde_json::from_slice(&fs::read(dir.join("state.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let state = Arc::new(Mutex::new(state));

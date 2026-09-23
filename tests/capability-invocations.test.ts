@@ -32,10 +32,15 @@ test('persists invocation lifecycle records and settles confirmation from the UI
 
   store.update({ ...proposal, status: 'running', taskId: 'task-1' })
   store.update({ ...proposal, status: 'completed', taskId: 'task-1', result: { published: true } })
+  const request = { action: 'invoke' as const, invocationId: 'call-1', capabilityId: 'test.notes', commandId: 'publish', input: { id: 'note-1' }, context: proposal.context }
+  const response = { ok: true as const, action: 'invoke' as const, invocationId: 'call-1', taskId: 'task-1', status: 'completed' as const, result: { published: true } }
+  store.rememberResponse(request, response)
   assert.deepEqual(store.getSnapshot()[0]?.result, { published: true })
 
   const restored = createCapabilityInvocationStore(memoryStorage(storage.value() ?? undefined))
   assert.equal(restored.getSnapshot()[0]?.status, 'completed')
+  assert.deepEqual(restored.recoverInvocation(request), response)
+  assert.equal(restored.recoverInvocation({ ...request, input: { id: 'different' } }), 'conflict')
 })
 
 test('marks unresolved confirmations interrupted after a reload', async () => {
@@ -45,6 +50,19 @@ test('marks unresolved confirmations interrupted after a reload', async () => {
   const restored = createCapabilityInvocationStore(memoryStorage(storage.value() ?? undefined))
   assert.equal(restored.getSnapshot()[0]?.status, 'interrupted')
   assert.match(restored.getSnapshot()[0]?.error ?? '', /closed/)
+  assert.deepEqual(restored.recoverInvocation({ action: 'invoke', invocationId: 'call-1', capabilityId: 'test.notes', commandId: 'publish', input: { id: 'note-1' }, context: proposal.context }), {
+    ok: false, error: { code: 'EXECUTION_INTERRUPTED', message: 'Invocation was interrupted when Nooki closed' },
+  })
+})
+
+test('recovers a completed lifecycle record even if response persistence was interrupted', () => {
+  const storage = memoryStorage()
+  const store = createCapabilityInvocationStore(storage)
+  store.update({ ...proposal, status: 'completed', taskId: 'task-1', result: { published: true } })
+  const restored = createCapabilityInvocationStore(memoryStorage(storage.value() ?? undefined))
+  assert.deepEqual(restored.recoverInvocation({ action: 'invoke', invocationId: 'call-1', capabilityId: 'test.notes', commandId: 'publish', input: { id: 'note-1' }, context: proposal.context }), {
+    ok: true, action: 'invoke', invocationId: 'call-1', taskId: 'task-1', status: 'completed', result: { published: true },
+  })
 })
 
 test('rejects decisions for records that are not awaiting confirmation', () => {
@@ -52,4 +70,12 @@ test('rejects decisions for records that are not awaiting confirmation', () => {
   assert.throws(() => store.decide('missing', true), /not awaiting confirmation/)
   store.update({ ...proposal, status: 'running', taskId: 'task-1' })
   assert.throws(() => store.decide('call-1', true), /not awaiting confirmation/)
+})
+
+test('ignores malformed invocation records restored from local storage', () => {
+  const malformed = JSON.stringify([
+    { invocationId: 'broken', status: 'completed', createdAt: 'now', updatedAt: 'now' },
+    { ...proposal, status: 'unknown', createdAt: 'now', updatedAt: 'now' },
+  ])
+  assert.deepEqual(createCapabilityInvocationStore(memoryStorage(malformed)).getSnapshot(), [])
 })

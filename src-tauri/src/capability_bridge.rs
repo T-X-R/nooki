@@ -16,6 +16,7 @@ use std::{
 use tokio::sync::{oneshot, Notify};
 
 const MAX_REQUEST_BYTES: u64 = 1_000_000;
+const MAX_PENDING_REQUESTS: usize = 64;
 const RENDERER_READY_TIMEOUT: Duration = Duration::from_secs(30);
 const INVOCATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
@@ -107,10 +108,16 @@ impl CapabilityBridge {
             self.next.fetch_add(1, Ordering::Relaxed)
         );
         let (sender, receiver) = oneshot::channel();
-        self.pending
-            .lock()
-            .map_err(|_| "Capability broker requests unavailable")?
-            .insert(id.clone(), sender);
+        {
+            let mut pending = self
+                .pending
+                .lock()
+                .map_err(|_| "Capability broker requests unavailable")?;
+            if pending.len() >= MAX_PENDING_REQUESTS {
+                return Err("Capability broker is busy; wait for a pending command to finish".into());
+            }
+            pending.insert(id.clone(), sender);
+        }
         (self.sink)(json!({"id": id, "request": request}));
         let result = match tokio::time::timeout(INVOCATION_TIMEOUT, receiver).await {
             Ok(Ok(response)) => Ok(response),
@@ -251,7 +258,7 @@ pub async fn relay_request(
     endpoint: &CapabilityRelayEndpoint,
     request: Value,
 ) -> Result<Value, String> {
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
     let stream = tokio::net::UnixStream::connect(&endpoint.socket_path)
         .await
         .map_err(|error| format!("Could not connect to Nooki capability relay: {error}"))?;
@@ -273,10 +280,14 @@ pub async fn relay_request(
         .await
         .map_err(|error| error.to_string())?;
     let mut line = String::new();
-    BufReader::new(read)
+    let mut limited = BufReader::new(read).take(MAX_REQUEST_BYTES + 1);
+    limited
         .read_line(&mut line)
         .await
         .map_err(|error| error.to_string())?;
+    if line.len() as u64 > MAX_REQUEST_BYTES {
+        return Err("Capability response exceeds 1 MB".into());
+    }
     serde_json::from_str(&line).map_err(|error| error.to_string())
 }
 

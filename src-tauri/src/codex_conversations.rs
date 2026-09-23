@@ -200,7 +200,11 @@ impl CodexConversations {
     let thread = result["thread"].clone();
     let thread_id = thread["id"].as_str().ok_or("Codex did not return a session ID")?;
     client.fresh.lock().map_err(|_| "Codex session state unavailable")?.insert(thread_id.into());
-    if self.capability_bridge.is_some() { self.remember_capability_tools(thread_id)?; }
+    if self.capability_bridge.is_some() {
+      if let Err(error) = self.remember_capability_tools(thread_id) {
+        log::warn!("Could not persist Codex capability-tool session {thread_id}: {error}");
+      }
+    }
     Ok(thread)
   }
   pub async fn read(&self, id: &str, cursor: Option<String>) -> Result<Value, String> {

@@ -9,6 +9,7 @@ type CapabilityRequestEvent = { id: string; request: CapabilityBrokerRequest }
 const broker = createRuntimeCapabilityBroker(
   capabilityInvocationStore.requestConfirmation,
   capabilityInvocationStore.update,
+  capabilityInvocationStore.recoverInvocation,
 )
 let connecting: Promise<unknown> | undefined
 
@@ -18,7 +19,10 @@ export const capabilityBrokerClient = {
     connecting ??= listen<CapabilityRequestEvent>('workbench:capability-request', ({ payload }) => {
       void broker.handle(payload.request)
         .catch((): CapabilityBrokerResponse => ({ ok: false, error: { code: 'EXECUTION_FAILED', message: 'Capability broker failed' } }))
-        .then((response) => invoke('capability_broker_respond', { id: payload.id, response }))
+        .then((response) => {
+          capabilityInvocationStore.rememberResponse(payload.request, response)
+          return invoke('capability_broker_respond', { id: payload.id, response })
+        })
         .catch(() => {})
     }).then(() => invoke('capability_broker_ready')).catch((error) => { connecting = undefined; throw error })
     return connecting

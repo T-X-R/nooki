@@ -32,9 +32,9 @@ async fn forward(arguments: Value, invocation_id: String) -> Result<Value, Strin
 
 pub async fn serve_mcp() -> Result<(), String> {
     let stdin = std::io::stdin();
-    let mut lines = stdin.lock().lines();
+    let lines = stdin.lock().lines();
     let mut stdout = std::io::stdout().lock();
-    while let Some(line) = lines.next() {
+    for line in lines {
         let line = line.map_err(|error| error.to_string())?;
         if line.len() > 1_000_000 { return Err("MCP request exceeds 1 MB".into()); }
         let request: Value = serde_json::from_str(&line).map_err(|error| error.to_string())?;
