@@ -64,7 +64,7 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
   })
   const install = () => perform('install', async () => {
     setIntegration(await invoke<Integration>('developer_integration_install'))
-    setNotice(zh ? 'Skill 已进入技能池，并会分发到本机的开发工具。若未发现 Skill，请重启开发工具。' : 'The skill is in the skill pool and is distributed to your coding tools. Restart your tool if it does not appear.')
+    setNotice(zh ? '开发 Skill 已加入技能池。请在「技能池」确认目标工具已获得它；必要时重启开发工具。' : 'The developer skill is in the Skill pool. Check Skill pool to confirm your tool has received it; restart the tool if needed.')
   })
   const statusText = (item: Integration): string => ({
     missing: zh ? '未集成' : 'Not integrated', current: zh ? '已集成' : 'Integrated',
@@ -79,7 +79,7 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
             : <button className="primary-button" disabled={Boolean(busy)} onClick={() => void install()}>{busy === 'install' ? (zh ? '处理中…' : 'Working…') : item.status === 'update' ? (zh ? '更新' : 'Update') : item.status === 'recovery' ? (zh ? '恢复之前的版本' : 'Restore previous version') : (zh ? '集成' : 'Integrate')}</button>}
       </div>}
     </div>
-    <p>{zh ? '装进技能池后，会分发到本机检测到的开发工具。分发范围在技能池里调整。' : 'Installed into the skill pool, then distributed to the coding tools detected on this machine. Adjust the reach in Skill pool.'}{item.installedVersion && ` · v${item.installedVersion}`}</p>
+    <p>{zh ? '加入技能池后，在「技能池」扫描时同步到已选中的开发工具；直接读取技能池的工具无需复制。' : 'After installation, Skill pool syncs the skill to selected coding tools when it scans. Tools that read the pool directly need no copy.'}{item.installedVersion && ` · v${item.installedVersion}`}</p>
     <code className="integration-path">{item.directory}</code>
     {(item.detail || item.changedFiles.length > 0) && <details className="integration-changes"><summary>{zh ? '查看保留内容' : 'View preserved content'}</summary>{item.detail && <p>{item.detail}</p>}{item.changedFiles.map((file) => <code key={file}>{file}</code>)}</details>}
   </section>
@@ -104,7 +104,7 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
         <p className="developer-guide-reference">{t('developerGuideReference')}</p>
       </div>
       <div id="developer-integration-panel" role="tabpanel" aria-labelledby="developer-integration-tab" tabIndex={0} hidden={tab !== 'integration'}>
-        <p className="modal-copy">{zh ? '把开发 Skill 装进技能池，再复制开发指令到你的工具中开始制作能力包。' : 'Install the developer skill into the skill pool, then copy the development prompt into your coding tool to get started.'}</p>
+        <p className="modal-copy">{zh ? '将开发 Skill 加入技能池，确认目标工具已获得它，再复制开发指令开始制作能力包。' : 'Add the developer skill to Skill pool, confirm your coding tool has received it, then copy the development prompt to get started.'}</p>
         {!desktop ? <p className="integration-preview">{zh ? '请在桌面版 Nooki 中集成。浏览器预览无法检测或修改本机开发工具。' : 'Use desktop Nooki to integrate. Browser preview cannot detect or modify local coding tools.'}</p> : <>
           <div className="integration-section-heading"><span>{zh ? '开发 Skill 的位置' : 'Where the developer skill lives'}</span><button className="quiet-button" disabled={Boolean(busy)} onClick={() => void refresh()}><ReloadIcon />{zh ? '重新检测' : 'Refresh'}</button></div>
           {busy === 'refresh' && <p role="status">{zh ? '正在检测…' : 'Detecting…'}</p>}
@@ -114,7 +114,7 @@ export function DeveloperCenterModal({ language, onClose }: { language: 'zh' | '
         <div className="integration-resources">
           {desktop && <section>
             <button className="quiet-button" disabled={Boolean(busy)} onClick={() => void perform('export', async () => { const path = await invoke<string>('developer_kit_export'); setNotice(`${zh ? '开发包已保存到' : 'Kit saved to'} ${path}`) })}><DownloadIcon />{zh ? '下载开发包' : 'Download kit'}</button>
-            <p>{zh ? '其他工具或自定义目录：解压后将完整文件夹放入 skills 目录。' : 'For other tools or custom paths: extract the kit into your skills directory.'}</p>
+            <p>{zh ? '使用其他工具时，可解压开发包并让工具读取其中的 SKILL.md；也可在「技能池」添加自定义工具。' : 'For other tools, extract the kit and ask the tool to read its SKILL.md, or add a custom tool in Skill pool.'}</p>
           </section>}
           <section>
             <button className="quiet-button" disabled={Boolean(busy)} onClick={() => void copyPrompt()}><CopyIcon />{zh ? '复制开发指令' : 'Copy development prompt'}</button>
