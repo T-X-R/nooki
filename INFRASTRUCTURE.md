@@ -49,8 +49,6 @@ React and its JSX runtime are supplied by Nooki as `WorkbenchReact` and `Workben
 Build a package using Node, the project's dependencies and Python 3 (standard library only):
 
 ```sh
-npm run capability:pack -- capabilities/diary
-npm run capability:pack -- capabilities/codex-daily-review
 npm run capability:pack -- examples/checkpoint-demo /tmp/workbench-packages
 ```
 
@@ -60,7 +58,7 @@ The installer limits compressed size to 12 MB and each decoded file to 10 MB. It
 
 Installation validates the module export before committing the active version. Native persistence saves an immutable package payload at `installed-capabilities/<id>/<version>.json` and then atomically updates the registry pointer. A failed package or registry write leaves the previous active version authoritative. A frontend load or render failure is visible; the user can return to Capability Center and roll back to the previous externally installed version. Rollback also preserves enablement and cancels running work. Package code must keep data changes backward compatible if it expects rollback to work; executable rollback does not reverse arbitrary business data migrations.
 
-Uninstallation removes the package's registry entry and executable payloads while keeping namespaced Capability storage, task records and published documents. The built-in `capabilities/` catalog remains available as starter content; external installations override matching built-in IDs and are not silently replaced by bundled updates.
+Uninstallation removes the package's registry entry and executable payloads while keeping namespaced Capability storage, task records and published documents. When a bundled package is removed from the source catalog, Nooki removes its stale installation entry on startup and keeps its historical data. The built-in `capabilities/` catalog remains available as starter content; external installations override matching built-in IDs and are not silently replaced by bundled updates.
 
 ## Verification
 

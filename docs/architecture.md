@@ -366,16 +366,15 @@ Acceptance: the registry and settings recover after a restart; a simulated stora
 actionable error; a test capability can only call `ModelGateway.invoke` or `AgentHost.run` and cannot
 read credentials; the platform reuses an already-logged-in Codex CLI or a configured API key.
 
-### M3: the first real capability
+### M3: independently distributed capabilities
 
-Build the journal before the weekly review: it exercises editing, storage, activity events, and later
-agent input, without pulling in complex table interaction first.
+Build capability-specific editors and workflows as independent packages rather than embedding them
+in the main application.
 
-As implemented: `capabilities/diary` is attached as an independent package. The Capability Center
-discovers it from the package directory, and installed state lives in a separate registry. The
-editor, the entry storage, and the `activity.write` calls are all implemented by the journal package
-itself. Uninstalling removes only that package's installed state; it does not delete capability data
-and does not change the platform or any other capability.
+Capability packages can be developed and distributed independently of the main app. The Capability
+Center discovers bundled package sources and imported ZIPs; installed state lives in a separate
+registry. Removing a bundled package clears its installation entry while preserving its stored
+data, task records, and published documents.
 
 ## 9. Decisions to avoid deliberately
 

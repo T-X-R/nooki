@@ -134,6 +134,13 @@ function readBrowserDisabledIds(): string[] {
 export async function getInstalledCapabilityPackagesWithState(): Promise<InstalledCapability[]> {
   let installed = await listInstalledCapabilityPackages()
   if (isDesktopHost()) {
+    const bundledIds = new Set(availableCapabilities.map((item) => item.manifest.id))
+    for (const capability of installed) {
+      if (!capability.packageVersion && !bundledIds.has(capability.manifest.id)) {
+        await taskRunner.withCapabilityStopped(capability.manifest.id, () => uninstallNativeCapability(capability.manifest.id))
+      }
+    }
+    installed = installed.filter((capability) => capability.packageVersion || bundledIds.has(capability.manifest.id))
     for (const capability of installed) {
       const available = availableCapabilities.find((item) => item.manifest.id === capability.manifest.id)
       // Bundled updates may not silently expand the granted permissions.

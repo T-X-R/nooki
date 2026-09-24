@@ -7,3 +7,5 @@ src-tauri/target/
 .env.*
 !.env.example
 /AGENTS.md
+/tasks/plan.md
+/tasks/todo.md
