@@ -36,4 +36,4 @@
 - [x] Run platform and package automated verification, including static ZIP rendering.
 - [ ] Manually invoke the installed Weekly report package with conversation attachments. This requires importing version 1.2.0; package creation alone does not install it.
 - [x] Rebuild/reinstall Nooki 0.3.1 from this branch.
-- [ ] Commit, push, and update PR #29.
+- [x] Commit, push, and update PR #29.
