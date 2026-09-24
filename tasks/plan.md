@@ -142,3 +142,11 @@ Goal: a newly started Codex turn remains observable to completion even when the 
 2. Use the supported `thread/read` history contract directly for browsing/reconciliation; do not probe an unsupported endpoint or hide the error behind a fallback.
 3. Subscribe to events before `turn/start`, then track the returned turn and completion event without immediately resuming and rereading the active turn. Keep receipt-based reconnect separate and never replay a prompt.
 4. Run focused and full relevant tests, rebuild/reinstall the desktop app, and update the existing PR while preserving unrelated working-tree edits.
+
+## Follow-up: agent-led capability discovery (2026-09-24)
+
+Goal: Nooki exposes installed capability commands through one optional tool without steering every CLI conversation toward capability search. The user's request remains the agent's task; package and command descriptions appear only when the agent calls `search`.
+
+1. Remove capability search and invocation instructions from the shared conversation prompt. Keep the separate Nooki document and workspace rules. Verify the actual Codex and native CLI launch payloads.
+2. Keep the broker's existing on-demand `search -> describe -> invoke` contract. Make the tool descriptions concise and optional across Codex, Claude Code, and pi; do not inject a capability list into turns or add a second index.
+3. Run focused adapter/broker tests and project checks, rebuild and reinstall Nooki, then commit/push the current feature branch and update its open English PR.

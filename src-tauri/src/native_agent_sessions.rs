@@ -630,6 +630,7 @@ printf '%b\n' 'IGNORED'
             let argv = fs::read_to_string(&recorded).unwrap();
             // Nooki's rules reach every agent through that agent's own system-prompt channel.
             assert!(argv.contains(CONVERSATION_INSTRUCTIONS));
+            assert!(!CONVERSATION_INSTRUCTIONS.contains("nooki_capabilities"));
             assert!(argv.lines().any(|line| line == "--append-system-prompt"));
             if agent == "claude" {
                 // Claude Code rejects streamed stream-json output without it.

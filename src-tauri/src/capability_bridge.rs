@@ -21,7 +21,7 @@ const RENDERER_READY_TIMEOUT: Duration = Duration::from_secs(30);
 const INVOCATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 pub const TOOL_NAME: &str = "nooki_capabilities";
-pub const TOOL_DESCRIPTION: &str = "For a user request an installed Nooki capability may handle, call search to see the compact catalog of all enabled capability commands. Match the user's intent from their names and descriptions, regardless of wording; then describe only the relevant command to load its full schema, and invoke it. Search query is optional and never hides catalog entries. For commands that accept conversation sources, Nooki supplies this turn's attached documents automatically. Do not pass attachment IDs or contents yourself.";
+pub const TOOL_DESCRIPTION: &str = "Discover and use installed Nooki capability commands when relevant to the user's request. Search shows command names and descriptions; describe loads one command's schema; invoke runs it. For commands that accept conversation sources, Nooki supplies this turn's attachments automatically.";
 
 pub fn tool_input_schema() -> Value {
     json!({

@@ -45,3 +45,11 @@
 - [x] Track new turns from the returned turn and pre-subscribed event stream, with receipt-only reconnect.
 - [x] Run focused and broader verification, then rebuild/reinstall Nooki.
 - [x] Commit and push only this fix; update existing PR #29.
+
+## Agent-led capability discovery follow-up
+
+- [x] Remove capability routing instructions from the shared CLI prompt.
+- [x] Keep discovery guidance in concise broker tool descriptions for Codex, Claude Code, and pi.
+- [x] Verify real adapter launch payloads omit capability routing while retaining the optional tool.
+- [x] Run focused and broader checks; rebuild and reinstall Nooki.
+- [x] Commit and push the current branch; update PR #29.

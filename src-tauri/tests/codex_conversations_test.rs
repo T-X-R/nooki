@@ -175,6 +175,8 @@ async fn codex_dynamic_tool_uses_the_nooki_capability_bridge() {
   let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
   let started = requests.iter().find(|request| request["method"] == "thread/start").unwrap();
   assert_eq!(started["params"]["dynamicTools"][0]["name"], "nooki_capabilities");
+  assert!(started["params"]["dynamicTools"][0]["description"].as_str().unwrap().contains("when relevant to the user's request"));
+  assert!(!started["params"]["developerInstructions"].as_str().unwrap().contains("nooki_capabilities"));
   let response = requests.iter().find(|request| request["id"] == 9001 && request.get("method").is_none()).unwrap();
   assert_eq!(response["result"]["success"], true);
   drop(bridge); drop(capabilities); let _ = std::fs::remove_dir_all(root);
