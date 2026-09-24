@@ -43,7 +43,7 @@ pub async fn serve_mcp() -> Result<(), String> {
         let response = match method {
             "initialize" => json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":request["params"]["protocolVersion"],"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"nooki","version":env!("CARGO_PKG_VERSION")}}}),
             "ping" => json!({"jsonrpc":"2.0","id":id,"result":{}}),
-            "tools/list" => json!({"jsonrpc":"2.0","id":id,"result":{"tools":[{"name":TOOL_NAME,"description":TOOL_DESCRIPTION,"inputSchema":capability_bridge::tool_input_schema()}]}}),
+            "tools/list" => json!({"jsonrpc":"2.0","id":id,"result":{"tools":[{"name":TOOL_NAME,"description":std::env::var("NOOKI_CAPABILITY_DESCRIPTION").unwrap_or_else(|_| TOOL_DESCRIPTION.into()),"inputSchema":capability_bridge::tool_input_schema()}]}}),
             "tools/call" if request["params"]["name"] == TOOL_NAME => {
                 let result = forward(request["params"]["arguments"].clone(), format!("claude-{}", id)).await;
                 match result {

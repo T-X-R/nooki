@@ -38,11 +38,11 @@ impl Drop for Client {
   }
 }
 
-fn capability_dynamic_tool() -> Value {
+fn capability_dynamic_tool(root: &Path) -> Value {
   json!({
     "type":"function",
     "name":crate::capability_bridge::TOOL_NAME,
-    "description":crate::capability_bridge::TOOL_DESCRIPTION,
+    "description":crate::capability_bridge::tool_description(root),
     "inputSchema":crate::capability_bridge::tool_input_schema()
   })
 }
@@ -210,7 +210,7 @@ impl CodexConversations {
   pub async fn create(&self) -> Result<Value, String> {
     let client = self.connect().await?;
     let mut params = json!({"cwd":self.workspace(),"ephemeral":false,"approvalPolicy":"never","sandbox":"read-only","developerInstructions":CONVERSATION_INSTRUCTIONS});
-    if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool()]); }
+    if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool(&self.root)]); }
     let result = client.request("thread/start", params).await?;
     let thread = result["thread"].clone();
     let thread_id = thread["id"].as_str().ok_or("Codex did not return a session ID")?;

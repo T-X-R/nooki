@@ -156,6 +156,12 @@ fn fixture() -> (PathBuf, CodexConversations, Arc<Mutex<Vec<Value>>>) {
 #[tokio::test]
 async fn codex_dynamic_tool_uses_the_nooki_capability_bridge() {
   let (root, unused, _) = fixture(); drop(unused);
+  std::fs::create_dir_all(root.join("installed-capabilities")).unwrap();
+  std::fs::write(root.join("installed-capabilities/capability-registry.json"), json!({"capabilities":[
+    {"enabled":true,"manifest":{"name":"Weekly report","description":"Draft reports","locales":{"zh":{"name":"写周报","description":"根据资料生成周报"}},"entrypoints":["page","command"]}},
+    {"enabled":false,"manifest":{"name":"Disabled","description":"Must stay hidden","entrypoints":["command"]}},
+    {"enabled":true,"manifest":{"name":"Page only","description":"Must stay hidden","entrypoints":["page"]}}
+  ]}).to_string()).unwrap();
   let (events, mut receiver) = tokio::sync::mpsc::unbounded_channel();
   let capabilities = Arc::new(CapabilityBridge::new(&root, Arc::new(move |event| { let _ = events.send(event); })).unwrap());
   capabilities.renderer_ready();
@@ -176,6 +182,10 @@ async fn codex_dynamic_tool_uses_the_nooki_capability_bridge() {
   let started = requests.iter().find(|request| request["method"] == "thread/start").unwrap();
   assert_eq!(started["params"]["dynamicTools"][0]["name"], "nooki_capabilities");
   assert!(started["params"]["dynamicTools"][0]["description"].as_str().unwrap().contains("when relevant to the user's request"));
+  let tool_description = started["params"]["dynamicTools"][0]["description"].as_str().unwrap();
+  assert!(tool_description.contains("写周报 — 根据资料生成周报"));
+  assert!(!tool_description.contains("Disabled"));
+  assert!(!tool_description.contains("Page only"));
   assert!(!started["params"]["developerInstructions"].as_str().unwrap().contains("nooki_capabilities"));
   let response = requests.iter().find(|request| request["id"] == 9001 && request.get("method").is_none()).unwrap();
   assert_eq!(response["result"]["success"], true);

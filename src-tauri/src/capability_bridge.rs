@@ -23,6 +23,26 @@ const INVOCATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 pub const TOOL_NAME: &str = "nooki_capabilities";
 pub const TOOL_DESCRIPTION: &str = "Discover and use installed Nooki capability commands when relevant to the user's request. Search shows command names and descriptions; describe loads one command's schema; invoke runs it. For commands that accept conversation sources, Nooki supplies this turn's attachments automatically.";
 
+pub fn tool_description(root: &Path) -> String {
+    let mut description = TOOL_DESCRIPTION.to_string();
+    let Ok(bytes) = std::fs::read(root.join("installed-capabilities/capability-registry.json")) else { return description };
+    let Ok(registry) = serde_json::from_slice::<Value>(&bytes) else { return description };
+    let Some(capabilities) = registry["capabilities"].as_array() else { return description };
+    let mut index = String::new();
+    for installed in capabilities {
+        let manifest = &installed["manifest"];
+        if installed["enabled"] != true || !manifest["entrypoints"].as_array().is_some_and(|entries| entries.iter().any(|entry| entry == "command")) { continue; }
+        let name = manifest["locales"]["zh"]["name"].as_str().or_else(|| manifest["name"].as_str()).unwrap_or("");
+        let summary = manifest["locales"]["zh"]["description"].as_str().or_else(|| manifest["description"].as_str()).unwrap_or("");
+        let entry = format!("{} — {}", name.trim(), summary.trim().replace(['\n', '\r'], " "));
+        if name.trim().is_empty() || summary.trim().is_empty() || index.len() + entry.len() > 1_200 { continue; }
+        if !index.is_empty() { index.push_str("; "); }
+        index.push_str(&entry);
+    }
+    if !index.is_empty() { description.push_str(&format!(" Installed capabilities: {index}.")); }
+    description
+}
+
 pub fn tool_input_schema() -> Value {
     json!({
       "type":"object",

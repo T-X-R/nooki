@@ -146,10 +146,12 @@ fn ensure_pi_extension(parent: &Path) -> Result<PathBuf, String> {
 }
 
 fn capability_environment(command: &mut tokio::process::Command, launch: &CapabilityLaunch, ctx: &TurnContext<'_>, agent: &str) {
+    let description = launch.endpoint.socket_path.parent().map(crate::capability_bridge::tool_description).unwrap_or_else(|| crate::capability_bridge::TOOL_DESCRIPTION.into());
     command
         .env("NOOKI_CAPABILITY_SOCKET", &launch.endpoint.socket_path)
         .env("NOOKI_CAPABILITY_TOKEN", &launch.endpoint.token)
         .env("NOOKI_CAPABILITY_HELPER", &launch.helper)
+        .env("NOOKI_CAPABILITY_DESCRIPTION", description)
         .env("NOOKI_CAPABILITY_THREAD", ctx.thread_id)
         .env("NOOKI_CAPABILITY_TURN", ctx.request_id)
         .env("NOOKI_CAPABILITY_AGENT", agent);
@@ -586,11 +588,16 @@ mod tests {
             let (root, tools, mut session, _events) = fixture(agent, "flags", "");
             session.agent = agent.into();
             let recorded = root.join("argv");
+            let description = root.join("tool-description");
+            fs::create_dir_all(root.join("installed-capabilities")).unwrap();
+            fs::write(root.join("installed-capabilities/capability-registry.json"), json!({"capabilities":[{"enabled":true,"manifest":{"name":"Weekly report","description":"Draft reports","locales":{"zh":{"name":"写周报","description":"根据资料生成周报"}},"entrypoints":["command"]}}]}).to_string()).unwrap();
             let script = r#"#!/bin/sh
 for argument in "$@"; do printf '%s\n' "$argument" >> "RECORDED"; done
+printf '%s' "$NOOKI_CAPABILITY_DESCRIPTION" > "TOOL_DESCRIPTION_PATH"
 printf '%b\n' 'IGNORED'
 "#
             .replace("RECORDED", &recorded.to_string_lossy())
+            .replace("TOOL_DESCRIPTION_PATH", &description.to_string_lossy())
             .replace(
                 "IGNORED",
                 if agent == "pi" {
@@ -628,6 +635,7 @@ printf '%b\n' 'IGNORED'
             .await
             .unwrap();
             let argv = fs::read_to_string(&recorded).unwrap();
+            assert!(fs::read_to_string(&description).unwrap().contains("写周报 — 根据资料生成周报"));
             // Nooki's rules reach every agent through that agent's own system-prompt channel.
             assert!(argv.contains(CONVERSATION_INSTRUCTIONS));
             assert!(!CONVERSATION_INSTRUCTIONS.contains("nooki_capabilities"));
