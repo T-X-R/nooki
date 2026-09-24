@@ -55,7 +55,7 @@ await page.addInitScript((installed)=>{
   if(command==='conversation_list' && args.cursor)return {data:[{id:'earliest',preview:'更早创建但最近更新',createdAt:0,updatedAt:9999999999,turns:[]}],nextCursor:null};
   if(command==='conversation_list')return {data:[...(current ? [{...current,turns:[]}] : []),{...old,turns:[]},...(window.qa.additional || [])],nextCursor:window.qa.more ? 'older-page' : null};
   if(command==='conversation_read'){await new Promise(r=>setTimeout(r,window.qa.readDelay));return structuredClone(args.id==='old'?old:current??{id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]})}
-  if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));return {id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]}}
+  if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));if(window.qa.failCreate){window.qa.failCreate=false;throw new Error('模拟创建失败')}return {id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]}}
   if(command==='conversation_run')return new Promise(resolve=>{
    window.qa.startTurn=()=>{
     const user={id:'native-user',type:'userMessage',clientId:args.request.requestId,content:[{type:'text',text:args.request.message}]};
@@ -229,8 +229,17 @@ await page.getByRole('button',{name:'关闭资料选择'}).click();
 await page.locator('.conversation-composer input[type="file"]').setInputFiles({name:'附件.txt',mimeType:'text/plain',buffer:Buffer.from('测试附件')});
 await page.getByText('附件.txt',{exact:true}).waitFor();
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('马上显示的新会话');
+await page.evaluate(()=>{window.qa.failCreate=true});
+await composer.press('Enter');
+assert.equal(await composer.inputValue(), '', 'The composer clears while submission is in progress');
+await page.getByRole('alert').filter({hasText:'模拟创建失败'}).waitFor();
+assert.equal(await composer.inputValue(), '马上显示的新会话', 'A failed submission restores the message');
+assert.equal(await page.locator('.conversation-composer .conversation-attachments').count(), 2, 'A failed submission restores both kinds of attachment');
+await page.getByRole('button',{name:'关闭提示'}).click();
 await composer.press('Enter');
 await page.getByText('正在准备对话…',{exact:true}).waitFor({state:'visible',timeout:500});
+assert.equal(await composer.inputValue(), '', 'Submitting clears the message while the new conversation is still being prepared');
+assert.equal(await page.locator('.conversation-composer .conversation-attachments').count(), 0, 'Submitted references and uploads leave the composer together with the message');
 const attachmentOrder = async (message) => message.locator(':scope > *').evaluateAll(elements=>elements.map(element=>element.className));
 const pendingUser=page.locator('.conversation-user').filter({hasText:'马上显示的新会话'});
 assert.deepEqual(await attachmentOrder(pendingUser),['conversation-message-sources','conversation-message-sources','conversation-message-body'],'Pending attachments appear above the message text');
@@ -337,6 +346,7 @@ assert.ok(saved.topic.documentIds.includes(saved.doc.id));
 assert.equal(saved.origin.messageId,'native-answer');
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('第二轮继续修改');
 await page.getByRole('button',{name:'发送消息',exact:true}).click();
+assert.equal(await composer.inputValue(), '', 'A follow-up message clears as soon as it is submitted');
 await page.locator('.conversation-user').filter({hasText:'第二轮继续修改'}).waitFor();
 assert.equal(await page.getByText('正在生成…',{exact:true}).count(),0, 'Follow-up turns need no generation placeholder');
 assert.equal(await page.getByText('正在准备对话…',{exact:true}).count(),0);

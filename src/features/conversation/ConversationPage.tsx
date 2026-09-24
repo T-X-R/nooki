@@ -145,15 +145,25 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   }
   const chooseSkill = (skill: PoolSkill) => { if (mention) editComposer(applySkillMention(text, mention, skill)) }
   const send = () => void act(async () => {
-    if (!text.trim() || running || thread?.turns.some((t) => t.status === 'inProgress')) return
+    if (!text.trim() || busy || running || thread?.turns.some((t) => t.status === 'inProgress')) return
     validateAttachments(uploads, ids.length)
-    setPreparing({ threadId: selected, message: text.trim(), documentIds: ids, uploads }); follow.current = true
+    const message = text.trim()
+    const documentIds = [...ids]
+    const attachedUploads = [...uploads]
+    const selectedSkills = attached
+    setPreparing({ threadId: selected, message, documentIds, uploads: attachedUploads }); follow.current = true
+    setText(''); setIds([]); setUploads([]); setMention(null); setPicker(false)
+    let id = selected
     try {
-      let id = selected
       if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id); setPreparing((value) => value ? { ...value, threadId: id } : value) }
-      const input: ConversationInput = { threadId: id, message: text.trim(), documentIds: ids, uploads, skills: attached, snapshotId: crypto.randomUUID() }
+      const input: ConversationInput = { threadId: id, message, documentIds, uploads: attachedUploads, skills: selectedSkills, snapshotId: crypto.randomUUID() }
       await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
-      setText(''); setUploads([]); drafts.set(id, { text: '', ids, uploads: [] }); drafts.delete('new'); openingGreetings.clearDraft(); follow.current = true
+      drafts.delete('new'); openingGreetings.clearDraft(); follow.current = true
+    } catch (error) {
+      const draft = { text, ids: documentIds, uploads: attachedUploads }
+      drafts.set(id ?? 'new', draft)
+      if (currentSession === id || (selected === id && currentSession === null)) { setText(text); setIds(documentIds); setUploads(attachedUploads) }
+      throw error
     } finally { setPreparing(null) }
   })
   const attachFiles = async (files: File[]) => {
@@ -234,7 +244,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
               </button>)}
             </div>}
             {!!attached.length && <div className="conversation-attachments conversation-skill-chips">{attached.map((name) => <span key={name}><span><Share1Icon />{name}</span></span>)}</div>}
-            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…'} value={text}
+            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…'} value={text} disabled={!!preparing}
               onChange={(event) => { setText(event.target.value); trackMention(event.target) }}
               onClick={(event) => trackMention(event.currentTarget)}
               onBlur={() => setMention(null)}
@@ -249,7 +259,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
                 }
                 if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (!busy) send() }
               }} />
-            <footer><button className={`quiet-button ${picker ? 'is-active' : ''}`} type="button" onClick={() => { setPicker(!picker); void listLibraryDocuments().then(setDocuments).catch((e) => setError(String(e))) }}><PlusIcon />{zh ? '引用资料' : 'Add documents'}</button><button className="quiet-button" type="button" disabled={busy} onClick={() => uploadInput.current?.click()}><UploadIcon />{zh ? '上传附件' : 'Attach file'}</button><span>{zh ? 'Enter 发送 · Shift Enter 换行' : 'Enter to send · Shift Enter for a new line'}</span>{running ? <button className="conversation-send" type="button" aria-label={zh ? '停止生成' : 'Stop response'} onClick={() => void act(() => taskRunner.cancel(running.id))}><StopIcon /></button> : <button className="conversation-send" type="submit" disabled={!text.trim() || busy || !!thread?.turns.some((turn) => turn.status === 'inProgress')} aria-label={zh ? '发送消息' : 'Send message'}><ArrowUpIcon /></button>}</footer>
+            <footer><button className={`quiet-button ${picker ? 'is-active' : ''}`} type="button" disabled={busy} onClick={() => { setPicker(!picker); void listLibraryDocuments().then(setDocuments).catch((e) => setError(String(e))) }}><PlusIcon />{zh ? '引用资料' : 'Add documents'}</button><button className="quiet-button" type="button" disabled={busy} onClick={() => uploadInput.current?.click()}><UploadIcon />{zh ? '上传附件' : 'Attach file'}</button><span>{zh ? 'Enter 发送 · Shift Enter 换行' : 'Enter to send · Shift Enter for a new line'}</span>{running ? <button className="conversation-send" type="button" aria-label={zh ? '停止生成' : 'Stop response'} onClick={() => void act(() => taskRunner.cancel(running.id))}><StopIcon /></button> : <button className="conversation-send" type="submit" disabled={!text.trim() || busy || !!thread?.turns.some((turn) => turn.status === 'inProgress')} aria-label={zh ? '发送消息' : 'Send message'}><ArrowUpIcon /></button>}</footer>
           </form>
         </div>
       </section>
