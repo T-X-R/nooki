@@ -2,9 +2,11 @@
 // Use PLAYWRIGHT_MODULE for an external Playwright installation; requires Chrome.
 // CONVERSATION_TEST_URL defaults to http://127.0.0.1:5193/. No real Codex calls are made.
 import assert from 'node:assert/strict';
+const commandManifest = {id:'qa.commands',name:'每日总结',description:'通过会话调用的独立能力包',version:'1.0.0',entrypoints:['page','job','command'],permissions:[]};
 const installed = [
  ...['com.personal.codex-daily-review', 'com.personal.diary'].map(id => ({manifest:{id,name:id,description:'Removed bundled package',version:'1.0.0',entrypoints:['page'],permissions:[]},enabled:true})),
  {manifest:{id:'qa.external',name:'Independent package',description:'Installed from a ZIP',version:'1.0.0',entrypoints:['page'],permissions:[]},enabled:false,packageVersion:'1.0.0'},
+ {manifest:commandManifest,enabled:true,packageVersion:'1.0.0'},
 ];
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { chromium } = playwright.chromium ? playwright : playwright.default;
@@ -36,6 +38,10 @@ await page.addInitScript((installed)=>{
   if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
   if(command==='list_capabilities')return installed;
   if(command==='uninstall_capability'){window.qa.uninstalled.push(args.id);installed=installed.filter(item=>item.manifest.id!==args.id);return}
+  if(command==='capability_package_read'){
+   const manifest=installed.find(item=>item.manifest.id===args.id).manifest;
+   return {manifest,styles:'',entry:`window.WorkbenchCapability={manifest:${JSON.stringify(manifest)},Page:()=>null,jobs:{'daily-summary':{run:async()=>null}},commands:{'daily-summary':{job:'daily-summary',title:'生成今天的总结',description:'汇总今天的工作进展',effect:'external',confirmation:'always',inputSchema:{type:'object',properties:{date:{type:'string'}},required:['date']}}}}`};
+  }
   if(command==='library_search_content')return [];
   if(command==='library_capture_sources')return args.ids.map(id=>({reference:{kind:'library-document',documentId:id,title:docs.find(doc=>doc.id===id)?.title??id,snapshotId:args.id},content:'测试资料',documentDate:'2026-09-09'}));
   if(command==='library_list_documents')return structuredClone(docs);
@@ -81,7 +87,7 @@ assert.equal(await page.locator('.sidebar').getByRole('button', {name:'任务',e
 assert.equal(await page.locator('.sidebar-content > :last-child').getAttribute('class'), 'nav-conversations sidebar-conversations');
 const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});
 assert.deepEqual(await page.evaluate(()=>window.qa.uninstalled), ['com.personal.codex-daily-review','com.personal.diary']);
-assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), []);
+assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), ['每日总结']);
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await page.locator('#sidebar-installed-capabilities').count(), 0);
 const explore = page.locator('.brand-lockup').getByRole('button', {name:'探索灵感',exact:true});
@@ -89,7 +95,7 @@ await explore.focus(); await page.keyboard.press('Enter');
 await page.locator('.capabilities-page').waitFor();
 assert.equal(await explore.getAttribute('aria-current'), 'page');
 assert.equal(await page.locator('.sidebar').getByRole('button', {name:'能力中心',exact:true}).count(), 0);
-assert.equal(await page.locator('.capability-card').count(), 1, 'A separately installed package stays available');
+assert.equal(await page.locator('.capability-card').count(), 2, 'Separately installed packages stay available');
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await capabilitiesToggle.getAttribute('aria-expanded'), 'true');
 await page.getByRole('button', {name:'今日',exact:true}).click();
@@ -161,6 +167,8 @@ assert.deepEqual(await page.locator('.conversation-code-block').evaluateAll(bloc
 })),[true,true], 'The toolbar occupies its own row above the content');
 assert.equal(await page.locator('.conversation-code-block pre').first().evaluate(element=>element.scrollWidth>element.clientWidth),true, 'Long paths scroll only inside the content row');
 await page.screenshot({path:'/private/tmp/nooki-code-copy.png'});
+// A startup notice disappearing mid-interaction re-renders the message list, so wait it out first.
+await page.locator('.toast').waitFor({state:'detached'});
 await copyButtons.first().focus();
 assert.equal(await copyButtons.first().evaluate(element=>element===document.activeElement),true, 'The native copy button is keyboard focusable');
 await copyButtons.first().click();
@@ -252,9 +260,9 @@ assert.equal(await page.getByText('正在生成…',{exact:true}).isVisible(),tr
 await page.evaluate(()=>window.qa.startTurn()); await page.waitForTimeout(100);
 assert.equal(await user.count(),1, 'Native user event must replace the pending message');
 assert.deepEqual(await attachmentOrder(user),['conversation-message-sources','conversation-message-sources','conversation-message-body'],'Retained attachments appear above the message text');
-await page.evaluate(()=>window.qa.emitEvent('workbench:capability-request',{id:'bridge-1',request:{action:'invoke',invocationId:'agent-call-1',capabilityId:'com.personal.codex-daily-review',commandId:'daily-review',input:{date:'2026-09-23',language:'zh'},language:'zh',context:{threadId:'new-session',turnId:'native-turn',agent:'codex'}}}));
+await page.evaluate(()=>window.qa.emitEvent('workbench:capability-request',{id:'bridge-1',request:{action:'invoke',invocationId:'agent-call-1',capabilityId:'qa.commands',commandId:'daily-summary',input:{date:'2026-09-23'},language:'zh',context:{threadId:'new-session',turnId:'native-turn',agent:'codex'}}}));
 const invocation=page.locator('.capability-invocation');
-await invocation.getByText('生成今天的 Codex 总结',{exact:true}).waitFor();
+await invocation.getByText('生成今天的总结',{exact:true}).waitFor();
 assert.equal(await invocation.getByText('等待确认',{exact:true}).count(),1);
 assert.equal(await invocation.getByRole('button',{name:'确认执行',exact:true}).count(),1);
 await invocation.getByRole('button',{name:'取消',exact:true}).click();
