@@ -27,6 +27,10 @@ function hasValidCommands(module: CapabilityModule) {
     if (!isObject(command.inputSchema) || command.outputSchema !== undefined && !isObject(command.outputSchema)) return false
     if (!['read', 'draft', 'write', 'external'].includes(command.effect)) return false
     if (!['never', 'when-needed', 'always'].includes(command.confirmation)) return false
+    if (command.acceptsConversationSources !== undefined && (command.acceptsConversationSources !== true
+      || !module.manifest.permissions.includes('documents.read-selected') || command.inputSchema.type !== 'object'
+      || isObject(command.inputSchema.properties) && Object.hasOwn(command.inputSchema.properties, 'conversationSources')
+      || Array.isArray(command.inputSchema.required) && command.inputSchema.required.includes('conversationSources'))) return false
     if (command.locales !== undefined && (!isObject(command.locales) || Object.values(command.locales).some((translation) =>
       !isObject(translation) || typeof translation.title !== 'string' || !translation.title.trim()
         || translation.description !== undefined && typeof translation.description !== 'string'))) return false

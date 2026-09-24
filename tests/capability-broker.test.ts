@@ -181,3 +181,55 @@ test('normalizes execution failures without leaking thrown values', async () => 
   })
   assert.deepEqual(response, { ok: false, error: { code: 'EXECUTION_FAILED', message: 'Capability command failed' } })
 })
+
+test('hands current-turn sources only to opted-in commands after showing titles and confirmation', async () => {
+  const module: CapabilityModule = { ...commandModule,
+    manifest: { ...commandModule.manifest, permissions: ['documents.read-selected'] },
+    commands: { summarize: { ...commandModule.commands!.summarize,
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false }, acceptsConversationSources: true } } }
+  let executed: unknown
+  let proposal: unknown
+  const broker = createCapabilityBroker({
+    listCapabilities: () => [installed(module)],
+    conversationSources: () => [{ kind: 'upload', title: 'notes.md', content: 'private content' }],
+    confirm: async (value) => { proposal = value; return true },
+    execute: async (_id, _job, input) => { executed = input; return { taskId: 'source-task', status: 'completed', result: {} } },
+  })
+  const context = { threadId: 'thread-1', turnId: 'turn-1', agent: 'pi' }
+  const result = await broker.handle({ action: 'invoke', invocationId: 'with-source', capabilityId: 'test.notes', commandId: 'summarize', input: {}, context })
+  assert.equal(result.ok, true)
+  assert.deepEqual((proposal as { sources: unknown }).sources, [{ kind: 'upload', title: 'notes.md' }])
+  assert.equal(JSON.stringify(proposal).includes('private content'), false)
+  assert.deepEqual(executed, { conversationSources: [{ kind: 'upload', title: 'notes.md', content: 'private content' }] })
+  const forged = await broker.handle({ action: 'invoke', invocationId: 'forged-source', capabilityId: 'test.notes', commandId: 'summarize', input: { conversationSources: [] }, context })
+  assert.equal(forged.ok, false)
+  if (!forged.ok) assert.equal(forged.error.code, 'INVALID_INPUT')
+})
+
+test('fails closed when source-enabled command has no live conversation context', async () => {
+  const module: CapabilityModule = { ...commandModule,
+    manifest: { ...commandModule.manifest, permissions: ['documents.read-selected'] },
+    commands: { summarize: { ...commandModule.commands!.summarize,
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false }, acceptsConversationSources: true } } }
+  const broker = createCapabilityBroker({ listCapabilities: () => [installed(module)], confirm: async () => true,
+    execute: async () => { throw Error('must not execute') } })
+  const result = await broker.handle({ action: 'invoke', invocationId: 'no-context', capabilityId: 'test.notes', commandId: 'summarize', input: {} })
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.error.code, 'CONVERSATION_SOURCE_UNAVAILABLE')
+})
+
+test('declining attachment sharing prevents the capability job from starting', async () => {
+  const module: CapabilityModule = { ...commandModule,
+    manifest: { ...commandModule.manifest, permissions: ['documents.read-selected'] },
+    commands: { summarize: { ...commandModule.commands!.summarize,
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false }, acceptsConversationSources: true } } }
+  let executions = 0
+  const broker = createCapabilityBroker({ listCapabilities: () => [installed(module)],
+    conversationSources: () => [{ kind: 'library', title: 'Private', content: 'body' }],
+    confirm: async () => false,
+    execute: async () => { executions++; return { taskId: 'unwanted', status: 'completed', result: {} } } })
+  const result = await broker.handle({ action: 'invoke', invocationId: 'declined-source', capabilityId: 'test.notes', commandId: 'summarize', input: {},
+    context: { threadId: 'thread-1', turnId: 'turn-1', agent: 'codex' } })
+  assert.equal(result.ok, false)
+  assert.equal(executions, 0)
+})

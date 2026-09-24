@@ -110,6 +110,24 @@ Use `read` for inspection, `draft` for reversible generated output, `write` for 
 
 Packages without `commands` remain compatible but are not callable from conversations. Nooki never exposes every job automatically: adding a command is an explicit public API and safety decision by the package author.
 
+### Accept this turn's attached documents
+
+To support “attach documents and ask in one sentence”, request `documents.read-selected` and set `acceptsConversationSources: true` on the specific command. Keep `conversationSources` **out** of the command's JSON input schema: it is reserved for Nooki, not supplied by the agent. Nooki resolves the current running turn's captured Library snapshots and UTF-8 uploads, shows their titles for confirmation, and injects `input.conversationSources` into the backing job after confirmation. If there is no live matching turn, invocation fails closed. No separate Library grant is needed for these *conversation* attachments; page-based access still uses grants.
+
+```ts
+commands: {
+  summarize: {
+    job: 'summarize', title: 'Summarize attachments', description: 'Draft from this turn’s attachments.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    effect: 'draft', confirmation: 'when-needed', acceptsConversationSources: true,
+  },
+}
+// In the job: input.conversationSources is an array of
+// { kind: 'library' | 'upload', title, content, documentDate?, reference? }.
+```
+
+Only commands that opt in receive content. This handoff uses the same broker for Codex, Claude Code, pi, and future adapters. A Library source carries its immutable `DocumentReference` for citations; an upload has no Library reference, so label it by filename instead of inventing a link. Keep contents out of summaries/results unless the result genuinely requires them. The broker confirms source sharing even for a `read` or `draft` command.
+
 ## Record a business activity
 
 `host.activity.write({ type, title, key?, target? })` requires `activity.write`. Nooki assigns the source, timestamp and, inside a job, task ID. A stable `key` updates one fact within that Capability rather than appending duplicate rows. `target` is a `DocumentReference`; omit it for job activities that should open their task details. Legacy events remain readable and fall back to their source Capability when no exact target was recorded.

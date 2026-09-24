@@ -20,7 +20,7 @@ export default function (pi) {
   pi.registerTool({
     name: "nooki_capabilities",
     label: "Nooki capabilities",
-    description: "Discover, inspect, or invoke an installed Nooki capability. Search before invoking when the capability or command ID is unknown.",
+    description: "Search installed Nooki capabilities before handling a user request that one may fulfill; describe the matching command, then invoke it. For commands that accept conversation sources, Nooki supplies this turn's attached documents automatically. Do not pass attachment IDs or contents yourself.",
     parameters,
     async execute(toolCallId, input, signal) {
       const helper = process.env.NOOKI_CAPABILITY_HELPER;

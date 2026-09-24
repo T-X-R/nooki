@@ -2,6 +2,7 @@ import type { BrokerConfirmationProposal, BrokerInvocationUpdate } from './capab
 import { createCapabilityBroker } from './capability-broker.ts'
 import { getCapabilityModule, getRuntimeInstalledCapability, listAvailableCapabilities } from './capability-runtime.ts'
 import { taskRunner } from './tasks.ts'
+import { currentConversationSources } from './conversation-capability-sources.ts'
 
 export function createRuntimeCapabilityBroker(
   confirm: (proposal: BrokerConfirmationProposal) => Promise<boolean>,
@@ -13,6 +14,7 @@ export function createRuntimeCapabilityBroker(
       const installed = getRuntimeInstalledCapability(module.manifest.id)
       return installed ? [{ module, installed }] : []
     }),
+    conversationSources: (context) => currentConversationSources(taskRunner.getSnapshot(), context),
     async execute(capabilityId, job, input, onStarted) {
       const module = getCapabilityModule(capabilityId)
       const installed = getRuntimeInstalledCapability(capabilityId)

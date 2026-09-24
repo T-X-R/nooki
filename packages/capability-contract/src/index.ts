@@ -101,7 +101,18 @@ export type CapabilityCommand = {
   outputSchema?: CapabilityJsonSchema
   effect: CapabilityCommandEffect
   confirmation: CapabilityCommandConfirmation
+  // Nooki supplies this turn's attached sources in input.conversationSources.
+  // Agents cannot provide or select this reserved field.
+  acceptsConversationSources?: boolean
 }
+
+export type ConversationCapabilitySource = Readonly<{
+  kind: 'library' | 'upload'
+  title: string
+  content: string
+  documentDate?: string
+  reference?: DocumentReference
+}>
 
 export type ActivityEventInput = {
   type: string

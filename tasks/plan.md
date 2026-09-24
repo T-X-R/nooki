@@ -122,3 +122,14 @@ Future agents implement only `AgentCapabilityTransport`; capability authors impl
 - Legacy capabilities continue to work as before.
 - Side effects are visible, attributable, confirmable, cancellable, and represented in conversation history.
 - All automated checks pass and the installed desktop app matches the verified branch.
+
+## Follow-up: direct conversation attachments (2026-09-24)
+
+Goal: a user can attach documents and ask for a task in one sentence. The same source handoff works for any installed command that opts in, through Codex, Claude Code, and pi; no separate Library grant or agent-supplied document IDs.
+
+1. Extend the public command contract with an optional conversation-source declaration and document-read permission requirement. Verify legacy packages still load.
+2. Resolve sources from the *running, matching conversation task only*: captured Library snapshot plus text uploads. Reject missing/mismatched contexts; never reuse earlier-turn sources. Verify with focused tests.
+3. Have the common broker inject a reserved, platform-owned source field after validating agent input, disclose source titles in confirmation, and keep source contents out of the confirmation/history card. Verify refusal, retry, and disabled-command behavior.
+4. Update the shared tool guidance so each agent searches for an applicable installed command before doing a matching task; keep the adapters protocol-only. Verify all three register the same behavior.
+5. Update the independent Weekly report package to opt in, accept a bare natural-language invocation with this turn's attachments, preserve exact Library citations, and label uploaded-file citations. Verify package tests and ZIP; do not silently install the package.
+6. Run relevant tests/builds, review the diff, rebuild and reinstall Nooki, commit/push the existing feature branch, and update its open English PR.

@@ -5,6 +5,7 @@ import type {
   CapabilityCommandEffect,
   CapabilityLanguage,
   CapabilityModule,
+  ConversationCapabilitySource,
   InstalledCapability,
   TaskStatus,
 } from '../../packages/capability-contract/src/index.ts'
@@ -22,6 +23,7 @@ export type BrokerCommandSummary = Readonly<{
   description: string
   effect: CapabilityCommandEffect
   confirmation: CapabilityCommandConfirmation
+  acceptsConversationSources?: boolean
 }>
 
 export type BrokerCommandDescription = BrokerCommandSummary & Readonly<{
@@ -35,6 +37,7 @@ export type BrokerConfirmationProposal = Readonly<{
   input: unknown
   language?: CapabilityLanguage
   context?: BrokerInvocationContext
+  sources?: readonly Readonly<{ kind: 'library' | 'upload'; title: string }>[]
 }>
 
 export type BrokerInvocationContext = Readonly<{
@@ -61,6 +64,7 @@ export type BrokerExecution = Readonly<{
 export type CapabilityBrokerDependencies = Readonly<{
   listCapabilities(): readonly BrokerCatalogEntry[]
   execute(capabilityId: string, job: string, input: unknown, onStarted: (taskId: string) => void): Promise<BrokerExecution>
+  conversationSources?(context: BrokerInvocationContext): readonly ConversationCapabilitySource[]
   confirm(proposal: BrokerConfirmationProposal): Promise<boolean>
   onInvocation?(update: BrokerInvocationUpdate): void
   recoverInvocation?(request: Extract<CapabilityBrokerRequest, { action: 'invoke' }>): CapabilityBrokerResponse | 'conflict' | undefined
@@ -81,6 +85,7 @@ export type CapabilityBrokerErrorCode =
   | 'EXECUTION_FAILED'
   | 'EXECUTION_CANCELLED'
   | 'EXECUTION_INTERRUPTED'
+  | 'CONVERSATION_SOURCE_UNAVAILABLE'
 
 export type CapabilityBrokerResponse =
   | Readonly<{ ok: true; action: 'search'; commands: readonly BrokerCommandSummary[] }>
@@ -105,6 +110,7 @@ function commandCopy(module: CapabilityModule, commandId: string, command: Capab
     description: commandTranslation?.description ?? command.description,
     effect: command.effect,
     confirmation: command.confirmation,
+    ...(command.acceptsConversationSources && { acceptsConversationSources: true }),
     inputSchema: command.inputSchema,
     outputSchema: command.outputSchema,
   }
@@ -117,7 +123,7 @@ function enabledCommands(entries: readonly BrokerCatalogEntry[], language?: Capa
       module,
       command,
       description: commandCopy(module, commandId, command, language),
-    }))
+    })).filter(({ command }) => !command.acceptsConversationSources || module.manifest.permissions.includes('documents.read-selected') && command.inputSchema.type === 'object')
   })
 }
 
@@ -165,15 +171,24 @@ export function createCapabilityBroker(dependencies: CapabilityBrokerDependencie
     const selected = find(request.capabilityId, request.commandId, request.language)
     if (!selected) return failure('COMMAND_NOT_AVAILABLE', 'Capability command is not installed, enabled, or available')
 
+    if (selected.command.acceptsConversationSources && request.input && typeof request.input === 'object' && Object.hasOwn(request.input, 'conversationSources')) return failure('INVALID_INPUT', 'conversationSources is reserved for Nooki')
     let validate
     try { validate = ajv.compile(selected.command.inputSchema) }
     catch { return failure('INVALID_INPUT', 'Capability command has an invalid input schema') }
     if (!validate(request.input)) return failure('INVALID_INPUT', validationMessage(validate.errors))
 
-    const proposal = { invocationId: request.invocationId, command: selected.description, input: request.input, language: request.language, context: request.context }
+    let sources: readonly ConversationCapabilitySource[] = []
+    if (selected.command.acceptsConversationSources) {
+      if (!request.context || !dependencies.conversationSources) return failure('CONVERSATION_SOURCE_UNAVAILABLE', 'A live conversation turn is required for attached sources')
+      try { sources = dependencies.conversationSources(request.context) }
+      catch { return failure('CONVERSATION_SOURCE_UNAVAILABLE', 'Attached sources are unavailable for this conversation turn') }
+    }
+
+    const proposal = { invocationId: request.invocationId, command: selected.description, input: request.input, language: request.language, context: request.context,
+      ...(sources.length && { sources: sources.map(({ kind, title }) => ({ kind, title })) }) }
     dependencies.onInvocation?.({ ...proposal, status: 'proposed' })
 
-    if (needsConfirmation(selected.command)) {
+    if (sources.length || needsConfirmation(selected.command)) {
       dependencies.onInvocation?.({ ...proposal, status: 'awaiting_confirmation' })
       if (!await dependencies.confirm(proposal)) {
         dependencies.onInvocation?.({ ...proposal, status: 'cancelled', error: 'Capability command was not confirmed' })
@@ -184,7 +199,8 @@ export function createCapabilityBroker(dependencies: CapabilityBrokerDependencie
     let execution: BrokerExecution
     let started = false
     try {
-      execution = await dependencies.execute(request.capabilityId, selected.command.job, request.input, (taskId) => {
+      const input = selected.command.acceptsConversationSources ? { ...(request.input as Record<string, unknown>), conversationSources: sources } : request.input
+      execution = await dependencies.execute(request.capabilityId, selected.command.job, input, (taskId) => {
         started = true
         dependencies.onInvocation?.({ ...proposal, status: 'running', taskId })
       })

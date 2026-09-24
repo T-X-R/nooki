@@ -17,7 +17,7 @@ export type CapabilityInvocationRecord = BrokerConfirmationProposal & Readonly<{
 }>
 
 const statuses: readonly BrokerInvocationStatus[] = ['proposed', 'awaiting_confirmation', 'running', 'completed', 'failed', 'cancelled', 'interrupted']
-const errorCodes = ['COMMAND_NOT_AVAILABLE', 'INVALID_INPUT', 'INVALID_OUTPUT', 'CONFIRMATION_DENIED', 'INVOCATION_CONFLICT', 'INVOCATION_LIMIT', 'EXECUTION_FAILED', 'EXECUTION_CANCELLED', 'EXECUTION_INTERRUPTED']
+const errorCodes = ['COMMAND_NOT_AVAILABLE', 'INVALID_INPUT', 'INVALID_OUTPUT', 'CONFIRMATION_DENIED', 'INVOCATION_CONFLICT', 'INVOCATION_LIMIT', 'EXECUTION_FAILED', 'EXECUTION_CANCELLED', 'EXECUTION_INTERRUPTED', 'CONVERSATION_SOURCE_UNAVAILABLE']
 
 function validResponse(value: unknown): value is CapabilityBrokerResponse {
   if (!value || typeof value !== 'object') return false

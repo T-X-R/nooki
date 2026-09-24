@@ -25,3 +25,15 @@
 - [x] Quit Nooki, run `npm run desktop:build`, and run `npm run desktop:install`.
 - [x] Review the final diff for scope, security, compatibility, and generated artifacts.
 - [x] Push `codex/conversation-capability-broker` and open an English pull request into `master`.
+
+## Direct attachment handoff follow-up
+
+- [x] Extend command contract, loader checks, and authoring guidance for opt-in conversation sources.
+- [x] Resolve only current-turn Library snapshots and uploads with source-isolation tests.
+- [x] Inject trusted sources via the broker and show titles, not contents, during confirmation.
+- [x] Teach the common agent tool description when to search/use matching capabilities.
+- [x] Update and test the Weekly report package, then produce a new ZIP.
+- [x] Run platform and package automated verification, including static ZIP rendering.
+- [ ] Manually invoke the installed Weekly report package with conversation attachments. This requires importing version 1.2.0; package creation alone does not install it.
+- [x] Rebuild/reinstall Nooki 0.3.1 from this branch.
+- [ ] Commit, push, and update PR #29.

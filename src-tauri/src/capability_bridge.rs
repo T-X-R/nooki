@@ -21,7 +21,7 @@ const RENDERER_READY_TIMEOUT: Duration = Duration::from_secs(30);
 const INVOCATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 pub const TOOL_NAME: &str = "nooki_capabilities";
-pub const TOOL_DESCRIPTION: &str = "Discover, inspect, or invoke an installed Nooki capability. Search before invoking when the capability or command ID is unknown.";
+pub const TOOL_DESCRIPTION: &str = "Search installed Nooki capabilities before handling a user request that one may fulfill; describe the matching command, then invoke it. For commands that accept conversation sources, Nooki supplies this turn's attached documents automatically. Do not pass attachment IDs or contents yourself.";
 
 pub fn tool_input_schema() -> Value {
     json!({
