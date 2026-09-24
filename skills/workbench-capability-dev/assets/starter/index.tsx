@@ -1,10 +1,16 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import type { CapabilityManifest, CapabilityModule, CapabilityPageProps } from './contract'
+import type { CapabilityHost, CapabilityManifest, CapabilityModule, CapabilityPageProps } from './contract'
 import { CapabilityPage, PageHeader, Panel, Button, StateMessage } from './ui'
 import manifestJson from './manifest.json'
 import './style.css'
 
 const manifest: CapabilityManifest = manifestJson as CapabilityManifest
+
+async function persistNote(host: Pick<CapabilityHost, 'storage'>, note: string) {
+  if (typeof note !== 'string' || note.length > 100_000) throw new Error('Note must be at most 100,000 characters')
+  await host.storage.set('note', note)
+  return { saved: true }
+}
 
 function Page({ host }: CapabilityPageProps) {
   const environment = useSyncExternalStore(host.environment.subscribe, host.environment.getSnapshot)
@@ -23,7 +29,7 @@ function Page({ host }: CapabilityPageProps) {
   }, [host])
   const save = async () => {
     setSaving(true); setError(''); setSaved(false)
-    try { await host.storage.set('note', note); setSaved(true) }
+    try { await persistNote(host, note); setSaved(true) }
     catch (reason) { setError(String(reason)) }
     finally { setSaving(false) }
   }
@@ -39,4 +45,20 @@ function Page({ host }: CapabilityPageProps) {
   </CapabilityPage>
 }
 
-export default { manifest, Page } satisfies CapabilityModule
+export default {
+  manifest,
+  Page,
+  jobs: { 'save-note': { run: (input, { host }) => persistNote(host, (input as { note: string }).note) } },
+  commands: {
+    'save-note': {
+      job: 'save-note',
+      title: 'Save a quick note',
+      description: 'Replace the note stored by this capability.',
+      locales: { zh: { title: '保存随手记', description: '替换这个能力保存的记录。' }, en: { title: 'Save a quick note', description: 'Replace the note stored by this capability.' } },
+      inputSchema: { type: 'object', properties: { note: { type: 'string', maxLength: 100000 } }, required: ['note'], additionalProperties: false },
+      outputSchema: { type: 'object', properties: { saved: { const: true } }, required: ['saved'], additionalProperties: false },
+      effect: 'write',
+      confirmation: 'always',
+    },
+  },
+} satisfies CapabilityModule

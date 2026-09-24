@@ -52,3 +52,52 @@ test('rejects executable errors and manifest mismatches without preventing subse
   assert.equal(sources.size, 0)
   assert.equal(listeners.size, 0)
 })
+
+test('loads explicit capability commands while keeping legacy page packages compatible', async () => {
+  const legacy = await loadPackageModule(payload())
+  assert.equal(legacy.commands, undefined)
+
+  const manifest = { ...payload().manifest, entrypoints: ['page', 'job', 'command'] as ['page', 'job', 'command'] }
+  const command = {
+    job: 'summarize',
+    title: 'Summarize notes',
+    description: 'Create a draft summary from notes.',
+    inputSchema: { type: 'object', properties: { notes: { type: 'string' } }, required: ['notes'], additionalProperties: false },
+    outputSchema: { type: 'object' },
+    effect: 'draft',
+    confirmation: 'never',
+  }
+  const loaded = await loadPackageModule({
+    manifest,
+    entry: `var WorkbenchCapability = { manifest: ${JSON.stringify(manifest)}, Page: function Page() {}, jobs: { summarize: { run: async function () {} } }, commands: { summarize: ${JSON.stringify(command)} } };`,
+    styles: '',
+  })
+  assert.equal(JSON.stringify(loaded.commands?.summarize), JSON.stringify(command))
+})
+
+test('rejects missing, malformed, or unbacked capability commands', async () => {
+  const manifest = { ...payload().manifest, entrypoints: ['page', 'job', 'command'] as ['page', 'job', 'command'] }
+  const command = {
+    job: 'summarize', title: 'Summarize', description: 'Create a summary.',
+    inputSchema: { type: 'object' }, effect: 'draft', confirmation: 'never',
+  }
+  const source = (commands: unknown, jobs = '{ summarize: { run: async function () {} } }') =>
+    `var WorkbenchCapability = { manifest: ${JSON.stringify(manifest)}, Page: function Page() {}, jobs: ${jobs}, commands: ${JSON.stringify(commands)} };`
+
+  await assert.rejects(loadPackageModule({ manifest, entry: source(undefined), styles: '' }), /commands without valid command definitions/)
+  await assert.rejects(loadPackageModule({ manifest, entry: source({ summarize: { ...command, effect: 'unknown' } }), styles: '' }), /commands without valid command definitions/)
+  await assert.rejects(loadPackageModule({ manifest, entry: source({ summarize: command }, '{}'), styles: '' }), /backed by executable jobs/)
+})
+
+test('conversation-source commands require the selected-document permission', async () => {
+  const command = { job: 'summarize', title: 'Summarize', description: 'Create a summary.', inputSchema: { type: 'object' },
+    effect: 'draft', confirmation: 'never', acceptsConversationSources: true }
+  const entry = (manifest: object) => `var WorkbenchCapability = { manifest: ${JSON.stringify(manifest)}, Page: function Page() {}, jobs: { summarize: { run: async function () {} } }, commands: { summarize: ${JSON.stringify(command)} } };`
+  const missing = { ...payload().manifest, entrypoints: ['page', 'job', 'command'] }
+  await assert.rejects(loadPackageModule({ manifest: missing, entry: entry(missing), styles: '' }), /valid command definitions/)
+  const allowed = { ...missing, permissions: ['documents.read-selected'] }
+  assert.equal((await loadPackageModule({ manifest: allowed, entry: entry(allowed), styles: '' })).commands?.summarize.acceptsConversationSources, true)
+  const forged = { ...command, inputSchema: { type: 'object', properties: { conversationSources: { type: 'array' } } } }
+  await assert.rejects(loadPackageModule({ manifest: allowed,
+    entry: `var WorkbenchCapability = { manifest: ${JSON.stringify(allowed)}, Page: function Page() {}, jobs: { summarize: { run: async function () {} } }, commands: { summarize: ${JSON.stringify(forged)} } };`, styles: '' }), /valid command definitions/)
+})

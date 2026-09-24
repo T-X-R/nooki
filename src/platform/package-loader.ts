@@ -14,6 +14,30 @@ runtime.WorkbenchReact = React
 runtime.WorkbenchJSXRuntime = JSXRuntime
 let loading: Promise<unknown> = Promise.resolve()
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function hasValidCommands(module: CapabilityModule) {
+  if (!isObject(module.commands) || !Object.keys(module.commands).length) return false
+  return Object.entries(module.commands).every(([id, command]) => {
+    if (!/^[a-z][a-z0-9._-]*$/.test(id) || !isObject(command)) return false
+    if (typeof command.job !== 'string' || !command.job.trim() || typeof module.jobs?.[command.job]?.run !== 'function') return false
+    if (typeof command.title !== 'string' || !command.title.trim() || typeof command.description !== 'string' || !command.description.trim()) return false
+    if (!isObject(command.inputSchema) || command.outputSchema !== undefined && !isObject(command.outputSchema)) return false
+    if (!['read', 'draft', 'write', 'external'].includes(command.effect)) return false
+    if (!['never', 'when-needed', 'always'].includes(command.confirmation)) return false
+    if (command.acceptsConversationSources !== undefined && (command.acceptsConversationSources !== true
+      || !module.manifest.permissions.includes('documents.read-selected') || command.inputSchema.type !== 'object'
+      || isObject(command.inputSchema.properties) && Object.hasOwn(command.inputSchema.properties, 'conversationSources')
+      || Array.isArray(command.inputSchema.required) && command.inputSchema.required.includes('conversationSources'))) return false
+    if (command.locales !== undefined && (!isObject(command.locales) || Object.values(command.locales).some((translation) =>
+      !isObject(translation) || typeof translation.title !== 'string' || !translation.title.trim()
+        || translation.description !== undefined && typeof translation.description !== 'string'))) return false
+    return true
+  })
+}
+
 // Package v1 executes reviewed/trusted code in the host realm. It is not a
 // sandbox for untrusted third-party JavaScript. Never evaluate during inspection.
 export function loadPackageModule(payload: PackagePayload): Promise<CapabilityModule> {
@@ -46,6 +70,12 @@ export function loadPackageModule(payload: PackagePayload): Promise<CapabilityMo
       }
       if (module.manifest.entrypoints.includes('job') && (!module.jobs || Object.values(module.jobs).some((job) => typeof job.run !== 'function'))) {
         throw new Error('Package declares jobs without executable job definitions')
+      }
+      if (module.manifest.entrypoints.includes('command') && !hasValidCommands(module)) {
+        throw new Error('Package declares commands without valid command definitions backed by executable jobs')
+      }
+      if (!module.manifest.entrypoints.includes('command') && module.commands !== undefined) {
+        throw new Error('Package exports commands without declaring the command entrypoint')
       }
       return { ...module, manifest: { ...module.manifest, ...payload.manifest } }
     } finally {

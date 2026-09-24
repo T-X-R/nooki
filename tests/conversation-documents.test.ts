@@ -1,9 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { artifactTitle, decodeAttachment, validateAttachments } from '../src/features/conversation/conversation-documents.ts'
+import { artifactTitle, capabilityDraftArtifact, decodeAttachment, validateAttachments } from '../src/features/conversation/conversation-documents.ts'
 import { createLibraryStore } from '../src/platform/library-store.ts'
 
 const bytes = (text: string) => new TextEncoder().encode(text).buffer
+test('turns a completed capability draft into a previewable conversation document', () => {
+  assert.deepEqual(capabilityDraftArtifact({ invocationId: 'call-1', status: 'completed', result: { title: '工作周报', content: '# 工作周报' } }),
+    { id: 'call-1', name: '工作周报.md', content: '# 工作周报', before: null, source: null })
+  assert.equal(capabilityDraftArtifact({ invocationId: 'call-2', status: 'running', result: { title: '工作周报', content: '# 工作周报' } }), null)
+  assert.equal(capabilityDraftArtifact({ invocationId: 'call-3', status: 'completed', result: { sources: [] } }), null)
+})
 test('attachments preserve UTF-8 text and identity, and reject unsupported, binary or oversized inputs', () => {
   const first = decodeAttachment('方案.MD', bytes('# 方案\n\n原文'))
   const second = decodeAttachment('方案.MD', bytes('# 另一份'))

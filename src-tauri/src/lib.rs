@@ -18,6 +18,8 @@ pub mod package_installer;
 pub mod task_execution;
 pub mod developer_integration;
 pub mod skill_pool;
+pub mod capability_bridge;
+pub mod capability_mcp;
 
 use capability_runtime::{CapabilityManifest, InstalledCapability, PlatformState};
 use codex_session_source::{read_daily_files, CodexDailySessionFiles};
@@ -421,6 +423,16 @@ fn task_cancel_invocation(id: String, executions: tauri::State<'_, task_executio
 }
 
 #[tauri::command]
+fn capability_broker_ready(bridge: tauri::State<'_, std::sync::Arc<capability_bridge::CapabilityBridge>>) {
+  bridge.renderer_ready();
+}
+
+#[tauri::command]
+fn capability_broker_respond(id: String, response: serde_json::Value, bridge: tauri::State<'_, std::sync::Arc<capability_bridge::CapabilityBridge>>) -> Result<(), String> {
+  bridge.respond(&id, response)
+}
+
+#[tauri::command]
 fn capability_package_inspect(bytes: Vec<u8>) -> Result<package_installer::PackagePayload, String> {
   package_installer::inspect_archive(&bytes)
 }
@@ -461,8 +473,12 @@ pub fn run() {
       );
       let data_dir = app.path().app_data_dir()?;
       user_data::recover(&data_dir).map_err(std::io::Error::other)?;
+      let capability_app = app.handle().clone();
+      let capability_bridge = std::sync::Arc::new(capability_bridge::CapabilityBridge::new(&data_dir, std::sync::Arc::new(move |event| { let _ = capability_app.emit("workbench:capability-request", event); })).map_err(std::io::Error::other)?);
+      capability_bridge.start().map_err(std::io::Error::other)?;
       let event_app = app.handle().clone();
-      app.manage(conversation_host::ConversationHost::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:conversation-event", event); })));
+      app.manage(conversation_host::ConversationHost::new(codex_binary(), data_dir.clone(), std::sync::Arc::new(move |event| { let _ = event_app.emit("workbench:conversation-event", event); })).with_capability_bridge(capability_bridge.clone()));
+      app.manage(capability_bridge);
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
@@ -492,6 +508,8 @@ pub fn run() {
       tasks_read,
       tasks_write,
       task_cancel_invocation,
+      capability_broker_ready,
+      capability_broker_respond,
       capability_package_inspect,
       capability_package_install,
       capability_package_read,

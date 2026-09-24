@@ -81,6 +81,39 @@ export type CapabilityJob = {
   run(input: unknown, context: CapabilityTaskContext): Promise<unknown>
 }
 
+export type CapabilityJsonSchema = Readonly<Record<string, unknown>>
+export type CapabilityCommandEffect = 'read' | 'draft' | 'write' | 'external'
+export type CapabilityCommandConfirmation = 'never' | 'when-needed' | 'always'
+
+export type CapabilityCommandTranslation = {
+  title: string
+  description?: string
+}
+
+// Jobs are private execution units. Commands are the explicit, user-facing
+// surface that conversations and other platform clients may discover.
+export type CapabilityCommand = {
+  job: string
+  title: string
+  description: string
+  locales?: Partial<Record<CapabilityLanguage, CapabilityCommandTranslation>>
+  inputSchema: CapabilityJsonSchema
+  outputSchema?: CapabilityJsonSchema
+  effect: CapabilityCommandEffect
+  confirmation: CapabilityCommandConfirmation
+  // Nooki supplies this turn's attached sources in input.conversationSources.
+  // Agents cannot provide or select this reserved field.
+  acceptsConversationSources?: boolean
+}
+
+export type ConversationCapabilitySource = Readonly<{
+  kind: 'library' | 'upload'
+  title: string
+  content: string
+  documentDate?: string
+  reference?: DocumentReference
+}>
+
 export type ActivityEventInput = {
   type: string
   title: string
@@ -185,4 +218,5 @@ export type CapabilityModule = {
   manifest: CapabilityManifest
   Page: ComponentType<CapabilityPageProps>
   jobs?: Record<string, CapabilityJob>
+  commands?: Record<string, CapabilityCommand>
 }

@@ -78,6 +78,56 @@ Declare `job` in manifest entrypoints and export a `jobs` map of `CapabilityJob`
 
 Use JSON-serializable data and idempotent sequential steps. Explicit retry reuses completed steps; startup marks unfinished runs interrupted without invoking business code. Package version changes invalidate checkpoint retry. See [INFRASTRUCTURE.md](../../INFRASTRUCTURE.md) for the complete behavior and a working standalone example.
 
+## Expose a conversation command
+
+Jobs are private execution units. To let conversations discover and invoke one safely, also declare `command` in `manifest.entrypoints` and export a `commands` map. Each command names its backing job and supplies user-facing copy, JSON Schema input/output contracts, an effect classification, and a confirmation policy.
+
+```ts
+export default {
+  manifest,
+  Page,
+  jobs: { summarize },
+  commands: {
+    summarize: {
+      job: 'summarize',
+      title: 'Summarize notes',
+      description: 'Create a draft summary from the supplied notes.',
+      inputSchema: {
+        type: 'object',
+        properties: { notes: { type: 'string', minLength: 1 } },
+        required: ['notes'],
+        additionalProperties: false,
+      },
+      outputSchema: { type: 'object' },
+      effect: 'draft',
+      confirmation: 'never',
+    },
+  },
+} satisfies CapabilityModule
+```
+
+Use `read` for inspection, `draft` for reversible generated output, `write` for local durable changes, and `external` when data leaves Nooki or an external system changes. `always` asks in the Nooki UI before execution; `when-needed` asks whenever the effect requires it; `never` is only for safe read/draft operations. Nooki always confirms `write` and `external` effects even if a package declares a weaker policy. Nooki validates schemas, enabled state, confirmation, task lifecycle, and results centrally. Agent-specific APIs must not be imported by a Capability.
+
+Packages without `commands` remain compatible but are not callable from conversations. Nooki never exposes every job automatically: adding a command is an explicit public API and safety decision by the package author.
+
+### Accept this turn's attached documents
+
+To support “attach documents and ask in one sentence”, request `documents.read-selected` and set `acceptsConversationSources: true` on the specific command. Keep `conversationSources` **out** of the command's JSON input schema: it is reserved for Nooki, not supplied by the agent. Nooki resolves the current running turn's captured Library snapshots and UTF-8 uploads, shows their titles for confirmation, and injects `input.conversationSources` into the backing job after confirmation. If there is no live matching turn, invocation fails closed. No separate Library grant is needed for these *conversation* attachments; page-based access still uses grants.
+
+```ts
+commands: {
+  summarize: {
+    job: 'summarize', title: 'Summarize attachments', description: 'Draft from this turn’s attachments.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    effect: 'draft', confirmation: 'when-needed', acceptsConversationSources: true,
+  },
+}
+// In the job: input.conversationSources is an array of
+// { kind: 'library' | 'upload', title, content, documentDate?, reference? }.
+```
+
+Only commands that opt in receive content. This handoff uses the same broker for Codex, Claude Code, pi, and future adapters. A Library source carries its immutable `DocumentReference` for citations; an upload has no Library reference, so label it by filename instead of inventing a link. Keep contents out of summaries/results unless the result genuinely requires them. The broker confirms source sharing even for a `read` or `draft` command.
+
 ## Record a business activity
 
 `host.activity.write({ type, title, key?, target? })` requires `activity.write`. Nooki assigns the source, timestamp and, inside a job, task ID. A stable `key` updates one fact within that Capability rather than appending duplicate rows. `target` is a `DocumentReference`; omit it for job activities that should open their task details. Legacy events remain readable and fall back to their source Capability when no exact target was recorded.

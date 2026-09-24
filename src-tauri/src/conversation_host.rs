@@ -4,6 +4,7 @@
 //! session an agent owns. Each adapter still speaks that agent's own protocol.
 
 use crate::{
+    capability_bridge::CapabilityBridge,
     codex_conversations::{CodexConversations, ConversationAction},
     conversation_documents::DocumentInputs,
     conversation_skills,
@@ -25,6 +26,7 @@ pub struct ConversationHost {
     codex: CodexConversations,
     sink: Arc<dyn Fn(Value) + Send + Sync>,
     worker_executable: PathBuf,
+    capability_endpoint: Option<crate::capability_bridge::CapabilityRelayEndpoint>,
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -56,10 +58,16 @@ impl ConversationHost {
             codex: CodexConversations::new(binary, root, sink.clone()),
             sink,
             worker_executable: std::env::current_exe().unwrap_or_default(),
+            capability_endpoint: None,
         }
     }
     pub fn with_worker_executable(mut self, executable: PathBuf) -> Self {
         self.worker_executable = executable;
+        self
+    }
+    pub fn with_capability_bridge(mut self, bridge: Arc<CapabilityBridge>) -> Self {
+        self.capability_endpoint = Some(bridge.endpoint());
+        self.codex = self.codex.with_capability_bridge(bridge);
         self
     }
     fn catalog_path(&self) -> PathBuf {
@@ -217,7 +225,7 @@ impl ConversationHost {
             if session.turns.iter().any(|turn| turn["items"].as_array().is_some_and(|items| items.iter().any(|item| item["clientId"] == request.request_id))) {
                 return self.reconnect(&request.thread_id, &request.request_id, cancelled).await;
             }
-            crate::native_background::start(&self.root, &session, pool.agents(), request, &skills, &self.worker_executable)?;
+            crate::native_background::start(&self.root, &session, pool.agents(), request, &skills, &self.worker_executable, self.capability_endpoint.as_ref())?;
             return crate::native_background::observe(&self.root, &request.thread_id, &request.request_id, &self.sink, cancelled).await;
         }
         self.codex

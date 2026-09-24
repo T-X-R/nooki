@@ -2,9 +2,11 @@
 // Use PLAYWRIGHT_MODULE for an external Playwright installation; requires Chrome.
 // CONVERSATION_TEST_URL defaults to http://127.0.0.1:5193/. No real Codex calls are made.
 import assert from 'node:assert/strict';
+const commandManifest = {id:'qa.commands',name:'每日总结',description:'通过会话调用的独立能力包',version:'1.0.0',entrypoints:['page','job','command'],permissions:[]};
 const installed = [
  ...['com.personal.codex-daily-review', 'com.personal.diary'].map(id => ({manifest:{id,name:id,description:'Removed bundled package',version:'1.0.0',entrypoints:['page'],permissions:[]},enabled:true})),
  {manifest:{id:'qa.external',name:'Independent package',description:'Installed from a ZIP',version:'1.0.0',entrypoints:['page'],permissions:[]},enabled:false,packageVersion:'1.0.0'},
+ {manifest:commandManifest,enabled:true,packageVersion:'1.0.0'},
 ];
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { chromium } = playwright.chromium ? playwright : playwright.default;
@@ -16,19 +18,32 @@ page.on('pageerror', e=>errors.push(e.message));
 try {
 await page.addInitScript((installed)=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
+ localStorage.setItem('personal-workbench:capability:conversation-invocations',JSON.stringify([{
+  invocationId:'weekly-draft',createdAt:'2026-09-24T00:00:00Z',updatedAt:'2026-09-24T00:00:00Z',status:'completed',
+  command:{capabilityId:'com.nooki.weekly-report',capabilityName:'写周报',commandId:'draft-weekly-report',title:'生成周报草稿',description:'根据资料生成周报',effect:'draft',confirmation:'always',inputSchema:{type:'object'}},
+  input:{},context:{threadId:'old',turnId:'t1',agent:'codex'},result:{title:'工作周报',content:'# 工作周报\n\n本周成果'}
+ }]));
  const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []})),{id:'old-answer',type:'agentMessage',phase:'final_answer',text:'安装包在这个目录：\n\n```\n/com.personal.workbench/conversation-workspaces/bcbf704d041b7bddb40b1f02280ac7a4ec6f64f035adbe3ea2cec5f9915cd737/package.zip\n```\n\n配置：\n\n```json\n{"ready": true}\n```'}]}]};
  const docs=[{id:'notes/notes/2026/09/one',capabilityId:'notes',capabilityName:'工作记录',collectionKey:'notes',collectionName:'笔记',title:'已有记录',documentDate:'2026-09-09'}, {id:'summary/reports/2026/09/one',capabilityId:'summary',capabilityName:'项目总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
- window.qa={old,docs,organization,uninstalled:[],readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:conversation-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
+ window.qa={old,docs,organization,uninstalled:[],readDelay:1500,emitEvent:(event,payload)=>{for(const [registered,handler] of events)if(registered===event) callbacks.get(handler)({event,id:handler,payload})}};
+ window.qa.emit=(method,params)=>window.qa.emitEvent('workbench:conversation-event',{method,params});
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
   if(command==='plugin:event|listen'){events.set(args.event,args.handler);return args.handler}
   if(command.startsWith('plugin:'))return null;
+  if(command==='capability_broker_ready')return null;
+  if(command==='capability_broker_respond'){window.qa.capabilityResponse=args;return null}
   if(command==='capability_agent')return 'codex';
   if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
   if(command==='list_capabilities')return installed;
   if(command==='uninstall_capability'){window.qa.uninstalled.push(args.id);installed=installed.filter(item=>item.manifest.id!==args.id);return}
-  if(['library_search_content','library_capture_sources'].includes(command))return [];
+  if(command==='capability_package_read'){
+   const manifest=installed.find(item=>item.manifest.id===args.id).manifest;
+   return {manifest,styles:'',entry:`window.WorkbenchCapability={manifest:${JSON.stringify(manifest)},Page:()=>null,jobs:{'daily-summary':{run:async()=>null}},commands:{'daily-summary':{job:'daily-summary',title:'生成今天的总结',description:'汇总今天的工作进展',effect:'external',confirmation:'always',inputSchema:{type:'object',properties:{date:{type:'string'}},required:['date']}}}}`};
+  }
+  if(command==='library_search_content')return [];
+  if(command==='library_capture_sources')return args.ids.map(id=>({reference:{kind:'library-document',documentId:id,title:docs.find(doc=>doc.id===id)?.title??id,snapshotId:args.id},content:'测试资料',documentDate:'2026-09-09'}));
   if(command==='library_list_documents')return structuredClone(docs);
   if(command==='library_organization')return structuredClone(organization);
   if(command==='conversation_publish'){
@@ -46,7 +61,7 @@ await page.addInitScript((installed)=>{
   if(command==='conversation_list' && args.cursor)return {data:[{id:'earliest',preview:'更早创建但最近更新',createdAt:0,updatedAt:9999999999,turns:[]}],nextCursor:null};
   if(command==='conversation_list')return {data:[...(current ? [{...current,turns:[]}] : []),{...old,turns:[]},...(window.qa.additional || [])],nextCursor:window.qa.more ? 'older-page' : null};
   if(command==='conversation_read'){await new Promise(r=>setTimeout(r,window.qa.readDelay));return structuredClone(args.id==='old'?old:current??{id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]})}
-  if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));return {id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]}}
+  if(command==='conversation_create'){await new Promise(r=>setTimeout(r,700));if(window.qa.failCreate){window.qa.failCreate=false;throw new Error('模拟创建失败')}return {id:'new-session',preview:'',createdAt:2,updatedAt:2,turns:[]}}
   if(command==='conversation_run')return new Promise(resolve=>{
    window.qa.startTurn=()=>{
     const user={id:'native-user',type:'userMessage',clientId:args.request.requestId,content:[{type:'text',text:args.request.message}]};
@@ -72,7 +87,7 @@ assert.equal(await page.locator('.sidebar').getByRole('button', {name:'任务',e
 assert.equal(await page.locator('.sidebar-content > :last-child').getAttribute('class'), 'nav-conversations sidebar-conversations');
 const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});
 assert.deepEqual(await page.evaluate(()=>window.qa.uninstalled), ['com.personal.codex-daily-review','com.personal.diary']);
-assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), []);
+assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), ['每日总结']);
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await page.locator('#sidebar-installed-capabilities').count(), 0);
 const explore = page.locator('.brand-lockup').getByRole('button', {name:'探索灵感',exact:true});
@@ -80,7 +95,7 @@ await explore.focus(); await page.keyboard.press('Enter');
 await page.locator('.capabilities-page').waitFor();
 assert.equal(await explore.getAttribute('aria-current'), 'page');
 assert.equal(await page.locator('.sidebar').getByRole('button', {name:'能力中心',exact:true}).count(), 0);
-assert.equal(await page.locator('.capability-card').count(), 1, 'A separately installed package stays available');
+assert.equal(await page.locator('.capability-card').count(), 2, 'Separately installed packages stay available');
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await capabilitiesToggle.getAttribute('aria-expanded'), 'true');
 await page.getByRole('button', {name:'今日',exact:true}).click();
@@ -132,6 +147,16 @@ await page.getByRole('button',{name:'历史测试会话',exact:true}).click();
 await page.getByText('正在读取对话…',{exact:true}).waitFor({state:'visible',timeout:500});
 const historyProcess=page.locator('.conversation-turn-process');
 await historyProcess.waitFor();
+const weeklyCard=page.locator('.conversation-artifact').filter({hasText:'工作周报.md'});
+await weeklyCard.waitFor();
+await weeklyCard.getByRole('button',{name:'预览',exact:true}).click();
+await page.getByRole('dialog',{name:'工作周报.md'}).getByText('本周成果').waitFor();
+await page.getByRole('dialog',{name:'工作周报.md'}).getByRole('button',{name:'关闭'}).click();
+await weeklyCard.getByRole('button',{name:'保存到资料库',exact:true}).click();
+await page.getByRole('dialog',{name:'保存到资料库'}).waitFor();
+await page.getByRole('dialog',{name:'保存到资料库'}).getByRole('button',{name:'取消'}).click();
+await weeklyCard.scrollIntoViewIfNeeded();
+await page.screenshot({path:'/private/tmp/nooki-weekly-card.png'});
 const copyButtons=page.locator('.conversation-code-copy');
 assert.equal(await copyButtons.count(),2, 'Every fenced path or code block has one copy action');
 assert.deepEqual(await page.locator('.conversation-code-language').allTextContents(),['text','json']);
@@ -142,6 +167,8 @@ assert.deepEqual(await page.locator('.conversation-code-block').evaluateAll(bloc
 })),[true,true], 'The toolbar occupies its own row above the content');
 assert.equal(await page.locator('.conversation-code-block pre').first().evaluate(element=>element.scrollWidth>element.clientWidth),true, 'Long paths scroll only inside the content row');
 await page.screenshot({path:'/private/tmp/nooki-code-copy.png'});
+// A startup notice disappearing mid-interaction re-renders the message list, so wait it out first.
+await page.locator('.toast').waitFor({state:'detached'});
 await copyButtons.first().focus();
 assert.equal(await copyButtons.first().evaluate(element=>element===document.activeElement),true, 'The native copy button is keyboard focusable');
 await copyButtons.first().click();
@@ -204,9 +231,26 @@ for (const isComposing of [true, false]) {
 }
 await composer.press('Shift+Enter');
 assert.equal(await composer.inputValue(), 'nooki\n', 'Shift+Enter still inserts a newline');
+await page.getByRole('button',{name:'引用资料',exact:true}).click();
+await page.locator('.conversation-picker-list').getByRole('checkbox').first().check();
+await page.getByRole('button',{name:'关闭资料选择'}).click();
+await page.locator('.conversation-composer input[type="file"]').setInputFiles({name:'附件.txt',mimeType:'text/plain',buffer:Buffer.from('测试附件')});
+await page.getByText('附件.txt',{exact:true}).waitFor();
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('马上显示的新会话');
+await page.evaluate(()=>{window.qa.failCreate=true});
+await composer.press('Enter');
+assert.equal(await composer.inputValue(), '', 'The composer clears while submission is in progress');
+await page.getByRole('alert').filter({hasText:'模拟创建失败'}).waitFor();
+assert.equal(await composer.inputValue(), '马上显示的新会话', 'A failed submission restores the message');
+assert.equal(await page.locator('.conversation-composer .conversation-attachments').count(), 2, 'A failed submission restores both kinds of attachment');
+await page.getByRole('button',{name:'关闭提示'}).click();
 await composer.press('Enter');
 await page.getByText('正在准备对话…',{exact:true}).waitFor({state:'visible',timeout:500});
+assert.equal(await composer.inputValue(), '', 'Submitting clears the message while the new conversation is still being prepared');
+assert.equal(await page.locator('.conversation-composer .conversation-attachments').count(), 0, 'Submitted references and uploads leave the composer together with the message');
+const attachmentOrder = async (message) => message.locator(':scope > *').evaluateAll(elements=>elements.map(element=>element.className));
+const pendingUser=page.locator('.conversation-user').filter({hasText:'马上显示的新会话'});
+assert.deepEqual(await attachmentOrder(pendingUser),['conversation-message-sources','conversation-message-sources','conversation-message-body'],'Pending attachments appear above the message text');
 await page.waitForTimeout(900);
 const newSession=page.locator('#sidebar-conversation-history').getByRole('button',{name:'马上显示的新会话',exact:true});
 assert.equal(await newSession.count(),1);
@@ -215,6 +259,15 @@ assert.equal(await user.count(),1);
 assert.equal(await page.getByText('正在生成…',{exact:true}).isVisible(),true, 'First turn has a placeholder before output');
 await page.evaluate(()=>window.qa.startTurn()); await page.waitForTimeout(100);
 assert.equal(await user.count(),1, 'Native user event must replace the pending message');
+assert.deepEqual(await attachmentOrder(user),['conversation-message-sources','conversation-message-sources','conversation-message-body'],'Retained attachments appear above the message text');
+await page.evaluate(()=>window.qa.emitEvent('workbench:capability-request',{id:'bridge-1',request:{action:'invoke',invocationId:'agent-call-1',capabilityId:'qa.commands',commandId:'daily-summary',input:{date:'2026-09-23'},language:'zh',context:{threadId:'new-session',turnId:'native-turn',agent:'codex'}}}));
+const invocation=page.locator('.capability-invocation');
+await invocation.getByText('生成今天的总结',{exact:true}).waitFor();
+assert.equal(await invocation.getByText('等待确认',{exact:true}).count(),1);
+assert.equal(await invocation.getByRole('button',{name:'确认执行',exact:true}).count(),1);
+await invocation.getByRole('button',{name:'取消',exact:true}).click();
+await page.waitForFunction(()=>window.qa.capabilityResponse?.response?.error?.code==='CONFIRMATION_DENIED');
+assert.equal(await invocation.getByText('已取消',{exact:true}).count(),1, 'The common invocation card owns confirmation and cancellation');
 const liveProcess=page.locator('.conversation-turn-process');
 assert.equal(await page.getByText('正在生成…',{exact:true}).count(),0, 'Process replaces the initial generation placeholder');
 assert.equal(await page.getByText('进展',{exact:true}).count(),0);
@@ -301,10 +354,11 @@ assert.ok(saved.topic.documentIds.includes(saved.doc.id));
 assert.equal(saved.origin.messageId,'native-answer');
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('第二轮继续修改');
 await page.getByRole('button',{name:'发送消息',exact:true}).click();
+assert.equal(await composer.inputValue(), '', 'A follow-up message clears as soon as it is submitted');
 await page.locator('.conversation-user').filter({hasText:'第二轮继续修改'}).waitFor();
 assert.equal(await page.getByText('正在生成…',{exact:true}).count(),0, 'Follow-up turns need no generation placeholder');
 assert.equal(await page.getByText('正在准备对话…',{exact:true}).count(),0);
 assert.deepEqual(errors,[]);
-console.log('PASS: loading feedback, public summaries, live scrolling, process scrolling, immediate session listing, message reconciliation and topic/section saving and per-turn process disclosure');
+console.log('PASS: loading feedback, public summaries, capability confirmation, live scrolling, process scrolling, immediate session listing, message reconciliation and topic/section saving and per-turn process disclosure');
 
 } finally { await browser.close(); }

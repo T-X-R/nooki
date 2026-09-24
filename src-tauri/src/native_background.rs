@@ -1,7 +1,7 @@
 //! A headless Nooki process owns Claude/pi pipes until the original request finishes.
 //! UI clients observe durable snapshots. Reconnecting never launches a CLI or sends a prompt.
 
-use crate::{agent_tools::AgentTools, conversation_host::{ConversationRequest, NativeSession}, conversation_skills::SkillReference};
+use crate::{agent_tools::AgentTools, conversation_host::{ConversationRequest, NativeSession}, conversation_skills::SkillReference, native_agent_sessions::CapabilityLaunch};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{fs::{self, File, OpenOptions}, path::{Path, PathBuf}, sync::{Arc, Mutex}, time::{Duration, SystemTime}};
@@ -14,6 +14,8 @@ struct Job {
     tools: AgentTools,
     request: ConversationRequest,
     skills: Vec<SkillReference>,
+    #[serde(default)]
+    capabilities: Option<CapabilityLaunch>,
 }
 
 fn directory(root: &Path, thread: &str, request: &str) -> Result<PathBuf, String> {
@@ -80,7 +82,7 @@ pub(crate) fn merge(root: &Path, session: &mut NativeSession) -> Result<(), Stri
     Ok(())
 }
 
-pub(crate) fn start(root: &Path, session: &NativeSession, tools: &AgentTools, request: &ConversationRequest, skills: &[SkillReference], executable: &Path) -> Result<(), String> {
+pub(crate) fn start(root: &Path, session: &NativeSession, tools: &AgentTools, request: &ConversationRequest, skills: &[SkillReference], executable: &Path, endpoint: Option<&crate::capability_bridge::CapabilityRelayEndpoint>) -> Result<(), String> {
     let dir = directory(root, &request.thread_id, &request.request_id)?;
     if dir.exists() { return Ok(()); } // An uncertain previous launch must never resubmit this intent.
     fs::create_dir_all(dir.parent().unwrap()).map_err(|e| e.to_string())?;
@@ -91,7 +93,8 @@ pub(crate) fn start(root: &Path, session: &NativeSession, tools: &AgentTools, re
     fs::create_dir(&dir).map_err(|e| e.to_string())?;
     let created = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
     write(&dir.join("state.json"), &json!({"createdAt":created,"turn":{"id":request.request_id,"status":"inProgress","items":[{"id":format!("user-{}",request.request_id),"type":"userMessage","clientId":request.request_id,"content":[{"type":"text","text":request.message}]}]}}))?;
-    write(&dir.join("job.json"), &json!({"root":root,"session":current,"tools":tools,"request":request,"skills":skills}))?;
+    let capabilities = endpoint.map(|endpoint| CapabilityLaunch { endpoint: endpoint.clone(), helper: executable.to_path_buf() });
+    write(&dir.join("job.json"), &json!({"root":root,"session":current,"tools":tools,"request":request,"skills":skills,"capabilities":capabilities}))?;
     let mut command = std::process::Command::new(executable);
     command.arg("--conversation-worker").arg(&dir).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null())
         .stderr(File::create(dir.join("worker.log")).map_err(|e| e.to_string())?);
@@ -128,6 +131,9 @@ pub async fn worker(dir: &Path) -> Result<(), String> {
     // Do not run a completed/interrupted intent even if someone starts this worker again.
     if dir.join("ready").exists() { return Err("Worker intent already consumed".into()); }
     let _session = lock(&dir.parent().unwrap().join("session.lock"), true)?;
+    let mut redacted_job = serde_json::to_value(&job).map_err(|e| e.to_string())?;
+    redacted_job["capabilities"] = Value::Null;
+    write(&dir.join("job.json"), &redacted_job)?;
     fs::write(dir.join("ready"), std::process::id().to_string()).map_err(|e| e.to_string())?;
     let state: Value = serde_json::from_slice(&fs::read(dir.join("state.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let state = Arc::new(Mutex::new(state));
@@ -171,7 +177,7 @@ pub async fn worker(dir: &Path) -> Result<(), String> {
     });
     if dir.join("cancel").exists() { cancelled.cancel(); }
     let result = if cancelled.is_cancelled() { Err("Task cancelled".into()) } else {
-        crate::native_agent_sessions::run(&job.root, &sink, &job.session, &job.tools, &job.request, &job.skills, cancelled.clone()).await
+        crate::native_agent_sessions::run(&job.root, &sink, &job.session, &job.tools, &job.request, &job.skills, job.capabilities.as_ref(), cancelled.clone()).await
     };
     watcher.abort();
     let mut state = state.lock().unwrap();

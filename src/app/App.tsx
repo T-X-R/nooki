@@ -25,6 +25,7 @@ import { Sidebar } from './Sidebar.tsx'
 import { Topbar } from './Topbar.tsx'
 import { WindowTitlebar } from './WindowTitlebar.tsx'
 import { takeSubstrateNotice, useWorkbench, type View } from '../platform/preferences.ts'
+import { capabilityBrokerClient } from '../platform/capability-broker-client.ts'
 
 function App() {
   const { t } = useTranslation()
@@ -78,6 +79,7 @@ function App() {
 
   useEffect(() => {
     void refreshCapabilities()
+    void capabilityBrokerClient.connect().catch(() => showNotice(t('capabilitiesLoadFailed')))
   }, [])
 
   useEffect(() => {

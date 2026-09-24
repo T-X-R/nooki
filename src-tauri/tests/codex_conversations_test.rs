@@ -1,4 +1,4 @@
-use app_lib::{codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, conversation_host::ConversationHost, source_snapshots, document_library::{self, DocumentPublication}};
+use app_lib::{capability_bridge::CapabilityBridge, codex_conversations::CodexConversations, conversation_documents::{self, Attachment, DocumentInputs}, conversation_host::ConversationHost, source_snapshots, document_library::{self, DocumentPublication}};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::{Arc, Mutex}};
 use tokio_util::sync::CancellationToken;
@@ -152,6 +152,45 @@ fn fixture() -> (PathBuf, CodexConversations, Arc<Mutex<Vec<Value>>>) {
   let bridge = CodexConversations::new(script.to_string_lossy().into(), root.clone(), Arc::new(move |e| sink.lock().unwrap().push(e)));
   (root, bridge, events)
 }
+
+#[tokio::test]
+async fn codex_dynamic_tool_uses_the_nooki_capability_bridge() {
+  let (root, unused, _) = fixture(); drop(unused);
+  std::fs::create_dir_all(root.join("installed-capabilities")).unwrap();
+  std::fs::write(root.join("installed-capabilities/capability-registry.json"), json!({"capabilities":[
+    {"enabled":true,"manifest":{"name":"Weekly report","description":"Draft reports","locales":{"zh":{"name":"写周报","description":"根据资料生成周报"}},"entrypoints":["page","command"]}},
+    {"enabled":false,"manifest":{"name":"Disabled","description":"Must stay hidden","entrypoints":["command"]}},
+    {"enabled":true,"manifest":{"name":"Page only","description":"Must stay hidden","entrypoints":["page"]}}
+  ]}).to_string()).unwrap();
+  let (events, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+  let capabilities = Arc::new(CapabilityBridge::new(&root, Arc::new(move |event| { let _ = events.send(event); })).unwrap());
+  capabilities.renderer_ready();
+  let bridge = Arc::new(CodexConversations::new(root.join("codex").to_string_lossy().into(), root.clone(), Arc::new(|_| {})).with_capability_bridge(capabilities.clone()));
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  assert_eq!(bridge.read(&id, None).await.unwrap()["capabilityTools"], "available");
+  let responder = capabilities.clone();
+  let handled = tokio::spawn(async move {
+    let event = receiver.recv().await.unwrap();
+    assert_eq!(event["request"]["action"], "search");
+    assert_eq!(event["request"]["invocationId"], "tool-call-1");
+    assert_eq!(event["request"]["context"], json!({"threadId":"session-1","turnId":"turn-1","agent":"codex"}));
+    responder.respond(event["id"].as_str().unwrap(), json!({"ok":true,"action":"search","commands":[]})).unwrap();
+  });
+  bridge.run(&id, "capability-tool", "", "request-tool", CancellationToken::new()).await.unwrap();
+  handled.await.unwrap();
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  let started = requests.iter().find(|request| request["method"] == "thread/start").unwrap();
+  assert_eq!(started["params"]["dynamicTools"][0]["name"], "nooki_capabilities");
+  assert!(started["params"]["dynamicTools"][0]["description"].as_str().unwrap().contains("when relevant to the user's request"));
+  let tool_description = started["params"]["dynamicTools"][0]["description"].as_str().unwrap();
+  assert!(tool_description.contains("写周报 — 根据资料生成周报"));
+  assert!(!tool_description.contains("Disabled"));
+  assert!(!tool_description.contains("Page only"));
+  assert!(!started["params"]["developerInstructions"].as_str().unwrap().contains("nooki_capabilities"));
+  let response = requests.iter().find(|request| request["id"] == 9001 && request.get("method").is_none()).unwrap();
+  assert_eq!(response["result"]["success"], true);
+  drop(bridge); drop(capabilities); let _ = std::fs::remove_dir_all(root);
+}
 #[tokio::test]
 async fn native_sessions_stream_resume_and_recover_completed_turns_without_duplicate_generation() {
   let (root, bridge, events) = fixture();
@@ -172,6 +211,72 @@ async fn native_sessions_stream_resume_and_recover_completed_turns_without_dupli
   assert_eq!(reopened.run(id,"hello","","request-1",CancellationToken::new()).await.unwrap(),first);
   assert!(reopened.read("unrelated",None).await.is_err());
   drop(reopened); let _=std::fs::remove_dir_all(root);
+}
+#[tokio::test]
+async fn thread_history_paginates_without_requesting_unsupported_turn_listing() {
+  let (root, bridge, _) = fixture();
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap();
+  std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
+  let first = bridge.run(id, "hello", "", "request-1", CancellationToken::new()).await.unwrap();
+  assert_eq!(bridge.read(id, None).await.unwrap()["turns"][0]["id"], "turn-1");
+  assert_eq!(bridge.reconnect(id, "request-1", CancellationToken::new()).await.unwrap(), first);
+  for index in 2..=31 {
+    bridge.run(id, "follow up", "", &format!("request-{index}"), CancellationToken::new()).await.unwrap();
+  }
+  let latest = bridge.read(id, None).await.unwrap();
+  assert_eq!(latest["turns"].as_array().unwrap().len(), 30);
+  assert_eq!(latest["turns"][0]["id"], "turn-2");
+  assert_eq!(latest["turns"][29]["id"], "turn-31");
+  let older = bridge.read(id, latest["nextCursor"].as_str().map(str::to_owned)).await.unwrap();
+  assert_eq!(older["turns"].as_array().unwrap().len(), 1);
+  assert_eq!(older["turns"][0]["id"], "turn-1");
+  assert!(older["nextCursor"].is_null());
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 31);
+  assert!(requests.iter().any(|request| request["method"] == "thread/read" && request["params"]["includeTurns"] == true));
+  assert!(!requests.iter().any(|request| request["method"] == "thread/turns/list"));
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
+#[tokio::test]
+async fn active_turn_does_not_request_an_unsupported_listing_endpoint() {
+  let (root, bridge, events) = fixture(); let bridge = Arc::new(bridge);
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
+  let running = bridge.clone(); let session = id.clone();
+  let handle = tokio::spawn(async move { running.run(&session, "slow", "", "active-1", CancellationToken::new()).await });
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    while !events.lock().unwrap().iter().any(|event| event["method"] == "turn/started") { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+  }).await.unwrap();
+  assert_eq!(bridge.read(&id, None).await.unwrap()["turns"][0]["status"], "inProgress");
+  assert!(!handle.is_finished(), "The active turn must stay observable");
+  std::fs::write(root.join("conversation-workspace/finish-background"), "").unwrap();
+  let result = tokio::time::timeout(std::time::Duration::from_secs(5), handle).await.unwrap().unwrap().unwrap();
+  assert_eq!(result["turnId"], "turn-1");
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 1);
+  assert!(!requests.iter().any(|request| request["method"] == "thread/turns/list"), "Nooki must not call an unsupported app-server method");
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn newly_started_turn_completes_from_events_without_reading_active_history() {
+  let (root, bridge, events) = fixture(); let bridge = Arc::new(bridge);
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  std::fs::write(root.join("conversation-workspace/active-turn-history-unavailable"), "").unwrap();
+  std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
+  let running = bridge.clone(); let session = id.clone();
+  let handle = tokio::spawn(async move { running.run(&session, "slow", "", "active-2", CancellationToken::new()).await });
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    while !events.lock().unwrap().iter().any(|event| event["method"] == "turn/started") { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+  }).await.unwrap();
+  tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+  assert!(!handle.is_finished(), "An active turn must not depend on reading retained history");
+  std::fs::write(root.join("conversation-workspace/finish-background"), "").unwrap();
+  let result = tokio::time::timeout(std::time::Duration::from_secs(5), handle).await.unwrap().unwrap().unwrap();
+  assert_eq!(result["turnId"], "turn-1");
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 1);
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
 }
 #[tokio::test]
 async fn cancel_interrupts_codex_and_retry_never_replays_a_failed_prompt() {
