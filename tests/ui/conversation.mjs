@@ -2,9 +2,10 @@
 // Use PLAYWRIGHT_MODULE for an external Playwright installation; requires Chrome.
 // CONVERSATION_TEST_URL defaults to http://127.0.0.1:5193/. No real Codex calls are made.
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-const installed = await Promise.all(['codex-daily-review', 'diary'].map(async name => ({manifest: JSON.parse(await readFile(new URL(`../../capabilities/${name}/manifest.json`, import.meta.url), 'utf8')), enabled: true})));
-installed.push({manifest: {...installed[1].manifest, id:'qa.disabled', name:'Disabled capability', locales:{}}, enabled:false});
+const installed = [
+ ...['com.personal.codex-daily-review', 'com.personal.diary'].map(id => ({manifest:{id,name:id,description:'Removed bundled package',version:'1.0.0',entrypoints:['page'],permissions:[]},enabled:true})),
+ {manifest:{id:'qa.external',name:'Independent package',description:'Installed from a ZIP',version:'1.0.0',entrypoints:['page'],permissions:[]},enabled:false,packageVersion:'1.0.0'},
+];
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { chromium } = playwright.chromium ? playwright : playwright.default;
 const browser = await chromium.launch({headless:true, channel:'chrome'});
@@ -16,16 +17,17 @@ try {
 await page.addInitScript((installed)=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
  const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []})),{id:'old-answer',type:'agentMessage',phase:'final_answer',text:'安装包在这个目录：\n\n```\n/com.personal.workbench/conversation-workspaces/bcbf704d041b7bddb40b1f02280ac7a4ec6f64f035adbe3ea2cec5f9915cd737/package.zip\n```\n\n配置：\n\n```json\n{"ready": true}\n```'}]}]};
- const docs=[{id:'diary/notes/2026/09/one',capabilityId:'diary',capabilityName:'日记',collectionKey:'notes',collectionName:'笔记',title:'已有日记',documentDate:'2026-09-09'}, {id:'daily/reports/2026/09/one',capabilityId:'daily',capabilityName:'Codex 每日总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
+ const docs=[{id:'notes/notes/2026/09/one',capabilityId:'notes',capabilityName:'工作记录',collectionKey:'notes',collectionName:'笔记',title:'已有记录',documentDate:'2026-09-09'}, {id:'summary/reports/2026/09/one',capabilityId:'summary',capabilityName:'项目总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
- window.qa={old,docs,organization,readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:conversation-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
+ window.qa={old,docs,organization,uninstalled:[],readDelay:1500,emit:(method,params)=>{for(const [event,handler] of events)if(event==='workbench:conversation-event') callbacks.get(handler)({event,id:handler,payload:{method,params}})}};
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
   if(command==='plugin:event|listen'){events.set(args.event,args.handler);return args.handler}
   if(command.startsWith('plugin:'))return null;
   if(command==='capability_agent')return 'codex';
   if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
   if(command==='list_capabilities')return installed;
+  if(command==='uninstall_capability'){window.qa.uninstalled.push(args.id);installed=installed.filter(item=>item.manifest.id!==args.id);return}
   if(['library_search_content','library_capture_sources'].includes(command))return [];
   if(command==='library_list_documents')return structuredClone(docs);
   if(command==='library_organization')return structuredClone(organization);
@@ -69,7 +71,8 @@ assert.deepEqual(await page.locator('.primary-nav > button .nav-item-main, .prim
 assert.equal(await page.locator('.sidebar').getByRole('button', {name:'任务',exact:true}).count(), 0);
 assert.equal(await page.locator('.sidebar-content > :last-child').getAttribute('class'), 'nav-conversations sidebar-conversations');
 const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});
-assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), ['Codex 每日总结', '日记']);
+assert.deepEqual(await page.evaluate(()=>window.qa.uninstalled), ['com.personal.codex-daily-review','com.personal.diary']);
+assert.deepEqual(await page.locator('#sidebar-installed-capabilities button').allTextContents(), []);
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await page.locator('#sidebar-installed-capabilities').count(), 0);
 const explore = page.locator('.brand-lockup').getByRole('button', {name:'探索灵感',exact:true});
@@ -77,11 +80,9 @@ await explore.focus(); await page.keyboard.press('Enter');
 await page.locator('.capabilities-page').waitFor();
 assert.equal(await explore.getAttribute('aria-current'), 'page');
 assert.equal(await page.locator('.sidebar').getByRole('button', {name:'能力中心',exact:true}).count(), 0);
+assert.equal(await page.locator('.capability-card').count(), 1, 'A separately installed package stays available');
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await capabilitiesToggle.getAttribute('aria-expanded'), 'true');
-await page.locator('#sidebar-installed-capabilities').getByRole('button', {name:'日记',exact:true}).click();
-await page.locator('.diary-page').waitFor();
-assert.equal(await page.locator('#sidebar-installed-capabilities').getByRole('button', {name:'日记',exact:true}).getAttribute('aria-current'), 'page');
 await page.getByRole('button', {name:'今日',exact:true}).click();
 await page.getByRole('heading', {level:1}).waitFor();
 await page.getByRole('button', {name:'会话',exact:true}).click();
@@ -264,7 +265,7 @@ await topicPicker.click();
 assert.ok(await dialog.getByRole('listbox',{name:'专题',exact:true}).evaluate(el=>el.scrollHeight>el.clientHeight), 'Long option lists scroll inside the menu');
 await dialog.getByRole('option',{name:'研究专题',exact:true}).click();
 await sectionPicker.click();
-assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['日记','我的收藏']);
+assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['工作记录','我的收藏']);
 await page.keyboard.press('Escape');
 assert.equal(await dialog.isVisible(),true, 'Escape closes the menu without closing the save dialog');
 assert.equal(await sectionPicker.getAttribute('aria-expanded'),'false');

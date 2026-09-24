@@ -1,9 +1,0 @@
-{
-  "name": "@personal-workbench/capability-codex-daily-review",
-  "version": "0.3.0",
-  "type": "module",
-  "workbench": {
-    "manifest": "./manifest.json",
-    "entry": "./index.tsx"
-  }
-}

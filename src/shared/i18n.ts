@@ -67,7 +67,7 @@ const zh = {
   developerGuideReference: '开发包包含完整契约、UI 组件和示例，供 AI 开发工具使用。生成的页面应跟随 Nooki 的主题和语言。',
   understood: '知道了',
   quietWorkbench: '你的工作台还很安静',
-  capabilityModulesCopy: '能力包是独立安装的功能模块。周报、表格、日记和 Agent 都会从这里进入。',
+  capabilityModulesCopy: '能力包是独立安装的功能模块。你可以在这里导入并管理需要的能力。',
   importLocalCapability: '导入本地能力包',
   localInstall: '本地安装',
   close: '关闭',
