@@ -113,7 +113,7 @@
 .conversation-legacy h3 { font-size: 16px; font-weight: 650; }
 @media (max-width: 1050px) { .conversation-page { padding-inline: 20px; } .conversation-composer footer > span { display: none; } .conversation-send { margin-left: auto; } }
 
-.conversation-message-sources { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.conversation-message-sources { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
 .conversation-message-sources button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-strong); color: var(--accent); font-size: 9px; }
 .conversation-message-sources svg { width: 11px; height: 11px; }
 .conversation-message-sources > span, .conversation-upload-name { display: inline-flex; align-items: center; gap: 5px; min-width: 0; padding: 5px 7px; color: var(--ink-muted); font-size: 10px; overflow-wrap: anywhere; }

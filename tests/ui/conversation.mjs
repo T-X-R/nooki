@@ -31,7 +31,8 @@ await page.addInitScript((installed)=>{
   if(command==='agent_tools')return [{id:'codex',name:'Codex',directory:'/tmp/.codex/skills',detected:true,readsPool:false,custom:false,signIn:{state:'in',method:'ChatGPT',hint:null},servesCapabilities:true}];
   if(command==='list_capabilities')return installed;
   if(command==='uninstall_capability'){window.qa.uninstalled.push(args.id);installed=installed.filter(item=>item.manifest.id!==args.id);return}
-  if(['library_search_content','library_capture_sources'].includes(command))return [];
+  if(command==='library_search_content')return [];
+  if(command==='library_capture_sources')return args.ids.map(id=>({reference:{kind:'library-document',documentId:id,title:docs.find(doc=>doc.id===id)?.title??id,snapshotId:args.id},content:'测试资料',documentDate:'2026-09-09'}));
   if(command==='library_list_documents')return structuredClone(docs);
   if(command==='library_organization')return structuredClone(organization);
   if(command==='conversation_publish'){
@@ -207,9 +208,17 @@ for (const isComposing of [true, false]) {
 }
 await composer.press('Shift+Enter');
 assert.equal(await composer.inputValue(), 'nooki\n', 'Shift+Enter still inserts a newline');
+await page.getByRole('button',{name:'引用资料',exact:true}).click();
+await page.locator('.conversation-picker-list').getByRole('checkbox').first().check();
+await page.getByRole('button',{name:'关闭资料选择'}).click();
+await page.locator('.conversation-composer input[type="file"]').setInputFiles({name:'附件.txt',mimeType:'text/plain',buffer:Buffer.from('测试附件')});
+await page.getByText('附件.txt',{exact:true}).waitFor();
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('马上显示的新会话');
 await composer.press('Enter');
 await page.getByText('正在准备对话…',{exact:true}).waitFor({state:'visible',timeout:500});
+const attachmentOrder = async (message) => message.locator(':scope > *').evaluateAll(elements=>elements.map(element=>element.className));
+const pendingUser=page.locator('.conversation-user').filter({hasText:'马上显示的新会话'});
+assert.deepEqual(await attachmentOrder(pendingUser),['conversation-message-sources','conversation-message-sources','conversation-message-body'],'Pending attachments appear above the message text');
 await page.waitForTimeout(900);
 const newSession=page.locator('#sidebar-conversation-history').getByRole('button',{name:'马上显示的新会话',exact:true});
 assert.equal(await newSession.count(),1);
@@ -218,6 +227,7 @@ assert.equal(await user.count(),1);
 assert.equal(await page.getByText('正在生成…',{exact:true}).isVisible(),true, 'First turn has a placeholder before output');
 await page.evaluate(()=>window.qa.startTurn()); await page.waitForTimeout(100);
 assert.equal(await user.count(),1, 'Native user event must replace the pending message');
+assert.deepEqual(await attachmentOrder(user),['conversation-message-sources','conversation-message-sources','conversation-message-body'],'Retained attachments appear above the message text');
 await page.evaluate(()=>window.qa.emitEvent('workbench:capability-request',{id:'bridge-1',request:{action:'invoke',invocationId:'agent-call-1',capabilityId:'com.personal.codex-daily-review',commandId:'daily-review',input:{date:'2026-09-23',language:'zh'},language:'zh',context:{threadId:'new-session',turnId:'native-turn',agent:'codex'}}}));
 const invocation=page.locator('.capability-invocation');
 await invocation.getByText('生成今天的 Codex 总结',{exact:true}).waitFor();

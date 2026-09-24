@@ -201,6 +201,30 @@ async fn native_sessions_stream_resume_and_recover_completed_turns_without_dupli
   drop(reopened); let _=std::fs::remove_dir_all(root);
 }
 #[tokio::test]
+async fn unsupported_turn_listing_falls_back_to_thread_history_without_replaying_prompts() {
+  let (root, bridge, _) = fixture();
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap();
+  std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
+  let first = bridge.run(id, "hello", "", "request-1", CancellationToken::new()).await.unwrap();
+  assert_eq!(bridge.read(id, None).await.unwrap()["turns"][0]["id"], "turn-1");
+  assert_eq!(bridge.reconnect(id, "request-1", CancellationToken::new()).await.unwrap(), first);
+  for index in 2..=31 {
+    bridge.run(id, "follow up", "", &format!("request-{index}"), CancellationToken::new()).await.unwrap();
+  }
+  let latest = bridge.read(id, None).await.unwrap();
+  assert_eq!(latest["turns"].as_array().unwrap().len(), 30);
+  assert_eq!(latest["turns"][0]["id"], "turn-2");
+  assert_eq!(latest["turns"][29]["id"], "turn-31");
+  let older = bridge.read(id, latest["nextCursor"].as_str().map(str::to_owned)).await.unwrap();
+  assert_eq!(older["turns"].as_array().unwrap().len(), 1);
+  assert_eq!(older["turns"][0]["id"], "turn-1");
+  assert!(older["nextCursor"].is_null());
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 31);
+  assert!(requests.iter().any(|request| request["method"] == "thread/read" && request["params"]["includeTurns"] == true));
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
+#[tokio::test]
 async fn cancel_interrupts_codex_and_retry_never_replays_a_failed_prompt() {
   let (root, bridge, _) = fixture(); let bridge=Arc::new(bridge);
   let thread=bridge.create().await.unwrap();let id=thread["id"].as_str().unwrap().to_string();

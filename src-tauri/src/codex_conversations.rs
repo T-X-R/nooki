@@ -169,6 +169,30 @@ impl CodexConversations {
     if result["thread"]["cwd"].as_str() != self.workspace().to_str() && result["thread"]["cwd"].as_str() != expected.to_str() { return Err("This session does not belong to Nooki conversations".into()); }
     Ok(result["thread"].clone())
   }
+  async fn turns_page(&self, client: &Client, thread_id: &str, cursor: Option<&str>, limit: usize) -> Result<Value, String> {
+    const LEGACY_CURSOR: &str = "nooki-legacy-turn:";
+    if !cursor.is_some_and(|value| value.starts_with(LEGACY_CURSOR)) {
+      match client.request("thread/turns/list", json!({"threadId":thread_id,"cursor":cursor,"limit":limit,"sortDirection":"desc","itemsView":"full"})).await {
+        Ok(page) => return Ok(page),
+        Err(error) if error == "list_turns is not supported yet" => {},
+        Err(error) => return Err(error),
+      }
+    }
+    // Codex currently advertises this pagination method but does not implement it.
+    // Its thread/read endpoint still returns retained turns in chronological order.
+    let result = client.request("thread/read", json!({"threadId":thread_id,"includeTurns":true})).await?;
+    let turns = result["thread"]["turns"].as_array().ok_or("Codex returned invalid history")?;
+    let end = if let Some(cursor) = cursor {
+      let id = cursor.strip_prefix(LEGACY_CURSOR).ok_or("Unsupported conversation history cursor")?;
+      turns.iter().position(|turn| turn["id"] == id).ok_or("Conversation history cursor is no longer available")?
+    } else { turns.len() };
+    let start = end.saturating_sub(limit);
+    let data: Vec<_> = turns[start..end].iter().rev().cloned().collect();
+    let next_cursor = if start > 0 {
+      Some(format!("{LEGACY_CURSOR}{}", turns[start]["id"].as_str().ok_or("Codex returned a turn without an ID")?))
+    } else { None };
+    Ok(json!({"data":data,"nextCursor":next_cursor}))
+  }
   pub async fn list(&self, cursor: Option<String>, archived: bool) -> Result<Value, String> {
     let mut paths = conversation_documents::workspaces(&self.root)?;
     paths.push(self.workspace());
@@ -213,7 +237,7 @@ impl CodexConversations {
     if self.capability_bridge.is_some() { thread["capabilityTools"] = json!(if self.capability_tools_enabled(id) { "available" } else { "new-conversation-required" }); }
     if client.fresh.lock().map_err(|_| "Codex session state unavailable")?.contains(id) { thread["nextCursor"] = Value::Null; return Ok(thread); }
     client.request("thread/resume", json!({"threadId":id,"excludeTurns":true})).await?;
-    let page = client.request("thread/turns/list", json!({"threadId":id,"cursor":cursor,"limit":30,"sortDirection":"desc","itemsView":"full"})).await?;
+    let page = self.turns_page(&client, id, cursor.as_deref(), 30).await?;
     let mut turns = page["data"].as_array().cloned().unwrap_or_default();
     turns.reverse();
     for turn in &mut turns { sanitize_turn(turn); }
@@ -241,14 +265,14 @@ impl CodexConversations {
     Ok(())
   }
   async fn find_turn(&self, client: &Client, thread_id: &str, turn_id: Option<&str>, request_id: &str) -> Result<Option<Value>, String> {
-    let mut cursor = Value::Null;
+    let mut cursor: Option<String> = None;
     loop {
-      let page = client.request("thread/turns/list", json!({"threadId":thread_id,"cursor":cursor,"limit":50,"sortDirection":"desc","itemsView":"full"})).await?;
+      let page = self.turns_page(client, thread_id, cursor.as_deref(), 50).await?;
       for turn in page["data"].as_array().ok_or("Codex returned invalid history")? {
         if turn_id == turn["id"].as_str() || turn["items"].as_array().is_some_and(|items| items.iter().any(|item| item["type"] == "userMessage" && item["clientId"] == request_id)) { return Ok(Some(turn.clone())); }
       }
-      cursor = page["nextCursor"].clone();
-      if cursor.is_null() { return Ok(None); }
+      cursor = page["nextCursor"].as_str().map(str::to_owned);
+      if cursor.is_none() { return Ok(None); }
     }
   }
   pub async fn run(&self, thread_id: &str, message: &str, context: &str, request_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
@@ -310,7 +334,7 @@ impl CodexConversations {
         Some("completed") => {
           if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
           if !conversation_documents::has_output(&self.root, thread_id, request_id) {
-            let latest = client.request("thread/turns/list", json!({"threadId":thread_id,"limit":1,"sortDirection":"desc","itemsView":"full"})).await?;
+            let latest = self.turns_page(&client, thread_id, None, 1).await?;
             if latest["data"][0]["id"] != turn_id { return Err("This turn's document result was not retained before newer work. Open the latest document result instead.".into()); }
           }
           let artifacts = conversation_documents::complete(&self.root, thread_id, request_id)?;

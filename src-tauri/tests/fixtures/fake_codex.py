@@ -102,8 +102,9 @@ for line in connections():
         if not t:error('session missing');continue
         if method=='thread/resume' and not t['turns']:error('no rollout found');continue
         if method=='thread/resume' and p.get('cwd'):t['cwd']=p['cwd'];persist()
-        reply({'thread':{**t,'turns':[]}})
+        reply({'thread':{**t,'turns':t['turns'] if method=='thread/read' and p.get('includeTurns') else []}})
     elif method=='thread/turns/list':
+        if Path('list-turns-unsupported').exists():error('list_turns is not supported yet');continue
         t=threads.get(p['threadId'])
         if not t or not t['turns']:error('thread is not materialized yet');continue
         reply({'data':list(reversed(t['turns'])),'nextCursor':None})
