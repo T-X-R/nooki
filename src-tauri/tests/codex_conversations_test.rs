@@ -201,7 +201,7 @@ async fn native_sessions_stream_resume_and_recover_completed_turns_without_dupli
   drop(reopened); let _=std::fs::remove_dir_all(root);
 }
 #[tokio::test]
-async fn unsupported_turn_listing_falls_back_to_thread_history_without_replaying_prompts() {
+async fn thread_history_paginates_without_requesting_unsupported_turn_listing() {
   let (root, bridge, _) = fixture();
   let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap();
   std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
@@ -222,6 +222,48 @@ async fn unsupported_turn_listing_falls_back_to_thread_history_without_replaying
   let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
   assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 31);
   assert!(requests.iter().any(|request| request["method"] == "thread/read" && request["params"]["includeTurns"] == true));
+  assert!(!requests.iter().any(|request| request["method"] == "thread/turns/list"));
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
+#[tokio::test]
+async fn active_turn_does_not_request_an_unsupported_listing_endpoint() {
+  let (root, bridge, events) = fixture(); let bridge = Arc::new(bridge);
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
+  let running = bridge.clone(); let session = id.clone();
+  let handle = tokio::spawn(async move { running.run(&session, "slow", "", "active-1", CancellationToken::new()).await });
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    while !events.lock().unwrap().iter().any(|event| event["method"] == "turn/started") { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+  }).await.unwrap();
+  assert_eq!(bridge.read(&id, None).await.unwrap()["turns"][0]["status"], "inProgress");
+  assert!(!handle.is_finished(), "The active turn must stay observable");
+  std::fs::write(root.join("conversation-workspace/finish-background"), "").unwrap();
+  let result = tokio::time::timeout(std::time::Duration::from_secs(5), handle).await.unwrap().unwrap().unwrap();
+  assert_eq!(result["turnId"], "turn-1");
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 1);
+  assert!(!requests.iter().any(|request| request["method"] == "thread/turns/list"), "Nooki must not call an unsupported app-server method");
+  drop(bridge); let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn newly_started_turn_completes_from_events_without_reading_active_history() {
+  let (root, bridge, events) = fixture(); let bridge = Arc::new(bridge);
+  let thread = bridge.create().await.unwrap(); let id = thread["id"].as_str().unwrap().to_string();
+  std::fs::write(root.join("conversation-workspace/active-turn-history-unavailable"), "").unwrap();
+  std::fs::write(root.join("conversation-workspace/list-turns-unsupported"), "").unwrap();
+  let running = bridge.clone(); let session = id.clone();
+  let handle = tokio::spawn(async move { running.run(&session, "slow", "", "active-2", CancellationToken::new()).await });
+  tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    while !events.lock().unwrap().iter().any(|event| event["method"] == "turn/started") { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+  }).await.unwrap();
+  tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+  assert!(!handle.is_finished(), "An active turn must not depend on reading retained history");
+  std::fs::write(root.join("conversation-workspace/finish-background"), "").unwrap();
+  let result = tokio::time::timeout(std::time::Duration::from_secs(5), handle).await.unwrap().unwrap().unwrap();
+  assert_eq!(result["turnId"], "turn-1");
+  let requests: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  assert_eq!(requests.iter().filter(|request| request["method"] == "turn/start").count(), 1);
   drop(bridge); let _ = std::fs::remove_dir_all(root);
 }
 #[tokio::test]

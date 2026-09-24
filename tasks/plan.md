@@ -133,3 +133,12 @@ Goal: a user can attach documents and ask for a task in one sentence. The same s
 4. Update the shared tool guidance so each agent searches for an applicable installed command before doing a matching task; keep the adapters protocol-only. Verify all three register the same behavior.
 5. Update the independent Weekly report package to opt in, accept a bare natural-language invocation with this turn's attachments, preserve exact Library citations, and label uploaded-file citations. Verify package tests and ZIP; do not silently install the package.
 6. Run relevant tests/builds, review the diff, rebuild and reinstall Nooki, commit/push the existing feature branch, and update its open English PR.
+
+## Follow-up: Codex active-turn history error (2026-09-24)
+
+Goal: a newly started Codex turn remains observable to completion even when the app-server does not implement `thread/turns/list`; opening the conversation during execution must not show that protocol error.
+
+1. Reproduce the active-turn failure with a fake app-server that rejects turn listing, and assert one prompt produces one completed turn.
+2. Use the supported `thread/read` history contract directly for browsing/reconciliation; do not probe an unsupported endpoint or hide the error behind a fallback.
+3. Subscribe to events before `turn/start`, then track the returned turn and completion event without immediately resuming and rereading the active turn. Keep receipt-based reconnect separate and never replay a prompt.
+4. Run focused and full relevant tests, rebuild/reinstall the desktop app, and update the existing PR while preserving unrelated working-tree edits.

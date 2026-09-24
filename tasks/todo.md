@@ -37,3 +37,11 @@
 - [ ] Manually invoke the installed Weekly report package with conversation attachments. This requires importing version 1.2.0; package creation alone does not install it.
 - [x] Rebuild/reinstall Nooki 0.3.1 from this branch.
 - [x] Commit, push, and update PR #29.
+
+## Codex active-turn follow-up
+
+- [x] Reproduce unsupported turn-listing during an active turn and verify no duplicate prompt.
+- [x] Replace unsupported history API usage with the supported read contract.
+- [x] Track new turns from the returned turn and pre-subscribed event stream, with receipt-only reconnect.
+- [x] Run focused and broader verification, then rebuild/reinstall Nooki.
+- [x] Commit and push only this fix; update existing PR #29.

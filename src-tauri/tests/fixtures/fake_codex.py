@@ -100,6 +100,8 @@ for line in connections():
     elif method in ('thread/read','thread/resume'):
         t=threads.get(p['threadId'])
         if not t:error('session missing');continue
+        if method=='thread/read' and p.get('includeTurns') and Path('active-turn-history-unavailable').exists() and t['status']['type']=='active':
+            error('Active turn history is unavailable');continue
         if method=='thread/resume' and not t['turns']:error('no rollout found');continue
         if method=='thread/resume' and p.get('cwd'):t['cwd']=p['cwd'];persist()
         reply({'thread':{**t,'turns':t['turns'] if method=='thread/read' and p.get('includeTurns') else []}})

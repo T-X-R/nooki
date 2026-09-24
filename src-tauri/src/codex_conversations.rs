@@ -170,26 +170,17 @@ impl CodexConversations {
     Ok(result["thread"].clone())
   }
   async fn turns_page(&self, client: &Client, thread_id: &str, cursor: Option<&str>, limit: usize) -> Result<Value, String> {
-    const LEGACY_CURSOR: &str = "nooki-legacy-turn:";
-    if !cursor.is_some_and(|value| value.starts_with(LEGACY_CURSOR)) {
-      match client.request("thread/turns/list", json!({"threadId":thread_id,"cursor":cursor,"limit":limit,"sortDirection":"desc","itemsView":"full"})).await {
-        Ok(page) => return Ok(page),
-        Err(error) if error == "list_turns is not supported yet" => {},
-        Err(error) => return Err(error),
-      }
-    }
-    // Codex currently advertises this pagination method but does not implement it.
-    // Its thread/read endpoint still returns retained turns in chronological order.
+    const CURSOR_PREFIX: &str = "nooki-legacy-turn:";
     let result = client.request("thread/read", json!({"threadId":thread_id,"includeTurns":true})).await?;
     let turns = result["thread"]["turns"].as_array().ok_or("Codex returned invalid history")?;
     let end = if let Some(cursor) = cursor {
-      let id = cursor.strip_prefix(LEGACY_CURSOR).ok_or("Unsupported conversation history cursor")?;
+      let id = cursor.strip_prefix(CURSOR_PREFIX).ok_or("Unsupported conversation history cursor")?;
       turns.iter().position(|turn| turn["id"] == id).ok_or("Conversation history cursor is no longer available")?
     } else { turns.len() };
     let start = end.saturating_sub(limit);
     let data: Vec<_> = turns[start..end].iter().rev().cloned().collect();
     let next_cursor = if start > 0 {
-      Some(format!("{LEGACY_CURSOR}{}", turns[start]["id"].as_str().ok_or("Codex returned a turn without an ID")?))
+      Some(format!("{CURSOR_PREFIX}{}", turns[start]["id"].as_str().ok_or("Codex returned a turn without an ID")?))
     } else { None };
     Ok(json!({"data":data,"nextCursor":next_cursor}))
   }
@@ -236,7 +227,6 @@ impl CodexConversations {
     let mut thread = self.owned_thread(&client, id).await?;
     if self.capability_bridge.is_some() { thread["capabilityTools"] = json!(if self.capability_tools_enabled(id) { "available" } else { "new-conversation-required" }); }
     if client.fresh.lock().map_err(|_| "Codex session state unavailable")?.contains(id) { thread["nextCursor"] = Value::Null; return Ok(thread); }
-    client.request("thread/resume", json!({"threadId":id,"excludeTurns":true})).await?;
     let page = self.turns_page(&client, id, cursor.as_deref(), 30).await?;
     let mut turns = page["data"].as_array().cloned().unwrap_or_default();
     turns.reverse();
@@ -281,18 +271,20 @@ impl CodexConversations {
   pub async fn reconnect(&self, thread_id: &str, request_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
     if request_id.is_empty() || !request_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
     let client = self.connect().await?;
+    let events = client.events.subscribe();
     self.owned_thread(&client, thread_id).await?;
     let receipt = self.root.join("codex-turn-receipts").join(format!("{request_id}.json"));
     let previous = read_receipt(&receipt, thread_id)?;
     client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true})).await?;
     let turn = self.find_turn(&client, thread_id, previous.as_ref().and_then(|p| p["turnId"].as_str()), request_id).await?
       .ok_or("未找到原执行记录，未重新发送消息。请刷新会话后确认 / Original execution not found. No message was resent. Refresh the conversation to check.")?;
-    self.watch_turn(client, thread_id, request_id, turn["id"].as_str().ok_or("Missing turn ID")?, cancelled).await
+    self.watch_turn(client, thread_id, request_id, turn, events, cancelled).await
   }
   pub async fn run_with_documents(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken) -> Result<Value, String> {
     if message.trim().is_empty() || message.len() + context.len() > 100_000 { return Err("Message and references must contain between 1 and 100000 UTF-8 bytes".into()); }
     if request_id.is_empty() || !request_id.bytes().all(|b|b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
     let client = self.connect().await?;
+    let events = client.events.subscribe();
     let session = self.owned_thread(&client, thread_id).await?;
     let fresh = client.fresh.lock().map_err(|_| "Codex session state unavailable")?.contains(thread_id);
     let receipt = self.root.join("codex-turn-receipts").join(format!("{request_id}.json"));
@@ -300,7 +292,7 @@ impl CodexConversations {
     let existing = if fresh { None } else { self.find_turn(&client, thread_id, previous.as_ref().and_then(|p|p["turnId"].as_str()), request_id).await? };
     if previous.is_some() && existing.is_none() { return Err("Could not reconcile the saved Codex turn. Refresh this session before sending another message.".into()); }
     // A retry is a new observer of the same intent, never another copy of its prompt.
-    if let Some(turn) = existing { return self.watch_turn(client, thread_id, request_id, turn["id"].as_str().ok_or("Missing turn ID")?, cancelled).await; }
+    if let Some(turn) = existing { return self.watch_turn(client, thread_id, request_id, turn, events, cancelled).await; }
     if session["status"]["type"] == "active" { return Err("This Codex session is already running. Wait for it to finish before sending another message.".into()); }
     if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
     let document_context = conversation_documents::prepare(&self.root, thread_id, request_id, inputs)?;
@@ -322,12 +314,10 @@ impl CodexConversations {
       }
       turn
     };
-    self.watch_turn(client, thread_id, request_id, turn["id"].as_str().ok_or("Codex did not return a turn ID")?, cancelled).await
+    self.watch_turn(client, thread_id, request_id, turn, events, cancelled).await
   }
-  async fn watch_turn(&self, client: Arc<Client>, thread_id: &str, request_id: &str, turn_id: &str, cancelled: CancellationToken) -> Result<Value, String> {
-    let mut events = client.events.subscribe();
-    client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true})).await?;
-    let mut turn = self.find_turn(&client, thread_id, Some(turn_id), request_id).await?.ok_or("Original turn not found")?;
+  async fn watch_turn(&self, client: Arc<Client>, thread_id: &str, request_id: &str, mut turn: Value, mut events: broadcast::Receiver<Value>, cancelled: CancellationToken) -> Result<Value, String> {
+    let turn_id = turn["id"].as_str().ok_or("Codex did not return a turn ID")?.to_string();
     (self.sink)(public_event(json!({"method":if turn["status"] == "inProgress" { "turn/started" } else { "turn/completed" },"params":{"threadId":thread_id,"turn":turn.clone()}})));
     loop {
       match turn["status"].as_str() {
@@ -355,7 +345,7 @@ impl CodexConversations {
             Ok(event) if event["method"] == "workbench/disconnected" => return Err("与 Codex 的连接已断开，可重新连接核对执行状态 / Codex disconnected. Reconnect to check this turn.".into()),
             Ok(event) if event["method"] == "turn/completed" && event["params"]["threadId"] == thread_id && event["params"]["turn"]["id"] == turn_id => { turn = event["params"]["turn"].clone(); },
             Err(broadcast::error::RecvError::Closed) => return Err("Codex event stream closed".into()),
-            Err(broadcast::error::RecvError::Lagged(_)) => { if let Some(current) = self.find_turn(&client, thread_id, Some(turn_id), request_id).await? { turn = current; } },
+            Err(broadcast::error::RecvError::Lagged(_)) => { if let Some(current) = self.find_turn(&client, thread_id, Some(&turn_id), request_id).await? { turn = current; } },
             _ => {}
           }
         }
