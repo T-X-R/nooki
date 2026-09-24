@@ -3,6 +3,13 @@ import type { DocumentReference } from '../../../packages/capability-contract/sr
 export type ConversationAttachment = { id: string; name: string; content: string }
 export type ConversationArtifact = { id: string; name: string; content: string; before: string | null; source: DocumentReference | null }
 
+export function capabilityDraftArtifact(invocation: { invocationId: string; status: string; result?: unknown }): ConversationArtifact | null {
+  if (invocation.status !== 'completed' || !invocation.result || typeof invocation.result !== 'object') return null
+  const { title, content } = invocation.result as { title?: unknown; content?: unknown }
+  if (typeof title !== 'string' || !title.trim() || typeof content !== 'string' || !content.trim()) return null
+  return { id: invocation.invocationId, name: `${title.replace(/\.md$/i, '')}.md`, content, before: null, source: null }
+}
+
 export function decodeAttachment(name: string, bytes: ArrayBuffer): ConversationAttachment {
   if (!/\.(md|txt)$/i.test(name) || /[/\\\0]/.test(name) || new TextEncoder().encode(name).length > 240) throw new Error('请选择 Markdown（.md）或文本（.txt）文件 / Choose a Markdown or text file')
   if (bytes.byteLength > 2_000_000) throw new Error('单个附件不能超过 2 MB / Each attachment must be at most 2 MB')

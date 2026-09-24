@@ -16,6 +16,11 @@ page.on('pageerror', e=>errors.push(e.message));
 try {
 await page.addInitScript((installed)=>{
  localStorage.setItem('personal-workbench-preferences',JSON.stringify({state:{view:'conversations',language:'zh',theme:'light'},version:0}));
+ localStorage.setItem('personal-workbench:capability:conversation-invocations',JSON.stringify([{
+  invocationId:'weekly-draft',createdAt:'2026-09-24T00:00:00Z',updatedAt:'2026-09-24T00:00:00Z',status:'completed',
+  command:{capabilityId:'com.nooki.weekly-report',capabilityName:'写周报',commandId:'draft-weekly-report',title:'生成周报草稿',description:'根据资料生成周报',effect:'draft',confirmation:'always',inputSchema:{type:'object'}},
+  input:{},context:{threadId:'old',turnId:'t1',agent:'codex'},result:{title:'工作周报',content:'# 工作周报\n\n本周成果'}
+ }]));
  const old={id:'old',preview:'历史测试会话',createdAt:1,updatedAt:999,turns:[{id:'t1',status:'completed',items:[{id:'u1',type:'userMessage',content:[{type:'text',text:'测试消息'}]},...Array.from({length:60},(_,i)=>({id:'r'+i,type:'reasoning',summary:i%2 ? ['公开摘要 '+i+'\n'+('摘要行\n'.repeat(100))] : []})),{id:'old-answer',type:'agentMessage',phase:'final_answer',text:'安装包在这个目录：\n\n```\n/com.personal.workbench/conversation-workspaces/bcbf704d041b7bddb40b1f02280ac7a4ec6f64f035adbe3ea2cec5f9915cd737/package.zip\n```\n\n配置：\n\n```json\n{"ready": true}\n```'}]}]};
  const docs=[{id:'notes/notes/2026/09/one',capabilityId:'notes',capabilityName:'工作记录',collectionKey:'notes',collectionName:'笔记',title:'已有记录',documentDate:'2026-09-09'}, {id:'summary/reports/2026/09/one',capabilityId:'summary',capabilityName:'项目总结',collectionKey:'reports',collectionName:'总结',title:'已有总结',documentDate:'2026-09-09'}];
  const organization={topics:[{id:'research',name:'研究专题',documentIds:[docs[0].id]},...Array.from({length:18},(_,i)=>({id:'topic-'+i,name:'其他专题 '+i,documentIds:[]})),{id:'empty',name:'空专题',documentIds:[]}],origins:{},trash:{},sections:{},customSections:[{id:'custom-collection',name:'我的收藏'}]};
@@ -136,6 +141,16 @@ await page.getByRole('button',{name:'历史测试会话',exact:true}).click();
 await page.getByText('正在读取对话…',{exact:true}).waitFor({state:'visible',timeout:500});
 const historyProcess=page.locator('.conversation-turn-process');
 await historyProcess.waitFor();
+const weeklyCard=page.locator('.conversation-artifact').filter({hasText:'工作周报.md'});
+await weeklyCard.waitFor();
+await weeklyCard.getByRole('button',{name:'预览',exact:true}).click();
+await page.getByRole('dialog',{name:'工作周报.md'}).getByText('本周成果').waitFor();
+await page.getByRole('dialog',{name:'工作周报.md'}).getByRole('button',{name:'关闭'}).click();
+await weeklyCard.getByRole('button',{name:'保存到资料库',exact:true}).click();
+await page.getByRole('dialog',{name:'保存到资料库'}).waitFor();
+await page.getByRole('dialog',{name:'保存到资料库'}).getByRole('button',{name:'取消'}).click();
+await weeklyCard.scrollIntoViewIfNeeded();
+await page.screenshot({path:'/private/tmp/nooki-weekly-card.png'});
 const copyButtons=page.locator('.conversation-code-copy');
 assert.equal(await copyButtons.count(),2, 'Every fenced path or code block has one copy action');
 assert.deepEqual(await page.locator('.conversation-code-language').allTextContents(),['text','json']);

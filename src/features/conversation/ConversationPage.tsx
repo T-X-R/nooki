@@ -14,7 +14,7 @@ import { createGreetingRotation, type conversationGreetings } from './conversati
 import { ConversationSaveDialog } from './ConversationSaveDialog.tsx'
 import { ConversationQuestion } from './ConversationQuestion.tsx'
 import { ConversationArtifacts } from './ConversationArtifacts.tsx'
-import { artifactTitle, decodeAttachment, validateAttachments, type ConversationAttachment } from './conversation-documents.ts'
+import { artifactTitle, capabilityDraftArtifact, decodeAttachment, validateAttachments, type ConversationAttachment } from './conversation-documents.ts'
 import { applySkillMention, attachedSkills, matchSkills, skillMention, type SkillMention } from './conversation-skills.ts'
 import type { PoolSkill } from '../skills/skill-pool.ts'
 import { CopyableCodeBlock } from './CopyableCodeBlock.ts'
@@ -168,7 +168,11 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     })
   }
   const uploadAttachments = (item: ConversationItem) => (tasks.find((record) => record.id === item.clientId)?.input as ConversationInput | undefined)?.uploads ?? []
-  const turnArtifacts = (turnId: string) => conversationTasks.filter((task) => task.job === 'respond' && task.status === 'completed' && (task.result as ConversationResult | null)?.turnId === turnId).flatMap((task) => (task.result as ConversationResult).artifacts ?? [])
+  const turnArtifacts = (turnId: string) => [
+    ...conversationTasks.filter((task) => task.job === 'respond' && task.status === 'completed' && (task.result as ConversationResult | null)?.turnId === turnId).flatMap((task) => (task.result as ConversationResult).artifacts ?? []),
+    ...capabilityInvocations.filter((invocation) => invocation.context?.threadId === selected && invocation.context.turnId === turnId)
+      .map(capabilityDraftArtifact).filter((artifact) => artifact !== null),
+  ]
   const artifactSource = (turn: ConversationTurn) => [...turn.items].reverse().find(isConversationAnswer)?.id ?? turn.items[0]?.id
   const save = (messageId: string, content: string, title?: string, sourceArtifactId?: string) => {
     setSaving({ threadId: selected ?? undefined, messageId: crypto.randomUUID(), sourceMessageId: messageId, sourceArtifactId, content, title: title ?? (thread?.name || thread?.preview || (zh ? '对话成果' : 'Conversation answer')).slice(0, 120), date: new Date().toLocaleDateString('en-CA'), language })

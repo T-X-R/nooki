@@ -62,6 +62,29 @@ test('searches only enabled explicitly exposed commands with localized copy', as
   ])
 })
 
+test('shows the compact catalog for differently worded requests so the agent can match intent', async () => {
+  const weekly: CapabilityModule = { ...commandModule,
+    manifest: { ...commandModule.manifest, id: 'test.weekly', name: 'Weekly report', locales: { zh: { name: '写周报', description: '用资料生成周报' } } },
+    commands: { draft: { ...commandModule.commands!.summarize, locales: { zh: { title: '生成周报草稿' } } } },
+  }
+  const broker = createCapabilityBroker({
+    listCapabilities: () => [installed(commandModule), installed(weekly)],
+    execute: async () => ({ taskId: 'unused', status: 'completed', result: {} }),
+    confirm: async () => true,
+  })
+  for (const query of [undefined, '写个周报', '做一份周报', '根据文档撰写周报']) {
+    const result = await broker.handle({ action: 'search', query, language: 'zh' })
+    assert.equal(result.ok, true)
+    if (result.ok && result.action === 'search') {
+      assert.deepEqual(result.commands.map((command) => command.commandId), ['summarize', 'publish', 'draft'])
+      assert.equal(Object.hasOwn(result.commands[2], 'inputSchema'), false, 'search only discloses summaries')
+    }
+  }
+  const described = await broker.handle({ action: 'describe', capabilityId: 'test.weekly', commandId: 'draft', language: 'zh' })
+  assert.equal(described.ok, true)
+  if (described.ok && described.action === 'describe') assert.deepEqual(described.command.inputSchema.required, ['notes'])
+})
+
 test('describes exact schemas and reports unavailable commands with stable errors', async () => {
   const { broker } = setup()
   const described = await broker.handle({ action: 'describe', capabilityId: 'test.notes', commandId: 'summarize', language: 'en' })

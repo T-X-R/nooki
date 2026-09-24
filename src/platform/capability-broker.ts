@@ -243,11 +243,10 @@ export function createCapabilityBroker(dependencies: CapabilityBrokerDependencie
   return {
     async handle(request: CapabilityBrokerRequest): Promise<CapabilityBrokerResponse> {
       if (request.action === 'search') {
-        const query = request.query?.trim().toLocaleLowerCase() ?? ''
+        // Command summaries are the capability catalog. The agent matches the user's intent
+        // against this small catalog; a literal query must never hide a useful capability.
         const commands = enabledCommands(dependencies.listCapabilities(), request.language)
           .filter(({ description }) => !request.capabilityId || description.capabilityId === request.capabilityId)
-          .filter(({ description }) => !query || [description.capabilityId, description.capabilityName, description.commandId, description.title, description.description]
-            .some((value) => value.toLocaleLowerCase().includes(query)))
           .map(({ description: { inputSchema: _input, outputSchema: _output, ...summary } }) => summary)
         return { ok: true, action: 'search', commands }
       }
