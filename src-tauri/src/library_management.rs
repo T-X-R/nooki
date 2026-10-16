@@ -78,25 +78,40 @@ pub(crate) fn retain(root: &Path, doc: &LibraryDocument) -> Result<(), String> {
   if !path.exists() { write_json(&path, doc)?; }
   Ok(())
 }
-pub fn history(root: &Path, id: &str) -> Result<Vec<LibraryDocument>, String> {
-  let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
-  let current = document_library::read_unlocked(root, id)?;
-  let mut versions = vec![current.clone()];
+fn retained_versions(root: &Path, id: &str) -> Result<Vec<(std::path::PathBuf, LibraryDocument)>, String> {
   let directory = root.join("document-history").join(id);
+  let mut versions = Vec::new();
   if directory.exists() {
     for entry in fs::read_dir(directory).map_err(|e| e.to_string())? {
       let path = entry.map_err(|e| e.to_string())?.path();
       if path.extension().and_then(|v| v.to_str()) != Some("json") { continue; }
-      let doc: LibraryDocument = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+      let doc: LibraryDocument = serde_json::from_slice(&fs::read(&path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
       if doc.id != id { return Err("Invalid version identity".into()); }
-      if document_library::revision(&doc) != document_library::revision(&current) { versions.push(doc); }
+      versions.push((path, doc));
     }
   }
+  versions.sort_by(|a, b| chrono::DateTime::parse_from_rfc3339(&b.1.updated_at).ok().cmp(&chrono::DateTime::parse_from_rfc3339(&a.1.updated_at).ok()));
+  Ok(versions)
+}
+pub(crate) fn prune_history(root: &Path, id: &str, current_revision: &str) -> Result<(), String> {
+  let mut kept = 0;
+  for (path, doc) in retained_versions(root, id)? {
+    if document_library::revision(&doc) == current_revision || kept >= 9 { fs::remove_file(path).map_err(|e| e.to_string())?; }
+    else { kept += 1; }
+  }
+  Ok(())
+}
+pub fn history(root: &Path, id: &str) -> Result<Vec<LibraryDocument>, String> {
+  let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  let current = document_library::read_unlocked(root, id)?;
+  let revision = document_library::revision(&current);
   // The authoritative current version stays first even after a clock/timezone change.
-  versions[1..].sort_by(|a, b| chrono::DateTime::parse_from_rfc3339(&b.updated_at).ok().cmp(&chrono::DateTime::parse_from_rfc3339(&a.updated_at).ok()));
+  let mut versions = vec![current];
+  versions.extend(retained_versions(root, id)?.into_iter().map(|(_, doc)| doc).filter(|doc| document_library::revision(doc) != revision).take(9));
   for doc in &mut versions { doc.metadata.revision = Some(document_library::revision(doc)); }
   Ok(versions)
 }
+
 fn edit(root: &Path, id: &str, title: String, content: String, expected: &str) -> Result<LibraryDocumentMetadata, String> {
   let doc = document_library::read_unlocked(root, id)?;
   if document_library::revision(&doc) != expected { return Err("文档已更新，请重新打开后修改 / Document changed. Reopen it before editing.".into()); }

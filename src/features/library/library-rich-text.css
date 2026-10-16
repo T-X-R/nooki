@@ -1,5 +1,5 @@
 .library-rich-text { position: relative; }
-.library-format-tools { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 5px 0 8px; margin-bottom: 12px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.library-format-tools { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 5px 0 8px; margin-bottom: 12px; background: var(--bg); }
 .library-format-tools .icon-button { width: 28px; height: 28px; color: var(--ink-muted); border-radius: 5px; }
 .library-format-tools .icon-button:hover { background: var(--accent-wash); color: var(--accent-strong); }
 .library-tool-divider { width: 1px; height: 14px; background: var(--line); margin-inline: 5px; }
@@ -34,3 +34,7 @@
 .library-block-menu button > span { width: 24px; color: var(--ink-muted); }
 .library-block-menu button.is-active { background: var(--accent-wash); color: var(--accent-strong); }
 .library-format-tools button[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-strong); }
+.library-rich-text { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.library-rich-text-content { display: flex; flex: 1; flex-direction: column; }
+.library-rich-text .tiptap { flex: 1; }
+.library-rich-text .tiptap:focus, .library-rich-text .tiptap:focus-visible { outline: none; box-shadow: none; border: 0; }

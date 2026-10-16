@@ -220,3 +220,18 @@ test('blank documents can be created and cleared without weakening capability pu
   assert.equal(store.history(doc.id).length, 3)
   assert.throws(() => store.publish('com.personal.notes', 'Notes', input('invalid', '')), /Invalid/)
 })
+
+test('history retains current plus nine previous versions and only retained versions can be restored', () => {
+  const { store, data } = setup()
+  let doc = store.change({ kind: 'create', document: input('bounded', 'Version 0') })!
+  const first = doc.revision!
+  for (let index = 1; index <= 14; index++) doc = store.change({ kind: 'edit', id: doc.id, title: doc.title, content: `Version ${index}`, expected: doc.revision! })!
+  const versions = store.history(doc.id)
+  assert.equal(versions.length, 10)
+  assert.deepEqual(versions.map(version => version.content), Array.from({ length: 10 }, (_, index) => `Version ${14 - index}`))
+  assert.equal(JSON.parse(data.get(libraryStorageKey)!).history[doc.id].length, 9)
+  assert.throws(() => store.change({ kind: 'restore-version', id: doc.id, revision: first, expected: doc.revision! }), /Version not found/)
+  store.change({ kind: 'restore-version', id: doc.id, revision: versions[9].revision!, expected: doc.revision! })
+  assert.equal(store.read(doc.id).content, 'Version 5')
+  assert.equal(store.history(doc.id).length, 10)
+})

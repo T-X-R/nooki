@@ -110,14 +110,37 @@
 .library-inline-rename small { white-space: normal; color: var(--negative); font-size: 10px; line-height: 1.5; }
 .library-folder-heading .library-inline-rename input { font-size: 22px; }
 .library-shell-heading { user-select: none; }
-.library-inline-document { min-height: 0; }
 .library-inline-document .library-reader-header { width: 100%; }
-.library-inline-document h2 { cursor: text; border-radius: 5px; }
-.library-inline-document h2:focus-visible { outline: 1px solid var(--line-strong); outline-offset: 4px; }
-.library-inline-document-title { width: 100%; min-width: 0; padding: 5px 0; border: 0; border-bottom: 1px solid var(--accent); outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 21px; font-weight: 600; line-height: 1.4; }
+.library-inline-document-title { width: 100%; min-width: 0; padding: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 21px; font-weight: 600; line-height: 1.4; }
 .library-inline-save-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; color: var(--negative); font-size: 12px; }
 .library-inline-save-error p { margin: 0; }
 .library-inline-save-error button { text-decoration: underline; }
 
 .library-inline-document .library-reader-header { position: relative; padding-bottom: 8px; }
 .library-save-status { position: absolute; right: 0; top: 12px; font-size: 10px; color: var(--ink-muted); }
+
+/* One continuous, borderless document surface, including keyboard focus. */
+.library-inline-document { display: flex; flex-direction: column; flex: 1; min-height: 100%; }
+.library-inline-document .library-reader-header, .library-history-preview .library-reader-header { border: 0; padding-bottom: 8px; }
+.library-inline-document-title, .library-inline-document-title:focus, .library-inline-document-title:focus-visible { padding: 0; border: 0; outline: none; box-shadow: none; border-radius: 0; background: transparent; letter-spacing: -.035em; }
+.library-inline-document .library-reader-content { display: flex; flex: 1; flex-direction: column; overflow: visible; padding-top: 8px; padding-bottom: 0; }
+.library-folder-page .library-workspace.has-history { grid-template-columns: var(--library-directory-width) minmax(0, 1fr) clamp(200px, 25%, 260px); }
+.library-workspace.has-history .library-folder-content { padding-right: 18px; }
+.library-history-preview { flex: 1; min-width: 0; }
+.library-history-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; padding: 20px 0 12px 16px; border-left: 1px solid var(--line); animation: library-history-reveal .18s ease-out; }
+.library-history-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.library-history-panel h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.library-history-panel .icon-button { width: 26px; height: 26px; flex: none; }
+.library-history-panel p { font-size: 11px; line-height: 1.6; color: var(--ink-muted); }
+.library-history-panel nav { display: flex; flex-direction: column; gap: 4px; padding-block: 8px; }
+.library-history-panel nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; padding: 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; font: inherit; }
+.library-history-panel nav button:hover { background: var(--surface); }
+.library-history-panel nav button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-strong); }
+.library-history-panel nav strong { font-size: 12px; font-weight: 500; }
+.library-history-panel time { font-size: 10px; color: var(--ink-muted); }
+.library-history-panel footer { margin-top: auto; padding-top: 16px; }
+.library-history-panel footer .primary-button { width: 100%; }
+@keyframes library-history-reveal { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 900px) { .library-folder-page .library-workspace.has-history { grid-template-columns: var(--library-directory-width) minmax(0, 1fr) 180px; } .library-workspace.has-history .library-folder-content { padding-right: 12px; } .library-history-panel { padding-left: 12px; } }
+@media (max-width: 650px) { .library-history-panel { width: 100%; border-left: 0; border-top: 1px solid var(--line); padding: 16px 0; } .library-workspace.has-history .library-folder-content { padding-right: 0; } }
+@media (prefers-reduced-motion: reduce) { .library-history-panel { animation: none; } }

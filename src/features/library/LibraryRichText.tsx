@@ -90,7 +90,7 @@ export function LibraryRichText({ initial, language, onChange, onSave, onReady, 
         { label: zh ? '重做' : 'Redo', icon: <ReloadIcon />, run: () => editor?.chain().focus().redo().run() },
       ].map(tool => <button type="button" className="icon-button" key={tool.label} title={tool.label} aria-label={tool.label} aria-pressed={tool.pressed} onMouseDown={event => event.preventDefault()} onClick={tool.run}>{tool.icon}</button>)}
     </div>
-    <EditorContent editor={editor} />
+    <EditorContent className="library-rich-text-content" editor={editor} />
     {slash && <div className="library-block-menu" role="menu" aria-label={zh ? '快捷插入' : 'Quick insert'} style={{ left: slash.left, top: slash.top }} onMouseDown={event => event.preventDefault()}>{blocks.map((item, index) => <button type="button" role="menuitem" key={item.label} className={index === active ? 'is-active' : ''} onMouseEnter={() => setActive(index)} onClick={item.run}><span aria-hidden="true">{item.icon}</span>{item.label}</button>)}</div>}
   </div>
 }

@@ -352,3 +352,25 @@ fn empty_authored_documents_keep_revision_history_and_publication_validation() {
   assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 3);
   assert!(library::publish_document(&root.0, "com.personal.notes", "Notes", document("")).is_err());
 }
+
+#[test]
+fn history_keeps_ten_versions_and_does_not_prune_citation_snapshots() {
+  let root = Fixture::new();
+  let change = serde_json::from_value(serde_json::json!({ "kind": "create", "document": document("Version 0") })).unwrap();
+  let mut doc = management::change(&root.0, change).unwrap().unwrap();
+  let first = doc.revision.clone().unwrap();
+  source_snapshots::capture(&root.0, "history-snapshot", std::slice::from_ref(&doc.id)).unwrap();
+  for index in 1..=14 {
+    doc = management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: doc.title.clone(), content: format!("Version {index}"), expected: doc.revision.unwrap() }).unwrap().unwrap();
+  }
+  let versions = management::history(&root.0, &doc.id).unwrap();
+  assert_eq!(versions.len(), 10);
+  assert_eq!(versions[0].content, "Version 14");
+  assert_eq!(versions[9].content, "Version 5");
+  assert_eq!(fs::read_dir(root.0.join("document-history").join(&doc.id)).unwrap().count(), 9);
+  assert!(management::change(&root.0, LibraryChange::RestoreVersion { id: doc.id.clone(), revision: first, expected: doc.revision.clone().unwrap() }).is_err());
+  management::change(&root.0, LibraryChange::RestoreVersion { id: doc.id.clone(), revision: versions[9].revision.clone().unwrap(), expected: doc.revision.unwrap() }).unwrap();
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Version 5");
+  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 10);
+  assert_eq!(source_snapshots::source(&root.0, "history-snapshot", &doc.id).unwrap().content, "Version 0");
+}

@@ -122,6 +122,7 @@ fn publish_content_unlocked(data_dir: &Path, capability_id: &str, capability_nam
   let metadata_source = serde_json::to_vec_pretty(&LibraryDocument { metadata: metadata.clone(), content: input.content })
     .map_err(|_| "无法序列化资料库文档信息".to_string())?;
   atomic_write(&metadata_path, &metadata_source, "无法保存资料库文档信息")?;
+  library_management::prune_history(data_dir, &metadata.id, metadata.revision.as_deref().unwrap())?;
   Ok(metadata)
 }
 

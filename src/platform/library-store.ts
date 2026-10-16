@@ -34,7 +34,7 @@ export const emptyOrganization = (): Organization => ({ topics: [], trash: {}, o
 export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>) {
   const load = (): LibraryState => {
     const saved = storage.getItem(libraryStorageKey)
-    if (saved) { const state: LibraryState = JSON.parse(saved); state.organization.folders = migrateLibraryFolders(state.organization); return state }
+    if (saved) { const state: LibraryState = JSON.parse(saved); state.organization.folders = migrateLibraryFolders(state.organization); Object.keys(state.history).forEach(id => { state.history[id] = state.history[id].slice(-9) }); return state }
     const documents: LibraryDocument[] = JSON.parse(storage.getItem('personal-workbench-document-library') ?? '[]')
     return { documents: documents.map((doc) => ({ ...doc, revision: doc.revision ?? doc.updatedAt })), history: {}, organization: { ...emptyOrganization(), folders: [] } }
   }
@@ -60,7 +60,7 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
     const id = `${source}/${input.collectionKey}/${input.documentDate.slice(0, 4)}/${input.documentDate.slice(5, 7)}/${input.key}`
     if (state.organization.trash[id]) throw new Error('请先从回收站恢复文档 / Restore this document from Trash first')
     const previous = state.documents.find((doc) => doc.id === id)
-    if (previous) (state.history[id] ??= []).push(previous)
+    if (previous) state.history[id] = [...state.history[id] ?? [], previous].slice(-9)
     const now = new Date().toISOString()
     const doc: LibraryDocument = { ...input, id, capabilityId: source, capabilityName: name, format: 'markdown', sizeBytes: new TextEncoder().encode(input.content).length, createdAt: previous?.createdAt ?? now, updatedAt: now, revision: crypto.randomUUID() }
     state.documents = [...state.documents.filter((item) => item.id !== id), doc]

@@ -14,7 +14,8 @@ try {
   const directory = page.getByRole('navigation', { name: '资料目录', exact: true });
   const add = async (action, folder = '我的资料') => { await directory.getByRole('button', { name: `添加到 ${folder}`, exact: true }).click(); await page.getByRole('menuitem', { name: action, exact: true }).click(); };
   await add('新建文档');
-  await page.getByRole('heading', { name: '未命名文档', exact: true }).waitFor();
+  await page.getByRole('textbox', { name: '文档标题', exact: true }).waitFor();
+  assert.equal(await page.getByRole('textbox', { name: '文档标题', exact: true }).inputValue(), '未命名文档');
   assert.equal(await page.getByRole('dialog').count(), 0);
   const readState = () => page.evaluate(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')));
   let state = await readState();

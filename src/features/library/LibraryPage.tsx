@@ -1,3 +1,4 @@
+import { LibraryHistoryPanel } from './LibraryHistoryPanel.tsx'
 import { captureFolderAttachment, attachmentDocumentIds, type LibrarySelection } from '../conversation/library-folder-attachments.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +16,7 @@ import { capabilityCopy, CapabilityIcon } from '../capabilities/capability-prese
 import { useWorkbench } from '../../platform/preferences.ts'
 import { exportMarkdown } from '../../platform/user-data.ts'
 import { DestinationSelect } from '../../shared/DestinationSelect.tsx'
-import { DeleteDocumentsDialog, HistoryDialog, LibraryDialog } from './LibraryDialogs.tsx'
+import { DeleteDocumentsDialog, LibraryDialog } from './LibraryDialogs.tsx'
 import { LibraryManager, type LibraryCreation } from './LibraryManager.tsx'
 import { LibraryDirectory, LibraryAddMenu, FolderIcon, FolderMenu, DOCUMENT_DRAG_TYPE } from './LibraryDirectory.tsx'
 import { LibraryMenu } from './LibraryMenu.tsx'
@@ -61,6 +62,7 @@ export function LibraryPage({ organization, organizationError, installed, target
   const documentEditor = useRef<{ save(): Promise<boolean> }>(null)
   const [renamingDocument, setRenamingDocument] = useState<string | null>(null)
   const [history, setHistory] = useState<LibraryDocument | null>(null)
+  const [historyPreview, setHistoryPreview] = useState<LibraryDocument | null>(null)
   const [moveId, setMoveId] = useState<string | null>(null)
   const [destinationId, setDestinationId] = useState('')
   const [dragging, setDragging] = useState<string | null>(null)
@@ -81,8 +83,8 @@ export function LibraryPage({ organization, organizationError, installed, target
   const searching = !!query.trim()
   const visibleDocuments = documents.filter(doc => searching ? doc.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) || contentMatches.has(doc.id) : folderId ? currentFolder?.documentIds.includes(doc.id) : !assigned.has(doc.id))
   const childFolders = searching ? [] : folders.filter(folder => folder.parentId === (folderId || undefined))
-  const openFolder = (id: string) => { setFolderId(id); setSelectedId(null); setSourceTarget(null); setQuery('') }
-  const openDocument = (id: string) => { setSelectedId(id); setSourceTarget(null); setQuery(''); const owner = folders.find(folder => folder.id === folderId && folder.documentIds.includes(id)) ?? folders.find(folder => folder.documentIds.includes(id)); setFolderId(owner?.id ?? ''); if (owner) setCollapsed(value => { const next = new Set(value); let parent: typeof owner | undefined = owner; while (parent) { next.delete(parent.id); parent = folders.find(folder => folder.id === parent?.parentId) } return next }) }
+  const openFolder = (id: string) => { setHistory(null); setHistoryPreview(null); setFolderId(id); setSelectedId(null); setSourceTarget(null); setQuery('') }
+  const openDocument = (id: string) => { setHistory(null); setHistoryPreview(null); setSelectedId(id); setSourceTarget(null); setQuery(''); const owner = folders.find(folder => folder.id === folderId && folder.documentIds.includes(id)) ?? folders.find(folder => folder.documentIds.includes(id)); setFolderId(owner?.id ?? ''); if (owner) setCollapsed(value => { const next = new Set(value); let parent: typeof owner | undefined = owner; while (parent) { next.delete(parent.id); parent = folders.find(folder => folder.id === parent?.parentId) } return next }) }
   useEffect(() => { window.addEventListener('workbench:library-changed', refreshLibrary); return () => window.removeEventListener('workbench:library-changed', refreshLibrary) }, [])
   useEffect(() => {
     let current = true
@@ -104,6 +106,8 @@ export function LibraryPage({ organization, organizationError, installed, target
     return () => { current = false }
   }, [selectedId, sourceTarget, refreshKey])
   const currentDocument = selectedDocument?.id === selectedId && selectedDocument && documents.some(doc => doc.id === selectedDocument.id) ? selectedDocument : null
+  useEffect(() => { setHistory(null); setHistoryPreview(null) }, [selectedId, sourceTarget])
+  const closeHistory = () => { setHistory(null); setHistoryPreview(null); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.library-location-actions button')?.focus()) }
   const moveDocument = async (id: string, destination?: string) => {
     if (moving) return
     setMoving(true); setFeedback(null)
@@ -111,7 +115,7 @@ export function LibraryPage({ organization, organizationError, installed, target
     catch (reason) { setFeedback({ error: true, text: String(reason) }) } finally { setMoving(false) }
   }
   const showHistory = async (id: string) => {
-    try { if (id === currentDocument?.id && documentEditor.current && !await documentEditor.current.save()) return; setHistory(await readLibraryDocument(id)) } catch (reason) { setFeedback({ error: true, text: String(reason) }) }
+    try { if (id === currentDocument?.id && documentEditor.current && !await documentEditor.current.save()) return; const latest = await readLibraryDocument(id); setSelectedDocument(latest); setHistory(latest); setHistoryPreview(latest) } catch (reason) { setFeedback({ error: true, text: String(reason) }) }
   }
   const discuss = async (ids: string[]) => {
     if (ids.length > 50) { setFeedback({ error: true, text: zh ? `共 ${ids.length} 篇资料，一次最多添加 50 篇，请分批选择。` : `${ids.length} documents. Select up to 50 at a time.` }); return }
@@ -184,7 +188,6 @@ export function LibraryPage({ organization, organizationError, installed, target
     <header className="library-shell-heading" onMouseDown={startWindowDrag}><div className="library-shell-title"><h1>{zh ? '资料库' : 'Library'}</h1><span>{documents.length} {zh ? '篇资料' : 'documents'}</span></div><div className="library-shell-location">{breadcrumbs()}<div className="library-location-actions">{currentDocument && !sourceTarget && <LibraryMenu label={zh ? '文档更多操作' : 'More document actions'} icon={<DotsHorizontalIcon />}><button role="menuitem" onClick={() => { void exportCurrentDocument() }}>{zh ? '导出 Markdown' : 'Export Markdown'}</button><button role="menuitem" onClick={() => void showHistory(currentDocument.id)}>{zh ? '版本历史' : 'Version history'}</button></LibraryMenu>}<button className="topbar-search" aria-label={`${t('searchWorkbench')} (⌘ K)`} onClick={onOpenCommand}><MagnifyingGlassIcon /><kbd>⌘ K</kbd></button></div></div></header>
     <LibraryManager organization={organization} language={language} creation={creation} onCloseCreation={() => setCreation(null)} showTrash={showTrash} onCloseTrash={() => setShowTrash(false)} onOpen={id => { openDocument(id); setFolderId(creation ? creation.folderId ?? '' : folderId) }} refresh={refreshLibrary} />
     <div className="library-feedback" aria-live="polite">{(error || organizationError || searchError || feedback) && <p role={error || organizationError || searchError || feedback?.error ? 'alert' : 'status'}>{error || organizationError || searchError || feedback?.text}</p>}</div>
-    {history && <HistoryDialog document={history} language={language} onClose={() => setHistory(null)} onSaved={refreshLibrary} />}
     {deleteIds && <DeleteDocumentsDialog ids={deleteIds} language={language} onClose={() => setDeleteIds(null)} onDeleted={() => { setSelectedId(null); refreshLibrary() }} />}
     {folderAction && <LibraryFolderDialog action={folderAction} folders={folders} language={language} onClose={() => setFolderAction(null)} onSaved={id => { openFolder(id ?? ''); setCollapsed(new Set()); refreshLibrary() }} />}
     {moveId && <LibraryDialog title={zh ? '移动资料' : 'Move document'} busy={moving} onClose={() => setMoveId(null)}><DestinationSelect label={zh ? '文件夹' : 'Folder'} options={destinations} value={destinationId} disabled={moving} autoFocus onChange={setDestinationId} />{feedback?.error && <p role="alert" className="library-error">{feedback.text}</p>}<footer className="modal-footer"><button className="secondary-button" disabled={moving} onClick={() => setMoveId(null)}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={moving} onClick={() => void moveDocument(moveId, destinationId || undefined)}>{zh ? '移动' : 'Move'}</button></footer></LibraryDialog>}
@@ -197,15 +200,15 @@ export function LibraryPage({ organization, organizationError, installed, target
         {grantError && <p role="alert">{grantError}</p>}
         <div className="modal-footer"><button className="secondary-button" disabled={grantBusy} onClick={() => setGrantOpen(false)}>{language === 'zh' ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={grantBusy || !recipient} onClick={() => { setGrantBusy(true); void grantSelectedDocuments(recipient, grantIds).then(() => { setGrantOpen(false); onOpenCapability(recipient) }).catch((reason) => setGrantError(String(reason))).finally(() => setGrantBusy(false)) }}>{language === 'zh' ? '授权并打开能力' : 'Authorize and open'}<ArrowRightIcon /></button></div>
       </section></div>}
-    <div className="library-workspace">
+    <div className={`library-workspace ${history ? 'has-history' : ''}`}>
       <nav className="library-tree library-directory" aria-label={zh ? '资料目录' : 'Library directory'}>
-        <label className="library-tree-search"><MagnifyingGlassIcon /><input type="search" value={query} onChange={event => { setQuery(event.target.value); setSelectedId(null); setSourceTarget(null) }} placeholder={zh ? '搜索我的资料…' : 'Search my documents…'} aria-label={t('librarySearch')} /></label>
+        <label className="library-tree-search"><MagnifyingGlassIcon /><input type="search" value={query} onChange={event => { setQuery(event.target.value); setSelectedId(null); setSourceTarget(null); setHistory(null); setHistoryPreview(null) }} placeholder={zh ? '搜索我的资料…' : 'Search my documents…'} aria-label={t('librarySearch')} /></label>
         <LibraryDirectory language={language} folders={folders} documents={documents} folderId={folderId} selectedId={selectedId} collapsed={collapsed} onToggle={id => setCollapsed(value => { const next = new Set(value); if (next.has(id)) next.delete(id); else next.add(id); return next })} onFolder={openFolder} onDocument={openDocument} onCreate={handleCreate} onFolderAction={handleFolderAction} renameId={renaming?.surface === 'directory' ? renaming.id : null}  onFinishRename={() => setRenaming(null)} folderMenu={folderMenu} documentMenu={documentMenu} dragging={dragging} dropTarget={dropTarget} onDrag={setDragging} onDropTarget={setDropTarget} canDrop={canDrop} onMove={drop} />
         <button className="library-trash-link" onClick={() => setShowTrash(true)}><TrashIcon />{zh ? '回收站' : 'Trash'}</button>
       </nav>
       <article className="library-reader library-folder-content">
 
-        {source ? <><header className="library-reader-header"><small>{zh ? '引用原文 · 使用时保存的快照' : 'Cited source · retained snapshot'}</small><h2>{source.reference.title}</h2><button className="quiet-button" onClick={() => openDocument(source.reference.documentId)}>{zh ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></> : currentDocument ? <LibraryDocumentEditor ref={documentEditor} key={currentDocument.id} document={currentDocument} language={language} renameTitle={renamingDocument === currentDocument.id} onRenamed={() => setRenamingDocument(null)} onDocument={onDocument} /> : selectedId && documentError ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{documentError}</span></div> : selectedId || loading ? <div className="library-state"><ReloadIcon className="spin" /><span>{t('libraryLoading')}</span></div> : <>
+        {source ? <><header className="library-reader-header"><small>{zh ? '引用原文 · 使用时保存的快照' : 'Cited source · retained snapshot'}</small><h2>{source.reference.title}</h2><button className="quiet-button" onClick={() => openDocument(source.reference.documentId)}>{zh ? '查看当前文档' : 'View current document'}</button></header><div className="library-reader-content"><LibraryMarkdown content={source.content} onDocument={onDocument} /></div></> : history && historyPreview ? <section className="library-history-preview"><header className="library-reader-header"><h2>{historyPreview.title}</h2></header><div className="library-reader-content" role="region" aria-label={zh ? '版本正文' : 'Version content'}><LibraryMarkdown content={historyPreview.content} onDocument={onDocument} /></div></section> : currentDocument ? <LibraryDocumentEditor ref={documentEditor} key={currentDocument.id} document={currentDocument} language={language} renameTitle={renamingDocument === currentDocument.id} onRenamed={() => setRenamingDocument(null)} onDocument={onDocument} /> : selectedId && documentError ? <div className="library-state library-state-error"><ExclamationTriangleIcon /><span>{documentError}</span></div> : selectedId || loading ? <div className="library-state"><ReloadIcon className="spin" /><span>{t('libraryLoading')}</span></div> : <>
           <header className="library-folder-heading"><span className="library-folder-emblem"><FolderIcon /></span><div><h2 tabIndex={-1}>{searching ? (zh ? '搜索结果' : 'Search results') : currentFolder?.name ?? rootName}</h2><p>{searching ? (zh ? `找到 ${visibleDocuments.length} 篇资料` : `${visibleDocuments.length} documents found`) : zh ? `${childFolders.length} 个文件夹 · ${visibleDocuments.length} 篇资料` : `${childFolders.length} folders · ${visibleDocuments.length} documents`}</p></div></header>
           {!childFolders.length && !visibleDocuments.length ? <div className="library-folder-empty"><FolderIcon /><h3>{searching ? (zh ? '没有找到相关资料' : 'No matching documents') : (zh ? '从这里，整理你的想法。' : 'A place for your ideas.')}</h3><p>{searching ? (zh ? '试试其他关键词。' : 'Try another search.') : (zh ? '点击 ＋ 新建文档、文件夹，或导入已有资料。' : 'Use + to create a document, a folder, or import existing notes.')}</p>{!searching && addMenu}</div> : <div className="library-folder-list">
             {childFolders.map(folder => <div className={`library-folder-item ${dropTarget === folder.id ? 'is-drop-target' : ''}`} key={folder.id} onDragOver={event => { if (canDrop(folder.id) && event.dataTransfer.types.includes(DOCUMENT_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget(folder.id) } }} onDragLeave={() => setDropTarget(null)} onDrop={event => { event.preventDefault(); const id = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE); if (id && id === dragging) drop(id, folder.id); setDragging(null); setDropTarget(null) }}><div className="library-folder-item-name">{renaming?.id === folder.id && renaming.surface === 'content' ? <div className="library-folder-item-label"><FolderIcon /><LibraryFolderRename folder={folder} language={language} onFinish={() => setRenaming(null)} /></div> : <button className="library-folder-item-label" draggable onDragStart={event => { const id = `folder:${folder.id}`; event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; setDragging(id) }} onDragEnd={() => { setDragging(null); setDropTarget(null) }} onClick={() => openFolder(folder.id)}><FolderIcon /><strong>{folder.name}</strong><small>{folders.filter(item => item.parentId === folder.id).length + documents.filter(doc => folder.documentIds.includes(doc.id)).length} {zh ? '项' : 'items'}</small></button>}</div><LibraryAddMenu language={language} folderId={folder.id} name={folder.name} onCreate={handleCreate} onFolder={handleFolderAction} />{folderMenu(folder, 'content')}</div>)}
@@ -213,6 +216,7 @@ export function LibraryPage({ organization, organizationError, installed, target
           </div>}
         </>}
       </article>
+      {history && <LibraryHistoryPanel document={history} selectedRevision={historyPreview?.revision} language={language} onSelect={setHistoryPreview} onClose={closeHistory} onRestored={version => { setSelectedDocument(version); setHistory(version); setHistoryPreview(version) }} />}
     </div>
   </div>
 }

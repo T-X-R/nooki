@@ -69,17 +69,18 @@ try {
   await directory.getByRole('button', { name: '文档操作 原位笔记', exact: true }).first().click();
   assert.equal((await page.getByRole('menu', { name: '文档操作 原位笔记', exact: true }).getByRole('menuitem').allTextContents())[0], '添加到会话');
   await page.getByRole('menuitem', { name: '重命名', exact: true }).click(); await page.getByRole('textbox', { name: '文档标题', exact: true }).fill('原位新标题'); await page.keyboard.press('Enter');
-  await page.getByRole('heading', { name: '原位新标题', exact: true }).waitFor();
+  assert.equal(await page.getByRole('textbox', { name: '文档标题', exact: true }).inputValue(), '原位新标题');
   await toolbar.getByRole('button', { name: '文档更多操作', exact: true }).click(); await page.getByRole('menuitem', { name: '版本历史', exact: true }).click();
-  const history = page.getByRole('dialog', { name: '版本历史', exact: true });
+  const history = page.getByRole('complementary', { name: '版本历史', exact: true });
+  assert.equal(await page.getByRole('dialog').count(), 0);
   await history.getByRole('button', { name: /^历史版本 1/ }).click();
   await history.getByRole('button', { name: '恢复此版本', exact: true }).click();
-  await history.waitFor({ state: 'hidden' });
+  await history.getByRole('button', { name: '关闭版本历史', exact: true }).click(); await history.waitFor({ state: 'hidden' });
   await editor.getByRole('heading', { name: '原始正文', exact: true }).waitFor();
   assert.equal(await editor.locator('table').count(), 1, 'Restoring history refreshes the existing rich editor without reopening the document');
   await toolbar.getByRole('button', { name: '文档更多操作', exact: true }).click(); await page.getByRole('menuitem', { name: '版本历史', exact: true }).click();
   await history.getByRole('navigation', { name: '选择版本', exact: true }).getByRole('button').nth(1).click();
-  await history.getByRole('button', { name: '恢复此版本', exact: true }).click(); await history.waitFor({ state: 'hidden' });
+  await history.getByRole('button', { name: '恢复此版本', exact: true }).click(); await history.getByRole('button', { name: '关闭版本历史', exact: true }).click(); await history.waitFor({ state: 'hidden' });
   await editor.getByRole('heading', { name: '外部新版本', exact: true }).waitFor();
 
   // Browser fallback downloads exactly the selected document, with its title, no ZIP or injected H1.
@@ -92,8 +93,11 @@ try {
   // A folder is one attachment, with its recursive hierarchy and empty descendants retained.
   await directory.getByRole('button', { name: '文件夹操作 项目', exact: true }).click(); await page.getByRole('menuitem', { name: '添加到会话', exact: true }).click();
   const folderChip = page.locator('.conversation-folder-attachments'); await folderChip.getByText('项目', { exact: false }).first().waitFor();
-  assert.equal(await folderChip.locator(':scope > span').count(), 1); await folderChip.locator('summary').click();
-  await folderChip.getByText('空目录', { exact: false }).waitFor(); await folderChip.getByText('子文件夹笔记', { exact: true }).waitFor();
+  assert.equal(await folderChip.locator(':scope > span').count(), 1);
+  assert.equal(await folderChip.locator('details, summary, ul').count(), 0, 'Folder attachments remain compact without a disclosure tree');
+  assert.equal(await folderChip.getByText('空目录', { exact: false }).count(), 0);
+  assert.equal(await folderChip.getByText('子文件夹笔记', { exact: true }).count(), 0);
+  assert.ok((await folderChip.textContent()).includes('2 篇资料'));
   assert.equal(await folderChip.getByText('已删除笔记', { exact: true }).count(), 0);
   await page.getByRole('button', { name: '资料库', exact: true }).click(); await directory.getByRole('button', { name: '原位新标题', exact: true }).first().click();
   // Native export uses a single ID and treats Save dialog cancellation as a quiet no-op.

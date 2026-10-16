@@ -179,10 +179,6 @@ dialog.conversation-document-dialog[open] { display: flex; flex-direction: colum
 .capability-invocation footer button { display: inline-flex; align-items: center; gap: 5px; }
 .capability-invocation footer svg { width: 12px; height: 12px; }
 .capability-invocation-error { color: var(--danger); }
-.conversation-folder-attachments details { min-width: 150px; padding: 6px 8px; }
-.conversation-folder-attachments summary, .conversation-folder-source summary { display: flex; align-items: center; gap: 7px; cursor: pointer; list-style: none; font-size: 12px; }
-.conversation-folder-attachments summary small { color: var(--ink-muted); margin-left: 5px; }
-.conversation-folder-tree { list-style: none; padding-left: 14px; margin: 7px 0 3px; font-size: 11px; color: var(--ink-muted); }
-.conversation-folder-tree li { padding: 3px 0; }
-.conversation-folder-tree svg { display: inline-block; width: 13px; height: 13px; vertical-align: middle; margin-right: 6px; }
+.conversation-folder-name, .conversation-folder-source { display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; font-size: 12px; }
+.conversation-folder-name small, .conversation-folder-source small { color: var(--ink-muted); margin-left: 5px; }
 .conversation-folder-source { margin-bottom: 8px; }

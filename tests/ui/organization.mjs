@@ -75,7 +75,8 @@ try {
   await page.getByRole('heading', { name: '从这里，整理你的想法。', exact: true }).waitFor();
   assert.equal(await page.locator('.library-reader-content').count(), 0);
   await directory.getByRole('button', { name: '周末的阅读计划', exact: true }).click();
-  await page.getByRole('heading', { name: '周末的阅读计划', exact: true }).waitFor();
+  await page.getByRole('textbox', { name: '文档标题', exact: true }).waitFor();
+  assert.equal(await page.getByRole('textbox', { name: '文档标题', exact: true }).inputValue(), '周末的阅读计划');
   await page.screenshot({ path: '/private/tmp/nooki-library-light.png' });
   for (const width of [800, 640]) {
     await page.setViewportSize({ width, height: 820 });

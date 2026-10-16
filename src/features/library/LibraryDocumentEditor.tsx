@@ -12,7 +12,6 @@ export function LibraryDocumentEditor({ document, language, renameTitle, onRenam
   const [title, setTitle] = useState(recovered?.title ?? document.title)
   const [content, setContent] = useState(recovered?.content ?? document.content)
   const state = useRef({ base: document, title, content, revision: recovered?.revision ?? document.revision ?? document.updatedAt })
-  const [editingTitle, setEditingTitle] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const pending = useRef<Promise<boolean> | null>(null)
@@ -50,14 +49,13 @@ export function LibraryDocumentEditor({ document, language, renameTitle, onRenam
     try {
       const current = await readLibraryDocument(document.id)
       state.current = { base: current, title: current.title, content: current.content, revision: current.revision ?? current.updatedAt }
-      drafts.remove(document.id); setTitle(current.title); setContent(current.content); setError(''); setEditingTitle(false)
+      drafts.remove(document.id); setTitle(current.title); setContent(current.content); setError('')
       editor.current?.commands.setContent(current.content, { contentType: 'markdown', emitUpdate: false })
     } catch (reason) { setError(String(reason)) }
   }
   const saveRef = useRef(save); saveRef.current = save
   useImperativeHandle(ref, () => ({ save: () => saveRef.current() }))
-  useEffect(() => { if (renameTitle) { setEditingTitle(true); onRenamed() } }, [renameTitle, onRenamed])
-  useEffect(() => { if (editingTitle) { titleInput.current?.focus(); titleInput.current?.select() } }, [editingTitle])
+  useEffect(() => { if (renameTitle) { titleInput.current?.focus(); titleInput.current?.select(); onRenamed() } }, [renameTitle, onRenamed])
   useEffect(() => {
     const current = state.current
     if ((document.revision ?? document.updatedAt) === current.revision || pending.current || current.title !== current.base.title || current.content !== current.base.content) return
@@ -68,11 +66,11 @@ export function LibraryDocumentEditor({ document, language, renameTitle, onRenam
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; void saveRef.current() } }, [])
   return <section className="library-inline-document" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) void saveRef.current() }}>
     <header className="library-reader-header">
-      {editingTitle ? <input ref={titleInput} className="library-inline-document-title" aria-label={zh ? '文档标题' : 'Document title'} maxLength={120} value={title} onChange={event => { state.current.title = event.target.value; setTitle(event.target.value); remember() }} onBlur={() => { void save().then(ok => { if (ok) setEditingTitle(false) }) }} onKeyDown={event => {
+      <input ref={titleInput} className="library-inline-document-title" aria-label={zh ? '文档标题' : 'Document title'} maxLength={120} value={title} onChange={event => { state.current.title = event.target.value; setTitle(event.target.value); remember() }} onBlur={() => { void save() }} onKeyDown={event => {
         if (event.nativeEvent.isComposing) return
-        if (event.key === 'Enter') { event.preventDefault(); void save().then(ok => { if (ok) { setEditingTitle(false); editor.current?.commands.focus() } }) }
-        if (event.key === 'Escape') { state.current.title = state.current.base.title; setTitle(state.current.title); remember(); setEditingTitle(false) }
-      }} /> : <h2 tabIndex={0} title={zh ? '点击修改标题' : 'Click to edit title'} onClick={() => setEditingTitle(true)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); setEditingTitle(true) } }}>{title}</h2>}
+        if (event.key === 'Enter') { event.preventDefault(); void save().then(ok => { if (ok) editor.current?.commands.focus() }) }
+        if (event.key === 'Escape') { event.preventDefault(); state.current.title = state.current.base.title; setTitle(state.current.title); remember(); titleInput.current?.blur() }
+      }} />
       {busy && <small className="library-save-status" role="status">{zh ? '保存中…' : 'Saving…'}</small>}
     </header>
     {error && <div className="library-inline-save-error"><p role="alert">{error}</p><button className="quiet-button" disabled={busy} onClick={() => { void save() }}>{zh ? '重试保存' : 'Retry save'}</button>{/Document changed/.test(error) && <button className="quiet-button" disabled={busy} onClick={() => { void reload() }}>{zh ? '放弃草稿，读取最新文档' : 'Discard draft and reload'}</button>}</div>}
