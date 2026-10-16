@@ -4,7 +4,7 @@ import { folderOptions } from '../../platform/library-folders.ts'
 import { DestinationSelect } from '../../shared/DestinationSelect.tsx'
 import { LibraryDialog } from './LibraryDialogs.tsx'
 
-export type FolderAction = { kind: 'create'; parentId?: string } | { kind: 'rename' | 'move' | 'delete'; folder: LibraryFolder }
+export type FolderAction = { kind: 'create'; parentId?: string } | { kind: 'move' | 'delete'; folder: LibraryFolder }
 export function LibraryFolderDialog({ action, folders, language, onClose, onSaved }: { action: FolderAction; folders: LibraryFolder[]; language: 'zh' | 'en'; onClose(): void; onSaved(id?: string): void }) {
   const zh = language === 'zh'
   const folder = action.kind === 'create' ? undefined : action.folder
@@ -13,7 +13,7 @@ export function LibraryFolderDialog({ action, folders, language, onClose, onSave
   const [parentId, setParentId] = useState((action.kind === 'create' ? action.parentId : folder?.parentId) ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const title = { create: zh ? '新建文件夹' : 'New folder', rename: zh ? '重命名文件夹' : 'Rename folder', move: zh ? '移动文件夹' : 'Move folder', delete: zh ? '删除文件夹' : 'Delete folder' }[action.kind]
+  const title = { create: zh ? '新建文件夹' : 'New folder', move: zh ? '移动文件夹' : 'Move folder', delete: zh ? '删除文件夹' : 'Delete folder' }[action.kind]
   const save = async () => {
     setBusy(true); setError('')
     try {

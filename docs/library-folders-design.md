@@ -17,7 +17,9 @@ Library
 
 “My documents” is the root. A plus menu at root or any folder creates a Markdown document, creates a child folder, or imports Markdown/TXT into that exact location. Creation shows the destination as a breadcrumb, without a destination picker. No source/date grouping or automatic folders. The content pane shows folder contents, breadcrumbs, document reader, and a clear empty state. Search spans document titles and contents across the library and shows results with their location.
 
-Folder ellipsis: rename, move, delete. Document ellipsis: revise/rename, move, history, export, move to Trash. Document drag and drop moves into a folder or root; the Move dialog provides a keyboard alternative. Root ellipsis opens Trash. Existing conversation selection, authorization, revision history, citation snapshots, imports, exports, and Trash remain available. No new sharing, table, or cloud features.
+The title, current-location breadcrumb, add/manage actions, and global search share one compact workspace toolbar. The directory is slightly narrower than the original folder layout. “My documents” is an icon-free, collapsible group header.
+
+Folder ellipsis: rename, move, delete. Rename edits the name in its current row or heading, with Enter/blur to save and Escape to cancel. Errors keep the draft in place for retry. Menus use bounded dimensions and fixed compact rows, rendered outside the directory layout to avoid inherited sizing in the desktop WebView. Document ellipsis: revise/rename, move, history, export, move to Trash. Document drag and drop moves into a folder or root; the Move dialog provides a keyboard alternative. Root ellipsis opens Trash. Existing conversation selection, authorization, revision history, citation snapshots, imports, exports, and Trash remain available. No new sharing, table, or cloud features.
 
 ## Folder contract and migration
 

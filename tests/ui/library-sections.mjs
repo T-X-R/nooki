@@ -26,15 +26,16 @@ try {
   assert.equal(await directory.getByRole('button', { name: '项目观察', exact: true }).count(), 2, 'Legacy shared entries reference the same document');
   assert.equal(await directory.getByRole('button', { name: '回收站资料', exact: true }).count(), 0);
   await actions('阅读笔记', '重命名');
-  const rename = page.getByRole('dialog', { name: '重命名文件夹', exact: true });
-  const field = rename.getByRole('textbox', { name: '文件夹名称', exact: true });
+  const rename = directory;
+  const field = directory.getByRole('textbox', { name: '文件夹名称', exact: true });
+  assert.equal(await page.getByRole('dialog').count(), 0, 'Rename stays inside the folder row');
   assert.equal(await field.evaluate(el => el === document.activeElement), true);
-  await field.fill(' '); assert.ok(await rename.getByRole('button', { name: '保存', exact: true }).isDisabled());
+  await field.fill(' '); await page.keyboard.press('Enter'); await directory.getByRole('alert').filter({ hasText: '请输入文件夹名称' }).waitFor();
   await field.fill('长期阅读'); await page.evaluate(() => { window.failSave = true; }); await page.keyboard.press('Enter');
   await rename.getByRole('alert').filter({ hasText: 'Disk full' }).waitFor();
   assert.equal(await field.inputValue(), '长期阅读');
   await page.evaluate(() => { window.failSave = false; }); await page.keyboard.press('Enter');
-  await rename.waitFor({ state: 'hidden' });
+  await field.waitFor({ state: 'hidden' });
   await page.reload(); await directory.getByRole('button', { name: '长期阅读', exact: true }).waitFor();
   await actions('长期阅读', '重命名'); await field.fill('不保存'); await page.keyboard.press('Escape');
   await directory.getByRole('button', { name: '长期阅读', exact: true }).waitFor();
@@ -65,6 +66,7 @@ try {
   await move.getByRole('button', { name: /^文件夹 / }).click(); await move.getByRole('option', { name: '我的资料', exact: true }).click();
   await move.getByRole('button', { name: '移动资料', exact: true }).click(); await move.waitFor({ state: 'hidden' });
   await directory.getByRole('button', { name: '我的资料', exact: true }).click();
+  if (await directory.getByRole('button', { name: '我的资料', exact: true }).getAttribute('aria-expanded') === 'false') await directory.getByRole('button', { name: '我的资料', exact: true }).click();
   await page.getByRole('checkbox', { name: '选择 项目观察', exact: true }).waitFor();
   await page.getByRole('searchbox').fill('keyword');
   await page.getByRole('heading', { name: '搜索结果', exact: true }).waitFor();
@@ -87,6 +89,7 @@ try {
   await trash.getByText('暂无已删除资料', { exact: true }).waitFor(); await trash.getByRole('button', { name: '关闭', exact: true }).click();
   await page.reload(); await directory.getByRole('button', { name: '回收站资料', exact: true }).waitFor();
   await directory.getByRole('button', { name: '我的资料', exact: true }).click();
+  if (await directory.getByRole('button', { name: '我的资料', exact: true }).getAttribute('aria-expanded') === 'false') await directory.getByRole('button', { name: '我的资料', exact: true }).click();
   for (const theme of ['light', 'dark']) {
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
     for (const width of [1240, 800, 640]) { await page.setViewportSize({ width, height: 820 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); await page.screenshot({ path: `/private/tmp/nooki-folders-${theme}-${width}.png` }); }
