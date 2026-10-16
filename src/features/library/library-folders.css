@@ -40,7 +40,6 @@
 .library-folder-disclosure svg.is-expanded { transform: rotate(90deg); }
 .library-directory-hint { padding: 14px 8px; font-size: 11px; line-height: 1.8; color: var(--ink-muted); }
 .library-folder-page .library-folder-content { max-width: none; padding: 0 0 20px 24px; overflow: auto; }
-.library-location-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 58px; border-bottom: 1px solid var(--line); }
 .library-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .library-breadcrumbs > span { display: contents; }
 .library-breadcrumbs svg { flex: none; width: 12px; color: var(--ink-muted); }
@@ -66,10 +65,7 @@
 .library-folder-empty h3 { font-size: 16px; font-weight: 500; color: var(--ink); margin: 20px 0 7px; }
 .library-folder-empty p { font-size: 12px; line-height: 1.8; max-width: 310px; margin: 0 0 16px; }
 .library-folder-empty .icon-button { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; }
-.library-document-title { display: flex; align-items: start; gap: 12px; }
-.library-document-title h2 { flex: 1; }
 .library-folder-page .library-reader-header { padding-top: 28px; }
-.library-folder-page .library-reader-details > small { font-size: 10px; color: var(--ink-muted); }
 .library-folder-page .library-reader-content { font-size: 14px; line-height: 1.9; }
 .library-menu-anchor { display: inline-flex; flex: none; }
 .library-action-menu { position: fixed; inset: auto; margin: 0; width: 212px; box-sizing: border-box; max-height: calc(100dvh - 24px); overflow: auto; padding: 5px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px color-mix(in srgb, var(--ink) 12%, transparent); }

@@ -107,8 +107,6 @@
 .conversation-skill-chips svg { width: 11px; height: 11px; }
 .conversation-error, .conversation-recovery { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--negative); background: var(--surface); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
 .conversation-recovery { color: var(--ink-muted); }
-.conversation-save-modal label { display: grid; gap: 8px; margin-top: 20px; color: var(--ink-muted); font-size: 11px; }
-.conversation-save-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: var(--surface); font-size: 12px; }
 .conversation-legacy article + article { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--line); }
 .conversation-legacy h3 { font-size: 16px; font-weight: 650; }
 @media (max-width: 1050px) { .conversation-page { padding-inline: 20px; } .conversation-composer footer > span { display: none; } .conversation-send { margin-left: auto; } }
@@ -133,8 +131,6 @@ dialog.conversation-document-dialog[open] { display: flex; flex-direction: colum
 .conversation-document-content { overflow: auto; min-height: 0; flex: 1; padding: 12px 4px; }
 .conversation-document-content .conversation-markdown { max-width: var(--workbench-reading-width); margin-inline: auto; }
 .library-dialog.conversation-save-dialog { width: min(460px, calc(100vw - 32px)); }
-.conversation-save-destination { display: grid; gap: 18px; padding: 2px 0 10px; }
-.conversation-save-destination .library-field { margin: 0; color: var(--ink-muted); }
 .conversation-destination-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 9px; outline: none; color: var(--ink); background: var(--surface-strong); font: inherit; font-size: 13px; text-align: left; }
 .conversation-destination-trigger > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .conversation-destination-trigger > svg { width: 14px; height: 14px; flex: none; color: var(--ink-soft); }

@@ -76,7 +76,6 @@ export function LibraryPage({ organization, organizationError, installed, target
   const origins = organization.origins
   const installedNames = useMemo(() => new Map<string, string>(installed.map((cap): [string, string] => [cap.manifest.id, capabilityCopy(cap, language).name]).concat([[CONVERSATION_OWNER, zh ? '对话' : 'Conversations']])), [installed, language, zh])
   const destinations = folderOptions(folders, rootName)
-  const location = destinations.find(folder => folder.id === folderId)?.name ?? rootName
   const currentFolder = folders.find(folder => folder.id === folderId)
   const assigned = new Set(folders.flatMap(folder => folder.documentIds))
   const searching = !!query.trim()

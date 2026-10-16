@@ -1,9 +1,9 @@
 /* Library workspace: compact navigation, a quiet list, and a dedicated reading area. */
 .content-column.library-page { padding-top: 14px; }
-.library-batch-actions, .library-document-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.library-batch-actions .quiet-button, .library-document-actions .quiet-button { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 3px 6px; border-radius: 6px; font-size: 11px; }
-.library-batch-actions .quiet-button:hover, .library-document-actions .quiet-button:hover { background: var(--surface-muted); }
-.library-batch-actions svg, .library-document-actions svg { width: 14px; height: 14px; }
+.library-batch-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.library-batch-actions .quiet-button { display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 3px 6px; border-radius: 6px; font-size: 11px; }
+.library-batch-actions .quiet-button:hover { background: var(--surface-muted); }
+.library-batch-actions svg { width: 14px; height: 14px; }
 .library-batch-actions { flex: none; padding: 8px 10px; margin: 0 0 8px; border-radius: 8px; background: var(--accent-wash); border: 1px solid var(--line); }
 .library-batch-actions .icon-button { width: 24px; height: 24px; }
 .library-delete-action { color: var(--negative); }
@@ -15,10 +15,7 @@
 .library-page .library-reader { max-width: 780px; padding-left: clamp(20px, 3vw, 42px); }
 .library-page .library-reader-header { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 12px 0 10px; }
 .library-page .library-reader-header h2 { font-size: 21px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; margin: 0; }
-.library-reader-details { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
-.library-document-actions { gap: 4px; margin-left: 0; }
 .library-page .library-reader-content { padding-top: 14px; font-size: 13px; line-height: 1.85; }
-.library-page .library-reader-document { max-width: 100%; }
 .library-page .library-state { font-size: 12px; gap: 10px; }
 /* Native top-layer dialogs need explicit centering after the global CSS reset. */
 dialog.library-dialog { position: fixed; inset: 0; margin: auto; width: min(540px, calc(100vw - 48px)); max-width: none; max-height: calc(100dvh - 64px); box-sizing: border-box; overflow: auto; padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 90px color-mix(in srgb, var(--ink) 24%, transparent); }
@@ -32,7 +29,7 @@ dialog.library-dialog-wide { width: min(980px, calc(100vw - 64px)); }
 .library-dialog .primary-button, .library-dialog .secondary-button { font-size: 12px; padding: 8px 13px; min-height: 35px; box-shadow: none; }
 .library-dialog .danger-button { background: var(--negative); color: white; }
 .library-field { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; font-size: 12px; min-width: 0; }
-.library-field input, .library-field textarea, .conversation-save-modal textarea, .conversation-save-modal select, .library-dialog select { padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: var(--surface-strong); color: var(--ink); min-width: 0; }
+.library-field input, .library-field textarea, .library-dialog select { padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: var(--surface-strong); color: var(--ink); min-width: 0; }
 .library-dialog select { max-width: 100%; font-size: 12px; }
 .library-field input:focus, .library-field textarea:focus { outline: none; border-color: var(--line-strong); box-shadow: none; }
 .library-editor-heading { display: grid; grid-template-columns: 1fr 160px; gap: 16px; }
@@ -86,7 +83,7 @@ dialog:focus, dialog:focus-visible, [role="dialog"]:focus, [role="dialog"]:focus
 .data-capability-list small { color: var(--ink-muted); font-size: 10px; }
 .data-capability-list .data-size { color: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .data-capability-list .quiet-button { font-size: 11px; padding: 7px; }
-@media (max-width: 1050px) { .library-management-bar { gap: 8px; } .library-management-group { gap: 4px; } .library-page .library-period-filter { padding-left: 6px; margin: 0; } .library-page .library-reader { padding-left: 20px; } }
+@media (max-width: 1050px) { .library-page .library-reader { padding-left: 20px; } }
 @media (max-width: 760px) { .data-management { margin-left: 0; } }
 @media (max-width: 640px) { .library-page .library-workspace { grid-template-columns: 1fr; } .library-page .library-reader { padding-left: 0; } .library-editor-heading { grid-template-columns: 1fr; gap: 0; } dialog.library-dialog { width: calc(100vw - 24px); padding: 18px; max-height: calc(100dvh - 32px); } .data-setting-row { grid-template-columns: 30px 1fr; } .data-setting-row > button { grid-column: 2; justify-self: start; } }
 
