@@ -1,0 +1,86 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createLibraryStore, libraryStorageKey } from '../src/platform/library-store.ts'
+
+const input = (key: string) => ({ key, title: key, content: 'Original', collectionKey: 'notes', collectionName: 'Notes', documentDate: '2026-10-16' })
+function setup() { const data = new Map<string, string>(); const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value) } }; return { data, storage, store: createLibraryStore(storage) } }
+test('active document deletion removes body, history and memberships with no restore operation', () => {
+  const { store, data } = setup()
+  const doc = store.publish('notes', 'Notes', input('deleted'))
+  const keep = store.publish('notes', 'Notes', input('keep'))
+  store.change({ kind: 'edit', id: doc.id, title: 'Edited', content: 'Revised', expected: doc.revision! })
+  store.change({ kind: 'save-topic', topic: { id: 'topic', name: 'Topic', documentIds: [doc.id, keep.id] } })
+  store.change({ kind: 'origin', id: doc.id, origin: { threadId: 'thread', messageId: 'message' } })
+  data.set('citation-snapshot', 'Original')
+  store.change({ kind: 'delete-documents', ids: [doc.id] })
+  assert.deepEqual(store.list().map(doc => doc.id), [keep.id])
+  assert.throws(() => store.read(doc.id), /not found/i)
+  assert.throws(() => store.history(doc.id), /not found/i)
+  assert.deepEqual(store.organization().topics[0].documentIds, [keep.id])
+  assert.equal(store.organization().origins[doc.id], undefined)
+  assert.equal(data.get('citation-snapshot'), 'Original')
+  assert.throws(() => store.change({ kind: 'restore', ids: [doc.id] } as never), /Unsupported/)
+  assert.throws(() => store.change({ kind: 'restore-version', id: doc.id, revision: doc.revision!, expected: doc.revision! }), /not found/i)
+})
+test('legacy Trash is permanently cleared on migration without resurrecting documents', () => {
+  const { store, data } = setup()
+  const doc = store.publish('notes', 'Notes', input('old'))
+  const state = JSON.parse(data.get(libraryStorageKey)!)
+  state.organization.trash[doc.id] = '2026-10-15'; state.history[doc.id] = [doc]
+  state.organization.folders = [{ id: 'folder', name: 'Folder', documentIds: [doc.id] }]
+  data.set(libraryStorageKey, JSON.stringify(state))
+  assert.equal(store.list().length, 0)
+  const saved = JSON.parse(data.get(libraryStorageKey)!)
+  assert.deepEqual(saved.documents, []); assert.deepEqual(saved.history, {}); assert.deepEqual(saved.organization.trash, {})
+  assert.deepEqual(saved.organization.folders[0].documentIds, [])
+  assert.equal(createLibraryStore({ getItem: key => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value) } }).list().length, 0)
+})
+test('invalid batch and failed deletion persistence leave live content and history intact', () => {
+  const { store, storage, data } = setup()
+  const doc = store.publish('notes', 'Notes', input('keep'))
+  const before = data.get(libraryStorageKey)
+  assert.throws(() => store.change({ kind: 'delete-documents', ids: [doc.id, 'missing'] }), /not found/i)
+  assert.equal(data.get(libraryStorageKey), before)
+  const failing = createLibraryStore({ getItem: storage.getItem, setItem: () => { throw new Error('Disk full') } })
+  assert.throws(() => failing.change({ kind: 'delete-documents', ids: [doc.id] }), /Disk full/)
+  assert.equal(data.get(libraryStorageKey), before)
+})
+test('permanent document/folder deletion and legacy cleanup remove local drafts', async () => {
+  const { store, storage, data } = setup()
+  Object.defineProperty(globalThis, 'window', { value: { localStorage: storage, dispatchEvent: () => true }, configurable: true })
+  const { changeLibrary, listLibraryDocuments } = await import('../src/platform/document-library.ts')
+  const { createLibraryDrafts, libraryDraftKey } = await import('../src/platform/library-drafts.ts')
+  const drafts = createLibraryDrafts(storage)
+  const doc = store.publish('notes', 'Notes', input('first'))
+  drafts.save(doc.id, { title: doc.title, content: 'Unsaved', revision: doc.revision! })
+  await changeLibrary({ kind: 'delete-documents', ids: [doc.id] })
+  assert.deepEqual(JSON.parse(data.get(libraryDraftKey)!), {})
+  store.change({ kind: 'save-folder', folder: { id: 'folder', name: 'Folder', documentIds: [] } })
+  const child = store.change({ kind: 'create', document: input('child'), folderId: 'folder' })!
+  drafts.save(child.id, { title: child.title, content: 'Unsaved child', revision: child.revision! })
+  await changeLibrary({ kind: 'delete-folder', id: 'folder' })
+  assert.deepEqual(JSON.parse(data.get(libraryDraftKey)!), {})
+  const old = store.publish('notes', 'Notes', input('old'))
+  drafts.save(old.id, { title: old.title, content: 'Legacy draft', revision: old.revision! })
+  const state = JSON.parse(data.get(libraryStorageKey)!); state.organization.trash[old.id] = '2026-10-15'; data.set(libraryStorageKey, JSON.stringify(state))
+  await listLibraryDocuments()
+  assert.deepEqual(JSON.parse(data.get(libraryDraftKey)!), {})
+})
+test('stale document lists never remove drafts created or changed while the query was in flight', async () => {
+  const { storage } = setup()
+  const { createLibraryDrafts } = await import('../src/platform/library-drafts.ts')
+  const { listLibraryDocuments } = await import('../src/platform/document-library.ts')
+  const drafts = createLibraryDrafts(storage)
+  const original = { title: 'Original', content: 'Original', revision: 'base' }
+  drafts.save('changed', { ...original, content: 'Before query' })
+  drafts.save('stale', { ...original, content: 'Discard old orphan' })
+  let resolve!: (value: unknown[]) => void
+  Object.defineProperty(globalThis, 'window', { value: { localStorage: storage, dispatchEvent: () => true, __TAURI_INTERNALS__: { invoke: (command: string) => command === 'library_list_documents' ? new Promise(done => { resolve = done }) : Promise.resolve({ folders: [], topics: [], origins: {}, trash: {} }) } }, configurable: true })
+  const pending = listLibraryDocuments()
+  drafts.save('new', { ...original, content: 'Created during query' })
+  drafts.save('changed', { ...original, content: 'Changed during query' })
+  resolve([]); await pending
+  assert.equal(drafts.get({ ...original, id: 'new' } as never)?.content, 'Created during query')
+  assert.equal(drafts.get({ ...original, id: 'changed' } as never)?.content, 'Changed during query')
+  assert.equal(drafts.get({ ...original, id: 'stale' } as never), null)
+})

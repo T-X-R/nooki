@@ -52,19 +52,18 @@ try {
   await actions('长期阅读', '重命名'); await field.fill('其他文件夹'); await page.keyboard.press('Enter');
   await rename.getByRole('alert').filter({ hasText: 'Folder already exists' }).waitFor();
   await page.keyboard.press('Escape');
+  await page.evaluate(async () => {
+    const { createLibraryStore } = await import('/src/platform/library-store.ts'); const store = createLibraryStore(localStorage);
+    store.change({ kind: 'move-documents', ids: [store.list()[0].id], folderId: 'topic-test' });
+    window.dispatchEvent(new Event('workbench:library-changed'));
+  });
   await actions('长期阅读', '删除文件夹');
   const deletion = page.getByRole('dialog', { name: '删除文件夹', exact: true });
-  await deletion.getByText(/所有子文件夹也会删除，文档会移入回收站/).waitFor();
+  await deletion.getByText(/所有子文件夹、文档及版本历史都会永久删除/).waitFor();
   await deletion.getByRole('button', { name: '取消', exact: true }).click();
   await actions('长期阅读', '删除文件夹');
   await deletion.getByRole('button', { name: '删除文件夹', exact: true }).click(); await deletion.waitFor({ state: 'hidden' });
-  assert.equal(await directory.getByRole('button', { name: '项目观察', exact: true }).count(), 0);
-  await directory.getByRole('button', { name: '回收站', exact: true }).click();
-  const deletedDocument = page.getByRole('dialog', { name: '回收站', exact: true });
-  await deletedDocument.locator('.library-trash-list label').filter({ hasText: '项目观察' }).getByRole('checkbox').check();
-  await deletedDocument.getByRole('button', { name: '恢复', exact: true }).click();
-  await deletedDocument.getByText('项目观察', { exact: true }).waitFor({ state: 'hidden' });
-  await deletedDocument.getByRole('button', { name: '关闭', exact: true }).click();
+  assert.equal(await directory.getByRole('button', { name: '项目观察', exact: true }).count(), 1);
   await directory.getByRole('button', { name: '测试', exact: true }).click();
   await page.locator('.library-folder-list').getByRole('button', { name: '文档操作 项目观察', exact: true }).click();
   await page.getByRole('menuitem', { name: '移动到…', exact: true }).click();
@@ -106,21 +105,40 @@ try {
   assert.equal(await directory.getByRole('button', { name: /^待删除/ }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: '文档正文', exact: true }).count(), 0, 'Deleting an open descendant returns to the parent folder');
   await page.reload(); assert.equal(await directory.getByRole('button', { name: /^待删除/ }).count(), 0);
-  await directory.getByRole('button', { name: '回收站', exact: true }).click();
-  const trash = page.getByRole('dialog', { name: '回收站', exact: true });
-  await trash.getByText('回收站资料', { exact: true }).waitFor();
-  await trash.getByText('待删除直接文档', { exact: true }).waitFor(); await trash.getByText('待删除深层文档', { exact: true }).waitFor();
-  for (const checkbox of await trash.getByRole('checkbox').all()) await checkbox.check();
-  await trash.getByRole('button', { name: '恢复', exact: true }).click();
-  await trash.getByText('暂无已删除资料', { exact: true }).waitFor(); await trash.getByRole('button', { name: '关闭', exact: true }).click();
-  await page.reload(); await directory.getByRole('button', { name: '回收站资料', exact: true }).waitFor();
+  assert.equal(await directory.getByRole('button', { name: '回收站', exact: true }).count(), 0);
+  const deletedState = await page.evaluate(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')));
+  assert.ok(deletedState.documents.every(doc => !doc.title.startsWith('待删除') && doc.title !== '回收站资料'));
+  assert.deepEqual(deletedState.organization.trash, {});
+  assert.ok(deletedState.organization.folders.every(folder => !folder.id.startsWith('delete-')));
   await directory.getByRole('button', { name: '我的资料', exact: true }).click();
   if (await directory.getByRole('button', { name: '我的资料', exact: true }).getAttribute('aria-expanded') === 'false') await directory.getByRole('button', { name: '我的资料', exact: true }).click();
+  // Document deletion is irreversible, removes versions and drafts, and has no Trash step.
+  await directory.getByRole('button', { name: '项目观察', exact: true }).click();
+  const body = page.getByRole('textbox', { name: '文档正文', exact: true });
+  await body.fill('待删除的编辑内容'); await page.keyboard.press('Meta+Enter');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')).documents.find(doc => doc.key === 'entry').content.includes('待删除的编辑内容'));
+  const beforeDocumentDeletion = await page.evaluate(() => localStorage.getItem('personal-workbench-library-v2'));
+  await directory.getByRole('button', { name: '文档操作 项目观察', exact: true }).click(); await page.getByRole('menuitem', { name: '删除', exact: true }).click();
+  const documentDeletion = page.getByRole('dialog', { name: '删除资料', exact: true });
+  await documentDeletion.getByText(/删除后不可恢复/).waitFor(); await documentDeletion.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(await page.evaluate(() => localStorage.getItem('personal-workbench-library-v2')), beforeDocumentDeletion);
+  await directory.getByRole('button', { name: '文档操作 项目观察', exact: true }).click(); await page.getByRole('menuitem', { name: '删除', exact: true }).click();
+  await page.evaluate(() => { window.failSave = true; }); await documentDeletion.getByRole('button', { name: '永久删除', exact: true }).click();
+  await documentDeletion.getByRole('alert').filter({ hasText: 'Disk full' }).waitFor();
+  assert.equal(await page.evaluate(() => localStorage.getItem('personal-workbench-library-v2')), beforeDocumentDeletion);
+  await page.evaluate(() => { window.failSave = false; }); await documentDeletion.getByRole('button', { name: '永久删除', exact: true }).click(); await documentDeletion.waitFor({ state: 'hidden' });
+  await page.waitForTimeout(1000);
+  assert.equal(await directory.getByRole('button', { name: '项目观察', exact: true }).count(), 0);
+  const removedId = 'com.personal.notes/notes/2026/10/entry';
+  assert.equal(await page.evaluate(id => JSON.parse(localStorage.getItem('personal-workbench-library-v2')).history[id], removedId), undefined);
+  assert.equal(await page.evaluate(id => JSON.parse(localStorage.getItem('personal-workbench-library-drafts-v1') || '{}')[id], removedId), undefined);
+  await page.reload(); assert.equal(await directory.getByRole('button', { name: '项目观察', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '回收站', exact: true }).count(), 0);
   for (const theme of ['light', 'dark']) {
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
     for (const width of [1240, 800, 640]) { await page.setViewportSize({ width, height: 820 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); await page.screenshot({ path: `/private/tmp/nooki-folders-${theme}-${width}.png` }); }
   }
   assert.deepEqual(errors, []);
-  console.log('PASS: legacy/shared migration, nested rename/move/delete, duplicate/cycle prevention, save failure, keyboard document move, content search, contextual import, Trash restore, revision preservation, reload and responsive themes');
+  console.log('PASS: legacy/shared migration, nested rename/move/delete, duplicate/cycle prevention, save failure, keyboard document move, content search, contextual import, permanent subtree deletion, legacy Trash cleanup, revision preservation, reload and responsive themes');
 } catch (error) { await page.screenshot({ path: '/private/tmp/nooki-folders-management-failure.png' }).catch(() => {}); throw error; }
 finally { await browser.close(); }

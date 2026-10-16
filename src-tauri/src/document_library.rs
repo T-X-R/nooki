@@ -91,7 +91,7 @@ fn publish_content_unlocked(data_dir: &Path, capability_id: &str, capability_nam
     "{}/{}/{}/{}/{}",
     capability_id, input.collection_key, year, month, input.key,
   );
-  if library_management::organization(data_dir)?.trash.contains_key(&id) { return Err("文档在回收站中，请先恢复 / Restore this document from Trash before updating".into()); }
+  library_management::organization(data_dir)?;
   let previous = if metadata_path.exists() { Some(read_unlocked(data_dir, &id)?) } else { None };
   let now = Local::now().to_rfc3339_opts(SecondsFormat::Nanos, false);
   let created_at = read_metadata(&metadata_path)
@@ -266,11 +266,11 @@ pub fn publish_document(root: &Path, source: &str, name: &str, input: DocumentPu
 }
 pub fn list_documents(root: &Path) -> Result<Vec<LibraryDocumentMetadata>, String> {
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
-  let state = library_management::organization(root)?;
-  Ok(list_unlocked(root)?.into_iter().filter(|d| !state.trash.contains_key(&d.id)).collect())
+  library_management::organization(root)?;
+  list_unlocked(root)
 }
 pub fn read_document(root: &Path, id: &str) -> Result<LibraryDocument, String> {
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
-  if library_management::organization(root)?.trash.contains_key(id) { return Err("文档在回收站中 / Document is in Trash".into()); }
+  library_management::organization(root)?;
   read_unlocked(root, id)
 }

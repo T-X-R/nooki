@@ -40,16 +40,12 @@ test('contextual creation, atomic moves, nesting and deletion preserve document 
   store.change({ kind: 'delete-folder', id: 'b' })
   assert.deepEqual(store.organization().folders!.find(f => f.id === 'a')!.documentIds, [])
   assert.equal(store.list().length, 0)
-  assert.throws(() => store.read(doc.id), /Trash/)
-  store.change({ kind: 'restore', ids: [doc.id] })
-  store.change({ kind: 'move-documents', ids: [doc.id] })
-  assert.ok(store.organization().folders!.every(f => !f.documentIds.includes(doc.id)))
-  assert.equal(store.read(doc.id).revision, doc.revision)
-  assert.equal(store.history(doc.id).length, 1)
+  assert.throws(() => store.read(doc.id), /not found/i)
+  assert.throws(() => store.history(doc.id), /not found/i)
   assert.throws(() => store.change({ kind: 'create', document: { ...publication, key: 'second' }, folderId: 'gone' }), /not found|不存在/i)
-  assert.equal(store.list().length, 1)
+  assert.equal(store.list().length, 0)
 })
-test('folder deletion removes the entire subtree and trashes its unique documents without lifting contents', () => {
+test('folder deletion permanently removes all descendant documents and their history', () => {
   const { store, storage } = setup()
   for (const folder of [{ id: 'outer', name: 'Outer' }, { id: 'parent', name: 'Parent', parentId: 'outer' }, { id: 'child', name: 'Notes', parentId: 'parent' }, { id: 'empty', name: 'Empty', parentId: 'child' }, { id: 'sibling', name: 'Notes', parentId: 'outer' }]) store.change({ kind: 'save-folder', folder: { ...folder, documentIds: [] } })
   const keep = store.change({ kind: 'create', document: { ...publication, key: 'keep' }, folderId: 'sibling' })!
@@ -58,8 +54,6 @@ test('folder deletion removes the entire subtree and trashes its unique document
   const old = store.change({ kind: 'create', document: { ...publication, key: 'old' }, folderId: 'child' })!
   store.change({ kind: 'origin', id: deep.id, origin: { threadId: 'thread', messageId: 'message' } })
   store.change({ kind: 'edit', id: deep.id, title: deep.title, content: 'Revised', expected: deep.revision! })
-  store.change({ kind: 'trash', ids: [old.id] })
-  const previousTrashDate = store.organization().trash[old.id]
   const state = JSON.parse(storage.getItem(libraryStorageKey)!)
   state.organization.folders.find((folder: { id: string }) => folder.id === 'child').documentIds.push(direct.id)
   storage.setItem(libraryStorageKey, JSON.stringify(state))
@@ -67,16 +61,15 @@ test('folder deletion removes the entire subtree and trashes its unique document
   assert.deepEqual(store.organization().folders!.map(folder => folder.id), ['outer', 'sibling'])
   assert.deepEqual(store.organization().folders![0].documentIds, [])
   assert.deepEqual(store.list().map(doc => doc.id), [keep.id])
-  assert.equal(store.list(true).length, 3)
-  assert.equal(store.organization().trash[old.id], previousTrashDate)
-  assert.equal(store.history(deep.id).length, 2)
-  store.change({ kind: 'restore', ids: [direct.id, deep.id] })
-  assert.equal(store.read(direct.id).revision, direct.revision)
-  assert.equal(store.read(deep.id).content, 'Revised')
-  assert.deepEqual(store.organization().origins[deep.id], { threadId: 'thread', messageId: 'message' })
+  assert.deepEqual(store.organization().trash, {})
+  for (const doc of [direct, deep, old]) {
+    assert.throws(() => store.read(doc.id), /not found/i)
+    assert.throws(() => store.history(doc.id), /not found/i)
+  }
+  assert.equal(store.organization().origins[deep.id], undefined)
   assert.ok(store.organization().folders!.every(folder => !folder.documentIds.includes(deep.id)))
 })
-test('failed subtree deletion leaves folders, documents and Trash unchanged', () => {
+test('failed subtree deletion leaves folders and document content unchanged', () => {
   const { store, storage } = setup()
   store.change({ kind: 'save-folder', folder: { id: 'parent', name: 'Parent', documentIds: [] } })
   store.change({ kind: 'create', document: publication, folderId: 'parent' })

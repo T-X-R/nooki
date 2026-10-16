@@ -24,17 +24,31 @@ export type LibraryChange =
   | { kind: 'create-section'; section: LibrarySection }
   | { kind: 'rename-section'; id: string; name: string }
   | { kind: 'delete-section'; id: string }
-  | { kind: 'trash' | 'restore' | 'purge'; ids: string[] }
+  | { kind: 'delete-documents'; ids: string[] }
   | { kind: 'place'; id: string; topicId?: string; section: LibrarySection }
   | { kind: 'origin'; id: string; origin: Origin }
 type LibraryState = { documents: LibraryDocument[]; history: Record<string, LibraryDocument[]>; organization: Organization }
 export const libraryStorageKey = 'personal-workbench-library-v2'
 export const emptyOrganization = (): Organization => ({ topics: [], trash: {}, origins: {} })
 
+function deleteDocumentRecords(state: LibraryState, ids: Set<string>) {
+  state.documents = state.documents.filter(doc => !ids.has(doc.id))
+  ids.forEach(id => { delete state.history[id]; delete state.organization.trash[id]; delete state.organization.origins[id]; delete state.organization.sections?.[id] })
+  state.organization.folders!.forEach(folder => { folder.documentIds = folder.documentIds.filter(id => !ids.has(id)) })
+  state.organization.topics.forEach(topic => { topic.documentIds = topic.documentIds.filter(id => !ids.has(id)) })
+}
+
 export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>) {
   const load = (): LibraryState => {
     const saved = storage.getItem(libraryStorageKey)
-    if (saved) { const state: LibraryState = JSON.parse(saved); state.organization.folders = migrateLibraryFolders(state.organization); Object.keys(state.history).forEach(id => { state.history[id] = state.history[id].slice(-9) }); return state }
+    if (saved) {
+      const state: LibraryState = JSON.parse(saved)
+      state.organization.folders = migrateLibraryFolders(state.organization)
+      Object.keys(state.history).forEach(id => { state.history[id] = state.history[id].slice(-9) })
+      const deleted = new Set(Object.keys(state.organization.trash))
+      if (deleted.size) { deleteDocumentRecords(state, deleted); storage.setItem(libraryStorageKey, JSON.stringify(state)) }
+      return state
+    }
     const documents: LibraryDocument[] = JSON.parse(storage.getItem('personal-workbench-document-library') ?? '[]')
     return { documents: documents.map((doc) => ({ ...doc, revision: doc.revision ?? doc.updatedAt })), history: {}, organization: { ...emptyOrganization(), folders: [] } }
   }
@@ -58,7 +72,6 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
       || !/^[a-z0-9-]{1,100}$/.test(input.key) || !/^[a-z0-9-]{1,100}$/.test(input.collectionKey)
       || !/^\d{4}-\d{2}-\d{2}$/.test(input.documentDate) || !Number.isFinite(Date.parse(input.documentDate)) || new Date(input.documentDate).toISOString().slice(0, 10) !== input.documentDate) throw new Error('标题、日期或正文无效 / Invalid title, date or content')
     const id = `${source}/${input.collectionKey}/${input.documentDate.slice(0, 4)}/${input.documentDate.slice(5, 7)}/${input.key}`
-    if (state.organization.trash[id]) throw new Error('请先从回收站恢复文档 / Restore this document from Trash first')
     const previous = state.documents.find((doc) => doc.id === id)
     if (previous) state.history[id] = [...state.history[id] ?? [], previous].slice(-9)
     const now = new Date().toISOString()
@@ -67,8 +80,8 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
     return doc
   }
   return {
-    list(trash = false) { const state = load(); return state.documents.filter((d) => Boolean(state.organization.trash[d.id]) === trash).sort((a, b) => b.documentDate.localeCompare(a.documentDate)) },
-    read(id: string) { const state = load(); if (state.organization.trash[id]) throw new Error('文档在回收站中 / Document is in Trash'); return find(state, id) },
+    list() { const state = load(); return state.documents.sort((a, b) => b.documentDate.localeCompare(a.documentDate)) },
+    read(id: string) { return find(load(), id) },
     organization: () => load().organization,
     history(id: string) { const state = load(); return [find(state, id), ...(state.history[id] ?? []).slice().reverse()] },
     publish(source: string, name: string, input: DocumentPublication) { const state = load(); const doc = publish(state, source, name, input); storage.setItem(libraryStorageKey, JSON.stringify(state)); return doc },
@@ -102,7 +115,7 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
         }
         case 'move-documents': {
           const folder = folderDestination(state.organization.folders!, change.folderId)
-          change.ids.forEach(id => { find(state, id); if (state.organization.trash[id]) throw new Error('文档在回收站中 / Document is in Trash') })
+          change.ids.forEach(id => find(state, id))
           state.organization.folders!.forEach(folder => { folder.documentIds = folder.documentIds.filter(id => !change.ids.includes(id)) })
           if (folder) folder.documentIds.push(...new Set(change.ids))
           break
@@ -115,8 +128,7 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           for (const id of removed) for (const item of folders) if (item.parentId === id) removed.add(item.id)
           const ids = new Set(folders.filter(item => removed.has(item.id)).flatMap(item => item.documentIds))
           ids.forEach(id => find(state, id))
-          const deletedAt = new Date().toISOString()
-          ids.forEach(id => { state.organization.trash[id] ??= deletedAt })
+          deleteDocumentRecords(state, ids)
           state.organization.folders = folders.filter(item => !removed.has(item.id))
           break
         }
@@ -165,23 +177,18 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           state.organization.topics = state.organization.topics.filter((t) => t.id !== change.id)
           for (const section of [...state.organization.customSections ?? [], ...Object.values(state.organization.sections ?? {})]) { if (section.topicId === change.id) delete section.topicId }
           break
-        case 'trash': change.ids.forEach((id) => find(state, id)); change.ids.forEach((id) => { state.organization.trash[id] = new Date().toISOString() }); break
-        case 'restore': change.ids.forEach((id) => { delete state.organization.trash[id] }); break
-        case 'purge':
-          if (change.ids.some((id) => !state.organization.trash[id])) throw new Error('Only documents in Trash can be deleted permanently')
-          state.documents = state.documents.filter((d) => !change.ids.includes(d.id))
-          change.ids.forEach((id) => { delete state.history[id]; delete state.organization.trash[id]; delete state.organization.origins[id]; delete state.organization.sections?.[id] })
-          state.organization.folders!.forEach(folder => { folder.documentIds = folder.documentIds.filter(id => !change.ids.includes(id)) })
-          state.organization.topics.forEach((t) => { t.documentIds = t.documentIds.filter((id) => !change.ids.includes(id)) }); break
+        case 'delete-documents':
+          change.ids.forEach(id => find(state, id))
+          deleteDocumentRecords(state, new Set(change.ids)); break
         case 'place': {
           find(state, change.id)
-          if (state.organization.trash[change.id]) throw new Error('文档在回收站中 / Document is in Trash')
           const { topic, section } = destination(state, change.topicId, change.section)
           if (topic && !topic.documentIds.includes(change.id)) topic.documentIds.push(change.id)
           ;(state.organization.sections ??= {})[change.id] = section
           break
         }
         case 'origin': find(state, change.id); state.organization.origins[change.id] = change.origin; break
+        default: throw new Error('Unsupported Library operation')
       }
       storage.setItem(libraryStorageKey, JSON.stringify(state))
       return result

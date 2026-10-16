@@ -42,8 +42,7 @@ test('permanent deletion also removes a retained inline draft for the deleted do
   const document = store.list()[0]
   const drafts = createLibraryDrafts(storage)
   drafts.save(document.id, { title: document.title, content: 'Unsaved text', revision: document.revision! })
-  store.change({ kind: 'trash', ids: [document.id] })
-  await changeLibrary({ kind: 'purge', ids: [document.id] })
+  await changeLibrary({ kind: 'delete-documents', ids: [document.id] })
   assert.equal(drafts.get(document), null)
-  assert.equal(store.list(true).length, 0)
+  assert.equal(store.list().length, 0)
 })

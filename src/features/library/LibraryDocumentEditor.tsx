@@ -18,12 +18,15 @@ export function LibraryDocumentEditor({ document, language, renameTitle, onRenam
   const titleInput = useRef<HTMLInputElement>(null)
   const editor = useRef<Editor | null>(null)
   const mounted = useRef(true)
+  const deleted = useRef(false)
   const remember = () => {
+    if (deleted.current) return
     const draft = state.current
     try { drafts.save(document.id, { title: draft.title, content: draft.content, revision: draft.revision }) }
     catch (reason) { if (mounted.current) setError(String(reason)) }
   }
   const save = async (): Promise<boolean> => {
+    if (deleted.current) return false
     if (pending.current) { if (!await pending.current) return false; return save() }
     const { base, title, content, revision } = state.current
     if (!title.trim()) { if (mounted.current) setError(zh ? '标题不能为空，草稿已保留。' : 'A title is required. Your draft is kept.'); return false }
@@ -32,6 +35,7 @@ export function LibraryDocumentEditor({ document, language, renameTitle, onRenam
     const operation = (async () => {
       try {
         const metadata = await changeLibrary({ kind: 'edit', id: document.id, title: title.trim(), content, expected: revision })
+        if (deleted.current) return false
         const saved = { ...base, ...metadata, title: title.trim(), content }
         const current = state.current
         current.base = saved; current.revision = saved.revision ?? saved.updatedAt
@@ -54,6 +58,11 @@ export function LibraryDocumentEditor({ document, language, renameTitle, onRenam
     } catch (reason) { setError(String(reason)) }
   }
   const saveRef = useRef(save); saveRef.current = save
+  useEffect(() => {
+    const removed = (event: Event) => { if ((event as CustomEvent<string[]>).detail.includes(document.id)) deleted.current = true }
+    window.addEventListener('workbench:library-documents-deleted', removed)
+    return () => window.removeEventListener('workbench:library-documents-deleted', removed)
+  }, [document.id, drafts])
   useImperativeHandle(ref, () => ({ save: () => saveRef.current() }))
   useEffect(() => { if (renameTitle) { titleInput.current?.focus(); titleInput.current?.select(); onRenamed() } }, [renameTitle, onRenamed])
   useEffect(() => {

@@ -50,9 +50,7 @@ pub enum LibraryChange {
   CreateSection { section: LibrarySection },
   RenameSection { id: String, name: String },
   DeleteSection { id: String },
-  Trash { ids: Vec<String> },
-  Restore { ids: Vec<String> },
-  Purge { ids: Vec<String> },
+  DeleteDocuments { ids: Vec<String> },
   Place { id: String, #[serde(rename = "topicId")] topic_id: Option<String>, section: LibrarySection },
   Origin { id: String, origin: Origin },
 }
@@ -61,10 +59,35 @@ pub fn organization(root: &Path) -> Result<Organization, String> {
   let path = root.join(STATE_FILE);
   let mut state: Organization = if path.exists() { serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())? } else { Organization::default() };
   state.folders = Some(library_folders::migrate(&state));
+  if !state.trash.is_empty() { finish_deletions(root, &mut state)?; }
   Ok(state)
 }
 fn save_organization(root: &Path, state: &Organization) -> Result<(), String> {
   write_json(&root.join(STATE_FILE), state)
+}
+// The legacy Trash field now journals irreversible deletion until file cleanup completes.
+fn finish_deletions(root: &Path, state: &mut Organization) -> Result<(), String> {
+  let ids: Vec<String> = state.trash.keys().cloned().collect();
+  for id in &ids { document_library::validate_id(id)?; }
+  for id in &ids {
+    for extension in ["md", "json"] {
+      let path = root.join("document-library").join(id).with_extension(extension);
+      if path.exists() { fs::remove_file(path).map_err(|e| e.to_string())?; }
+    }
+    let history = root.join("document-history").join(id);
+    if history.exists() { fs::remove_dir_all(history).map_err(|e| e.to_string())?; }
+    state.trash.remove(id); state.origins.remove(id); state.sections.remove(id);
+    for folder in state.folders.as_mut().unwrap() { folder.document_ids.retain(|value| value != id); }
+    for topic in &mut state.topics { topic.document_ids.retain(|value| value != id); }
+  }
+  save_organization(root, state)
+}
+fn delete_documents(root: &Path, state: &mut Organization, ids: &[String]) -> Result<(), String> {
+  for id in ids { document_library::read_unlocked(root, id)?; }
+  for id in ids { state.trash.insert(id.clone(), chrono::Local::now().to_rfc3339()); }
+  // Persist intent before removing files; failed cleanup is resumed on the next load.
+  save_organization(root, state)?;
+  finish_deletions(root, state)
 }
 pub(crate) fn write_json(path: &Path, value: &impl Serialize) -> Result<(), String> {
   fs::create_dir_all(path.parent().ok_or("Invalid data path")?).map_err(|e| e.to_string())?;
@@ -103,6 +126,7 @@ pub(crate) fn prune_history(root: &Path, id: &str, current_revision: &str) -> Re
 }
 pub fn history(root: &Path, id: &str) -> Result<Vec<LibraryDocument>, String> {
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  organization(root)?;
   let current = document_library::read_unlocked(root, id)?;
   let revision = document_library::revision(&current);
   // The authoritative current version stays first even after a clock/timezone change.
@@ -173,7 +197,7 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
     }
     LibraryChange::MoveDocuments { ids, folder_id } => {
       library_folders::destination(state.folders.as_deref().unwrap(), folder_id.as_deref())?;
-      for id in &ids { document_library::read_unlocked(root, id)?; if state.trash.contains_key(id) { return Err("文档在回收站中 / Document is in Trash".into()); } }
+      for id in &ids { document_library::read_unlocked(root, id)?; }
       for folder in state.folders.as_mut().unwrap() {
         folder.document_ids.retain(|id| !ids.contains(id));
         if Some(&folder.id) == folder_id.as_ref() { for id in &ids { if !folder.document_ids.contains(id) { folder.document_ids.push(id.clone()); } } }
@@ -190,8 +214,7 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       let ids: BTreeSet<String> = folders.iter().filter(|folder| removed.contains(&folder.id)).flat_map(|folder| folder.document_ids.clone()).collect();
       for id in &ids { document_library::read_unlocked(root, id)?; }
       folders.retain(|folder| !removed.contains(&folder.id));
-      let deleted_at = chrono::Local::now().to_rfc3339();
-      for id in ids { state.trash.entry(id).or_insert_with(|| deleted_at.clone()); }
+      return delete_documents(root, &mut state, &ids.into_iter().collect::<Vec<_>>()).map(|_| None);
     }
     LibraryChange::Edit { id, title, content, expected } => return edit(root, &id, title, content, &expected).map(Some),
     LibraryChange::RestoreVersion { id, revision, expected } => {
@@ -239,32 +262,9 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
         if section.topic_id.as_deref() == Some(&id) { section.topic_id = None; }
       }
     }
-    LibraryChange::Trash { ids } => {
-      for id in &ids { document_library::read_unlocked(root, id)?; }
-      for id in ids { state.trash.insert(id, chrono::Local::now().to_rfc3339()); }
-    }
-    LibraryChange::Restore { ids } => { for id in ids { state.trash.remove(&id); } }
-    LibraryChange::Purge { ids } => {
-      // Retained citation snapshots are independent evidence and are never removed here.
-      for id in &ids {
-        if !state.trash.contains_key(id) { return Err("Only documents in Trash can be deleted permanently".into()); }
-        document_library::validate_id(id)?;
-      }
-      for id in ids {
-        for extension in ["md", "json"] {
-          let path = root.join("document-library").join(&id).with_extension(extension);
-          if path.exists() { fs::remove_file(path).map_err(|e| e.to_string())?; }
-        }
-        let history = root.join("document-history").join(&id);
-        if history.exists() { fs::remove_dir_all(history).map_err(|e| e.to_string())?; }
-        state.trash.remove(&id); state.origins.remove(&id); state.sections.remove(&id);
-        for folder in state.folders.as_mut().unwrap() { folder.document_ids.retain(|value| value != &id); }
-        for topic in &mut state.topics { topic.document_ids.retain(|value| value != &id); }
-      }
-    }
+    LibraryChange::DeleteDocuments { ids } => return delete_documents(root, &mut state, &ids).map(|_| None),
     LibraryChange::Place { id, topic_id, section } => {
       document_library::read_unlocked(root, &id)?;
-      if state.trash.contains_key(&id) { return Err("文档在回收站中 / Document is in Trash".into()); }
       let (topic, section) = destination(&state, topic_id, section)?;
       if let Some(index) = topic {
         let topic = &mut state.topics[index];
@@ -287,9 +287,3 @@ pub fn library_organization(state: tauri::State<'_, crate::capability_runtime::P
 pub fn library_change(change: LibraryChange, state: tauri::State<'_, crate::capability_runtime::PlatformState>) -> Result<Option<LibraryDocumentMetadata>, String> { self::change(state.data_dir(), change) }
 #[tauri::command]
 pub fn library_history(id: String, state: tauri::State<'_, crate::capability_runtime::PlatformState>) -> Result<Vec<LibraryDocument>, String> { history(state.data_dir(), &id) }
-#[tauri::command]
-pub fn library_trash(state: tauri::State<'_, crate::capability_runtime::PlatformState>) -> Result<Vec<LibraryDocumentMetadata>, String> {
-  let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
-  let state_info = organization(state.data_dir())?;
-  Ok(document_library::list_unlocked(state.data_dir())?.into_iter().filter(|d| state_info.trash.contains_key(&d.id)).collect())
-}

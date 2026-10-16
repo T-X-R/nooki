@@ -1,5 +1,5 @@
 import { createLibraryDrafts } from './library-drafts.ts'
-import { migrateLibraryFolders } from './library-folders.ts'
+import { folderDocumentIds, migrateLibraryFolders } from './library-folders.ts'
 import { invoke } from '@tauri-apps/api/core'
 import type { DocumentPublication } from '../../packages/capability-contract/src/index.ts'
 import { createLibraryStore, type LibraryChange, type Organization, type LibraryDocument, type LibraryDocumentMetadata } from './library-store.ts'
@@ -13,10 +13,12 @@ export async function publishCapabilityDocument(capabilityId: string, capability
   changed()
 }
 export async function listLibraryDocuments(): Promise<LibraryDocumentMetadata[]> {
+  const drafts = createLibraryDrafts(window.localStorage), snapshot = drafts.snapshot()
   const [documents, organization] = await Promise.all([
     window.__TAURI_INTERNALS__ ? invoke<LibraryDocumentMetadata[]>('library_list_documents') : browser().list().map(({ content: _content, ...doc }) => doc),
     libraryOrganization(),
   ])
+  drafts.prune(documents.map(doc => doc.id), snapshot)
   return documents.map((doc) => ({ ...doc, section: organization.sections?.[doc.id] }))
 }
 export async function readLibraryDocument(id: string): Promise<LibraryDocument> {
@@ -31,14 +33,19 @@ export async function libraryOrganization(): Promise<Organization> {
   return { ...organization, folders: migrateLibraryFolders(organization) }
 }
 export async function changeLibrary(change: LibraryChange): Promise<LibraryDocumentMetadata | null> {
+  let deletedIds = change.kind === 'delete-documents' ? change.ids : []
+  if (change.kind === 'delete-folder') {
+    const { folders = [] } = await libraryOrganization()
+    deletedIds = folderDocumentIds(folders, folders.flatMap(folder => folder.documentIds), change.id)
+  }
   const result = window.__TAURI_INTERNALS__ ? await invoke<LibraryDocumentMetadata | null>('library_change', { change }) : browser().change(change)
-  if (change.kind === 'purge') change.ids.forEach(id => createLibraryDrafts(window.localStorage).remove(id))
+  if (change.kind === 'delete-documents' || change.kind === 'delete-folder') {
+    window.dispatchEvent(new CustomEvent('workbench:library-documents-deleted', { detail: deletedIds }))
+    deletedIds.forEach(id => createLibraryDrafts(window.localStorage).remove(id))
+  }
   changed()
   return result
 }
 export async function libraryHistory(id: string): Promise<LibraryDocument[]> {
   return window.__TAURI_INTERNALS__ ? invoke('library_history', { id }) : browser().history(id)
-}
-export async function libraryTrash(): Promise<LibraryDocumentMetadata[]> {
-  return window.__TAURI_INTERNALS__ ? invoke('library_trash') : browser().list(true).map(({ content: _content, ...doc }) => doc)
 }

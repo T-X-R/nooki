@@ -11,5 +11,11 @@ export function createLibraryDrafts(storage: Pick<Storage, 'getItem' | 'setItem'
     },
     save(id: string, draft: LibraryDraft) { storage.setItem(libraryDraftKey, JSON.stringify({ ...read(), [id]: draft })) },
     remove(id: string) { const drafts = read(); delete drafts[id]; storage.setItem(libraryDraftKey, JSON.stringify(drafts)) },
+    snapshot: read,
+    prune(documentIds: string[], snapshot: Record<string, LibraryDraft>) {
+      const live = new Set(documentIds), drafts = read()
+      const removed = Object.keys(snapshot).filter(id => !live.has(id) && JSON.stringify(drafts[id]) === JSON.stringify(snapshot[id]))
+      if (removed.length) { removed.forEach(id => { delete drafts[id] }); storage.setItem(libraryDraftKey, JSON.stringify(drafts)) }
+    },
   }
 }

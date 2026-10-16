@@ -30,7 +30,7 @@ test('creation rejects invalid content and stale topics without leaving document
   assert.notEqual(first.id, second.id)
   assert.equal(store.list().length, 2)
 })
-test('imports and cross-source topics keep document identity through editing and reversible trash', () => {
+test('imports and cross-source topics keep document identity through editing and version restoration', () => {
   const { data, store } = setup()
   const first = store.change({ kind: 'import', document: input('first') })!
   const other = store.publish('com.personal.diary', 'Diary', input('other'))
@@ -40,13 +40,6 @@ test('imports and cross-source topics keep document identity through editing and
   assert.equal(store.read(first.id).content, 'New evidence')
   assert.equal(store.history(first.id)[1].content, 'Original evidence')
   assert.throws(() => store.change({ kind: 'edit', id: first.id, expected: first.revision!, title: 'Stale', content: 'Stale' }), /Document changed/)
-  store.change({ kind: 'trash', ids: [first.id] })
-  assert.equal(store.list().length, 1)
-  assert.equal(store.list(true).length, 1)
-  assert.throws(() => store.publish('workbench.imports', 'Imports', { ...input('first'), collectionKey: 'imports' }), /Trash/)
-  assert.throws(() => store.read(first.id), /Trash/)
-  assert.deepEqual(store.organization().topics[0].documentIds, [first.id, other.id])
-  store.change({ kind: 'restore', ids: [first.id] })
   const current = store.read(first.id)
   store.change({ kind: 'restore-version', id: first.id, expected: current.revision!, revision: first.revision! })
   assert.equal(store.read(first.id).content, 'Original evidence')
@@ -56,15 +49,13 @@ test('imports and cross-source topics keep document identity through editing and
   store.change({ kind: 'delete-topic', id: 'topic' })
   assert.equal(store.list().length, 2)
 })
-test('permanent deletion requires trash and cleans topic associations but leaves citation snapshots alone', () => {
+test('permanent deletion cleans topic associations and keeps independent citation snapshots', () => {
   const { store, data } = setup()
   const doc = store.publish('com.personal.diary', 'Diary', input('entry'))
   data.set('workbench-source-snapshot:old', JSON.stringify(doc))
   store.change({ kind: 'save-topic', topic: { id: 'project', name: 'Project', documentIds: [doc.id] } })
-  assert.throws(() => store.change({ kind: 'purge', ids: [doc.id] }), /Trash/)
-  store.change({ kind: 'trash', ids: [doc.id] })
-  store.change({ kind: 'purge', ids: [doc.id] })
-  assert.equal(store.list(true).length, 0)
+  store.change({ kind: 'delete-documents', ids: [doc.id] })
+  assert.equal(store.list().length, 0)
   assert.equal(store.organization().topics[0].documentIds.length, 0)
   assert.equal(JSON.parse(data.get('workbench-source-snapshot:old')!).content, doc.content)
 })
@@ -103,7 +94,7 @@ test('placing a conversation result preserves its source and existing topic memb
   assert.equal(store.read(answer.id).capabilityId, 'workbench.conversations')
   assert.throws(() => store.change({ ...placement, topicId: 'deleted', section: { id: 'other', name: 'Other' } }), /Topic no longer exists/)
   assert.equal(store.organization().sections?.[answer.id].id, 'diary')
-  store.change({ kind: 'trash', ids: [answer.id] }); store.change({ kind: 'purge', ids: [answer.id] })
+  store.change({ kind: 'delete-documents', ids: [answer.id] })
   assert.equal(store.organization().sections?.[answer.id], undefined)
 })
 
@@ -121,11 +112,11 @@ test('custom sections persist while empty and moving documents preserves history
   store.change({ kind: 'place', id: doc.id, section: { ...section, name: 'Research' } })
   assert.equal(store.read(doc.id).revision, doc.revision)
   assert.deepEqual(store.organization().topics[0].documentIds, [doc.id])
-  store.change({ kind: 'trash', ids: [doc.id] }); store.change({ kind: 'purge', ids: [doc.id] })
+  store.change({ kind: 'delete-documents', ids: [doc.id] })
   assert.equal(store.organization().customSections?.length, 1)
 })
 
-test('renaming and deleting custom sections preserve documents, topics, revisions and trash', () => {
+test('renaming and deleting custom sections preserve active documents and their revisions', () => {
   const { store, data } = setup()
   const section = { id: 'custom-research', name: 'Research' }
   store.change({ kind: 'create-section', section })
@@ -133,10 +124,10 @@ test('renaming and deleting custom sections preserve documents, topics, revision
   const trashed = store.publish('diary', 'Diary', input('trashed'))
   for (const doc of [active, trashed]) store.change({ kind: 'place', id: doc.id, section })
   store.change({ kind: 'save-topic', topic: { id: 'topic', name: 'Topic', documentIds: [active.id] } })
-  store.change({ kind: 'trash', ids: [trashed.id] })
+  store.change({ kind: 'delete-documents', ids: [trashed.id] })
   store.change({ kind: 'rename-section', id: section.id, name: '  Reading  ' })
   assert.equal(store.organization().customSections?.[0].name, 'Reading')
-  assert.equal(store.organization().sections?.[trashed.id].name, 'Reading')
+  assert.equal(store.organization().sections?.[trashed.id], undefined)
   store.change({ kind: 'place', id: active.id, section }) // A stale destination uses the current name.
   assert.equal(store.organization().sections?.[active.id].name, 'Reading')
   store.change({ kind: 'delete-section', id: section.id })
@@ -146,9 +137,7 @@ test('renaming and deleting custom sections preserve documents, topics, revision
   assert.equal(reopened.read(active.id).revision, active.revision)
   assert.equal(reopened.history(active.id).length, 1)
   assert.deepEqual(reopened.organization().topics[0].documentIds, [active.id])
-  assert.equal(reopened.list(true)[0].id, trashed.id)
-  reopened.change({ kind: 'restore', ids: [trashed.id] })
-  assert.equal(reopened.read(trashed.id).revision, trashed.revision)
+  assert.throws(() => reopened.read(trashed.id), /not found/i)
   assert.throws(() => reopened.change({ kind: 'place', id: active.id, section }), /Section no longer exists/)
 })
 

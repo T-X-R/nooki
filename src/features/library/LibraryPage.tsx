@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ArrowRightIcon, CheckIcon, ChevronRightIcon, Cross2Icon, DotsHorizontalIcon, ExclamationTriangleIcon, FileTextIcon, MagnifyingGlassIcon, ReloadIcon, TrashIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, CheckIcon, ChevronRightIcon, Cross2Icon, DotsHorizontalIcon, ExclamationTriangleIcon, FileTextIcon, MagnifyingGlassIcon, ReloadIcon } from '@radix-ui/react-icons'
 import type { DocumentReference, SelectedDocument } from '../../../packages/capability-contract/src/index.ts'
 import { parseReferenceHref } from '../../../packages/capability-contract/src/references.ts'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
@@ -57,7 +57,6 @@ export function LibraryPage({ organization, organizationError, installed, target
   const [creation, setCreation] = useState<LibraryCreation | null>(null)
   const [renaming, setRenaming] = useState<{ id: string; surface: 'directory' | 'content' } | null>(null)
   const [folderAction, setFolderAction] = useState<FolderAction | null>(null)
-  const [showTrash, setShowTrash] = useState(false)
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null)
   const documentEditor = useRef<{ save(): Promise<boolean> }>(null)
   const [renamingDocument, setRenamingDocument] = useState<string | null>(null)
@@ -141,7 +140,7 @@ export function LibraryPage({ organization, organizationError, installed, target
     <button role="menuitem" onClick={() => { setMoveId(doc.id); setDestinationId(folders.find(folder => folder.documentIds.includes(doc.id))?.id ?? ''); setFeedback(null) }}>{zh ? '移动到…' : 'Move to…'}</button>
     {!!recipients.length && <button role="menuitem" onClick={() => { setGrantIds([doc.id]); setRecipient(recipients[0]?.manifest.id ?? ''); setGrantError(null); setGrantOpen(true) }}>{zh ? '授权读取' : 'Authorize access'}</button>}
     {origins[doc.id] && <button role="menuitem" onClick={() => window.dispatchEvent(new CustomEvent('workbench:open-conversation', { detail: origins[doc.id].threadId }))}>{zh ? '原始对话' : 'Original conversation'}</button>}
-    <button role="menuitem" className="library-delete-action" onClick={() => setDeleteIds([doc.id])}>{zh ? '移入回收站' : 'Move to Trash'}</button>
+    <button role="menuitem" className="library-delete-action" onClick={() => setDeleteIds([doc.id])}>{zh ? '删除' : 'Delete'}</button>
   </LibraryMenu>
   const creationBusy = useRef(false)
   const handleCreate = async (value: LibraryCreation) => {
@@ -186,7 +185,7 @@ export function LibraryPage({ organization, organizationError, installed, target
   }
   return <div className="content-column library-page library-folder-page">
     <header className="library-shell-heading" onMouseDown={startWindowDrag}><div className="library-shell-title"><h1>{zh ? '资料库' : 'Library'}</h1><span>{documents.length} {zh ? '篇资料' : 'documents'}</span></div><div className="library-shell-location">{breadcrumbs()}<div className="library-location-actions">{currentDocument && !sourceTarget && <LibraryMenu label={zh ? '文档更多操作' : 'More document actions'} icon={<DotsHorizontalIcon />}><button role="menuitem" onClick={() => { void exportCurrentDocument() }}>{zh ? '导出 Markdown' : 'Export Markdown'}</button><button role="menuitem" onClick={() => void showHistory(currentDocument.id)}>{zh ? '版本历史' : 'Version history'}</button></LibraryMenu>}<button className="topbar-search" aria-label={`${t('searchWorkbench')} (⌘ K)`} onClick={onOpenCommand}><MagnifyingGlassIcon /><kbd>⌘ K</kbd></button></div></div></header>
-    <LibraryManager organization={organization} language={language} creation={creation} onCloseCreation={() => setCreation(null)} showTrash={showTrash} onCloseTrash={() => setShowTrash(false)} onOpen={id => { openDocument(id); setFolderId(creation ? creation.folderId ?? '' : folderId) }} refresh={refreshLibrary} />
+    <LibraryManager organization={organization} language={language} creation={creation} onCloseCreation={() => setCreation(null)} onOpen={id => { openDocument(id); setFolderId(creation ? creation.folderId ?? '' : folderId) }} refresh={refreshLibrary} />
     <div className="library-feedback" aria-live="polite">{(error || organizationError || searchError || feedback) && <p role={error || organizationError || searchError || feedback?.error ? 'alert' : 'status'}>{error || organizationError || searchError || feedback?.text}</p>}</div>
     {deleteIds && <DeleteDocumentsDialog ids={deleteIds} language={language} onClose={() => setDeleteIds(null)} onDeleted={() => { setSelectedId(null); refreshLibrary() }} />}
     {folderAction && <LibraryFolderDialog action={folderAction} folders={folders} language={language} onClose={() => setFolderAction(null)} onSaved={id => { openFolder(id ?? ''); setCollapsed(new Set()); refreshLibrary() }} />}
@@ -204,7 +203,6 @@ export function LibraryPage({ organization, organizationError, installed, target
       <nav className="library-tree library-directory" aria-label={zh ? '资料目录' : 'Library directory'}>
         <label className="library-tree-search"><MagnifyingGlassIcon /><input type="search" value={query} onChange={event => { setQuery(event.target.value); setSelectedId(null); setSourceTarget(null); setHistory(null); setHistoryPreview(null) }} placeholder={zh ? '搜索我的资料…' : 'Search my documents…'} aria-label={t('librarySearch')} /></label>
         <LibraryDirectory language={language} folders={folders} documents={documents} folderId={folderId} selectedId={selectedId} collapsed={collapsed} onToggle={id => setCollapsed(value => { const next = new Set(value); if (next.has(id)) next.delete(id); else next.add(id); return next })} onFolder={openFolder} onDocument={openDocument} onCreate={handleCreate} onFolderAction={handleFolderAction} renameId={renaming?.surface === 'directory' ? renaming.id : null}  onFinishRename={() => setRenaming(null)} folderMenu={folderMenu} documentMenu={documentMenu} dragging={dragging} dropTarget={dropTarget} onDrag={setDragging} onDropTarget={setDropTarget} canDrop={canDrop} onMove={drop} />
-        <button className="library-trash-link" onClick={() => setShowTrash(true)}><TrashIcon />{zh ? '回收站' : 'Trash'}</button>
       </nav>
       <article className="library-reader library-folder-content">
 

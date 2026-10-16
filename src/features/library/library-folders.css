@@ -39,8 +39,6 @@
 .library-folder-disclosure svg { width: 12px; height: 12px; transition: transform .15s; }
 .library-folder-disclosure svg.is-expanded { transform: rotate(90deg); }
 .library-directory-hint { padding: 14px 8px; font-size: 11px; line-height: 1.8; color: var(--ink-muted); }
-.library-trash-link { display: flex; align-items: center; gap: 8px; border: 0; border-top: 1px solid var(--line); padding: 14px 8px 4px; margin-top: 18px; background: transparent; color: var(--ink-muted); font: inherit; font-size: 11px; text-align: left; }
-.library-trash-link svg { width: 14px; }
 .library-folder-page .library-folder-content { max-width: none; padding: 0 0 20px 24px; overflow: auto; }
 .library-location-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 58px; border-bottom: 1px solid var(--line); }
 .library-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }

@@ -43,20 +43,16 @@ fn revisions_detect_conflicts_restore_without_losing_versions_and_keep_snapshot_
   assert_eq!(source_snapshots::source(&root.0, "snapshot", &doc.id).unwrap().content, "original");
 }
 #[test]
-fn topics_cross_sources_and_trash_blocks_republication_and_purge_keeps_snapshots() {
+fn topics_cross_sources_and_permanent_deletion_keeps_independent_snapshots() {
   let root = Fixture::new();
   let first = management::change(&root.0, LibraryChange::Import { folder_id: None, document: document("imported") }).unwrap().unwrap();
   let second = library::publish_document(&root.0, "com.personal.diary", "Diary", document("diary")).unwrap();
   management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "project".into(), name: " Project ".into(), document_ids: vec![first.id.clone(), second.id.clone()] } }).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().topics[0].name, "Project");
   source_snapshots::capture(&root.0, "snapshot", std::slice::from_ref(&first.id)).unwrap();
-  management::change(&root.0, LibraryChange::Trash { ids: vec![first.id.clone()] }).unwrap();
+  management::change(&root.0, LibraryChange::DeleteDocuments { ids: vec![first.id.clone()] }).unwrap();
   assert_eq!(library::list_documents(&root.0).unwrap().len(), 1);
-  assert!(management::change(&root.0, LibraryChange::Import { folder_id: None, document: document("republished") }).is_err());
-  management::change(&root.0, LibraryChange::Restore { ids: vec![first.id.clone()] }).unwrap();
-  assert_eq!(library::list_documents(&root.0).unwrap().len(), 2);
-  management::change(&root.0, LibraryChange::Trash { ids: vec![first.id.clone()] }).unwrap();
-  management::change(&root.0, LibraryChange::Purge { ids: vec![first.id.clone()] }).unwrap();
+  assert!(library::read_document(&root.0, &first.id).is_err());
   assert_eq!(management::organization(&root.0).unwrap().topics[0].document_ids, vec![second.id.clone()]);
   assert_eq!(source_snapshots::source(&root.0, "snapshot", &first.id).unwrap().content, "imported");
   management::change(&root.0, LibraryChange::DeleteTopic { id: "project".into() }).unwrap();
@@ -153,8 +149,7 @@ fn conversation_placement_keeps_source_and_atomically_links_topic_with_idempoten
   assert_eq!(saved.content, "conversation result");
   assert!(management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("deleted".into()), section: management::LibrarySection { id: "other".into(), name: "Other".into(), topic_id: None } }).is_err());
   assert_eq!(management::organization(&root.0).unwrap().sections[&doc.id].id, "diary");
-  management::change(&root.0, LibraryChange::Trash { ids: vec![doc.id.clone()] }).unwrap();
-  management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id.clone()] }).unwrap();
+  management::change(&root.0, LibraryChange::DeleteDocuments { ids: vec![doc.id.clone()] }).unwrap();
   assert!(!management::organization(&root.0).unwrap().sections.contains_key(&doc.id));
 }
 
@@ -178,13 +173,12 @@ fn empty_custom_sections_survive_backup_and_moving_preserves_document_identity()
   management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: None, section }).unwrap();
   assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Keep original");
   assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
-  management::change(&root.0, LibraryChange::Trash { ids: vec![doc.id.clone()] }).unwrap();
-  management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id] }).unwrap();
+  management::change(&root.0, LibraryChange::DeleteDocuments { ids: vec![doc.id] }).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().custom_sections.len(), 1);
 }
 
 #[test]
-fn rename_and_delete_sections_keep_documents_topics_revisions_and_trash() {
+fn rename_and_delete_sections_keep_active_documents_topics_and_revisions() {
   use management::LibrarySection;
   let root = Fixture::new();
   let section = LibrarySection { id: "custom-research".into(), name: "Research".into(), topic_id: None };
@@ -193,10 +187,10 @@ fn rename_and_delete_sections_keep_documents_topics_revisions_and_trash() {
   let trashed = library::publish_document(&root.0, "com.personal.other", "Other", document("Trashed")).unwrap();
   for doc in [&active, &trashed] { management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: None, section: section.clone() }).unwrap(); }
   management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "topic".into(), name: "Topic".into(), document_ids: vec![active.id.clone()] } }).unwrap();
-  management::change(&root.0, LibraryChange::Trash { ids: vec![trashed.id.clone()] }).unwrap();
+  management::change(&root.0, LibraryChange::DeleteDocuments { ids: vec![trashed.id.clone()] }).unwrap();
   let rename = serde_json::from_value(serde_json::json!({ "kind": "rename-section", "id": section.id, "name": " Reading " })).unwrap();
   management::change(&root.0, rename).unwrap();
-  assert_eq!(management::organization(&root.0).unwrap().sections[&trashed.id].name, "Reading");
+  assert!(!management::organization(&root.0).unwrap().sections.contains_key(&trashed.id));
   management::change(&root.0, LibraryChange::Place { id: active.id.clone(), topic_id: None, section: section.clone() }).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().sections[&active.id].name, "Reading");
   let delete = serde_json::from_value(serde_json::json!({ "kind": "delete-section", "id": section.id })).unwrap();
@@ -204,12 +198,11 @@ fn rename_and_delete_sections_keep_documents_topics_revisions_and_trash() {
   let state = management::organization(&root.0).unwrap();
   assert!(state.custom_sections.is_empty());
   assert!(state.sections.is_empty());
-  assert!(state.trash.contains_key(&trashed.id));
+  assert!(state.trash.is_empty());
   assert_eq!(state.topics[0].document_ids, vec![active.id.clone()]);
   assert_eq!(library::read_document(&root.0, &active.id).unwrap().revision, active.revision);
   assert_eq!(management::history(&root.0, &active.id).unwrap().len(), 1);
-  management::change(&root.0, LibraryChange::Restore { ids: vec![trashed.id.clone()] }).unwrap();
-  assert_eq!(library::read_document(&root.0, &trashed.id).unwrap().revision, trashed.revision);
+  assert!(library::read_document(&root.0, &trashed.id).is_err());
   assert!(management::change(&root.0, LibraryChange::Place { id: active.id, topic_id: None, section }).is_err());
 }
 
@@ -307,12 +300,11 @@ fn folders_migrate_shared_entries_and_support_safe_nested_moves() {
   assert!(change(serde_json::json!({"kind":"move-documents", "ids":[doc.id,"missing"], "folderId":"topic-two"})).is_err());
   change(serde_json::json!({"kind":"delete-folder", "id":"section-custom-notes"})).unwrap();
   assert!(library::list_documents(&root.0).unwrap().is_empty());
-  change(serde_json::json!({"kind":"restore", "ids":[doc.id]})).unwrap();
-  change(serde_json::json!({"kind":"move-documents", "ids":[doc.id]})).unwrap();
+
   assert!(management::organization(&root.0).unwrap().folders.unwrap().iter().all(|f| !f.document_ids.contains(&doc.id)));
-  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
+  assert!(management::history(&root.0, &doc.id).is_err());
   assert!(change(serde_json::json!({"kind":"create", "folderId":"missing", "document":document("new")})).is_err());
-  assert_eq!(library::list_documents(&root.0).unwrap().len(), 1);
+  assert!(library::list_documents(&root.0).unwrap().is_empty());
 }
 
 #[test]
@@ -378,7 +370,7 @@ fn history_keeps_ten_versions_and_does_not_prune_citation_snapshots() {
 }
 
 #[test]
-fn folder_deletion_trashes_all_descendants_without_lifting_or_purging_history() {
+fn folder_deletion_permanently_removes_descendants_and_history() {
   let root = Fixture::new();
   let change = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
   for folder in [
@@ -396,9 +388,7 @@ fn folder_deletion_trashes_all_descendants_without_lifting_or_purging_history() 
   let deep = &documents[1];
   source_snapshots::capture(&root.0, "deleted-folder-source", std::slice::from_ref(&deep.id)).unwrap();
   change(serde_json::json!({"kind":"edit","id":deep.id,"title":"Revised","content":"Revised","expected":deep.revision})).unwrap();
-  change(serde_json::json!({"kind":"trash","ids":[documents[2].id]})).unwrap();
   let mut state = management::organization(&root.0).unwrap();
-  let previous_trash_date = state.trash[&documents[2].id].clone();
   state.folders.as_mut().unwrap().iter_mut().find(|folder| folder.id == "child").unwrap().document_ids.push(documents[0].id.clone());
   fs::write(root.0.join("library-organization.json"), serde_json::to_vec(&state).unwrap()).unwrap();
   change(serde_json::json!({"kind":"delete-folder","id":"parent"})).unwrap();
@@ -406,11 +396,71 @@ fn folder_deletion_trashes_all_descendants_without_lifting_or_purging_history() 
   let folders = state.folders.unwrap();
   assert_eq!(folders.iter().map(|folder| folder.id.as_str()).collect::<Vec<_>>(), vec!["outer", "sibling"]);
   assert!(folders[0].document_ids.is_empty());
-  assert_eq!(state.trash.len(), 3); assert_eq!(state.trash[&documents[2].id], previous_trash_date);
+  assert!(state.trash.is_empty());
   assert_eq!(library::list_documents(&root.0).unwrap()[0].id, documents[3].id);
   assert!(library::read_document(&root.0, &deep.id).is_err());
-  assert_eq!(management::history(&root.0, &deep.id).unwrap().len(), 2);
+  assert!(management::history(&root.0, &deep.id).is_err());
   assert_eq!(source_snapshots::source(&root.0, "deleted-folder-source", &deep.id).unwrap().content, "deep");
-  change(serde_json::json!({"kind":"restore","ids":[deep.id]})).unwrap();
-  assert_eq!(library::read_document(&root.0, &deep.id).unwrap().content, "Revised");
+  assert!(!root.0.join("document-history").join(&deep.id).exists());
+}
+
+#[test]
+fn permanent_deletion_removes_active_files_and_history_and_rejects_restore() {
+  let root = Fixture::new();
+  let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("original")).unwrap();
+  management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: "Edited".into(), content: "Revised".into(), expected: doc.revision.clone().unwrap() }).unwrap();
+  source_snapshots::capture(&root.0, "permanent-delete", std::slice::from_ref(&doc.id)).unwrap();
+  let deletion = serde_json::from_value(serde_json::json!({"kind":"delete-documents","ids":[doc.id]})).unwrap();
+  management::change(&root.0, deletion).unwrap();
+  assert!(library::list_documents(&root.0).unwrap().is_empty());
+  assert!(library::read_document(&root.0, &doc.id).is_err());
+  assert!(management::history(&root.0, &doc.id).is_err());
+  assert!(!root.0.join("document-library").join(&doc.id).with_extension("md").exists());
+  assert!(!root.0.join("document-library").join(&doc.id).with_extension("json").exists());
+  assert!(!root.0.join("document-history").join(&doc.id).exists());
+  assert!(serde_json::from_value::<LibraryChange>(serde_json::json!({"kind":"restore","ids":[doc.id]})).is_err());
+  assert_eq!(source_snapshots::source(&root.0, "permanent-delete", &doc.id).unwrap().content, "Revised");
+}
+
+#[test]
+fn legacy_trash_is_purged_before_history_reads_and_survives_restart_as_deleted() {
+  let root = Fixture::new();
+  let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("old trash")).unwrap();
+  management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: "Old".into(), content: "Old revised".into(), expected: doc.revision.unwrap() }).unwrap();
+  source_snapshots::capture(&root.0, "legacy-trash", std::slice::from_ref(&doc.id)).unwrap();
+  let mut state = management::organization(&root.0).unwrap(); state.trash.insert(doc.id.clone(), "2026-10-15".into());
+  fs::write(root.0.join("library-organization.json"), serde_json::to_vec(&state).unwrap()).unwrap();
+  assert!(management::history(&root.0, &doc.id).is_err());
+  assert!(management::organization(&root.0).unwrap().trash.is_empty());
+  assert!(library::list_documents(&root.0).unwrap().is_empty());
+  assert!(!root.0.join("document-history").join(&doc.id).exists());
+  assert_eq!(source_snapshots::source(&root.0, "legacy-trash", &doc.id).unwrap().content, "Old revised");
+}
+#[test]
+fn deletion_commit_failure_leaves_documents_and_folder_tree_intact() {
+  let root = Fixture::new();
+  let apply = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
+  apply(serde_json::json!({"kind":"save-folder","folder":{"id":"parent","name":"Parent"}})).unwrap();
+  let doc = apply(serde_json::json!({"kind":"create","document":document("Keep"),"folderId":"parent"})).unwrap().unwrap();
+  let before = fs::read(root.0.join("library-organization.json")).unwrap();
+  fs::create_dir(root.0.join("library-organization.pending")).unwrap();
+  assert!(apply(serde_json::json!({"kind":"delete-folder","id":"parent"})).is_err());
+  assert_eq!(fs::read(root.0.join("library-organization.json")).unwrap(), before);
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Keep");
+}
+#[test]
+fn interrupted_cleanup_resumes_from_irreversible_deletion_intent() {
+  let root = Fixture::new();
+  let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("Delete")).unwrap();
+  let body = root.0.join("document-library").join(&doc.id).with_extension("md");
+  fs::remove_file(&body).unwrap(); fs::create_dir(&body).unwrap();
+  let delete = serde_json::from_value(serde_json::json!({"kind":"delete-documents","ids":[doc.id]})).unwrap();
+  assert!(management::change(&root.0, delete).is_err());
+  let state: serde_json::Value = serde_json::from_slice(&fs::read(root.0.join("library-organization.json")).unwrap()).unwrap();
+  assert!(state["trash"].get(&doc.id).is_some());
+  assert!(library::read_document(&root.0, &doc.id).is_err());
+  fs::remove_dir(&body).unwrap();
+  assert!(management::organization(&root.0).unwrap().trash.is_empty());
+  assert!(library::read_document(&root.0, &doc.id).is_err());
+  assert!(!body.with_extension("json").exists());
 }
