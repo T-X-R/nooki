@@ -1,4 +1,4 @@
-import { folderDestination, migrateLibraryFolders, uniqueFolderName, validateFolder } from './library-folders.ts'
+import { folderDestination, migrateLibraryFolders, validateFolder } from './library-folders.ts'
 import type { DocumentPublication } from '../../packages/capability-contract/src/index.ts'
 
 export type LibraryDocumentMetadata = Omit<DocumentPublication, 'content'> & {
@@ -111,13 +111,13 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           const folders = state.organization.folders!
           const folder = folderDestination(folders, change.id)
           if (!folder) throw new Error('文件夹已不存在 / Folder not found')
-          const parent = folderDestination(folders, folder.parentId)
-          if (parent) parent.documentIds = [...new Set([...parent.documentIds, ...folder.documentIds])]
-          state.organization.folders = folders.filter(item => item.id !== folder.id)
-          for (const child of state.organization.folders.filter(item => item.parentId === folder.id)) {
-            child.name = uniqueFolderName(state.organization.folders, child.name, folder.parentId)
-            child.parentId = folder.parentId
-          }
+          const removed = new Set([folder.id])
+          for (const id of removed) for (const item of folders) if (item.parentId === id) removed.add(item.id)
+          const ids = new Set(folders.filter(item => removed.has(item.id)).flatMap(item => item.documentIds))
+          ids.forEach(id => find(state, id))
+          const deletedAt = new Date().toISOString()
+          ids.forEach(id => { state.organization.trash[id] ??= deletedAt })
+          state.organization.folders = folders.filter(item => !removed.has(item.id))
           break
         }
         case 'edit': case 'restore-version': {

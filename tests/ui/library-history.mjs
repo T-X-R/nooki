@@ -35,7 +35,14 @@ try {
   const versions = panel.getByRole('navigation', { name: '选择版本', exact: true }).getByRole('button');
   await page.waitForFunction(() => document.querySelectorAll('.library-history-panel nav button').length === 10);
   assert.equal(await versions.count(), 10);
+  assert.equal(await panel.evaluate(el => getComputedStyle(el).scrollbarWidth), 'none');
+  assert.equal(await panel.evaluate(el => getComputedStyle(el, '::-webkit-scrollbar').display), 'none');
+  await page.setViewportSize({ width: 1240, height: 420 });
+  assert.ok(await panel.evaluate(el => el.scrollHeight > el.clientHeight), 'History overflows in a short window');
+  await panel.hover(); await page.mouse.wheel(0, 320);
+  await page.waitForFunction(() => document.querySelector('.library-history-panel').scrollTop > 0);
   await versions.last().click();
+  await page.setViewportSize({ width: 1240, height: 820 });
   const preview = page.getByRole('region', { name: '版本正文', exact: true });
   await preview.getByRole('heading', { name: '正文 5', exact: true }).waitFor();
   assert.equal(await body.count(), 0, 'Historical content is read-only in the same document pane');

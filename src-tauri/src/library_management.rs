@@ -1,7 +1,7 @@
 use crate::library_folders;
 use crate::document_library::{self, DocumentPublication, LibraryDocument, LibraryDocumentMetadata};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, path::Path, sync::Mutex};
+use std::{collections::{BTreeMap, BTreeSet}, fs, path::Path, sync::Mutex};
 
 pub static DATA_LOCK: Mutex<()> = Mutex::new(());
 const STATE_FILE: &str = "library-organization.json";
@@ -181,15 +181,17 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
     }
     LibraryChange::DeleteFolder { id } => {
       let folders = state.folders.as_mut().unwrap();
-      let folder = library_folders::destination(folders, Some(&id))?.ok_or("文件夹已不存在 / Folder not found")?.clone();
-      if let Some(parent) = folders.iter_mut().find(|item| Some(&item.id) == folder.parent_id.as_ref()) { for id in &folder.document_ids { if !parent.document_ids.contains(id) { parent.document_ids.push(id.clone()); } } }
-      folders.retain(|item| item.id != id);
-      for index in 0..folders.len() {
-        if folders[index].parent_id.as_deref() == Some(&id) {
-          let name = library_folders::unique_name(folders, &folders[index].name, folder.parent_id.as_deref());
-          folders[index].name = name; folders[index].parent_id = folder.parent_id.clone();
-        }
+      library_folders::destination(folders, Some(&id))?.ok_or("文件夹已不存在 / Folder not found")?;
+      let mut removed = BTreeSet::new();
+      let mut pending = vec![id];
+      while let Some(id) = pending.pop() {
+        if removed.insert(id.clone()) { pending.extend(folders.iter().filter(|folder| folder.parent_id.as_deref() == Some(&id)).map(|folder| folder.id.clone())); }
       }
+      let ids: BTreeSet<String> = folders.iter().filter(|folder| removed.contains(&folder.id)).flat_map(|folder| folder.document_ids.clone()).collect();
+      for id in &ids { document_library::read_unlocked(root, id)?; }
+      folders.retain(|folder| !removed.contains(&folder.id));
+      let deleted_at = chrono::Local::now().to_rfc3339();
+      for id in ids { state.trash.entry(id).or_insert_with(|| deleted_at.clone()); }
     }
     LibraryChange::Edit { id, title, content, expected } => return edit(root, &id, title, content, &expected).map(Some),
     LibraryChange::RestoreVersion { id, revision, expected } => {

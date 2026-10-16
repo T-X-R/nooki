@@ -306,6 +306,8 @@ fn folders_migrate_shared_entries_and_support_safe_nested_moves() {
   assert!(change(serde_json::json!({"kind":"save-folder", "folder":{"id":"topic-one", "name":"One", "parentId":"section-custom-notes"}})).is_err());
   assert!(change(serde_json::json!({"kind":"move-documents", "ids":[doc.id,"missing"], "folderId":"topic-two"})).is_err());
   change(serde_json::json!({"kind":"delete-folder", "id":"section-custom-notes"})).unwrap();
+  assert!(library::list_documents(&root.0).unwrap().is_empty());
+  change(serde_json::json!({"kind":"restore", "ids":[doc.id]})).unwrap();
   change(serde_json::json!({"kind":"move-documents", "ids":[doc.id]})).unwrap();
   assert!(management::organization(&root.0).unwrap().folders.unwrap().iter().all(|f| !f.document_ids.contains(&doc.id)));
   assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
@@ -335,8 +337,8 @@ fn folder_backup_roundtrip_rejects_cycles_and_missing_documents_without_touching
   }
   change(serde_json::json!({"kind":"delete-folder","id":"parent"})).unwrap();
   let folders = management::organization(&root.0).unwrap().folders.unwrap();
-  let child = folders.iter().find(|folder| folder.id == "child").unwrap();
-  assert_eq!(child.parent_id, None); assert_eq!(child.name, "Notes (2)");
+  assert_eq!(folders.len(), 1); assert_eq!(folders[0].id, "sibling");
+  assert!(library::list_documents(&root.0).unwrap().is_empty());
   user_data::restore(&root.0, &backup, "restored-folders").unwrap();
   assert_eq!(management::organization(&root.0).unwrap().folders.unwrap().iter().find(|folder| folder.id == "child").unwrap().parent_id.as_deref(), Some("parent"));
 }
@@ -373,4 +375,42 @@ fn history_keeps_ten_versions_and_does_not_prune_citation_snapshots() {
   assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Version 5");
   assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 10);
   assert_eq!(source_snapshots::source(&root.0, "history-snapshot", &doc.id).unwrap().content, "Version 0");
+}
+
+#[test]
+fn folder_deletion_trashes_all_descendants_without_lifting_or_purging_history() {
+  let root = Fixture::new();
+  let change = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
+  for folder in [
+    serde_json::json!({"id":"outer","name":"Outer"}),
+    serde_json::json!({"id":"parent","name":"Parent","parentId":"outer"}),
+    serde_json::json!({"id":"child","name":"Child","parentId":"parent"}),
+    serde_json::json!({"id":"empty","name":"Empty","parentId":"child"}),
+    serde_json::json!({"id":"sibling","name":"Sibling","parentId":"outer"}),
+  ] { change(serde_json::json!({"kind":"save-folder","folder":folder})).unwrap(); }
+  let mut documents = Vec::new();
+  for (key, folder) in [("direct", "parent"), ("deep", "child"), ("old", "child"), ("keep", "sibling")] {
+    let mut input = document(key); input.key = key.into();
+    documents.push(change(serde_json::json!({"kind":"create","document":input,"folderId":folder})).unwrap().unwrap());
+  }
+  let deep = &documents[1];
+  source_snapshots::capture(&root.0, "deleted-folder-source", std::slice::from_ref(&deep.id)).unwrap();
+  change(serde_json::json!({"kind":"edit","id":deep.id,"title":"Revised","content":"Revised","expected":deep.revision})).unwrap();
+  change(serde_json::json!({"kind":"trash","ids":[documents[2].id]})).unwrap();
+  let mut state = management::organization(&root.0).unwrap();
+  let previous_trash_date = state.trash[&documents[2].id].clone();
+  state.folders.as_mut().unwrap().iter_mut().find(|folder| folder.id == "child").unwrap().document_ids.push(documents[0].id.clone());
+  fs::write(root.0.join("library-organization.json"), serde_json::to_vec(&state).unwrap()).unwrap();
+  change(serde_json::json!({"kind":"delete-folder","id":"parent"})).unwrap();
+  let state = management::organization(&root.0).unwrap();
+  let folders = state.folders.unwrap();
+  assert_eq!(folders.iter().map(|folder| folder.id.as_str()).collect::<Vec<_>>(), vec!["outer", "sibling"]);
+  assert!(folders[0].document_ids.is_empty());
+  assert_eq!(state.trash.len(), 3); assert_eq!(state.trash[&documents[2].id], previous_trash_date);
+  assert_eq!(library::list_documents(&root.0).unwrap()[0].id, documents[3].id);
+  assert!(library::read_document(&root.0, &deep.id).is_err());
+  assert_eq!(management::history(&root.0, &deep.id).unwrap().len(), 2);
+  assert_eq!(source_snapshots::source(&root.0, "deleted-folder-source", &deep.id).unwrap().content, "deep");
+  change(serde_json::json!({"kind":"restore","ids":[deep.id]})).unwrap();
+  assert_eq!(library::read_document(&root.0, &deep.id).unwrap().content, "Revised");
 }
