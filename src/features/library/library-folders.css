@@ -1,0 +1,141 @@
+/* Folder workspace uses the same surfaces and typography as the rest of Nooki. */
+.content-column.library-folder-page { --library-directory-width: clamp(205px, 23%, 248px); position: relative; width: 100%; padding: 0 24px 16px; gap: 0; }
+.library-shell-heading { display: grid; grid-template-columns: var(--library-directory-width) minmax(0, 1fr); flex: none; min-height: 58px; border-bottom: 1px solid var(--line); }
+.library-shell-title { display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--line); }
+.library-shell-heading h1 { font-size: 19px; font-weight: 600; letter-spacing: -.035em; margin: 0; }
+.library-shell-title > span { color: var(--ink-muted); font-size: 10px; }
+.library-shell-location { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding-left: 24px; }
+.library-feedback { position: absolute; top: 64px; right: 24px; max-width: calc(100% - 48px); z-index: 2; font-size: 11px; color: var(--ink-muted); }
+.library-feedback p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-feedback [role="alert"] { color: var(--negative); }
+.library-folder-page .library-workspace { grid-template-columns: var(--library-directory-width) minmax(0, 1fr); flex: 1; border-top: 0; }
+.library-folder-page .library-directory { display: flex; flex-direction: column; padding: 14px 12px 12px 0; overflow: auto; }
+.library-folder-page .library-tree-search { position: static; padding: 0 2px 14px; }
+.library-folder-page .library-tree-search input { font-size: 12px; background: var(--surface); border-radius: 8px; }
+.library-directory-content { flex: 1; min-height: 100px; }
+.library-directory-content ul { list-style: none; padding: 0; margin: 0; }
+.library-directory-content li > ul { margin-left: 14px; border-left: 1px solid var(--line); padding-left: 5px; }
+.library-directory-row { display: flex; align-items: center; min-height: 36px; border-radius: 7px; margin-block: 2px; padding: 2px 3px; gap: 2px; }
+.library-directory-row:hover, .library-directory-row:focus-within { background: var(--surface-muted); }
+.library-directory-row.is-active { background: var(--accent-soft); color: var(--accent-strong); }
+.library-directory-row.is-drop-target { background: var(--accent-wash); outline: 1px dashed var(--accent); outline-offset: -1px; }
+.library-directory-root { font-weight: 600; margin-bottom: 7px; }
+.library-directory-root .library-directory-label { flex: 0 1 auto; }
+.library-directory-root > .library-menu-anchor { margin-left: auto; }
+.library-directory-root .library-directory-label > svg { width: 12px; height: 12px; color: var(--ink-muted); }
+.library-directory-root svg.is-expanded { transform: rotate(90deg); }
+.library-directory-content [hidden] { display: none; }
+.library-directory-label { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; padding: 6px 3px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; text-align: left; }
+.library-directory-label > svg { flex: none; width: 16px; height: 16px; color: var(--accent-strong); }
+.library-directory-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-directory-document { padding-left: 20px; color: var(--ink-muted); }
+.library-directory-document .library-directory-label > svg { width: 14px; height: 14px; color: var(--ink-muted); }
+.library-directory-label[draggable="true"], .library-folder-item-label[draggable="true"] { cursor: grab; }
+.library-directory-row.is-dragging { opacity: .5; }
+.library-directory-actions { display: flex; flex: none; opacity: 0; gap: 1px; }
+.library-directory-row:hover > .library-directory-actions, .library-directory-row:focus-within > .library-directory-actions { opacity: 1; }
+.library-directory-row .icon-button { width: 24px; height: 27px; padding: 4px; }
+.library-directory-row .library-folder-disclosure { width: 17px; padding: 2px; flex: none; }
+.library-folder-disclosure svg { width: 12px; height: 12px; transition: transform .15s; }
+.library-folder-disclosure svg.is-expanded { transform: rotate(90deg); }
+.library-directory-hint { padding: 14px 8px; font-size: 11px; line-height: 1.8; color: var(--ink-muted); }
+.library-folder-page .library-folder-content { max-width: none; padding: 0 0 20px 24px; overflow: auto; }
+.library-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.library-breadcrumbs > span { display: contents; }
+.library-breadcrumbs svg { flex: none; width: 12px; color: var(--ink-muted); }
+.library-breadcrumbs button { border: 0; padding: 3px; background: transparent; color: var(--ink-muted); font: inherit; font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-breadcrumbs button:hover { color: var(--accent-strong); }
+.library-location-actions { display: flex; gap: 4px; flex: none; }
+.library-location-actions .icon-button { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; width: 29px; height: 29px; }
+.library-folder-heading { display: flex; align-items: center; gap: 12px; padding: 24px 0 20px; }
+.library-folder-heading h2 { margin: 0; font-size: 24px; line-height: 1.4; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.library-folder-heading p { margin: 6px 0 0; color: var(--ink-muted); font-size: 11px; }
+.library-folder-emblem { display: grid; place-items: center; width: 43px; height: 43px; flex: none; border-radius: 12px; background: var(--accent-wash); color: var(--accent-strong); }
+.library-folder-emblem svg { width: 25px; height: 25px; }
+.library-folder-list { display: grid; gap: 2px; }
+.library-folder-item { display: flex; align-items: center; gap: 10px; border-radius: 8px; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.library-folder-item:hover { background: var(--surface); }
+.library-folder-item.is-selected { background: var(--accent-wash); }
+.library-folder-item-label { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 6px 0; background: transparent; border: 0; text-align: left; color: var(--ink); font: inherit; }
+.library-folder-item-label svg { color: var(--accent-strong); }
+.library-folder-item-label strong { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-folder-item-label small { color: var(--ink-muted); font-size: 10px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.library-folder-empty { display: flex; align-items: center; flex-direction: column; justify-content: center; min-height: 320px; text-align: center; color: var(--ink-muted); padding: 20px; }
+.library-folder-empty > svg { width: 44px; height: 44px; color: var(--accent); opacity: .6; }
+.library-folder-empty h3 { font-size: 16px; font-weight: 500; color: var(--ink); margin: 20px 0 7px; }
+.library-folder-empty p { font-size: 12px; line-height: 1.8; max-width: 310px; margin: 0 0 16px; }
+.library-folder-empty .icon-button { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; }
+.library-folder-page .library-reader-header { padding-top: 28px; }
+.library-folder-page .library-reader-content { font-size: 14px; line-height: 1.9; }
+.library-menu-anchor { display: inline-flex; flex: none; }
+.library-action-menu { position: fixed; inset: auto; margin: 0; width: 212px; box-sizing: border-box; max-height: calc(100dvh - 24px); overflow: auto; padding: 5px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px color-mix(in srgb, var(--ink) 12%, transparent); }
+.library-action-menu:popover-open { display: flex; flex-direction: column; justify-content: flex-start; gap: 2px; }
+.library-action-menu button { flex: 0 0 36px; height: 36px; min-height: 36px; max-height: 36px; box-sizing: border-box; display: flex; align-items: center; gap: 9px; text-align: left; font: inherit; font-size: 12px; padding: 10px 9px; border: 0; border-radius: 5px; background: transparent; color: inherit; }
+.library-action-menu button:hover, .library-action-menu button:focus-visible { outline: none; background: var(--accent-wash); color: var(--accent-strong); }
+.library-action-menu button.library-delete-action { color: var(--negative); }
+.library-action-menu svg { width: 15px; height: 15px; flex: none; }
+@media (max-width: 900px) {
+  .content-column.library-folder-page { --library-directory-width: 195px; padding-inline: 18px; }
+  .library-shell-location { padding-left: 18px; }
+  .library-shell-title { gap: 7px; }
+  .library-folder-page .library-folder-content { padding-left: 18px; }
+  .library-folder-heading h2 { font-size: 21px; }
+  .library-folder-item-label small { display: none; }
+  .library-directory-actions { opacity: 1; }
+}
+@media (max-width: 650px) {
+  .content-column.library-folder-page { padding-inline: 12px; }
+  .library-shell-heading { grid-template-columns: 1fr; padding-block: 8px; gap: 8px; }
+  .library-shell-title { border: 0; }
+  .library-shell-location { padding-left: 0; }
+  .library-folder-page .library-workspace { display: flex; flex-direction: column; overflow: auto; }
+  .library-folder-page .library-directory { max-height: 240px; flex: none; border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; }
+  .library-folder-page .library-folder-content { overflow: visible; padding-left: 0; }
+  .library-directory-actions { opacity: 1; }
+  .library-folder-empty { min-height: 230px; }
+}
+@media (prefers-reduced-motion: reduce) { .library-folder-disclosure svg { transition: none; } }
+.library-breadcrumbs .library-breadcrumb-document { display: block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--ink); }
+.library-folder-item.is-drop-target { background: var(--accent-wash); outline: 1px dashed var(--accent); outline-offset: -1px; }
+
+.library-folder-item-name { flex: 1; min-width: 0; }
+.library-inline-rename { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.library-inline-rename input { min-width: 0; width: 100%; padding: 4px 6px; background: var(--surface); border: 1px solid var(--accent); border-radius: 4px; color: var(--ink); font: inherit; font-size: 12px; line-height: 1.5; outline: none; }
+.library-inline-rename small { white-space: normal; color: var(--negative); font-size: 10px; line-height: 1.5; }
+.library-folder-heading .library-inline-rename input { font-size: 22px; }
+.library-shell-heading { user-select: none; }
+.library-inline-document .library-reader-header { width: 100%; }
+.library-inline-document-title { width: 100%; min-width: 0; padding: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 21px; font-weight: 600; line-height: 1.4; }
+.library-inline-save-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; color: var(--negative); font-size: 12px; }
+.library-inline-save-error p { margin: 0; }
+.library-inline-save-error button { text-decoration: underline; }
+
+.library-inline-document .library-reader-header { position: relative; padding-bottom: 8px; }
+.library-save-status { position: absolute; right: 0; top: 12px; font-size: 10px; color: var(--ink-muted); }
+
+/* One continuous, borderless document surface, including keyboard focus. */
+.library-inline-document { display: flex; flex-direction: column; flex: 1; min-height: 100%; }
+.library-inline-document .library-reader-header, .library-history-preview .library-reader-header { border: 0; padding-bottom: 8px; }
+.library-inline-document-title, .library-inline-document-title:focus, .library-inline-document-title:focus-visible { padding: 0; border: 0; outline: none; box-shadow: none; border-radius: 0; background: transparent; letter-spacing: -.035em; }
+.library-inline-document .library-reader-content { display: flex; flex: 1; flex-direction: column; overflow: visible; padding-top: 8px; padding-bottom: 0; }
+.library-folder-page .library-workspace.has-history { grid-template-columns: var(--library-directory-width) minmax(0, 1fr) clamp(200px, 25%, 260px); }
+.library-workspace.has-history .library-folder-content { padding-right: 18px; }
+.library-history-preview { flex: 1; min-width: 0; }
+.library-history-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 20px 0 12px 16px; border-left: 1px solid var(--line); animation: library-history-reveal .18s ease-out; }
+.library-history-panel::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.library-history-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.library-history-panel h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.library-history-panel .icon-button { width: 26px; height: 26px; flex: none; }
+.library-history-panel p { font-size: 11px; line-height: 1.6; color: var(--ink-muted); }
+.library-history-panel nav { display: flex; flex-direction: column; gap: 4px; padding-block: 8px; }
+.library-history-panel nav button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; padding: 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; font: inherit; }
+.library-history-panel nav button:hover { background: var(--surface); }
+.library-history-panel nav button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-strong); }
+.library-history-panel nav strong { font-size: 12px; font-weight: 500; }
+.library-history-panel time { font-size: 10px; color: var(--ink-muted); }
+.library-history-panel footer { margin-top: auto; padding-top: 16px; }
+.library-history-panel footer .primary-button { width: 100%; }
+@keyframes library-history-reveal { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 900px) { .library-folder-page .library-workspace.has-history { grid-template-columns: var(--library-directory-width) minmax(0, 1fr) 180px; } .library-workspace.has-history .library-folder-content { padding-right: 12px; } .library-history-panel { padding-left: 12px; } }
+@media (max-width: 650px) { .library-history-panel { width: 100%; border-left: 0; border-top: 1px solid var(--line); padding: 16px 0; } .library-workspace.has-history .library-folder-content { padding-right: 0; } }
+@media (prefers-reduced-motion: reduce) { .library-history-panel { animation: none; } }

@@ -11,6 +11,7 @@ pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
 pub mod library_management;
+pub mod library_folders;
 pub mod native_agent_sessions;
 pub mod native_background;
 pub mod user_data;
@@ -503,7 +504,7 @@ pub fn run() {
       conversation_list, conversation_change, conversation_create, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
-      library_management::library_history, library_management::library_trash,
+      library_management::library_history,
       user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown, user_data::conversation_export_document,
       tasks_read,
       tasks_write,

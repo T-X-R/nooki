@@ -1,6 +1,6 @@
 use crate::{capability_runtime::PlatformState, document_library, library_management::{self, DATA_LOCK}};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, io::{Cursor, Write}, path::{Component, Path}};
+use std::{collections::BTreeMap, fs, io::Write, path::{Component, Path}};
 use tauri::Manager;
 
 const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "capability-tool-threads.json", "agent-sessions", "tasks.json"];
@@ -13,7 +13,7 @@ pub struct Backup {
   pub capabilities: serde_json::Value,
 }
 fn local_key(key: &str) -> bool {
-  key.starts_with("personal-workbench:capability:") || key == "personal-workbench:activity-events" || key == "personal-workbench-preferences"
+  key.starts_with("personal-workbench:capability:") || key == "personal-workbench:activity-events" || key == "personal-workbench-preferences" || key == "personal-workbench-library-drafts-v1"
 }
 fn safe_path(name: &str) -> bool {
   !name.contains('\\') && !name.contains('\0') && Path::new(name).components().all(|part| matches!(part, Component::Normal(_)))
@@ -134,6 +134,14 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
     chrono::DateTime::parse_from_rfc3339(&doc.updated_at).map_err(|_| "Invalid document timestamp")?;
   }
   let organization = library_management::organization(&next)?;
+  if let Some(folders) = &organization.folders {
+    let mut seen = std::collections::BTreeSet::new();
+    for folder in folders {
+      if !seen.insert(&folder.id) { return Err("Duplicate folder identity".into()); }
+      crate::library_folders::validate(folders, folder)?;
+      for id in &folder.document_ids { document_library::read_unlocked(&next, id)?; }
+    }
+  }
   for topic in organization.topics { for id in topic.document_ids { document_library::read_unlocked(&next, &id)?; } }
   let mut previous = BTreeMap::new();
   for name in ROOTS { collect(root, &root.join(name), &mut previous)?; }
@@ -172,22 +180,21 @@ pub fn user_data_restore(backup: Backup, transaction: String, state: tauri::Stat
 #[tauri::command]
 pub fn user_data_restored_id(state: tauri::State<'_, PlatformState>) -> Result<Option<String>, String> { restored_id(state.data_dir()) }
 #[tauri::command]
-pub fn library_export_markdown(app: tauri::AppHandle, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<String, String> {
-  let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
-  let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-  let unique: std::collections::BTreeSet<_> = ids.into_iter().collect();
-  if unique.is_empty() { return Err("Select documents to export".into()); }
-  let mut total = 0;
-  for id in unique {
-    let doc = document_library::read_document(state.data_dir(), &id)?;
-    total += doc.content.len(); if total > LIMIT { return Err("Export exceeds 128 MB".into()); }
-    zip.start_file(format!("{id}.md"), options).map_err(|e| e.to_string())?;
-    zip.write_all(doc.content.as_bytes()).map_err(|e| e.to_string())?;
-  }
-  zip.start_file("README.txt", options).map_err(|e| e.to_string())?;
-  zip.write_all("文档按来源保留为 Markdown。内部引用请在 Nooki 中打开；迁移资料和引用快照请使用完整数据备份。\nDocuments are organized by source. Internal citations open in Nooki; use a data backup to retain snapshots.\n".as_bytes()).map_err(|e| e.to_string())?;
-  let bytes = zip.finish().map_err(|e| e.to_string())?.into_inner();
-  download(&app, &format!("Nooki-documents-{}.zip", chrono::Local::now().format("%Y%m%d-%H%M%S-%f")), &bytes)
+pub async fn library_export_markdown(window: tauri::WebviewWindow, id: String, state: tauri::State<'_, PlatformState>) -> Result<bool, String> {
+  let doc = document_library::read_document(state.data_dir(), &id)?;
+  let name: String = doc.title.chars().filter(|c| !c.is_control() && *c != '/' && *c != '\\' && *c != ':').take(120).collect();
+  let name = if name.trim_matches('.').trim().is_empty() { "Untitled".into() } else { name };
+  let name = if name.to_ascii_lowercase().ends_with(".md") { name } else { format!("{name}.md") };
+  let (sender, receiver) = tokio::sync::oneshot::channel();
+  // AppKit dialog construction must run on the UI thread, including rfd's future setup.
+  window.app_handle().clone().run_on_main_thread(move || {
+    let dialog = rfd::AsyncFileDialog::new().set_parent(&window).set_file_name(name)
+      .set_can_create_directories(true).add_filter("Markdown", &["md"]).save_file();
+    tauri::async_runtime::spawn(async move { let _ = sender.send(dialog.await); });
+  }).map_err(|error| error.to_string())?;
+  let Some(file) = receiver.await.map_err(|error| error.to_string())? else { return Ok(false); };
+  file.write(doc.content.as_bytes()).await.map_err(|error| error.to_string())?;
+  Ok(true)
 }
 
 #[tauri::command]

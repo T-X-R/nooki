@@ -1,3 +1,5 @@
+import { attachmentDocumentIds, type FolderAttachment, type LibrarySelection } from './library-folder-attachments.ts'
+import { FolderIcon } from '../library/LibraryDirectory.tsx'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { ArrowUpIcon, CheckIcon, ChevronDownIcon, Cross2Icon, FileTextIcon, MagnifyingGlassIcon, PlusIcon, ReloadIcon, Share1Icon, StopIcon, UploadIcon } from '@radix-ui/react-icons'
@@ -23,7 +25,7 @@ import { capabilityInvocationStore } from './capability-invocations.ts'
 
 // UI drafts only; the selected agent's native session is the authority for session history and messages.
 const openingGreetings = createGreetingRotation()
-const drafts = new Map<string, { text: string; ids: string[]; uploads: ConversationAttachment[] }>()
+const drafts = new Map<string, { text: string; ids: string[]; folders: FolderAttachment[]; uploads: ConversationAttachment[] }>()
 let currentSession: string | null = null
 function ConversationMarkdown({ text, onDocument, zh }: { text: string; onDocument(ref: DocumentReference): void; zh: boolean }) {
   return <Markdown remarkPlugins={[remarkGfm]} components={{ pre: ({ children }) => <CopyableCodeBlock zh={zh}>{children}</CopyableCodeBlock>, a: ({ href, children }) => {
@@ -49,7 +51,7 @@ function TurnProcess({ turn, zh, children }: { turn: ConversationTurn; zh: boole
   </details>
 }
 
-export function ConversationPage({ onSelected, language, selectedAgent, incomingIds, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingIds: string[]; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
+export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
   const zh = language === 'zh'
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const cache = useSyncExternalStore(conversationClient.subscribe, conversationClient.getSnapshot, conversationClient.getSnapshot)
@@ -57,6 +59,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const [selected, setSelected] = useState<string | null>(targetId === 'new' ? null : targetId ?? currentSession)
   const [text, setText] = useState(() => drafts.get(targetId ?? currentSession ?? 'new')?.text ?? '')
   const [ids, setIds] = useState<string[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.ids ?? [])
+  const [folders, setFolders] = useState<FolderAttachment[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.folders ?? [])
   const [uploads, setUploads] = useState<ConversationAttachment[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.uploads ?? [])
   const uploadInput = useRef<HTMLInputElement>(null)
   const [greeting, setGreeting] = useState<(typeof conversationGreetings)[number] | null>(null)
@@ -70,7 +73,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const [matches, setMatches] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [preparing, setPreparing] = useState<{ threadId: string | null; message: string; documentIds: string[]; uploads: ConversationAttachment[] } | null>(null)
+  const [preparing, setPreparing] = useState<{ threadId: string | null; message: string; documentIds: string[]; folders: FolderAttachment[]; uploads: ConversationAttachment[] } | null>(null)
   const [saving, setSaving] = useState<SaveAnswerInput | null>(null)
   const [showLegacy, setShowLegacy] = useState(false)
   const scroll = useRef<HTMLDivElement>(null)
@@ -88,8 +91,8 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const legacy = tasks.filter((t) => t.capabilityId === LEGACY_REVIEW && t.job === 'generate' && t.status === 'completed')
   const act = async (action: () => Promise<unknown>) => { setBusy(true); setError(null); try { await action() } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   const select = (id: string | null) => {
-    drafts.set(selected ?? 'new', { text, ids, uploads }); currentSession = id; setSelected(id); setMention(null)
-    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setUploads(draft?.uploads ?? []); setPicker(false); setShowLegacy(false); setError(null); follow.current = true
+    drafts.set(selected ?? 'new', { text, ids, folders, uploads }); currentSession = id; setSelected(id); setMention(null)
+    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setFolders(draft?.folders ?? []); setUploads(draft?.uploads ?? []); setPicker(false); setShowLegacy(false); setError(null); follow.current = true
   }
   useEffect(() => {
     let current = true
@@ -105,16 +108,19 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   }, [])
   useEffect(() => { if (targetId) { if (targetId === 'new') select(null); else if (targetId !== selected) select(targetId); onTargetConsumed() } }, [targetId])
   useEffect(() => {
-    if (incomingIds.length) { setIds((previous) => [...new Set([...previous, ...incomingIds])]); onConsumed() }
-  }, [incomingIds])
+    if (incomingSelection.documentIds.length || incomingSelection.folders.length) {
+      setIds(previous => [...new Set([...previous, ...incomingSelection.documentIds])])
+      setFolders(previous => [...previous.filter(folder => !incomingSelection.folders.some(item => item.id === folder.id)), ...incomingSelection.folders]); onConsumed()
+    }
+  }, [incomingSelection])
   useEffect(() => { onSelected(selected) }, [selected, onSelected])
-  useEffect(() => { drafts.set(selected ?? 'new', { text, ids, uploads }) }, [selected, text, ids, uploads])
+  useEffect(() => { drafts.set(selected ?? 'new', { text, ids, folders, uploads }) }, [selected, text, ids, folders, uploads])
   useEffect(() => {
     const fresh = targetId === 'new' && !handledNewOpening.current
     handledNewOpening.current = targetId === 'new'
     if (targetId !== 'new' && selected && (!thread || thread.turns.length || running)) return
-    setGreeting(openingGreetings.get(targetId === 'new' ? 'new' : selected ?? 'new', { fresh, hasDocuments: ids.length > 0 || incomingIds.length > 0, hasText: !!text.trim() }))
-  }, [selected, targetId, ids.length, incomingIds.length, text, thread, running])
+    setGreeting(openingGreetings.get(targetId === 'new' ? 'new' : selected ?? 'new', { fresh, hasDocuments: folders.length > 0 || ids.length > 0 || incomingSelection.documentIds.length + incomingSelection.folders.length > 0, hasText: !!text.trim() }))
+  }, [selected, targetId, folders.length, ids.length, incomingSelection.documentIds.length + incomingSelection.folders.length, text, thread, running])
   const taskStatus = conversationTasks.map((t) => `${t.id}:${t.status}`).join(',')
   useEffect(() => {
     if (!selected) return
@@ -146,23 +152,24 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const chooseSkill = (skill: PoolSkill) => { if (mention) editComposer(applySkillMention(text, mention, skill)) }
   const send = () => void act(async () => {
     if (!text.trim() || busy || running || thread?.turns.some((t) => t.status === 'inProgress')) return
-    validateAttachments(uploads, ids.length)
+    validateAttachments(uploads, new Set([...ids, ...attachmentDocumentIds(folders)]).size)
     const message = text.trim()
-    const documentIds = [...ids]
+    const documentIds = [...new Set([...ids, ...attachmentDocumentIds(folders)])]
+    const attachedFolders = [...folders]
     const attachedUploads = [...uploads]
     const selectedSkills = attached
-    setPreparing({ threadId: selected, message, documentIds, uploads: attachedUploads }); follow.current = true
-    setText(''); setIds([]); setUploads([]); setMention(null); setPicker(false)
+    setPreparing({ threadId: selected, message, documentIds, folders: attachedFolders, uploads: attachedUploads }); follow.current = true
+    setText(''); setIds([]); setFolders([]); setUploads([]); setMention(null); setPicker(false)
     let id = selected
     try {
       if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id); setPreparing((value) => value ? { ...value, threadId: id } : value) }
-      const input: ConversationInput = { threadId: id, message, documentIds, uploads: attachedUploads, skills: selectedSkills, snapshotId: crypto.randomUUID() }
+      const input: ConversationInput = { threadId: id, message, documentIds, folders: attachedFolders, uploads: attachedUploads, skills: selectedSkills, snapshotId: crypto.randomUUID() }
       await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
       drafts.delete('new'); openingGreetings.clearDraft(); follow.current = true
     } catch (error) {
-      const draft = { text, ids: documentIds, uploads: attachedUploads }
+      const draft = { text, ids: [...ids], folders: attachedFolders, uploads: attachedUploads }
       drafts.set(id ?? 'new', draft)
-      if (currentSession === id || (selected === id && currentSession === null)) { setText(text); setIds(documentIds); setUploads(attachedUploads) }
+      if (currentSession === id || (selected === id && currentSession === null)) { setText(text); setIds([...ids]); setFolders(attachedFolders); setUploads(attachedUploads) }
       throw error
     } finally { setPreparing(null) }
   })
@@ -173,7 +180,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
         if (file.size > 2_000_000) throw new Error(zh ? '单个附件不能超过 2 MB' : 'Each attachment must be at most 2 MB')
         return decodeAttachment(file.name, await file.arrayBuffer())
       }))
-      validateAttachments([...uploads, ...added], ids.length)
+      validateAttachments([...uploads, ...added], new Set([...ids, ...attachmentDocumentIds(folders)]).size)
       if (currentSession === session) setUploads((previous) => [...previous, ...added])
     })
   }
@@ -196,7 +203,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     const task = savedTask(artifactId ?? item.id)
     return task?.status === 'completed' ? <button className="quiet-button" onClick={() => onDocument(task.result as DocumentReference)}><CheckIcon />{zh ? '已保存 · 打开' : 'Saved · Open'}</button> : task && ['failed', 'interrupted', 'cancelled'].includes(task.status) ? <button className="quiet-button" disabled={busy} onClick={() => void act(() => taskRunner.retry(task.id))}>{zh ? '重试保存' : 'Retry save'}</button> : <button className="quiet-button" disabled={task?.status === 'running'} onClick={() => save(item.id, item.text ?? '', title, artifactId)}><FileTextIcon />{task?.status === 'running' ? (zh ? '保存中…' : 'Saving…') : (zh ? '保存到资料库' : 'Save to Library')}</button>
   }
-  const renderItem = (turn: ConversationTurn, item: ConversationItem) => item.type === 'userMessage' ? <article className="conversation-user" key={item.id}>{!!attachments(item).length && <div className="conversation-message-sources">{attachments(item).map((doc) => <button key={doc.reference.documentId} onClick={() => onDocument(doc.reference)}><FileTextIcon />{doc.reference.title}</button>)}</div>}{!!uploadAttachments(item).length && <div className="conversation-message-sources">{uploadAttachments(item).map((file) => <span key={file.id}><FileTextIcon />{file.name}</span>)}</div>}<div className="conversation-message-body">{item.content?.filter((part) => part.type === 'text').map((part) => part.text).join('\n')}</div></article> : item.type === 'agentMessage' ? <article className={`conversation-answer ${item.phase === 'commentary' ? 'is-commentary' : ''}`} key={item.id}><div className="conversation-markdown"><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} zh={zh} /></div>{turn.status === 'completed' && isConversationAnswer(item) && item.text && <div className="conversation-answer-actions">{saveAction(item)}</div>}</article> : ['reasoning', 'plan', 'commandExecution', 'fileChange', 'mcpToolCall', 'dynamicToolCall', 'webSearch', 'contextCompaction', 'collabAgentToolCall'].includes(item.type) ? <ProcessItem key={item.id} item={item} zh={zh} /> : null
+  const renderItem = (turn: ConversationTurn, item: ConversationItem) => item.type === 'userMessage' ? <article className="conversation-user" key={item.id}>{((tasks.find(record => record.id === item.clientId)?.input as ConversationInput | undefined)?.folders ?? []).map(folder => <span className="conversation-folder-source" key={folder.id}><FolderIcon />{folder.name}<small>{attachmentDocumentIds([folder]).length} {zh ? '篇资料' : 'documents'}</small></span>)}{!!attachments(item).length && <div className="conversation-message-sources">{attachments(item).map((doc) => <button key={doc.reference.documentId} onClick={() => onDocument(doc.reference)}><FileTextIcon />{doc.reference.title}</button>)}</div>}{!!uploadAttachments(item).length && <div className="conversation-message-sources">{uploadAttachments(item).map((file) => <span key={file.id}><FileTextIcon />{file.name}</span>)}</div>}<div className="conversation-message-body">{item.content?.filter((part) => part.type === 'text').map((part) => part.text).join('\n')}</div></article> : item.type === 'agentMessage' ? <article className={`conversation-answer ${item.phase === 'commentary' ? 'is-commentary' : ''}`} key={item.id}><div className="conversation-markdown"><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} zh={zh} /></div>{turn.status === 'completed' && isConversationAnswer(item) && item.text && <div className="conversation-answer-actions">{saveAction(item)}</div>}</article> : ['reasoning', 'plan', 'commandExecution', 'fileChange', 'mcpToolCall', 'dynamicToolCall', 'webSearch', 'contextCompaction', 'collabAgentToolCall'].includes(item.type) ? <ProcessItem key={item.id} item={item} zh={zh} /> : null
   const isProcessMessage = (item: ConversationItem) => item.type === 'agentMessage' && item.delivery === 'async'
   const isProcessHistory = (item: ConversationItem) => isConversationProcessItem(item) || isProcessMessage(item)
   const questionReplyIds = new Set(thread?.turns.flatMap((turn) => turn.items.filter(isAsyncQuestion).map((item) => asyncQuestionReply(thread.turns, item.id)?.id)).filter(Boolean))
@@ -222,6 +229,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
               {capabilityInvocations.filter((invocation) => invocation.context?.threadId === thread.id && invocation.context.turnId === turn.id).map((invocation) => <CapabilityInvocationCard key={invocation.invocationId} invocation={invocation} zh={zh} />)}
               {turn.items.filter(isConversationAnswer).map((item) => renderItem(turn, item))}{turn.error && <p className="conversation-error" role="alert">{turn.error.message}</p>}<ConversationArtifacts files={turnArtifacts(turn.id)} zh={zh} onDocument={onDocument} onSave={(file) => save(artifactSource(turn), file.content, artifactTitle(file.name), file.id)} saveAction={(file) => saveAction({ id: artifactSource(turn), type: 'agentMessage', text: file.content }, artifactTitle(file.name), file.id)} /></div>)}
             {pending && <div className="conversation-turn"><article className="conversation-user">
+              {pending.folders?.map(folder => <span className="conversation-folder-source" key={folder.id}><FolderIcon />{folder.name}<small>{attachmentDocumentIds([folder]).length} {zh ? '篇资料' : 'documents'}</small></span>)}
               {!!pending.documentIds.length && <div className="conversation-message-sources">{pending.documentIds.map((id) => <span key={id}><FileTextIcon />{documents.find((doc) => doc.id === id)?.title ?? id}</span>)}</div>}
               {!!pending.uploads?.length && <div className="conversation-message-sources">{pending.uploads.map((file) => <span key={file.id}><FileTextIcon />{file.name}</span>)}</div>}
               <div className="conversation-message-body">{pending.message}</div>
@@ -233,8 +241,9 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
           {thread?.capabilityTools === 'new-conversation-required' && <div className="conversation-recovery"><span>{zh ? '这个较早的 Codex 会话不能加载能力工具；新建会话后即可调用已安装能力。' : 'This older Codex conversation cannot load capability tools. Start a new conversation to use installed capabilities.'}</span></div>}
           {error && <div className="conversation-error" role="alert"><span>{error}</span><button className="icon-button" aria-label={zh ? '关闭提示' : 'Dismiss'} onClick={() => setError(null)}><Cross2Icon /></button></div>}
           {stopped && stopped.id === latestResponseTask?.id && !running && <div className="conversation-recovery"><span>{taskHint(stopped)}</span><button className="quiet-button" disabled={busy} onClick={() => void act(() => taskRunner.reconnect(stopped.id))}><ReloadIcon />{zh ? '重新连接' : 'Reconnect'}</button></div>}
-          {picker && <section className="conversation-picker"><header><label><MagnifyingGlassIcon /><input autoFocus placeholder={zh ? '搜索标题、正文或来源' : 'Search titles, content or sources'} value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="icon-button" aria-label={zh ? '关闭资料选择' : 'Close document picker'} onClick={() => setPicker(false)}><Cross2Icon /></button></header><div className="conversation-picker-list">{filtered.map((doc) => <label key={doc.id}><input type="checkbox" checked={ids.includes(doc.id)} disabled={!ids.includes(doc.id) && ids.length + uploads.length >= 50} onChange={() => setIds((current) => current.includes(doc.id) ? current.filter((id) => id !== doc.id) : [...current, doc.id])} /><FileTextIcon /><span><strong>{doc.title}</strong><small>{doc.collectionName} · {doc.documentDate}</small></span></label>)}{!filtered.length && <p>{zh ? '没有找到资料。' : 'No documents found.'}</p>}</div></section>}
+          {picker && <section className="conversation-picker"><header><label><MagnifyingGlassIcon /><input autoFocus placeholder={zh ? '搜索标题、正文或来源' : 'Search titles, content or sources'} value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="icon-button" aria-label={zh ? '关闭资料选择' : 'Close document picker'} onClick={() => setPicker(false)}><Cross2Icon /></button></header><div className="conversation-picker-list">{filtered.map((doc) => <label key={doc.id}><input type="checkbox" checked={ids.includes(doc.id)} disabled={!ids.includes(doc.id) && new Set([...ids, ...attachmentDocumentIds(folders)]).size + uploads.length >= 50} onChange={() => setIds((current) => current.includes(doc.id) ? current.filter((id) => id !== doc.id) : [...current, doc.id])} /><FileTextIcon /><span><strong>{doc.title}</strong><small>{doc.collectionName} · {doc.documentDate}</small></span></label>)}{!filtered.length && <p>{zh ? '没有找到资料。' : 'No documents found.'}</p>}</div></section>}
           <form className="conversation-composer" onSubmit={(event) => { event.preventDefault(); send() }}>
+            {!!folders.length && <div className="conversation-attachments conversation-folder-attachments">{folders.map(folder => <span key={folder.id}><span className="conversation-folder-name"><FolderIcon />{folder.name}<small>{attachmentDocumentIds([folder]).length} {zh ? '篇资料' : 'documents'}</small></span><button type="button" aria-label={`${zh ? '移除文件夹' : 'Remove folder'} ${folder.name}`} onClick={() => setFolders(current => current.filter(item => item.id !== folder.id))}><Cross2Icon /></button></span>)}</div>}
             {!!ids.length && <div className="conversation-attachments">{ids.map((id) => <span key={id}><button type="button" onClick={() => onDocument({ kind: 'library-document', documentId: id, title: documents.find((d) => d.id === id)?.title ?? id })}><FileTextIcon />{documents.find((d) => d.id === id)?.title ?? id}</button><button type="button" aria-label={`${zh ? '移除引用' : 'Remove reference'} ${documents.find((d) => d.id === id)?.title ?? id}`} onClick={() => setIds((current) => current.filter((value) => value !== id))}><Cross2Icon /></button></span>)}</div>}
             {!!uploads.length && <div className="conversation-attachments">{uploads.map((file) => <span key={file.id}><span className="conversation-upload-name"><FileTextIcon />{file.name}</span><button type="button" aria-label={`${zh ? '移除附件' : 'Remove attachment'} ${file.name}`} onClick={() => setUploads((current) => current.filter((value) => value.id !== file.id))}><Cross2Icon /></button></span>)}</div>}
             <input ref={uploadInput} type="file" accept=".md,.txt,text/markdown,text/plain" multiple hidden onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; if (files.length) void attachFiles(files) }} />

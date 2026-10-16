@@ -1,3 +1,4 @@
+import type { LibrarySelection } from '../features/conversation/library-folder-attachments.ts'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -30,18 +31,17 @@ import { capabilityBrokerClient } from '../platform/capability-broker-client.ts'
 function App() {
   const { t } = useTranslation()
   const { view, theme, language, setView, setTheme } = useWorkbench()
-  const [libraryTopicId, setLibraryTopicId] = useState('')
   const [organization, setOrganization] = useState<Organization>(emptyOrganization)
   const [organizationError, setOrganizationError] = useState('')
   useEffect(() => {
     let current = true
-    const load = () => { void libraryOrganization().then((value) => { if (current) { setOrganization(value); setOrganizationError(''); setLibraryTopicId((id) => value.topics.some((topic) => topic.id === id) ? id : '') } }).catch((reason) => { if (current) setOrganizationError(String(reason)) }) }
+    const load = () => { void libraryOrganization().then((value) => { if (current) { setOrganization(value); setOrganizationError('') } }).catch((reason) => { if (current) setOrganizationError(String(reason)) }) }
     load(); window.addEventListener('workbench:library-changed', load)
     return () => { current = false; window.removeEventListener('workbench:library-changed', load) }
   }, [])
   const [conversationTarget, setConversationTarget] = useState<string | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
-  const [conversationDocuments, setConversationDocuments] = useState<string[]>([])
+  const [conversationDocuments, setConversationDocuments] = useState<LibrarySelection>({ documentIds: [], folders: [] })
   const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
   const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
@@ -124,7 +124,6 @@ function App() {
   }
 
   const openDocument = (reference: DocumentReference) => {
-    setLibraryTopicId('')
     setDocumentTarget(reference)
     navigate('library')
   }
@@ -149,9 +148,9 @@ function App() {
     <div className="app-shell">
       <WindowTitlebar />
       <div className="app-workspace">
-        <Sidebar organization={organization} organizationError={organizationError} libraryTopicId={libraryTopicId} onSelectTopic={(id) => { setLibraryTopicId(id); setDocumentTarget(null); navigate('library') }} activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
+        <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
-          <Topbar onOpenCommand={() => setCommandOpen(true)} />
+          {view !== 'library' && <Topbar onOpenCommand={() => setCommandOpen(true)} />}
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
@@ -162,10 +161,10 @@ function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} agents={agents} capabilityAgent={capabilityAgent} />}
-              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
+              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
-              {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
+              {view === 'library' && <LibraryPage onOpenCommand={() => setCommandOpen(true)} organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
               {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} />}

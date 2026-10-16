@@ -33,7 +33,7 @@ try {
       if (command === 'library_change') {
         const change = args.change, org = data.organization;
         if (change.kind === 'create-section') {
-          if (org.customSections.some(section => section.name.toLowerCase() === change.section.name.trim().toLowerCase())) throw new Error('Section already exists');
+          if (org.customSections.some(section => section.topicId === change.section.topicId && section.name.toLowerCase() === change.section.name.trim().toLowerCase())) throw new Error('Section already exists');
           org.customSections.push({ ...change.section, name: change.section.name.trim() });
         } else if (change.kind === 'save-topic') org.topics = org.topics.some(topic => topic.id === change.topic.id) ? org.topics.map(topic => topic.id === change.topic.id ? change.topic : topic) : [...org.topics, change.topic];
         else if (change.kind === 'delete-topic') org.topics = org.topics.filter(topic => topic.id !== change.id);
@@ -67,63 +67,25 @@ try {
     function assertArchived(session) { if (!session.archived) throw new Error('Cannot delete active conversation'); }
   });
   await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
-  const topics = page.locator('#sidebar-library-topics');
-  await topics.getByRole('button', { name: '阅读与思考', exact: true }).waitFor();
-  assert.equal(await page.getByRole('button', { name: '管理专题', exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: '切换专题', exact: true }).count(), 0);
-  assert.notEqual(await page.getByRole('button', { name: '资料库', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), await topics.getByRole('button', { name: '全部资料', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor));
-  await topics.getByRole('button', { name: '旅行灵感', exact: true }).click();
-  await page.getByText('这里还没有资料', { exact: true }).waitFor();
+  const directory = page.getByRole('navigation', { name: '资料目录', exact: true });
+  await directory.getByRole('button', { name: '阅读与思考', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: '资料库', exact: true }).getAttribute('aria-expanded'), null);
+  assert.equal(await page.locator('#sidebar-library-topics').count(), 0);
+  await directory.getByRole('button', { name: '旅行灵感', exact: true }).click();
+  await page.getByRole('heading', { name: '从这里，整理你的想法。', exact: true }).waitFor();
   assert.equal(await page.locator('.library-reader-content').count(), 0);
-  await topics.getByRole('button', { name: '新建专题', exact: true }).click();
-  await topics.getByRole('textbox', { name: '专题名称' }).fill('项目笔记');
-  assert.deepEqual(await topics.getByRole('textbox', { name: '专题名称' }).evaluate(el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).boxShadow]), ['none', 'none']);
-  await page.locator('.nav-library').screenshot({ path: '/private/tmp/nooki-refined-topic-editor.png', animations: 'disabled' });
-  await page.keyboard.press('Enter');
-  await topics.getByRole('button', { name: '项目笔记', exact: true }).waitFor();
-  await topics.getByRole('button', { name: '重命名专题：项目笔记', exact: true }).click();
-  await topics.getByRole('textbox', { name: '专题名称' }).fill('长期观察');
-  await page.keyboard.press('Enter');
-  await topics.getByRole('button', { name: '长期观察', exact: true }).click();
-  await topics.getByRole('button', { name: '删除专题：长期观察', exact: true }).click();
-  await topics.getByRole('button', { name: '删除专题', exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('#sidebar-library-topics > button')?.getAttribute('aria-current') === 'page');
-  await page.getByRole('button', { name: '新建栏目', exact: true }).click();
-  await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill('我的收藏');
-  await page.getByRole('button', { name: '创建栏目', exact: true }).click();
-  await page.locator('.library-capability-heading').filter({ hasText: '我的收藏' }).waitFor();
-  await page.reload();
-  await page.locator('.library-capability-heading').filter({ hasText: '我的收藏' }).waitFor();
-  await page.getByRole('button', { name: '新建栏目', exact: true }).click();
-  await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill('我的收藏');
-  await page.keyboard.press('Enter');
-  await page.getByRole('alert').filter({ hasText: 'Section already exists' }).waitFor();
-  await page.getByRole('textbox', { name: '栏目名称', exact: true }).press('Escape');
-  await page.getByRole('checkbox', { name: '选择 周末的阅读计划', exact: true }).check();
-  await page.getByRole('button', { name: '移至栏目', exact: true }).click();
-  const move = page.getByRole('dialog', { name: '移至栏目', exact: true });
-  await move.getByRole('button', { name: /^栏目 / }).click();
-  await move.getByRole('option', { name: '我的收藏', exact: true }).click();
-  await move.getByRole('button', { name: '移动资料', exact: true }).click();
-  await move.waitFor({ state: 'hidden' });
-  await page.locator('.library-capability-node').filter({ hasText: '我的收藏' }).locator('.library-document-link').filter({ hasText: '周末的阅读计划' }).waitFor();
-  assert.deepEqual(await page.evaluate(() => window.qa.data.organization.topics[0].documentIds), ['diary/notes/2026/09/entry']);
-  await page.screenshot({ path: '/private/tmp/nooki-library-topics.png', animations: 'disabled' });
-  await topics.getByRole('button', { name: '阅读与思考', exact: true }).click();
-  await topics.getByRole('button', { name: '删除专题：阅读与思考', exact: true }).click();
-  await topics.getByRole('button', { name: '删除专题', exact: true }).click();
-  await page.waitForFunction(() => window.qa.data.organization.topics.length === 1);
-  assert.equal(await page.evaluate(() => window.qa.data.docs.length), 1);
+  await directory.getByRole('button', { name: '周末的阅读计划', exact: true }).click();
+  await page.getByRole('textbox', { name: '文档标题', exact: true }).waitFor();
+  assert.equal(await page.getByRole('textbox', { name: '文档标题', exact: true }).inputValue(), '周末的阅读计划');
   await page.screenshot({ path: '/private/tmp/nooki-library-light.png' });
   for (const width of [800, 640]) {
     await page.setViewportSize({ width, height: 820 });
     await page.screenshot({ path: `/private/tmp/nooki-library-${width}.png` });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `No horizontal page overflow at ${width}`);
-    assert.ok(await topics.getByRole('button', { name: '旅行灵感', exact: true }).isVisible());
+    assert.ok(await directory.getByRole('button', { name: '旅行灵感', exact: true }).isVisible());
   }
   await page.setViewportSize({ width: 1240, height: 820 });
   await page.evaluate(() => document.documentElement.dataset.theme = 'dark');
-  await page.waitForTimeout(300);
   await page.screenshot({ path: '/private/tmp/nooki-library-dark.png' });
   await page.getByRole('button', { name: '整理本周的想法', exact: true }).click();
   // The conversation surface carries one conversation and its composer, and nothing put away.
@@ -220,11 +182,7 @@ try {
   await archive.waitFor({ state: 'hidden' });
   await page.evaluate(() => localStorage.setItem('qa-language', 'en'));
   await page.reload();
-  await page.getByRole('button', { name: 'New section', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'New topic', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Topic name', exact: true }).fill('English topic');
-  await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: 'English topic', exact: true }).waitFor();
+  await page.getByRole('navigation', { name: 'Library directory', exact: true }).getByRole('button', { name: 'My documents', exact: true }).waitFor();
   await page.setViewportSize({ width: 800, height: 820 });
   await page.screenshot({ path: '/private/tmp/nooki-library-english.png', animations: 'disabled' });
   await page.locator('.sidebar-settings').click();
@@ -249,5 +207,5 @@ try {
   await englishArchive.getByRole('button', { name: 'Retry', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === '0');
   assert.deepEqual(errors, []);
-  console.log('PASS: inline topics, empty scope, section persistence, duplicate validation, moving documents, theme/viewport QA, archive failure, restore from Settings, pagination, cancel, single deletion and partial bulk retry');
+  console.log('PASS: legacy folder navigation, empty folders, document reading, theme/viewport QA, archive failure, restore from Settings, pagination, cancel, single deletion and partial bulk retry');
 } finally { await browser.close(); }

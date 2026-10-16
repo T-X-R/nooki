@@ -59,12 +59,20 @@ pub(crate) fn publish_unlocked(
   capability_name: &str,
   input: DocumentPublication,
 ) -> Result<LibraryDocumentMetadata, String> {
+  publish_content_unlocked(data_dir, capability_id, capability_name, input, false)
+}
+
+pub(crate) fn publish_edited_unlocked(data_dir: &Path, capability_id: &str, capability_name: &str, input: DocumentPublication) -> Result<LibraryDocumentMetadata, String> {
+  publish_content_unlocked(data_dir, capability_id, capability_name, input, true)
+}
+
+fn publish_content_unlocked(data_dir: &Path, capability_id: &str, capability_name: &str, input: DocumentPublication, allow_empty: bool) -> Result<LibraryDocumentMetadata, String> {
   if !valid_capability_id(capability_id) { return Err("Invalid document source".into()); }
   validate_slug(&input.key, "资料库文档键格式无效")?;
   validate_slug(&input.collection_key, "资料库集合键格式无效")?;
   validate_text(&input.title, 240, "资料库文档标题无效")?;
   validate_text(&input.collection_name, 120, "资料库集合名称无效")?;
-  if input.content.trim().is_empty() || input.content.len() > MAX_DOCUMENT_BYTES {
+  if (!allow_empty && input.content.trim().is_empty()) || input.content.len() > MAX_DOCUMENT_BYTES {
     return Err("资料库文档内容无效".into());
   }
   let date = NaiveDate::parse_from_str(&input.document_date, "%Y-%m-%d")
@@ -83,7 +91,7 @@ pub(crate) fn publish_unlocked(
     "{}/{}/{}/{}/{}",
     capability_id, input.collection_key, year, month, input.key,
   );
-  if library_management::organization(data_dir)?.trash.contains_key(&id) { return Err("文档在回收站中，请先恢复 / Restore this document from Trash before updating".into()); }
+  library_management::organization(data_dir)?;
   let previous = if metadata_path.exists() { Some(read_unlocked(data_dir, &id)?) } else { None };
   let now = Local::now().to_rfc3339_opts(SecondsFormat::Nanos, false);
   let created_at = read_metadata(&metadata_path)
@@ -114,6 +122,7 @@ pub(crate) fn publish_unlocked(
   let metadata_source = serde_json::to_vec_pretty(&LibraryDocument { metadata: metadata.clone(), content: input.content })
     .map_err(|_| "无法序列化资料库文档信息".to_string())?;
   atomic_write(&metadata_path, &metadata_source, "无法保存资料库文档信息")?;
+  library_management::prune_history(data_dir, &metadata.id, metadata.revision.as_deref().unwrap())?;
   Ok(metadata)
 }
 
@@ -257,11 +266,11 @@ pub fn publish_document(root: &Path, source: &str, name: &str, input: DocumentPu
 }
 pub fn list_documents(root: &Path) -> Result<Vec<LibraryDocumentMetadata>, String> {
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
-  let state = library_management::organization(root)?;
-  Ok(list_unlocked(root)?.into_iter().filter(|d| !state.trash.contains_key(&d.id)).collect())
+  library_management::organization(root)?;
+  list_unlocked(root)
 }
 pub fn read_document(root: &Path, id: &str) -> Result<LibraryDocument, String> {
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
-  if library_management::organization(root)?.trash.contains_key(id) { return Err("文档在回收站中 / Document is in Trash".into()); }
+  library_management::organization(root)?;
   read_unlocked(root, id)
 }
