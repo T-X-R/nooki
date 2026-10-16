@@ -34,6 +34,8 @@ pub enum LibraryChange {
   SaveTopic { topic: Topic },
   DeleteTopic { id: String },
   CreateSection { section: LibrarySection },
+  RenameSection { id: String, name: String },
+  DeleteSection { id: String },
   Trash { ids: Vec<String> },
   Restore { ids: Vec<String> },
   Purge { ids: Vec<String> },
@@ -134,6 +136,20 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       if state.custom_sections.iter().any(|s| s.id == section.id || s.name.to_lowercase() == section.name.to_lowercase()) { return Err("栏目已存在 / Section already exists".into()); }
       state.custom_sections.push(section);
     }
+    LibraryChange::RenameSection { id, name } => {
+      if !state.custom_sections.iter().any(|section| section.id == id) { return Err("栏目已不存在，请重新选择 / Section no longer exists".into()); }
+      let name = name.trim();
+      if name.is_empty() || name.chars().count() > 80 { return Err("栏目名称无效 / Invalid section name".into()); }
+      if state.custom_sections.iter().any(|section| section.id != id && section.name.to_lowercase() == name.to_lowercase()) { return Err("栏目已存在 / Section already exists".into()); }
+      for section in state.custom_sections.iter_mut().chain(state.sections.values_mut()) {
+        if section.id == id { section.name = name.into(); }
+      }
+    }
+    LibraryChange::DeleteSection { id } => {
+      if !state.custom_sections.iter().any(|section| section.id == id) { return Err("栏目已不存在，请重新选择 / Section no longer exists".into()); }
+      state.custom_sections.retain(|section| section.id != id);
+      state.sections.retain(|_, section| section.id != id);
+    }
     LibraryChange::DeleteTopic { id } => state.topics.retain(|t| t.id != id),
     LibraryChange::Trash { ids } => {
       for id in &ids { document_library::read_unlocked(root, id)?; }
@@ -161,6 +177,9 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       document_library::read_unlocked(root, &id)?;
       if state.trash.contains_key(&id) { return Err("文档在回收站中 / Document is in Trash".into()); }
       if section.id.trim().is_empty() || section.id.len() > 200 || section.name.trim().is_empty() || section.name.chars().count() > 80 { return Err("栏目无效 / Invalid section".into()); }
+      if section.id.starts_with("custom-") {
+        section = state.custom_sections.iter().find(|item| item.id == section.id).ok_or("栏目已不存在，请重新选择 / Section no longer exists")?.clone();
+      }
       if let Some(topic_id) = topic_id.filter(|id| !id.is_empty()) {
         let topic = state.topics.iter_mut().find(|topic| topic.id == topic_id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?;
         if !topic.document_ids.contains(&id) { topic.document_ids.push(id.clone()); }

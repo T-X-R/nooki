@@ -180,3 +180,60 @@ fn empty_custom_sections_survive_backup_and_moving_preserves_document_identity()
   management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id] }).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().custom_sections.len(), 1);
 }
+
+#[test]
+fn rename_and_delete_sections_keep_documents_topics_revisions_and_trash() {
+  use management::LibrarySection;
+  let root = Fixture::new();
+  let section = LibrarySection { id: "custom-research".into(), name: "Research".into() };
+  management::change(&root.0, LibraryChange::CreateSection { section: section.clone() }).unwrap();
+  let active = library::publish_document(&root.0, "com.personal.diary", "Diary", document("Active")).unwrap();
+  let trashed = library::publish_document(&root.0, "com.personal.other", "Other", document("Trashed")).unwrap();
+  for doc in [&active, &trashed] { management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: None, section: section.clone() }).unwrap(); }
+  management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "topic".into(), name: "Topic".into(), document_ids: vec![active.id.clone()] } }).unwrap();
+  management::change(&root.0, LibraryChange::Trash { ids: vec![trashed.id.clone()] }).unwrap();
+  let rename = serde_json::from_value(serde_json::json!({ "kind": "rename-section", "id": section.id, "name": " Reading " })).unwrap();
+  management::change(&root.0, rename).unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().sections[&trashed.id].name, "Reading");
+  management::change(&root.0, LibraryChange::Place { id: active.id.clone(), topic_id: None, section: section.clone() }).unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().sections[&active.id].name, "Reading");
+  let delete = serde_json::from_value(serde_json::json!({ "kind": "delete-section", "id": section.id })).unwrap();
+  management::change(&root.0, delete).unwrap();
+  let state = management::organization(&root.0).unwrap();
+  assert!(state.custom_sections.is_empty());
+  assert!(state.sections.is_empty());
+  assert!(state.trash.contains_key(&trashed.id));
+  assert_eq!(state.topics[0].document_ids, vec![active.id.clone()]);
+  assert_eq!(library::read_document(&root.0, &active.id).unwrap().revision, active.revision);
+  assert_eq!(management::history(&root.0, &active.id).unwrap().len(), 1);
+  management::change(&root.0, LibraryChange::Restore { ids: vec![trashed.id.clone()] }).unwrap();
+  assert_eq!(library::read_document(&root.0, &trashed.id).unwrap().revision, trashed.revision);
+  assert!(management::change(&root.0, LibraryChange::Place { id: active.id, topic_id: None, section }).is_err());
+}
+
+#[test]
+fn section_updates_validate_names_and_only_manage_existing_custom_sections() {
+  use management::LibrarySection;
+  let root = Fixture::new();
+  for (id, name) in [("custom-research", "Research"), ("custom-reading", "Reading")] {
+    management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: id.into(), name: name.into() } }).unwrap();
+  }
+  let before = fs::read(root.0.join("library-organization.json")).unwrap();
+  for name in [" ".to_string(), "a".repeat(81), " reading ".into()] {
+    let change = serde_json::from_value(serde_json::json!({ "kind": "rename-section", "id": "custom-research", "name": name })).unwrap();
+    assert!(management::change(&root.0, change).is_err());
+  }
+  for id in ["diary", "custom-missing"] {
+    for kind in ["rename-section", "delete-section"] {
+      let change = serde_json::from_value(serde_json::json!({ "kind": kind, "id": id, "name": "New" })).unwrap();
+      assert!(management::change(&root.0, change).is_err());
+    }
+  }
+  assert_eq!(fs::read(root.0.join("library-organization.json")).unwrap(), before);
+  let rename = serde_json::from_value(serde_json::json!({ "kind": "rename-section", "id": "custom-research", "name": "RESEARCH" })).unwrap();
+  management::change(&root.0, rename).unwrap();
+  let delete = serde_json::from_value(serde_json::json!({ "kind": "delete-section", "id": "custom-reading" })).unwrap();
+  management::change(&root.0, delete).unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().custom_sections[0].name, "RESEARCH");
+  assert_eq!(management::organization(&root.0).unwrap().custom_sections.len(), 1);
+}

@@ -17,6 +17,8 @@ export type LibraryChange =
   | { kind: 'save-topic'; topic: Topic }
   | { kind: 'delete-topic'; id: string }
   | { kind: 'create-section'; section: LibrarySection }
+  | { kind: 'rename-section'; id: string; name: string }
+  | { kind: 'delete-section'; id: string }
   | { kind: 'trash' | 'restore' | 'purge'; ids: string[] }
   | { kind: 'place'; id: string; topicId?: string; section: LibrarySection }
   | { kind: 'origin'; id: string; origin: Origin }
@@ -90,6 +92,22 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           if (sections.some((item) => item.id === section.id || item.name.toLocaleLowerCase() === section.name.toLocaleLowerCase())) throw new Error('栏目已存在 / Section already exists')
           sections.push(section); break
         }
+        case 'rename-section': {
+          const section = state.organization.customSections?.find((section) => section.id === change.id)
+          if (!section) throw new Error('栏目已不存在，请重新选择 / Section no longer exists')
+          const name = change.name.trim()
+          if (!name || [...name].length > 80) throw new Error('栏目名称无效 / Invalid section name')
+          if (state.organization.customSections?.some((item) => item.id !== change.id && item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('栏目已存在 / Section already exists')
+          section.name = name
+          Object.values(state.organization.sections ?? {}).forEach((item) => { if (item.id === change.id) item.name = name })
+          break
+        }
+        case 'delete-section': {
+          if (!state.organization.customSections?.some((section) => section.id === change.id)) throw new Error('栏目已不存在，请重新选择 / Section no longer exists')
+          state.organization.customSections = state.organization.customSections.filter((section) => section.id !== change.id)
+          Object.entries(state.organization.sections ?? {}).forEach(([id, section]) => { if (section.id === change.id) delete state.organization.sections![id] })
+          break
+        }
         case 'delete-topic': state.organization.topics = state.organization.topics.filter((t) => t.id !== change.id); break
         case 'trash': change.ids.forEach((id) => find(state, id)); change.ids.forEach((id) => { state.organization.trash[id] = new Date().toISOString() }); break
         case 'restore': change.ids.forEach((id) => { delete state.organization.trash[id] }); break
@@ -102,10 +120,12 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           find(state, change.id)
           if (state.organization.trash[change.id]) throw new Error('文档在回收站中 / Document is in Trash')
           if (!change.section.id.trim() || change.section.id.length > 200 || !change.section.name.trim() || [...change.section.name].length > 80) throw new Error('栏目无效 / Invalid section')
+          const section = change.section.id.startsWith('custom-') ? state.organization.customSections?.find((section) => section.id === change.section.id) : change.section
+          if (!section) throw new Error('栏目已不存在，请重新选择 / Section no longer exists')
           const topic = state.organization.topics.find((topic) => topic.id === change.topicId)
           if (change.topicId && !topic) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
           if (topic && !topic.documentIds.includes(change.id)) topic.documentIds.push(change.id)
-          ;(state.organization.sections ??= {})[change.id] = { ...change.section, name: change.section.name.trim() }
+          ;(state.organization.sections ??= {})[change.id] = { ...section, name: section.name.trim() }
           break
         }
         case 'origin': find(state, change.id); state.organization.origins[change.id] = change.origin; break

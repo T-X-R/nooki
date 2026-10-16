@@ -122,3 +122,47 @@ test('custom sections persist while empty and moving documents preserves history
   store.change({ kind: 'trash', ids: [doc.id] }); store.change({ kind: 'purge', ids: [doc.id] })
   assert.equal(store.organization().customSections?.length, 1)
 })
+
+test('renaming and deleting custom sections preserve documents, topics, revisions and trash', () => {
+  const { store, data } = setup()
+  const section = { id: 'custom-research', name: 'Research' }
+  store.change({ kind: 'create-section', section })
+  const active = store.publish('diary', 'Diary', input('active'))
+  const trashed = store.publish('diary', 'Diary', input('trashed'))
+  for (const doc of [active, trashed]) store.change({ kind: 'place', id: doc.id, section })
+  store.change({ kind: 'save-topic', topic: { id: 'topic', name: 'Topic', documentIds: [active.id] } })
+  store.change({ kind: 'trash', ids: [trashed.id] })
+  store.change({ kind: 'rename-section', id: section.id, name: '  Reading  ' })
+  assert.equal(store.organization().customSections?.[0].name, 'Reading')
+  assert.equal(store.organization().sections?.[trashed.id].name, 'Reading')
+  store.change({ kind: 'place', id: active.id, section }) // A stale destination uses the current name.
+  assert.equal(store.organization().sections?.[active.id].name, 'Reading')
+  store.change({ kind: 'delete-section', id: section.id })
+  const reopened = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } })
+  assert.equal(reopened.organization().customSections?.length, 0)
+  assert.deepEqual(reopened.organization().sections, {})
+  assert.equal(reopened.read(active.id).revision, active.revision)
+  assert.equal(reopened.history(active.id).length, 1)
+  assert.deepEqual(reopened.organization().topics[0].documentIds, [active.id])
+  assert.equal(reopened.list(true)[0].id, trashed.id)
+  reopened.change({ kind: 'restore', ids: [trashed.id] })
+  assert.equal(reopened.read(trashed.id).revision, trashed.revision)
+  assert.throws(() => reopened.change({ kind: 'place', id: active.id, section }), /Section no longer exists/)
+})
+
+test('section changes reject invalid names, duplicates and non-custom sections without changing state', () => {
+  const { store } = setup()
+  const section = { id: 'custom-research', name: 'Research' }
+  store.change({ kind: 'create-section', section })
+  store.change({ kind: 'create-section', section: { id: 'custom-reading', name: 'Reading' } })
+  const before = store.organization()
+  for (const name of [' ', 'a'.repeat(81), ' reading ']) assert.throws(() => store.change({ kind: 'rename-section', id: section.id, name }))
+  for (const id of ['diary', 'custom-missing']) {
+    assert.throws(() => store.change({ kind: 'rename-section', id, name: 'New' }), /Section no longer exists/)
+    assert.throws(() => store.change({ kind: 'delete-section', id }), /Section no longer exists/)
+  }
+  assert.deepEqual(store.organization(), before)
+  store.change({ kind: 'rename-section', id: section.id, name: 'RESEARCH' })
+  store.change({ kind: 'delete-section', id: 'custom-reading' })
+  assert.deepEqual(store.organization().customSections, [{ id: section.id, name: 'RESEARCH' }])
+})

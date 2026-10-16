@@ -16,6 +16,7 @@ import { buildLibraryTree, filterLibraryTree, visibleLibrarySelection } from './
 import { DeleteDocumentsDialog, EditDocumentDialog, HistoryDialog } from './LibraryDialogs.tsx'
 import { LibraryManager } from './LibraryManager.tsx'
 import { LibrarySectionComposer } from './LibrarySectionComposer.tsx'
+import { LibrarySectionActions } from './LibrarySectionActions.tsx'
 
 function LibraryMarkdown({ content, onDocument }: { content: string; onDocument: (reference: DocumentReference) => void }) {
   return <Markdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => {
@@ -169,10 +170,14 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
                     ? <div className="library-search-empty">{searching ? t('libraryNoSearchResults') : language === 'zh' ? '暂无资料' : 'No documents'}</div>
                     : filteredTree.map((capability) => {
                       const expanded = searching || !collapsedCapabilities.has(capability.capabilityId)
+                      const customSection = organization.customSections?.find((section) => section.id === capability.capabilityId)
                       return <section className="library-capability-node" key={capability.capabilityId}>
+                        <div className="library-section-heading-row">
                         <button type="button" className="library-capability-heading" aria-expanded={expanded} disabled={searching} onClick={() => setCollapsedCapabilities((current) => toggleKey(current, capability.capabilityId))}>
                           <ChevronRightIcon className={`library-tree-chevron ${expanded ? 'is-expanded' : ''}`} /><span><strong>{capability.capabilityName}</strong></span><em>{capability.documentCount}</em>
                         </button>
+                        {customSection && <LibrarySectionActions section={customSection} language={language} />}
+                        </div>
                         {expanded && !capability.documentCount && <p className="library-section-empty">{language === 'zh' ? '选择资料后移入此栏目，或保存对话时选择这里。' : 'Move selected documents here, or choose this section when saving a conversation.'}</p>}
                         {expanded && capability.collections.map((collection) => <div key={collection.key}>
                           {capability.collections.length > 1 && <div className="library-collection-caption">{collection.name}</div>}

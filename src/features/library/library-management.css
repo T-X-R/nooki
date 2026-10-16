@@ -212,6 +212,14 @@ dialog.library-create-dialog[open] { display: flex; flex-direction: column; widt
 .library-section-caption .icon-button { width: 24px; height: 24px; }
 .library-section-caption svg { width: 13px; height: 13px; }
 .library-section-empty { margin: 2px 6px 12px 24px; color: var(--ink-soft); font-size: 10px; line-height: 1.7; }
+.library-section-heading-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.library-section-heading-row .library-capability-heading { flex: 1; min-width: 0; }
+.library-section-heading-row .library-capability-heading strong { overflow-wrap: anywhere; }
+.library-section-actions { display: flex; flex: none; gap: 2px; }
+.library-section-actions .icon-button { width: 24px; height: 26px; color: var(--ink-muted); }
+.library-section-actions .icon-button svg { width: 12px; height: 12px; }
+.library-section-actions .icon-button:hover { color: var(--ink); background: var(--surface-muted); }
+.library-section-actions .icon-button:last-child:hover { color: var(--negative); }
 .library-page .library-period-filter { margin: 0; padding-left: 0; border-left: 0; }
 /* Rows keep the section's content indent; an empty archive centres on the section instead. */
 .conversation-archive-row, .conversation-archives .library-error { margin-left: 47px; }
