@@ -1,7 +1,8 @@
+import { migrateLibraryFolders } from './library-folders.ts'
 import { invoke } from '@tauri-apps/api/core'
 import type { DocumentPublication } from '../../packages/capability-contract/src/index.ts'
 import { createLibraryStore, type LibraryChange, type Organization, type LibraryDocument, type LibraryDocumentMetadata } from './library-store.ts'
-export type { LibraryDocument, LibraryDocumentMetadata, Topic, Origin, Organization, LibraryChange, LibrarySection } from './library-store.ts'
+export type { LibraryDocument, LibraryDocumentMetadata, Topic, Origin, Organization, LibraryChange, LibrarySection, LibraryFolder } from './library-store.ts'
 
 const browser = () => createLibraryStore(window.localStorage)
 const changed = () => window.dispatchEvent(new Event('workbench:library-changed'))
@@ -25,7 +26,8 @@ export async function searchLibraryContent(query: string): Promise<string[]> {
   return window.__TAURI_INTERNALS__ ? invoke('library_search_content', { query }) : browser().list().filter((doc) => doc.content.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).map((doc) => doc.id)
 }
 export async function libraryOrganization(): Promise<Organization> {
-  return window.__TAURI_INTERNALS__ ? invoke('library_organization') : browser().organization()
+  const organization: Organization = window.__TAURI_INTERNALS__ ? await invoke('library_organization') : browser().organization()
+  return { ...organization, folders: migrateLibraryFolders(organization) }
 }
 export async function changeLibrary(change: LibraryChange): Promise<LibraryDocumentMetadata | null> {
   const result = window.__TAURI_INTERNALS__ ? await invoke<LibraryDocumentMetadata | null>('library_change', { change }) : browser().change(change)

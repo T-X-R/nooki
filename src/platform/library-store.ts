@@ -1,3 +1,4 @@
+import { folderDestination, migrateLibraryFolders, uniqueFolderName, validateFolder } from './library-folders.ts'
 import type { DocumentPublication } from '../../packages/capability-contract/src/index.ts'
 
 export type LibraryDocumentMetadata = Omit<DocumentPublication, 'content'> & {
@@ -6,12 +7,16 @@ export type LibraryDocumentMetadata = Omit<DocumentPublication, 'content'> & {
 }
 export type LibraryDocument = LibraryDocumentMetadata & { content: string }
 export type LibrarySection = { id: string; name: string; topicId?: string }
+export type LibraryFolder = { id: string; name: string; parentId?: string; documentIds: string[] }
 export type Topic = { id: string; name: string; documentIds: string[] }
 export type Origin = { threadId: string; messageId: string }
-export type Organization = { topics: Topic[]; trash: Record<string, string>; origins: Record<string, Origin>; sections?: Record<string, LibrarySection>; customSections?: LibrarySection[] }
+export type Organization = { folders?: LibraryFolder[]; topics: Topic[]; trash: Record<string, string>; origins: Record<string, Origin>; sections?: Record<string, LibrarySection>; customSections?: LibrarySection[] }
 export type LibraryChange =
-  | { kind: 'import'; document: DocumentPublication }
-  | { kind: 'create'; document: DocumentPublication; topicId?: string; section?: LibrarySection }
+  | { kind: 'import'; document: DocumentPublication; folderId?: string }
+  | { kind: 'create'; document: DocumentPublication; folderId?: string; topicId?: string; section?: LibrarySection }
+  | { kind: 'save-folder'; folder: LibraryFolder }
+  | { kind: 'delete-folder'; id: string }
+  | { kind: 'move-documents'; ids: string[]; folderId?: string }
   | { kind: 'edit'; id: string; title: string; content: string; expected: string }
   | { kind: 'restore-version'; id: string; revision: string; expected: string }
   | { kind: 'save-topic'; topic: Topic }
@@ -29,9 +34,9 @@ export const emptyOrganization = (): Organization => ({ topics: [], trash: {}, o
 export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>) {
   const load = (): LibraryState => {
     const saved = storage.getItem(libraryStorageKey)
-    if (saved) return JSON.parse(saved)
+    if (saved) { const state: LibraryState = JSON.parse(saved); state.organization.folders = migrateLibraryFolders(state.organization); return state }
     const documents: LibraryDocument[] = JSON.parse(storage.getItem('personal-workbench-document-library') ?? '[]')
-    return { documents: documents.map((doc) => ({ ...doc, revision: doc.revision ?? doc.updatedAt })), history: {}, organization: emptyOrganization() }
+    return { documents: documents.map((doc) => ({ ...doc, revision: doc.revision ?? doc.updatedAt })), history: {}, organization: { ...emptyOrganization(), folders: [] } }
   }
   const find = (state: LibraryState, id: string) => {
     const doc = state.documents.find((doc) => doc.id === id)
@@ -72,13 +77,49 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
       let result: LibraryDocumentMetadata | null = null
       switch (change.kind) {
         case 'create': {
+          const folder = folderDestination(state.organization.folders!, change.folderId)
           const { topic, section } = destination(state, change.topicId, change.section ?? { id: 'workbench.documents', name: '我的文档 / My documents' })
           result = publish(state, 'workbench.documents', '我的文档 / My documents', { ...change.document, collectionKey: 'documents', collectionName: '我的文档 / My documents' })
           if (topic && !topic.documentIds.includes(result.id)) topic.documentIds.push(result.id)
           if (change.section) (state.organization.sections ??= {})[result.id] = section
+          if (folder && !folder.documentIds.includes(result.id)) folder.documentIds.push(result.id)
           break
         }
-        case 'import': result = publish(state, 'workbench.imports', '导入 / Imports', { ...change.document, collectionKey: 'imports', collectionName: '导入资料 / Imported documents' }); break
+        case 'import': {
+          const folder = folderDestination(state.organization.folders!, change.folderId)
+          result = publish(state, 'workbench.imports', '导入 / Imports', { ...change.document, collectionKey: 'imports', collectionName: '导入资料 / Imported documents' })
+          if (folder && !folder.documentIds.includes(result.id)) folder.documentIds.push(result.id)
+          break
+        }
+        case 'save-folder': {
+          const folders = state.organization.folders!
+          const folder = { ...change.folder, name: change.folder.name.trim(), parentId: change.folder.parentId || undefined }
+          validateFolder(folders, folder)
+          const existing = folders.find(item => item.id === folder.id)
+          if (existing) { existing.name = folder.name; existing.parentId = folder.parentId }
+          else folders.push({ ...folder, documentIds: [] })
+          break
+        }
+        case 'move-documents': {
+          const folder = folderDestination(state.organization.folders!, change.folderId)
+          change.ids.forEach(id => { find(state, id); if (state.organization.trash[id]) throw new Error('文档在回收站中 / Document is in Trash') })
+          state.organization.folders!.forEach(folder => { folder.documentIds = folder.documentIds.filter(id => !change.ids.includes(id)) })
+          if (folder) folder.documentIds.push(...new Set(change.ids))
+          break
+        }
+        case 'delete-folder': {
+          const folders = state.organization.folders!
+          const folder = folderDestination(folders, change.id)
+          if (!folder) throw new Error('文件夹已不存在 / Folder not found')
+          const parent = folderDestination(folders, folder.parentId)
+          if (parent) parent.documentIds = [...new Set([...parent.documentIds, ...folder.documentIds])]
+          state.organization.folders = folders.filter(item => item.id !== folder.id)
+          for (const child of state.organization.folders.filter(item => item.parentId === folder.id)) {
+            child.name = uniqueFolderName(state.organization.folders, child.name, folder.parentId)
+            child.parentId = folder.parentId
+          }
+          break
+        }
         case 'edit': case 'restore-version': {
           const current = find(state, change.id)
           if (current.revision !== change.expected) throw new Error('文档已更新，请重新打开后修改 / Document changed. Reopen it before editing.')
@@ -130,6 +171,7 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           if (change.ids.some((id) => !state.organization.trash[id])) throw new Error('Only documents in Trash can be deleted permanently')
           state.documents = state.documents.filter((d) => !change.ids.includes(d.id))
           change.ids.forEach((id) => { delete state.history[id]; delete state.organization.trash[id]; delete state.organization.origins[id]; delete state.organization.sections?.[id] })
+          state.organization.folders!.forEach(folder => { folder.documentIds = folder.documentIds.filter(id => !change.ids.includes(id)) })
           state.organization.topics.forEach((t) => { t.documentIds = t.documentIds.filter((id) => !change.ids.includes(id)) }); break
         case 'place': {
           find(state, change.id)

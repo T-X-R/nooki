@@ -134,6 +134,14 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
     chrono::DateTime::parse_from_rfc3339(&doc.updated_at).map_err(|_| "Invalid document timestamp")?;
   }
   let organization = library_management::organization(&next)?;
+  if let Some(folders) = &organization.folders {
+    let mut seen = std::collections::BTreeSet::new();
+    for folder in folders {
+      if !seen.insert(&folder.id) { return Err("Duplicate folder identity".into()); }
+      crate::library_folders::validate(folders, folder)?;
+      for id in &folder.document_ids { document_library::read_unlocked(&next, id)?; }
+    }
+  }
   for topic in organization.topics { for id in topic.document_ids { document_library::read_unlocked(&next, &id)?; } }
   let mut previous = BTreeMap::new();
   for name in ROOTS { collect(root, &root.join(name), &mut previous)?; }

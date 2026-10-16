@@ -11,6 +11,7 @@ pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
 pub mod library_management;
+pub mod library_folders;
 pub mod native_agent_sessions;
 pub mod native_background;
 pub mod user_data;

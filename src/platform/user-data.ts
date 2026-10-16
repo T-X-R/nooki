@@ -1,3 +1,5 @@
+import { validateFolderInventory } from './library-folders.ts'
+import type { LibraryDocument, Organization } from './library-store.ts'
 import { invoke } from '@tauri-apps/api/core'
 import { readLibraryDocument } from './document-library.ts'
 import { taskRunner } from './tasks.ts'
@@ -40,7 +42,11 @@ export function parseBackup(text: string): DataBackup {
     || value.capabilities.some((cap) => !cap || typeof cap !== 'object' || !('manifest' in cap) || !cap.manifest || typeof cap.manifest !== 'object')) throw new Error('备份清单无效 / Invalid backup inventory')
   for (const [key, content] of Object.entries(value.localStorage)) {
     if (!owned(key) || typeof content !== 'string') throw new Error('备份包含不支持的数据 / Unsupported backup data')
-    JSON.parse(content)
+    const parsed = JSON.parse(content)
+    if (key === 'personal-workbench-library-v2') {
+      const library = parsed as { documents: LibraryDocument[]; organization: Organization }
+      validateFolderInventory(library.organization, new Set(library.documents.map(doc => doc.id)))
+    }
   }
   if (!window.__TAURI_INTERNALS__ && Object.keys(value.files).length) throw new Error('Invalid preview backup')
   return value

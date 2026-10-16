@@ -1,3 +1,4 @@
+use crate::library_folders;
 use crate::document_library::{self, DocumentPublication, LibraryDocument, LibraryDocumentMetadata};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::Path, sync::Mutex};
@@ -8,6 +9,8 @@ const STATE_FILE: &str = "library-organization.json";
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Organization {
+  #[serde(default)]
+  pub folders: Option<Vec<LibraryFolder>>,
   pub topics: Vec<Topic>,
   pub trash: BTreeMap<String, String>,
   pub origins: BTreeMap<String, Origin>,
@@ -16,6 +19,9 @@ pub struct Organization {
   #[serde(default)]
   pub custom_sections: Vec<LibrarySection>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryFolder { pub id: String, pub name: String, #[serde(default, skip_serializing_if = "Option::is_none")] pub parent_id: Option<String>, #[serde(default)] pub document_ids: Vec<String> }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Topic { pub id: String, pub name: String, pub document_ids: Vec<String> }
@@ -32,8 +38,11 @@ pub struct LibrarySection {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum LibraryChange {
-  Import { document: DocumentPublication },
-  Create { document: DocumentPublication, #[serde(rename = "topicId")] topic_id: Option<String>, section: Option<LibrarySection> },
+  Import { document: DocumentPublication, #[serde(rename = "folderId")] folder_id: Option<String> },
+  SaveFolder { folder: LibraryFolder },
+  DeleteFolder { id: String },
+  MoveDocuments { ids: Vec<String>, #[serde(rename = "folderId")] folder_id: Option<String> },
+  Create { document: DocumentPublication, #[serde(rename = "folderId")] folder_id: Option<String>, #[serde(rename = "topicId")] topic_id: Option<String>, section: Option<LibrarySection> },
   Edit { id: String, title: String, content: String, expected: String },
   RestoreVersion { id: String, revision: String, expected: String },
   SaveTopic { topic: Topic },
@@ -50,8 +59,9 @@ pub enum LibraryChange {
 
 pub fn organization(root: &Path) -> Result<Organization, String> {
   let path = root.join(STATE_FILE);
-  if !path.exists() { return Ok(Organization::default()); }
-  serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+  let mut state: Organization = if path.exists() { serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())? } else { Organization::default() };
+  state.folders = Some(library_folders::migrate(&state));
+  Ok(state)
 }
 fn save_organization(root: &Path, state: &Organization) -> Result<(), String> {
   write_json(&root.join(STATE_FILE), state)
@@ -114,7 +124,8 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   let mut state = organization(root)?;
   match change {
-    LibraryChange::Create { mut document, topic_id, section } => {
+    LibraryChange::Create { mut document, folder_id, topic_id, section } => {
+      library_folders::destination(state.folders.as_deref().unwrap(), folder_id.as_deref())?;
       let selected_section = section.is_some();
       let (topic, section) = destination(&state, topic_id, section.unwrap_or(LibrarySection { id: "workbench.documents".into(), name: "我的文档 / My documents".into(), topic_id: None }))?;
       document.collection_key = "documents".into();
@@ -125,14 +136,45 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
         if !topic.document_ids.contains(&metadata.id) { topic.document_ids.push(metadata.id.clone()); }
       }
       if selected_section { state.sections.insert(metadata.id.clone(), section); }
-      if topic.is_some() || selected_section { save_organization(root, &state)?; }
+      if let Some(folder) = state.folders.as_mut().unwrap().iter_mut().find(|folder| Some(&folder.id) == folder_id.as_ref()) { if !folder.document_ids.contains(&metadata.id) { folder.document_ids.push(metadata.id.clone()); } }
+      save_organization(root, &state)?;
       return Ok(Some(metadata));
     }
-    LibraryChange::Import { mut document } => {
+    LibraryChange::Import { mut document, folder_id } => {
+      library_folders::destination(state.folders.as_deref().unwrap(), folder_id.as_deref())?;
       document.collection_key = "imports".into();
       document.collection_name = "导入资料 / Imported documents".into();
       let metadata = document_library::publish_unlocked(root, "workbench.imports", "导入 / Imports", document)?;
+      if let Some(folder) = state.folders.as_mut().unwrap().iter_mut().find(|folder| Some(&folder.id) == folder_id.as_ref()) { if !folder.document_ids.contains(&metadata.id) { folder.document_ids.push(metadata.id.clone()); } }
+      save_organization(root, &state)?;
       return Ok(Some(metadata));
+    }
+    LibraryChange::SaveFolder { mut folder } => {
+      folder.name = folder.name.trim().into(); folder.parent_id = folder.parent_id.filter(|id| !id.is_empty());
+      let folders = state.folders.as_mut().unwrap();
+      library_folders::validate(folders, &folder)?;
+      if let Some(existing) = folders.iter_mut().find(|item| item.id == folder.id) { existing.name = folder.name; existing.parent_id = folder.parent_id; }
+      else { folder.document_ids.clear(); folders.push(folder); }
+    }
+    LibraryChange::MoveDocuments { ids, folder_id } => {
+      library_folders::destination(state.folders.as_deref().unwrap(), folder_id.as_deref())?;
+      for id in &ids { document_library::read_unlocked(root, id)?; if state.trash.contains_key(id) { return Err("文档在回收站中 / Document is in Trash".into()); } }
+      for folder in state.folders.as_mut().unwrap() {
+        folder.document_ids.retain(|id| !ids.contains(id));
+        if Some(&folder.id) == folder_id.as_ref() { for id in &ids { if !folder.document_ids.contains(id) { folder.document_ids.push(id.clone()); } } }
+      }
+    }
+    LibraryChange::DeleteFolder { id } => {
+      let folders = state.folders.as_mut().unwrap();
+      let folder = library_folders::destination(folders, Some(&id))?.ok_or("文件夹已不存在 / Folder not found")?.clone();
+      if let Some(parent) = folders.iter_mut().find(|item| Some(&item.id) == folder.parent_id.as_ref()) { for id in &folder.document_ids { if !parent.document_ids.contains(id) { parent.document_ids.push(id.clone()); } } }
+      folders.retain(|item| item.id != id);
+      for index in 0..folders.len() {
+        if folders[index].parent_id.as_deref() == Some(&id) {
+          let name = library_folders::unique_name(folders, &folders[index].name, folder.parent_id.as_deref());
+          folders[index].name = name; folders[index].parent_id = folder.parent_id.clone();
+        }
+      }
     }
     LibraryChange::Edit { id, title, content, expected } => return edit(root, &id, title, content, &expected).map(Some),
     LibraryChange::RestoreVersion { id, revision, expected } => {
@@ -199,6 +241,7 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
         let history = root.join("document-history").join(&id);
         if history.exists() { fs::remove_dir_all(history).map_err(|e| e.to_string())?; }
         state.trash.remove(&id); state.origins.remove(&id); state.sections.remove(&id);
+        for folder in state.folders.as_mut().unwrap() { folder.document_ids.retain(|value| value != &id); }
         for topic in &mut state.topics { topic.document_ids.retain(|value| value != &id); }
       }
     }

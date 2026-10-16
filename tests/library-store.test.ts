@@ -6,7 +6,7 @@ const setup = () => {
   const data = new Map<string, string>()
   return { data, store: createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } }) }
 }
-test('created documents persist directly in My documents and join the current topic', () => {
+test('created documents persist without a section and join the current topic', () => {
   const { store, data } = setup()
   store.change({ kind: 'save-topic', topic: { id: 'research', name: 'Research', documentIds: [] } })
   const doc = store.change({ kind: 'create', document: input('created', '# Notes\n\n直接写作。'), topicId: 'research' })!
@@ -15,6 +15,8 @@ test('created documents persist directly in My documents and join the current to
   const reopened = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } })
   assert.equal(reopened.read(doc.id).content, '# Notes\n\n直接写作。')
   assert.deepEqual(reopened.organization().topics[0].documentIds, [doc.id])
+  assert.equal(reopened.organization().customSections?.length ?? 0, 0)
+  assert.equal(reopened.organization().sections?.[doc.id], undefined)
   reopened.change({ kind: 'edit', id: doc.id, title: 'Revised', content: 'Updated', expected: doc.revision! })
   assert.equal(reopened.history(doc.id).length, 2)
 })

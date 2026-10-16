@@ -15,6 +15,8 @@ fn created_documents_are_readable_revisioned_and_linked_to_the_current_topic() {
   assert_eq!(doc.collection_key, "documents");
   assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "# Notes\n\n直接写作。");
   assert_eq!(management::organization(&root.0).unwrap().topics[0].document_ids, vec![doc.id.clone()]);
+  assert!(management::organization(&root.0).unwrap().custom_sections.is_empty());
+  assert!(!management::organization(&root.0).unwrap().sections.contains_key(&doc.id));
   management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: "Revised".into(), content: "Updated".into(), expected: doc.revision.unwrap() }).unwrap();
   assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 2);
 }
@@ -43,14 +45,14 @@ fn revisions_detect_conflicts_restore_without_losing_versions_and_keep_snapshot_
 #[test]
 fn topics_cross_sources_and_trash_blocks_republication_and_purge_keeps_snapshots() {
   let root = Fixture::new();
-  let first = management::change(&root.0, LibraryChange::Import { document: document("imported") }).unwrap().unwrap();
+  let first = management::change(&root.0, LibraryChange::Import { folder_id: None, document: document("imported") }).unwrap().unwrap();
   let second = library::publish_document(&root.0, "com.personal.diary", "Diary", document("diary")).unwrap();
   management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "project".into(), name: " Project ".into(), document_ids: vec![first.id.clone(), second.id.clone()] } }).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().topics[0].name, "Project");
   source_snapshots::capture(&root.0, "snapshot", std::slice::from_ref(&first.id)).unwrap();
   management::change(&root.0, LibraryChange::Trash { ids: vec![first.id.clone()] }).unwrap();
   assert_eq!(library::list_documents(&root.0).unwrap().len(), 1);
-  assert!(management::change(&root.0, LibraryChange::Import { document: document("republished") }).is_err());
+  assert!(management::change(&root.0, LibraryChange::Import { folder_id: None, document: document("republished") }).is_err());
   management::change(&root.0, LibraryChange::Restore { ids: vec![first.id.clone()] }).unwrap();
   assert_eq!(library::list_documents(&root.0).unwrap().len(), 2);
   management::change(&root.0, LibraryChange::Trash { ids: vec![first.id.clone()] }).unwrap();
@@ -285,4 +287,56 @@ fn creation_validates_destination_before_publishing_and_saves_section_with_topic
   assert_eq!(state.topics[0].document_ids, vec![doc.id.clone()]);
   assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Original");
   assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
+}
+
+#[test]
+fn folders_migrate_shared_entries_and_support_safe_nested_moves() {
+  let root = Fixture::new();
+  let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("original")).unwrap();
+  fs::write(root.0.join("library-organization.json"), serde_json::to_vec(&serde_json::json!({
+    "topics": [{ "id": "one", "name": "One", "documentIds": [doc.id] }, { "id": "two", "name": "Two", "documentIds": [doc.id] }], "trash": {}, "origins": {},
+    "customSections": [{ "id": "custom-notes", "name": "Notes", "topicId": "one" }],
+    "sections": { (doc.id.clone()): { "id": "custom-notes", "name": "Notes", "topicId": "one" } }
+  })).unwrap()).unwrap();
+  let folders = management::organization(&root.0).unwrap().folders.unwrap();
+  assert_eq!(folders.iter().find(|f| f.id == "section-custom-notes").unwrap().document_ids, vec![doc.id.clone()]);
+  assert_eq!(folders.iter().find(|f| f.id == "topic-two").unwrap().document_ids, vec![doc.id.clone()]);
+  let change = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
+  assert!(change(serde_json::json!({"kind":"delete-folder", "id":""})).is_err());
+  assert!(change(serde_json::json!({"kind":"save-folder", "folder":{"id":"topic-one", "name":"One", "parentId":"section-custom-notes"}})).is_err());
+  assert!(change(serde_json::json!({"kind":"move-documents", "ids":[doc.id,"missing"], "folderId":"topic-two"})).is_err());
+  change(serde_json::json!({"kind":"delete-folder", "id":"section-custom-notes"})).unwrap();
+  change(serde_json::json!({"kind":"move-documents", "ids":[doc.id]})).unwrap();
+  assert!(management::organization(&root.0).unwrap().folders.unwrap().iter().all(|f| !f.document_ids.contains(&doc.id)));
+  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
+  assert!(change(serde_json::json!({"kind":"create", "folderId":"missing", "document":document("new")})).is_err());
+  assert_eq!(library::list_documents(&root.0).unwrap().len(), 1);
+}
+
+#[test]
+fn folder_backup_roundtrip_rejects_cycles_and_missing_documents_without_touching_live_data() {
+  let root = Fixture::new();
+  let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("keep me")).unwrap();
+  let change = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
+  change(serde_json::json!({"kind":"save-folder","folder":{"id":"parent","name":"Parent"}})).unwrap();
+  change(serde_json::json!({"kind":"save-folder","folder":{"id":"child","name":"Notes","parentId":"parent"}})).unwrap();
+  change(serde_json::json!({"kind":"save-folder","folder":{"id":"sibling","name":"Notes"}})).unwrap();
+  change(serde_json::json!({"kind":"move-documents","ids":[doc.id],"folderId":"parent"})).unwrap();
+  let backup = user_data::capture(&root.0, BTreeMap::new(), serde_json::json!([])).unwrap();
+  for folders in [
+    serde_json::json!([{"id":"a","name":"A","parentId":"a","documentIds":[]}]),
+    serde_json::json!([{"id":"a","name":"A","documentIds":["missing"]}]),
+    serde_json::json!([{"id":"a","name":"A"},{"id":"a","name":"B"}]),
+  ] {
+    let mut invalid = backup.clone();
+    invalid.files.insert("library-organization.json".into(), serde_json::json!({"topics":[],"origins":{},"trash":{},"folders":folders}).to_string());
+    assert!(user_data::restore(&root.0, &invalid, "invalid-folder").is_err());
+    assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "keep me");
+  }
+  change(serde_json::json!({"kind":"delete-folder","id":"parent"})).unwrap();
+  let folders = management::organization(&root.0).unwrap().folders.unwrap();
+  let child = folders.iter().find(|folder| folder.id == "child").unwrap();
+  assert_eq!(child.parent_id, None); assert_eq!(child.name, "Notes (2)");
+  user_data::restore(&root.0, &backup, "restored-folders").unwrap();
+  assert_eq!(management::organization(&root.0).unwrap().folders.unwrap().iter().find(|folder| folder.id == "child").unwrap().parent_id.as_deref(), Some("parent"));
 }
