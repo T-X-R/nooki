@@ -30,12 +30,11 @@ import { capabilityBrokerClient } from '../platform/capability-broker-client.ts'
 function App() {
   const { t } = useTranslation()
   const { view, theme, language, setView, setTheme } = useWorkbench()
-  const [libraryTopicId, setLibraryTopicId] = useState('')
   const [organization, setOrganization] = useState<Organization>(emptyOrganization)
   const [organizationError, setOrganizationError] = useState('')
   useEffect(() => {
     let current = true
-    const load = () => { void libraryOrganization().then((value) => { if (current) { setOrganization(value); setOrganizationError(''); setLibraryTopicId((id) => value.topics.some((topic) => topic.id === id) ? id : '') } }).catch((reason) => { if (current) setOrganizationError(String(reason)) }) }
+    const load = () => { void libraryOrganization().then((value) => { if (current) { setOrganization(value); setOrganizationError('') } }).catch((reason) => { if (current) setOrganizationError(String(reason)) }) }
     load(); window.addEventListener('workbench:library-changed', load)
     return () => { current = false; window.removeEventListener('workbench:library-changed', load) }
   }, [])
@@ -124,7 +123,6 @@ function App() {
   }
 
   const openDocument = (reference: DocumentReference) => {
-    setLibraryTopicId('')
     setDocumentTarget(reference)
     navigate('library')
   }
@@ -149,7 +147,7 @@ function App() {
     <div className="app-shell">
       <WindowTitlebar />
       <div className="app-workspace">
-        <Sidebar organization={organization} organizationError={organizationError} libraryTopicId={libraryTopicId} onSelectTopic={(id) => { setLibraryTopicId(id); setDocumentTarget(null); navigate('library') }} activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
+        <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
           <Topbar onOpenCommand={() => setCommandOpen(true)} />
           <AnimatePresence mode="wait">
@@ -165,7 +163,7 @@ function App() {
               {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
-              {view === 'library' && <LibraryPage topicId={libraryTopicId} organization={organization} onSelectTopic={setLibraryTopicId} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
+              {view === 'library' && <LibraryPage organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
               {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} />}

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CalendarIcon, ChevronRightIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, Pencil2Icon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../platform/capability-host.ts'
-import type { Organization } from '../platform/library-store.ts'
 import { LibraryNavigation } from '../features/library/LibraryNavigation.tsx'
 import { ConversationNavigation } from '../features/conversation/ConversationNavigation.tsx'
 import { LEGACY_REVIEW } from '../features/conversation/conversation-model.ts'
@@ -10,7 +9,7 @@ import { CapabilityIcon, capabilityCopy } from '../features/capabilities/capabil
 import { useWorkbench, type View } from '../platform/preferences.ts'
 import nookiIcon from '../assets/nooki-icon.png'
 
-export function Sidebar({ organization, organizationError, libraryTopicId, onSelectTopic, activeConversationId, onOpenConversation, activeView, activeCapabilityId, installed, onNavigate, onOpenCapability }: { organization: Organization; organizationError: string; libraryTopicId: string; onSelectTopic(id: string): void; activeConversationId: string | null; onOpenConversation(id: string | null): void; activeView: View; activeCapabilityId: string | null; installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void }) {
+export function Sidebar({ activeConversationId, onOpenConversation, activeView, activeCapabilityId, installed, onNavigate, onOpenCapability }: { activeConversationId: string | null; onOpenConversation(id: string | null): void; activeView: View; activeCapabilityId: string | null; installed: InstalledCapability[]; onNavigate: (view: View) => void; onOpenCapability: (id: string) => void }) {
   const { t } = useTranslation()
   const { theme, setTheme, language } = useWorkbench()
   const [capabilitiesExpanded, setCapabilitiesExpanded] = useState(true)
@@ -46,7 +45,7 @@ export function Sidebar({ organization, organizationError, libraryTopicId, onSel
           <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
             <span className="nav-item-main"><LayersIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>
           </button>
-          <LibraryNavigation language={language} active={activeView === 'library'} topicId={libraryTopicId} organization={organization} error={organizationError} onEnter={() => onNavigate('library')} onSelect={onSelectTopic} />
+          <LibraryNavigation language={language} active={activeView === 'library'} onEnter={() => onNavigate('library')} />
           <div className="nav-conversations nav-capabilities">
             <button className="nav-item" aria-expanded={capabilitiesExpanded} aria-controls="sidebar-installed-capabilities" onClick={() => setCapabilitiesExpanded((value) => !value)}>
               <span className="nav-item-main"><CubeIcon />{language === 'zh' ? '能力' : 'Capabilities'}</span><ChevronRightIcon />

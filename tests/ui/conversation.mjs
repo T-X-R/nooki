@@ -45,14 +45,14 @@ await page.addInitScript((installed)=>{
   if(command==='library_search_content')return [];
   if(command==='library_capture_sources')return args.ids.map(id=>({reference:{kind:'library-document',documentId:id,title:docs.find(doc=>doc.id===id)?.title??id,snapshotId:args.id},content:'测试资料',documentDate:'2026-09-09'}));
   if(command==='library_list_documents')return structuredClone(docs);
-  if(command==='library_organization')return structuredClone(organization);
+  if(command==='library_organization'){ organization.folders ??= [...organization.topics.map(t=>({id:'topic-'+t.id,name:t.name,documentIds:[...t.documentIds]})),{id:'section-custom-collection',name:'我的收藏',parentId:'topic-research',documentIds:[]}]; return structuredClone(organization); }
   if(command==='conversation_publish'){
    const d=args.document,id=`workbench.conversations/${d.collectionKey}/${d.documentDate.slice(0,4)}/${d.documentDate.slice(5,7)}/${d.key}`;
    docs.push({...d,id,capabilityId:'workbench.conversations',capabilityName:'对话'}); return;
   }
   if(command==='library_change'){
    const c=args.change;
-   if(c.kind==='place'){organization.sections[c.id]=c.section;if(c.topicId)organization.topics.find(t=>t.id===c.topicId).documentIds.push(c.id);return null}
+   if(c.kind==='move-documents'){ for(const folder of organization.folders){folder.documentIds=folder.documentIds.filter(id=>!c.ids.includes(id));if(folder.id===c.folderId)folder.documentIds.push(...c.ids)} return null}
    if(c.kind==='origin'){organization.origins[c.id]=c.origin;return null}
    throw new Error('Unexpected library change '+c.kind);
   }
@@ -309,49 +309,42 @@ assert.equal(await liveProcess.locator(':scope > summary').innerText(),'用时 1
 await liveProcess.locator(':scope > summary').click();
 await page.getByRole('button',{name:'保存到资料库',exact:true}).click();
 const dialog=page.getByRole('dialog',{name:'保存到资料库',exact:true});
-const topicPicker=dialog.getByRole('button',{name:/^专题 /});
-const sectionPicker=dialog.getByRole('button',{name:/^栏目 /});
-await topicPicker.waitFor();
+const folderPicker=dialog.getByRole('button',{name:/^保存到文件夹 /});
+await folderPicker.waitFor();
 assert.equal(await dialog.locator('textarea').count(),0, 'Save dialog must not expose the document body');
 assert.equal(await dialog.getByText('保存测试正文',{exact:true}).count(),0);
-await topicPicker.click();
-assert.ok(await dialog.getByRole('listbox',{name:'专题',exact:true}).evaluate(el=>el.scrollHeight>el.clientHeight), 'Long option lists scroll inside the menu');
-await dialog.getByRole('option',{name:'研究专题',exact:true}).click();
-await sectionPicker.click();
-assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['工作记录','我的收藏']);
+await folderPicker.click();
+assert.ok(await dialog.getByRole('listbox',{name:'保存到文件夹',exact:true}).evaluate(el=>el.scrollHeight>el.clientHeight), 'Long folder lists scroll inside the menu');
+await dialog.getByRole('option',{name:'我的资料 / 研究专题 / 我的收藏',exact:true}).click();
+await folderPicker.click();
 await page.keyboard.press('Escape');
 assert.equal(await dialog.isVisible(),true, 'Escape closes the menu without closing the save dialog');
-await page.waitForFunction(()=>[...document.querySelectorAll('.conversation-destination-trigger')].every(el=>el.getAttribute('aria-expanded')==='false'));
-assert.equal(await sectionPicker.getAttribute('aria-expanded'),'false');
-assert.equal(await sectionPicker.evaluate(el=>el===document.activeElement),true);
-await topicPicker.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('End'); await page.keyboard.press('Enter');
-await sectionPicker.click();
-assert.deepEqual(await dialog.getByRole('listbox',{name:'栏目',exact:true}).getByRole('option').allTextContents(),['对话']);
+assert.equal(await folderPicker.getAttribute('aria-expanded'),'false');
+assert.equal(await folderPicker.evaluate(el=>el===document.activeElement),true);
+await folderPicker.focus(); await page.keyboard.press('ArrowDown'); await page.keyboard.press('End'); await page.keyboard.press('Enter');
+assert.equal(await folderPicker.innerText(),'我的资料 / 空专题');
+await folderPicker.click();
 await dialog.getByRole('heading',{name:'保存到资料库',exact:true}).click();
 await page.waitForFunction(()=>document.querySelectorAll('.conversation-destination-menu:popover-open').length===0,{},{timeout:1000});
 await page.waitForTimeout(50);
-assert.equal(await sectionPicker.getAttribute('aria-expanded'),'false', 'Clicking outside dismisses the menu');
-await topicPicker.click(); await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
-assert.equal(await topicPicker.innerText(),'研究专题');
-await sectionPicker.click();
-await sectionPicker.click();
+assert.equal(await folderPicker.getAttribute('aria-expanded'),'false', 'Clicking outside dismisses the menu');
+await folderPicker.click(); await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+assert.equal(await folderPicker.innerText(),'我的资料 / 研究专题');
+await folderPicker.click(); await folderPicker.click();
 await page.waitForFunction(()=>document.querySelectorAll('.conversation-destination-menu:popover-open').length===0,{},{timeout:1000});
-await page.waitForTimeout(50);
-assert.equal(await sectionPicker.getAttribute('aria-expanded'),'false', 'Trigger toggles an open menu closed');
-await sectionPicker.click(); await page.keyboard.press('Tab');
+await folderPicker.click(); await page.keyboard.press('Tab');
 assert.equal(await dialog.getByRole('button',{name:'取消',exact:true}).evaluate(el=>el===document.activeElement),true, 'Tab continues to the next form control');
-assert.equal(await page.locator('.conversation-destination-menu:popover-open').count(),0, 'Tab closes the popup before moving to the next control');
-await sectionPicker.click();
-await dialog.getByRole('option',{name:'我的收藏',exact:true}).click();
+assert.equal(await page.locator('.conversation-destination-menu:popover-open').count(),0);
+await folderPicker.click();
+await dialog.getByRole('option',{name:'我的资料 / 研究专题 / 我的收藏',exact:true}).click();
 await dialog.getByRole('button',{name:'保存',exact:true}).click();
 await page.getByRole('button',{name:'已保存 · 打开',exact:true}).waitFor();
 const saved=await page.evaluate(()=>{
  const doc=window.qa.docs.find(d=>d.content==='保存测试正文');
- return {doc, section:window.qa.organization.sections[doc.id], topic:window.qa.organization.topics.find(t=>t.id==='research'), origin:window.qa.organization.origins[doc.id]};
+ return {doc, folder:window.qa.organization.folders.find(f=>f.id==='section-custom-collection'), origin:window.qa.organization.origins[doc.id]};
 });
 assert.equal(saved.doc.capabilityId,'workbench.conversations');
-assert.equal(saved.section.id,'custom-collection');
-assert.ok(saved.topic.documentIds.includes(saved.doc.id));
+assert.ok(saved.folder.documentIds.includes(saved.doc.id));
 assert.equal(saved.origin.messageId,'native-answer');
 await page.getByRole('textbox',{name:'消息',exact:true}).fill('第二轮继续修改');
 await page.getByRole('button',{name:'发送消息',exact:true}).click();
@@ -360,6 +353,6 @@ await page.locator('.conversation-user').filter({hasText:'第二轮继续修改'
 assert.equal(await page.getByText('正在生成…',{exact:true}).count(),0, 'Follow-up turns need no generation placeholder');
 assert.equal(await page.getByText('正在准备对话…',{exact:true}).count(),0);
 assert.deepEqual(errors,[]);
-console.log('PASS: loading feedback, public summaries, capability confirmation, live scrolling, process scrolling, immediate session listing, message reconciliation and topic/section saving and per-turn process disclosure');
+console.log('PASS: loading feedback, public summaries, capability confirmation, live scrolling, process scrolling, immediate session listing, message reconciliation and nested folder saving and per-turn process disclosure');
 
 } finally { await browser.close(); }

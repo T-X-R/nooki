@@ -41,7 +41,18 @@ export const saveAnswer: TaskJob = {
   async run(value, { step, signal, executionId }) {
     const input = value as SaveAnswerInput
     if (!input.title.trim() || !input.content.trim() || !/^[a-z0-9-]+$/.test(input.messageId)) throw new Error('Invalid answer to save')
-    if (input.destination?.topicId && !(await libraryOrganization()).topics.some((topic) => topic.id === input.destination!.topicId)) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
+    let folderId: string | undefined
+    if (input.destination) {
+      const destination = input.destination
+      const folders = (await libraryOrganization()).folders ?? []
+      // Queued jobs may still carry the former topic/section destination.
+      if ('section' in destination) {
+        const sectionFolder = folders.find(folder => folder.id === `section-${destination.section.id}`)
+        if (!sectionFolder && destination.section.id.startsWith('custom-')) throw new Error('文件夹已不存在 / Folder not found')
+        folderId = sectionFolder?.id ?? (destination.topicId ? `topic-${destination.topicId}` : undefined)
+      } else folderId = destination.folderId
+      if (folderId && !folders.some(folder => folder.id === folderId)) throw new Error('文件夹已不存在 / Folder not found')
+    }
     const publication: DocumentPublication = { key: input.messageId, title: input.title, content: input.content, documentDate: input.date, collectionKey: 'answers', collectionName: input.language === 'zh' ? '对话成果' : 'Conversation answers' }
     const published = await step('publish', async () => {
       signal.throwIfAborted()
@@ -58,7 +69,7 @@ export const saveAnswer: TaskJob = {
       else await publishCapabilityDocument(CONVERSATION_OWNER, input.language === 'zh' ? '对话' : 'Conversations', publication)
     })
     const reference = published ?? publicationReference(CONVERSATION_OWNER, publication)
-    if (input.destination) await step('placement', async () => { await changeLibrary({ kind: 'place', id: reference.documentId, ...input.destination! }) })
+    if (input.destination) await step('placement', async () => { await changeLibrary({ kind: 'move-documents', ids: [reference.documentId], folderId }) })
     if (input.threadId) await step('origin', async () => { await changeLibrary({ kind: 'origin', id: reference.documentId, origin: { threadId: input.threadId!, messageId: input.sourceMessageId ?? input.messageId } }) })
     await step('activity', async () => { signal.throwIfAborted(); activityStore.write(CONVERSATION_OWNER, { type: 'conversation.saved', title: input.title, key: reference.documentId, target: reference }, executionId.split(':')[0]) })
     return reference

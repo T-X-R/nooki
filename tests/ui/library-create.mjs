@@ -19,13 +19,15 @@ try {
     };
   });
   await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
-  const create = page.getByRole('button', { name: '创建文档', exact: true });
-  await create.click();
+  const directory = page.getByRole('navigation', { name: '资料目录', exact: true });
+  const create = async (name = '我的资料') => { await directory.getByRole('button', { name: `添加到 ${name}`, exact: true }).click(); await page.getByRole('menuitem', { name: '新建文档', exact: true }).click(); };
+  await create();
   const dialog = page.getByRole('dialog', { name: '创建文档', exact: true });
   const save = dialog.getByRole('button', { name: '创建并保存', exact: true });
   const title = dialog.getByRole('textbox', { name: '文档标题', exact: true });
   const content = dialog.getByRole('textbox', { name: '正文', exact: true });
   assert.equal(await title.evaluate(el => el === document.activeElement), true);
+  assert.equal(await dialog.getByRole('button', { name: /^保存到栏目 / }).count(), 0);
   assert.ok(await save.isDisabled());
   await title.fill('项目观察笔记');
   assert.ok(await save.isDisabled());
@@ -53,64 +55,64 @@ try {
   await dialog.waitFor({ state: 'hidden' });
   await page.locator('.library-reader-header h2').filter({ hasText: '项目观察笔记' }).waitFor();
   await page.reload();
+  await directory.getByRole('button', { name: '项目观察笔记', exact: true }).click();
   await page.locator('.library-reader-header h2').filter({ hasText: '项目观察笔记' }).waitFor();
+  assert.equal(await page.locator('.library-capability-heading').count(), 0);
   await page.getByRole('button', { name: '修订', exact: true }).click();
   const revision = page.getByRole('dialog', { name: '修订文档', exact: true });
   assert.equal(await revision.getByRole('textbox', { name: '编辑 Markdown', exact: true }).inputValue(), source);
   await revision.getByRole('button', { name: '关闭', exact: true }).click();
-  const topics = page.locator('#sidebar-library-topics');
-  await topics.getByRole('button', { name: '新建专题', exact: true }).click();
-  await topics.getByRole('textbox', { name: '专题名称' }).fill('项目笔记');
-  await page.keyboard.press('Enter');
-  await topics.getByRole('button', { name: '项目笔记', exact: true }).click();
-  for (const name of ['优化方向', '已归档']) {
-    await page.getByRole('button', { name: '新建栏目', exact: true }).click();
-    await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill(name);
-    await page.keyboard.press('Enter');
-    await page.getByRole('button', { name: `重命名栏目：${name}`, exact: true }).waitFor();
-  }
-  await create.click();
-  await dialog.getByText('项目笔记 / 我的文档', { exact: true }).waitFor();
-  await dialog.getByRole('button', { name: /^保存到栏目 / }).click();
-  assert.deepEqual((await dialog.getByRole('option').allTextContents()).sort(), ['优化方向', '已归档', '我的文档'].sort());
-  await dialog.getByRole('option', { name: '优化方向', exact: true }).click();
-  await dialog.getByText('项目笔记 / 优化方向', { exact: true }).waitFor();
-  await title.fill('专题中的新文档');
-  await content.fill('写在专题里。');
+  const newFolder = async (name, parent = '我的资料') => {
+    await directory.getByRole('button', { name: `添加到 ${parent}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: '新建文件夹', exact: true }).click();
+    const modal = page.getByRole('dialog', { name: '新建文件夹', exact: true });
+    await modal.getByRole('textbox', { name: '文件夹名称', exact: true }).fill(name);
+    await modal.getByRole('button', { name: '保存', exact: true }).click();
+    await modal.waitFor({ state: 'hidden' });
+    await directory.getByRole('button', { name, exact: true }).waitFor();
+  };
+  await newFolder('项目笔记');
+  await create('项目笔记');
+  await dialog.getByText('我的资料 / 项目笔记', { exact: true }).waitFor();
+  assert.equal(await dialog.getByRole('listbox').count(), 0);
+  await title.fill('文件夹中的新文档');
+  await content.fill('直接写在当前文件夹。');
   await save.click();
   await dialog.waitFor({ state: 'hidden' });
-  await page.locator('.library-reader-header h2').filter({ hasText: '专题中的新文档' }).waitFor();
-  const section = name => page.locator('.library-capability-node').filter({ has: page.locator('.library-capability-heading strong', { hasText: name }) });
-  const movedLink = () => section('优化方向').locator('.library-document-link').filter({ hasText: '专题中的新文档' });
-  await movedLink().waitFor();
-  await section('已归档').locator('.library-capability-heading').click();
-  assert.equal(await section('已归档').locator('.library-capability-heading').getAttribute('aria-expanded'), 'false');
-  // Dropping outside a section cancels the move.
-  await movedLink().dragTo(page.locator('.library-page-heading'));
+  await page.locator('.library-reader-header h2').filter({ hasText: '文件夹中的新文档' }).waitFor();
+  await newFolder('优化方向', '项目笔记');
+  await newFolder('已归档');
+  const movedLink = () => directory.getByRole('button', { name: '文件夹中的新文档', exact: true });
+  await directory.getByRole('button', { name: '收起 已归档', exact: true }).click();
+  await movedLink().dragTo(page.locator('.library-shell-heading'));
   await movedLink().waitFor();
   assert.equal(await page.locator('.is-drop-target').count(), 0);
   await page.evaluate(() => { window.failSave = true; });
-  await movedLink().dragTo(section('已归档').locator('.library-capability-heading'));
+  await movedLink().dragTo(directory.getByRole('button', { name: '已归档', exact: true }));
   await page.getByRole('alert').filter({ hasText: 'Disk full' }).waitFor();
   await movedLink().waitFor();
-  assert.equal(await section('已归档').locator('.library-document-link').count(), 0);
   await page.evaluate(() => { window.failSave = false; });
   let dragTimer;
   try {
     await Promise.race([
-      movedLink().dragTo(section('已归档').locator('.library-capability-heading')),
+      movedLink().dragTo(directory.getByRole('button', { name: '已归档', exact: true })),
       new Promise((_, reject) => { dragTimer = setTimeout(() => reject(new Error('Drag retry did not finish')), 10000); }),
     ]);
   } finally { clearTimeout(dragTimer); }
-  await page.getByRole('status').filter({ hasText: '已移至「已归档」' }).waitFor();
-  await section('已归档').locator('.library-document-link').filter({ hasText: '专题中的新文档' }).waitFor();
-  assert.equal(await section('已归档').locator('.library-capability-heading').getAttribute('aria-expanded'), 'true');
-  assert.equal(await section('优化方向').locator('.library-document-link').count(), 0);
-  await page.screenshot({ path: '/private/tmp/nooki-document-drag-moved.png' });
+  await page.getByRole('status').filter({ hasText: '资料已移动。' }).waitFor();
+  await movedLink().waitFor();
+  await directory.getByRole('button', { name: '收起 已归档', exact: true }).waitFor();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')));
+  const moved = stored.documents.find(doc => doc.title === '文件夹中的新文档');
+  assert.equal(stored.organization.folders.find(folder => folder.name === '已归档').documentIds.includes(moved.id), true);
+  assert.equal(stored.organization.folders.find(folder => folder.name === '项目笔记').documentIds.includes(moved.id), false);
+  assert.equal(stored.history[moved.id], undefined);
+  await page.screenshot({ path: '/private/tmp/nooki-folders-drag.png' });
+  await movedLink().dragTo(directory.getByRole('button', { name: '我的资料', exact: true }));
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')).organization.folders.every(folder => folder.documentIds.length === 0));
   await page.reload();
-  await section('已归档').locator('.library-document-link').filter({ hasText: '专题中的新文档' }).waitFor();
-  await topics.getByRole('button', { name: '项目笔记', exact: true }).click();
-  await create.click();
+  await movedLink().waitFor();
+  await create('优化方向');
   await title.fill('长文写作测试');
   await content.fill(source.repeat(40));
   for (const theme of ['light', 'dark']) {
@@ -131,17 +133,17 @@ try {
   await page.keyboard.press('Escape');
   await dialog.getByRole('button', { name: '放弃文档', exact: true }).click();
   await page.setViewportSize({ width: 1240, height: 820 });
-  await topics.getByRole('button', { name: '全部资料', exact: true }).click();
-  assert.equal(await page.locator('.library-document-link').count(), 2);
+  assert.equal(await directory.locator('.library-directory-document').count(), 2);
   await page.locator('.sidebar-settings').click();
   await page.getByRole('button', { name: 'EN English English interface', exact: true }).click();
   await page.getByRole('button', { name: 'Library', exact: true }).click();
-  await page.getByRole('button', { name: 'Create document', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Library directory', exact: true }).getByRole('button', { name: 'Add to My documents', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'New document', exact: true }).click();
   const english = page.getByRole('dialog', { name: 'Create document', exact: true });
   await english.getByRole('textbox', { name: 'Document title', exact: true }).waitFor();
   await english.getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.deepEqual(errors, []);
-  console.log('PASS: direct creation into selected section, durable readback, drag cancellation/failure/retry, collapsed drop destination, revision entry, topic membership, preview, discard, light/dark layouts at 1240/768/640/320px, English, clean console');
+  console.log('PASS: contextual root/nested creation, no destination picker, folder creation, durable readback, drag cancellation/failure/retry, collapsed destinations, root moves, revision preservation, preview, discard, light/dark layouts, English, clean console');
 } catch (error) {
   await page.screenshot({ path: '/private/tmp/nooki-drag-test-failure.png', timeout: 5000 }).catch(() => {});
   console.error(await page.locator('.library-page').innerText({ timeout: 5000 }).catch(() => 'Library unavailable'));
