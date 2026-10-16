@@ -6,6 +6,28 @@ impl Fixture { fn new() -> Self { Self(std::env::temp_dir().join(format!("workbe
 impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 fn document(content: &str) -> DocumentPublication { DocumentPublication { key: "entry".into(), title: "Title".into(), content: content.into(), document_date: "2026-09-09".into(), collection_key: "notes".into(), collection_name: "Notes".into() } }
 #[test]
+fn created_documents_are_readable_revisioned_and_linked_to_the_current_topic() {
+  let root = Fixture::new();
+  management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "research".into(), name: "Research".into(), document_ids: vec![] } }).unwrap();
+  let change = serde_json::from_value(serde_json::json!({ "kind": "create", "document": document("# Notes\n\n直接写作。"), "topicId": "research" })).unwrap();
+  let doc = management::change(&root.0, change).unwrap().unwrap();
+  assert_eq!(doc.capability_id, "workbench.documents");
+  assert_eq!(doc.collection_key, "documents");
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "# Notes\n\n直接写作。");
+  assert_eq!(management::organization(&root.0).unwrap().topics[0].document_ids, vec![doc.id.clone()]);
+  management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: "Revised".into(), content: "Updated".into(), expected: doc.revision.unwrap() }).unwrap();
+  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 2);
+}
+#[test]
+fn creation_validates_content_and_topic_before_publishing() {
+  let root = Fixture::new();
+  for (content, topic) in [(" ", None), ("Valid", Some("deleted"))] {
+    let change = serde_json::from_value(serde_json::json!({ "kind": "create", "document": document(content), "topicId": topic })).unwrap();
+    assert!(management::change(&root.0, change).is_err());
+    assert!(library::list_documents(&root.0).unwrap().is_empty());
+  }
+}
+#[test]
 fn revisions_detect_conflicts_restore_without_losing_versions_and_keep_snapshot_evidence() {
   let root = Fixture::new();
   let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("original")).unwrap();

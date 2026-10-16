@@ -6,6 +6,28 @@ const setup = () => {
   const data = new Map<string, string>()
   return { data, store: createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } }) }
 }
+test('created documents persist directly in My documents and join the current topic', () => {
+  const { store, data } = setup()
+  store.change({ kind: 'save-topic', topic: { id: 'research', name: 'Research', documentIds: [] } })
+  const doc = store.change({ kind: 'create', document: input('created', '# Notes\n\n直接写作。'), topicId: 'research' })!
+  assert.equal(doc.capabilityId, 'workbench.documents')
+  assert.equal(doc.collectionKey, 'documents')
+  const reopened = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } })
+  assert.equal(reopened.read(doc.id).content, '# Notes\n\n直接写作。')
+  assert.deepEqual(reopened.organization().topics[0].documentIds, [doc.id])
+  reopened.change({ kind: 'edit', id: doc.id, title: 'Revised', content: 'Updated', expected: doc.revision! })
+  assert.equal(reopened.history(doc.id).length, 2)
+})
+test('creation rejects invalid content and stale topics without leaving documents', () => {
+  const { store } = setup()
+  assert.throws(() => store.change({ kind: 'create', document: input('empty', ' ') }), /Invalid/)
+  assert.throws(() => store.change({ kind: 'create', document: input('missing'), topicId: 'deleted' }), /Topic no longer exists/)
+  assert.equal(store.list().length, 0)
+  const first = store.change({ kind: 'create', document: input('first') })!
+  const second = store.change({ kind: 'create', document: { ...input('second'), title: first.title } })!
+  assert.notEqual(first.id, second.id)
+  assert.equal(store.list().length, 2)
+})
 test('imports and cross-source topics keep document identity through editing and reversible trash', () => {
   const { data, store } = setup()
   const first = store.change({ kind: 'import', document: input('first') })!

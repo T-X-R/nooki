@@ -28,6 +28,7 @@ pub struct LibrarySection { pub id: String, pub name: String }
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum LibraryChange {
   Import { document: DocumentPublication },
+  Create { document: DocumentPublication, #[serde(rename = "topicId")] topic_id: Option<String> },
   Edit { id: String, title: String, content: String, expected: String },
   RestoreVersion { id: String, revision: String, expected: String },
   SaveTopic { topic: Topic },
@@ -91,6 +92,20 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   let mut state = organization(root)?;
   match change {
+    LibraryChange::Create { mut document, topic_id } => {
+      let topic = match topic_id.filter(|id| !id.is_empty()) {
+        Some(id) => Some(state.topics.iter_mut().find(|topic| topic.id == id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?),
+        None => None,
+      };
+      document.collection_key = "documents".into();
+      document.collection_name = "我的文档 / My documents".into();
+      let metadata = document_library::publish_unlocked(root, "workbench.documents", "我的文档 / My documents", document)?;
+      if let Some(topic) = topic {
+        if !topic.document_ids.contains(&metadata.id) { topic.document_ids.push(metadata.id.clone()); }
+        save_organization(root, &state)?;
+      }
+      return Ok(Some(metadata));
+    }
     LibraryChange::Import { mut document } => {
       document.collection_key = "imports".into();
       document.collection_name = "导入资料 / Imported documents".into();

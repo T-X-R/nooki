@@ -11,6 +11,7 @@ export type Origin = { threadId: string; messageId: string }
 export type Organization = { topics: Topic[]; trash: Record<string, string>; origins: Record<string, Origin>; sections?: Record<string, LibrarySection>; customSections?: LibrarySection[] }
 export type LibraryChange =
   | { kind: 'import'; document: DocumentPublication }
+  | { kind: 'create'; document: DocumentPublication; topicId?: string }
   | { kind: 'edit'; id: string; title: string; content: string; expected: string }
   | { kind: 'restore-version'; id: string; revision: string; expected: string }
   | { kind: 'save-topic'; topic: Topic }
@@ -58,6 +59,13 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
       const state = load()
       let result: LibraryDocumentMetadata | null = null
       switch (change.kind) {
+        case 'create': {
+          const topic = state.organization.topics.find((topic) => topic.id === change.topicId)
+          if (change.topicId && !topic) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
+          result = publish(state, 'workbench.documents', '我的文档 / My documents', { ...change.document, collectionKey: 'documents', collectionName: '我的文档 / My documents' })
+          if (topic && !topic.documentIds.includes(result.id)) topic.documentIds.push(result.id)
+          break
+        }
         case 'import': result = publish(state, 'workbench.imports', '导入 / Imports', { ...change.document, collectionKey: 'imports', collectionName: '导入资料 / Imported documents' }); break
         case 'edit': case 'restore-version': {
           const current = find(state, change.id)

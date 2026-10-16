@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Cross2Icon, DownloadIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { Cross2Icon, DownloadIcon, FilePlusIcon, PlusIcon, TrashIcon, UploadIcon } from '@radix-ui/react-icons'
 import { changeLibrary, libraryOrganization, libraryTrash, type LibraryDocumentMetadata, type Organization, type Topic } from '../../platform/document-library.ts'
 import { emptyOrganization } from '../../platform/library-store.ts'
 import { buildLibraryTree } from './library-tree.ts'
 import { DestinationSelect } from '../../shared/DestinationSelect.tsx'
 import { LibraryDialog, DocumentPreview, DeleteDocumentsDialog } from './LibraryDialogs.tsx'
 import { exportMarkdown } from '../../platform/user-data.ts'
+import { CreateDocumentDialog } from './CreateDocumentDialog.tsx'
 
 type ImportDraft = { key: string; title: string; content: string; documentDate: string; saved?: boolean }
 export function LibraryManager({ language, documents, selected, onOpen, topicId, onSelectTopic, onDiscuss, refresh, filters, selectionActions, onClear }: {
@@ -20,6 +21,7 @@ export function LibraryManager({ language, documents, selected, onOpen, topicId,
   const [sectionId, setSectionId] = useState('')
   const [topic, setTopic] = useState<Topic | null>(null)
   const [imports, setImports] = useState<ImportDraft[] | null>(null)
+  const [creating, setCreating] = useState(false)
   const [active, setActive] = useState(0)
   const [preview, setPreview] = useState(false)
   const [trash, setTrash] = useState<LibraryDocumentMetadata[] | null>(null)
@@ -69,10 +71,12 @@ export function LibraryManager({ language, documents, selected, onOpen, topicId,
       </div>
       <div className="library-management-group">
         <button className="quiet-button" disabled={busy} onClick={() => void act(async () => { setTrash(await libraryTrash()); setTrashIds([]) })}><TrashIcon />{zh ? '回收站' : 'Trash'}</button>
-        <button className="primary-button library-import-button" disabled={busy} onClick={() => fileInput.current?.click()}><PlusIcon />{zh ? '导入资料' : 'Import'}</button>
+        <button className="quiet-button" disabled={busy} onClick={() => fileInput.current?.click()}><UploadIcon />{zh ? '导入资料' : 'Import'}</button>
+        <button className="primary-button library-import-button" disabled={busy} onClick={() => setCreating(true)}><FilePlusIcon />{zh ? '创建文档' : 'Create document'}</button>
       </div>
     </div>
     <input ref={fileInput} hidden type="file" accept=".md,.txt,text/plain,text/markdown" multiple onChange={(e) => { loadFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
+    {creating && <CreateDocumentDialog language={language} topic={currentTopic} onClose={() => setCreating(false)} onCreated={(id) => { refresh(); onOpen(id); setNotice(zh ? '文档已保存到资料库。' : 'Document saved to the Library.') }} />}
     {!!selected.length && <div className="library-batch-actions"><span className="library-selection-count">{zh ? `已选 ${selected.length} 篇` : `${selected.length} selected`}</span><button className="icon-button" aria-label={zh ? '取消选择' : 'Clear selection'} onClick={onClear}><Cross2Icon /></button><button className="quiet-button" disabled={busy} onClick={() => setAddingToTopic(true)}>{zh ? '加入专题' : 'Add to topic'}</button><button className="quiet-button" disabled={busy || !sections.length} onClick={() => { setSectionId(sections[0]?.id ?? ''); setMoving(true); setError('') }}>{zh ? '移至栏目' : 'Move to section'}</button>{currentTopic && <button className="quiet-button" disabled={busy} onClick={() => void saveTopic({ ...currentTopic, documentIds: currentTopic.documentIds.filter((id) => !selected.includes(id)) })}>{zh ? '移出专题' : 'Remove from topic'}</button>}<button className="quiet-button" disabled={busy} onClick={() => void act(async () => setNotice(await exportMarkdown(selected)))}><DownloadIcon />{zh ? '导出' : 'Export'}</button><button className="quiet-button library-delete-action" disabled={busy} onClick={() => setConfirm('trash')}><TrashIcon />{zh ? '删除' : 'Delete'}</button><div className="library-selection-actions">{selectionActions}</div></div>}
     {moving && <LibraryDialog title={zh ? '移至栏目' : 'Move to section'} busy={busy} onClose={() => setMoving(false)}><p className="modal-copy">{zh ? `将所选 ${selected.length} 篇资料移到同一栏目，保留专题关联和版本历史。` : `Move ${selected.length} documents to one section, keeping topic links and revision history.`}</p><DestinationSelect label={zh ? '栏目' : 'Section'} autoFocus options={sections} value={sectionId} disabled={busy} onChange={setSectionId} />{error && <p role="alert" className="library-error">{error}</p>}<footer className="modal-footer"><button className="secondary-button" disabled={busy} onClick={() => setMoving(false)}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !sections.some((section) => section.id === sectionId)} onClick={() => void act(async () => { const section = sections.find((section) => section.id === sectionId)!; for (const id of selected) await changeLibrary({ kind: 'place', id, section }); setMoving(false); onClear() })}>{zh ? '移动资料' : 'Move documents'}</button></footer></LibraryDialog>}
     {addingToTopic && <LibraryDialog title={zh ? '加入专题' : 'Add to topic'} busy={busy} onClose={() => setAddingToTopic(false)}><p className="modal-copy">{zh ? `将所选 ${selected.length} 篇资料关联到专题，原文位置不变。` : `Link ${selected.length} selected documents to a topic.`}</p><div className="library-topic-list">{organization.topics.map((t) => <button className="library-topic-choice" key={t.id} disabled={busy} onClick={() => void act(async () => { await changeLibrary({ kind: 'save-topic', topic: { ...t, documentIds: [...new Set([...t.documentIds, ...selected])] } }); setAddingToTopic(false) })}><span>{t.name}</span><PlusIcon /></button>)}{!organization.topics.length && <p className="library-empty-copy">{zh ? '先创建一个专题，再加入资料。' : 'Create a topic first.'}</p>}</div>{error && <p role="alert" className="library-error">{error}</p>}<footer className="modal-footer"><button className="secondary-button" disabled={busy} onClick={() => { setAddingToTopic(false); setTopic({ id: crypto.randomUUID(), name: '', documentIds: selected }); setError('') }}>{zh ? '新建专题并加入' : 'Create topic with selection'}</button></footer></LibraryDialog>}

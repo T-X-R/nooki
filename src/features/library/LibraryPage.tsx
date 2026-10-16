@@ -72,7 +72,7 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
   const installedNames = useMemo(() => new Map<string, string>(installed.map((capability): [string, string] => [
     capability.manifest.id,
     capabilityCopy(capability, language).name,
-  ]).concat([[CONVERSATION_OWNER, language === 'zh' ? '对话' : 'Conversations'], ['workbench.imports', language === 'zh' ? '导入资料' : 'Imports']])), [installed, language])
+  ]).concat([[CONVERSATION_OWNER, language === 'zh' ? '对话' : 'Conversations'], ['workbench.imports', language === 'zh' ? '导入资料' : 'Imports'], ['workbench.documents', language === 'zh' ? '我的文档' : 'My documents']])), [installed, language])
   const tree = useMemo(() => buildLibraryTree(documents.filter((doc) => (!thisWeek || inWeek(doc.documentDate)) && (!scopeIds || scopeIds.includes(doc.id))), installedNames, organization.customSections), [documents, installedNames, thisWeek, scopeIds, organization.customSections])
   const filteredTree = useMemo(() => filterLibraryTree(tree, query, contentMatches), [tree, query, contentMatches])
   const visibleIds = useMemo(() => filteredTree.flatMap((cap) => cap.collections.flatMap((collection) => collection.months.flatMap((month) => month.documents.map((doc) => doc.id)))), [filteredTree])
