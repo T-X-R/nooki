@@ -34,7 +34,7 @@ try {
         await trigger.click();
         const menu = page.getByRole('menu', { name: label, exact: true });
         const bounds = await menu.evaluate(el => { const box = el.getBoundingClientRect(); return { x: box.x, right: box.right, y: box.y, bottom: box.bottom, height: box.height, children: [...el.querySelectorAll('button')].map(item => item.getBoundingClientRect().height) }; });
-        assert.ok(bounds.height <= 150 && bounds.x >= 0 && bounds.right <= width && bounds.y >= 0 && bounds.bottom <= 820 && bounds.children.every(height => height >= 32 && height <= 40), JSON.stringify({ theme, width, label, bounds }));
+        assert.ok(Math.abs(bounds.height - (bounds.children.length * 36 + (bounds.children.length - 1) * 2 + 12)) <= 1 && bounds.x >= 0 && bounds.right <= width && bounds.y >= 0 && bounds.bottom <= 820 && bounds.children.every(height => height >= 32 && height <= 40), JSON.stringify({ theme, width, label, bounds }));
         await page.screenshot({ path: `/private/tmp/nooki-library-menu-${theme}-${width}-${label.startsWith('添加') ? 'add' : 'more'}.png` });
         await page.keyboard.press('Escape'); assert.equal(await trigger.evaluate(el => el === document.activeElement), true);
       }
@@ -53,15 +53,16 @@ try {
   await list.getByRole('button', { name: /项目资料/ }).first().waitFor();
   await page.reload(); await directory.getByRole('button', { name: '项目资料', exact: true }).waitFor();
   await directory.getByRole('button', { name: '项目资料', exact: true }).click();
-  await page.locator('.library-shell-heading').getByRole('button', { name: '文件夹操作 项目资料', exact: true }).click();
+  assert.equal(await page.locator('.library-shell-heading .library-menu-anchor').count(), 0, 'No add or folder menu in the global toolbar');
+  await directory.getByRole('button', { name: '文件夹操作 项目资料', exact: true }).click();
   await page.getByRole('menuitem', { name: '重命名', exact: true }).click();
-  const headingField = page.locator('.library-folder-heading').getByRole('textbox', { name: '文件夹名称', exact: true });
-  await headingField.fill('取消的名字'); await page.keyboard.press('Escape');
-  await page.getByRole('heading', { name: '项目资料', exact: true }).waitFor();
-  await page.waitForFunction(() => document.activeElement?.tagName === 'H2');
+  const directoryField = directory.getByRole('textbox', { name: '文件夹名称', exact: true });
+  await directoryField.fill('取消的名字'); await page.keyboard.press('Escape');
+  await directory.getByRole('button', { name: '项目资料', exact: true }).waitFor();
+  await page.waitForFunction(() => document.activeElement?.classList.contains('library-directory-label'));
   await page.getByRole('button', { name: '搜索 Nooki (⌘ K)', exact: true }).click();
   await page.getByRole('dialog').waitFor(); await page.keyboard.press('Escape');
   assert.deepEqual(errors, []);
-  console.log('PASS: compact unified toolbar, narrower directory, collapsible icon-free root, bounded menus in themes/viewports, inline rename from list/heading, blur/save/cancel/reload and global search');
+  console.log('PASS: compact unified toolbar, narrower directory, collapsible icon-free root, bounded menus in themes/viewports, inline rename from list/directory, blur/save/cancel/reload and global search');
 } catch (error) { await page.screenshot({ path: '/private/tmp/nooki-library-layout-failure.png' }).catch(() => {}); throw error; }
 finally { await browser.close(); }

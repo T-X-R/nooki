@@ -111,3 +111,15 @@
 .library-inline-rename input { min-width: 0; width: 100%; padding: 4px 6px; background: var(--surface); border: 1px solid var(--accent); border-radius: 4px; color: var(--ink); font: inherit; font-size: 12px; line-height: 1.5; outline: none; }
 .library-inline-rename small { white-space: normal; color: var(--negative); font-size: 10px; line-height: 1.5; }
 .library-folder-heading .library-inline-rename input { font-size: 22px; }
+.library-shell-heading { user-select: none; }
+.library-inline-document { min-height: 0; }
+.library-inline-document .library-reader-header { width: 100%; }
+.library-inline-document h2 { cursor: text; border-radius: 5px; }
+.library-inline-document h2:focus-visible { outline: 1px solid var(--line-strong); outline-offset: 4px; }
+.library-inline-document-title { width: 100%; min-width: 0; padding: 5px 0; border: 0; border-bottom: 1px solid var(--accent); outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 21px; font-weight: 600; line-height: 1.4; }
+.library-editable-preview { min-height: 260px; cursor: text; border-radius: 6px; }
+.library-editable-preview:focus-visible { outline: 1px solid var(--line-strong); outline-offset: 6px; }
+.library-inline-markdown { display: block; width: 100%; min-height: 300px; resize: none; overflow: hidden; padding: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.9; }
+.library-inline-save-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; color: var(--negative); font-size: 12px; }
+.library-inline-save-error p { margin: 0; }
+.library-inline-save-error button { text-decoration: underline; }

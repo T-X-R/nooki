@@ -1,3 +1,4 @@
+import { createLibraryDrafts } from './library-drafts.ts'
 import { migrateLibraryFolders } from './library-folders.ts'
 import { invoke } from '@tauri-apps/api/core'
 import type { DocumentPublication } from '../../packages/capability-contract/src/index.ts'
@@ -31,6 +32,7 @@ export async function libraryOrganization(): Promise<Organization> {
 }
 export async function changeLibrary(change: LibraryChange): Promise<LibraryDocumentMetadata | null> {
   const result = window.__TAURI_INTERNALS__ ? await invoke<LibraryDocumentMetadata | null>('library_change', { change }) : browser().change(change)
+  if (change.kind === 'purge') change.ids.forEach(id => createLibraryDrafts(window.localStorage).remove(id))
   changed()
   return result
 }

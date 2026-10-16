@@ -32,3 +32,18 @@ test('queued topic/section saves resolve their migrated folder and never recreat
   await assert.rejects(saveAnswer.run({ ...input, messageId: 'new-answer', destination }, context), /Folder not found/)
   assert.equal(storage.getItem(libraryStorageKey), before)
 })
+
+test('permanent deletion also removes a retained inline draft for the deleted document', async () => {
+  values.clear()
+  const { changeLibrary } = await import('../src/platform/document-library.ts')
+  const { createLibraryDrafts } = await import('../src/platform/library-drafts.ts')
+  const store = createLibraryStore(storage)
+  await saveAnswer.run(input, context)
+  const document = store.list()[0]
+  const drafts = createLibraryDrafts(storage)
+  drafts.save(document.id, { title: document.title, content: 'Unsaved text', revision: document.revision! })
+  store.change({ kind: 'trash', ids: [document.id] })
+  await changeLibrary({ kind: 'purge', ids: [document.id] })
+  assert.equal(drafts.get(document), null)
+  assert.equal(store.list(true).length, 0)
+})

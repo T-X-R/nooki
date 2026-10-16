@@ -58,10 +58,10 @@ try {
   await directory.getByRole('button', { name: '项目观察笔记', exact: true }).click();
   await page.locator('.library-reader-header h2').filter({ hasText: '项目观察笔记' }).waitFor();
   assert.equal(await page.locator('.library-capability-heading').count(), 0);
-  await page.getByRole('button', { name: '修订', exact: true }).click();
-  const revision = page.getByRole('dialog', { name: '修订文档', exact: true });
-  assert.equal(await revision.getByRole('textbox', { name: '编辑 Markdown', exact: true }).inputValue(), source);
-  await revision.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('region', { name: '文档正文', exact: true }).click();
+  assert.equal(await page.getByRole('textbox', { name: '编辑 Markdown', exact: true }).inputValue(), source);
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  await page.keyboard.press('Escape');
   const newFolder = async (name, parent = '我的资料') => {
     await directory.getByRole('button', { name: `添加到 ${parent}`, exact: true }).click();
     await page.getByRole('menuitem', { name: '新建文件夹', exact: true }).click();

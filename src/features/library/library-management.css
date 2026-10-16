@@ -40,11 +40,6 @@ dialog.library-dialog-wide { width: min(980px, calc(100vw - 64px)); }
 .library-preview.library-reader-content { min-height: 210px; max-height: 46dvh; overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-strong); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
 .library-preview > :first-child { margin-top: 0; }
 .library-preview img { max-width: 100%; }
-.library-edit-split, .library-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.library-edit-split > section, .library-comparison section { min-width: 0; }
-.library-edit-split .library-field { margin: 0; }
-.library-edit-split h3, .library-comparison h3 { margin: 0 0 8px; font-size: 12px; font-weight: 500; }
-.library-edit-split .library-preview { height: min(40dvh, 420px); }
 /* Dialog containers stay plain; controls use the shared neutral focus treatment. */
 dialog:focus, dialog:focus-visible, [role="dialog"]:focus, [role="dialog"]:focus-visible { outline: none; }
 .library-diff { display: flex; flex-direction: column; min-height: 0; }
@@ -57,13 +52,6 @@ dialog:focus, dialog:focus-visible, [role="dialog"]:focus, [role="dialog"]:focus
 .library-diff-line code { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .line-added { background: #27805320; }
 .line-removed { background: #be484820; }
-dialog.library-revision-dialog[open] { display: flex; flex-direction: column; height: min(720px, calc(100dvh - 64px)); overflow: hidden; }
-.library-revision-dialog > .modal-header, .library-revision-dialog > .library-field, .library-revision-dialog > .modal-footer { flex: none; }
-.library-revision-dialog > .modal-header { margin-bottom: 4px; }
-.library-revision-body { flex: 1; min-height: 0; }
-.library-revision-body > .library-edit-split, .library-revision-body > .library-diff { height: 100%; }
-.library-revision-body .library-edit-split > * { display: flex; flex-direction: column; min-height: 0; }
-.library-revision-body .library-editor, .library-revision-body .library-preview, .library-revision-body .library-diff-lines { flex: 1; height: 0; min-height: 0; max-height: none; resize: none; }
 .library-history-layout { display: grid; grid-template-columns: 185px minmax(0, 1fr); gap: 20px; }
 .library-history-layout nav { max-height: 46dvh; overflow: auto; border-right: 1px solid var(--line); padding-right: 12px; }
 .library-history-layout nav button { width: 100%; display: grid; gap: 6px; padding: 11px; border-radius: 7px; background: transparent; color: var(--ink-muted); text-align: left; margin-bottom: 5px; }
@@ -112,7 +100,7 @@ dialog.library-revision-dialog[open] { display: flex; flex-direction: column; he
 .data-capability-list .data-size { color: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .data-capability-list .quiet-button { font-size: 11px; padding: 7px; }
 @media (max-width: 1050px) { .library-management-bar { gap: 8px; } .library-management-group { gap: 4px; } .library-page .library-period-filter { padding-left: 6px; margin: 0; } .library-page .library-reader { padding-left: 20px; } }
-@media (max-width: 760px) { .library-edit-split, .library-comparison { grid-template-columns: 1fr; } .library-history-layout { grid-template-columns: 145px minmax(0, 1fr); gap: 12px; } .data-management { margin-left: 0; } }
+@media (max-width: 760px) { .library-history-layout { grid-template-columns: 145px minmax(0, 1fr); gap: 12px; } .data-management { margin-left: 0; } }
 @media (max-width: 640px) { .library-page .library-workspace { grid-template-columns: 1fr; } .library-page .library-reader { padding-left: 0; } .library-editor-heading { grid-template-columns: 1fr; gap: 0; } dialog.library-dialog { width: calc(100vw - 24px); padding: 18px; max-height: calc(100dvh - 32px); } .library-history-layout { grid-template-columns: 1fr; } .library-history-layout nav { max-height: 130px; border-right: 0; } .data-setting-row { grid-template-columns: 30px 1fr; } .data-setting-row > button { grid-column: 2; justify-self: start; } }
 
 .library-trash-list label:last-child { border-bottom: 0; }

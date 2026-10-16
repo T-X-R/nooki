@@ -6,7 +6,7 @@ import { taskRunner } from './tasks.ts'
 import { createDataRestore, restoreJournalKey } from './data-restore.ts'
 
 export type DataBackup = { format: string; version: number; createdAt: string; files: Record<string, string>; localStorage: Record<string, string>; capabilities: unknown }
-export const isUserDataKey = (key: string) => key.startsWith('personal-workbench:capability:') || key === 'personal-workbench:activity-events' || key === 'personal-workbench-preferences'
+export const isUserDataKey = (key: string) => key.startsWith('personal-workbench:capability:') || key === 'personal-workbench:activity-events' || key === 'personal-workbench-preferences' || key === 'personal-workbench-library-drafts-v1'
 const previewKeys = ['personal-workbench-library-v2', 'personal-workbench-document-library', 'personal-workbench-tasks-v1', 'personal-workbench-document-grants-v1']
 const owned = (key: string) => isUserDataKey(key) || (!window.__TAURI_INTERNALS__ && (previewKeys.includes(key) || key.startsWith('workbench-source-snapshot:')))
 export function localUserData(): Record<string, string> {

@@ -16,18 +16,19 @@ export function LibraryAddMenu({ language, folderId, name, onCreate, onFolder }:
     <button role="menuitem" onClick={() => onCreate({ kind: 'import', folderId })}><UploadIcon />{zh ? '导入资料' : 'Import documents'}</button>
   </LibraryMenu>
 }
-export function FolderMenu({ folder, language, onAction, onRename }: { folder: LibraryFolder; language: 'zh' | 'en'; onAction(value: FolderAction): void; onRename(): void }) {
+export function FolderMenu({ folder, language, onAction, onRename, onDiscuss, canDiscuss }: { folder: LibraryFolder; language: 'zh' | 'en'; onAction(value: FolderAction): void; onRename(): void; onDiscuss(): void; canDiscuss: boolean }) {
   const zh = language === 'zh'
   return <LibraryMenu label={`${zh ? '文件夹操作' : 'Folder actions'} ${folder.name}`} icon={<DotsHorizontalIcon />}>
+    <button role="menuitem" disabled={!canDiscuss} onClick={onDiscuss}>{zh ? '去讨论' : 'Discuss'}</button>
     <button role="menuitem" onClick={onRename}>{zh ? '重命名' : 'Rename'}</button>
     <button role="menuitem" onClick={() => onAction({ kind: 'move', folder })}>{zh ? '移动到…' : 'Move to…'}</button>
     <button role="menuitem" className="library-delete-action" onClick={() => onAction({ kind: 'delete', folder })}>{zh ? '删除文件夹' : 'Delete folder'}</button>
   </LibraryMenu>
 }
-export function LibraryDirectory({ language, folders, documents, folderId, selectedId, collapsed, onToggle, onFolder, onDocument, onCreate, onFolderAction, renameId, onRename, onFinishRename, documentMenu, dragging, dropTarget, onDrag, onDropTarget, onMove }: {
+export function LibraryDirectory({ language, folders, documents, folderId, selectedId, collapsed, onToggle, onFolder, onDocument, onCreate, onFolderAction, renameId, onFinishRename, folderMenu, documentMenu, dragging, dropTarget, onDrag, onDropTarget, onMove }: {
   language: 'zh' | 'en'; folders: LibraryFolder[]; documents: LibraryDocumentMetadata[]; folderId: string; selectedId: string | null; collapsed: Set<string>
-  onToggle(id: string): void; onFolder(id: string): void; onDocument(id: string): void; onCreate(value: LibraryCreation): void; onFolderAction(value: FolderAction): void; renameId: string | null; onRename(id: string): void; onFinishRename(): void
-  documentMenu(doc: LibraryDocumentMetadata): React.ReactNode; dragging: string | null; dropTarget: string | null; onDrag(id: string | null): void; onDropTarget(id: string | null): void; onMove(id: string, folderId?: string): void
+  onToggle(id: string): void; onFolder(id: string): void; onDocument(id: string): void; onCreate(value: LibraryCreation): void; onFolderAction(value: FolderAction): void; renameId: string | null; onFinishRename(): void
+  folderMenu(folder: LibraryFolder): React.ReactNode; documentMenu(doc: LibraryDocumentMetadata): React.ReactNode; dragging: string | null; dropTarget: string | null; onDrag(id: string | null): void; onDropTarget(id: string | null): void; onMove(id: string, folderId?: string): void
 }) {
   const zh = language === 'zh'
   const [expandedRoot, setExpandedRoot] = useState(true)
@@ -47,7 +48,7 @@ export function LibraryDirectory({ language, folders, documents, folderId, selec
       return <li key={folder.id}><div className={`library-directory-row ${folderId === folder.id && !selectedId ? 'is-active' : ''} ${dropTarget === folder.id ? 'is-drop-target' : ''}`} {...drops(folder.id)}>
         <button className="library-folder-disclosure icon-button" aria-label={`${zh ? (expanded ? '收起' : '展开') : (expanded ? 'Collapse' : 'Expand')} ${folder.name}`} aria-expanded={expanded} onClick={() => onToggle(folder.id)}><ChevronRightIcon className={expanded ? 'is-expanded' : ''} /></button>
         {renameId === folder.id ? <div className="library-directory-label"><FolderIcon /><LibraryFolderRename folder={folder} language={language} onFinish={onFinishRename} /></div> : <button className="library-directory-label" title={folder.name} aria-current={folderId === folder.id && !selectedId ? 'true' : undefined} onClick={() => onFolder(folder.id)}><FolderIcon /><span>{folder.name}</span></button>}
-        <span className="library-directory-actions"><LibraryAddMenu language={language} folderId={folder.id} name={folder.name} onCreate={onCreate} onFolder={onFolderAction} /><FolderMenu folder={folder} language={language} onAction={onFolderAction} onRename={() => onRename(folder.id)} /></span>
+        <span className="library-directory-actions"><LibraryAddMenu language={language} folderId={folder.id} name={folder.name} onCreate={onCreate} onFolder={onFolderAction} />{folderMenu(folder)}</span>
       </div>{expanded && <>{children(folder.id, new Set([...seen, folder.id]))}<ul>{documents.filter(doc => folder.documentIds.includes(doc.id)).map(docRow)}</ul></>}</li>
     })}
     {!parentId && documents.filter(doc => !assigned.has(doc.id)).map(docRow)}

@@ -62,3 +62,17 @@ export function validateFolderInventory(organization: Organization, documentIds:
     if (folder.documentIds.some(id => !documentIds.has(id))) throw new Error('文件夹中的文档不存在 / Folder document not found')
   }
 }
+
+export function folderDocumentIds(folders: LibraryFolder[], documentIds: string[], folderId: string): string[] {
+  const included = new Set<string>()
+  const visited = new Set<string>()
+  const visit = (id: string) => {
+    if (visited.has(id)) return
+    visited.add(id)
+    const folder = folders.find(folder => folder.id === id)
+    folder?.documentIds.forEach(id => included.add(id))
+    folders.filter(folder => folder.parentId === id).forEach(folder => visit(folder.id))
+  }
+  visit(folderId)
+  return [...new Set(documentIds)].filter(id => included.has(id))
+}

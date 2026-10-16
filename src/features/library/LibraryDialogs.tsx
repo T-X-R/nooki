@@ -24,25 +24,6 @@ export function DocumentComparison({ before, after }: { before: string; after: s
   const lines = documentDiff(before, after)
   return <div className="library-diff" aria-label={zh ? '修改差异' : 'Changes'}><div className="library-diff-heading"><h3>{zh ? '修改差异' : 'Changes'}</h3><span>{zh ? '− 删除 · + 新增' : '− Removed · + Added'}</span></div><div className="library-diff-lines">{lines.map((line, i) => <div key={i} className={`library-diff-line line-${line.kind}`}><span className="library-diff-number">{line.before}</span><span className="library-diff-number">{line.after}</span><span aria-hidden="true">{line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}</span><code>{line.text || ' '}</code></div>)}</div></div>
 }
-export function EditDocumentDialog({ document, language, onClose, onSaved }: { document: LibraryDocument; language: 'zh' | 'en'; onClose(): void; onSaved(): void }) {
-  const zh = language === 'zh'
-  const [title, setTitle] = useState(document.title)
-  const [content, setContent] = useState(document.content)
-  const [compare, setCompare] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const save = async () => {
-    setBusy(true); setError('')
-    try { await changeLibrary({ kind: 'edit', id: document.id, title, content, expected: document.revision ?? document.updatedAt }); onSaved(); onClose() }
-    catch (e) { setError(String(e)) } finally { setBusy(false) }
-  }
-  return <LibraryDialog wide className="library-revision-dialog" title={zh ? '修订文档' : 'Revise document'} busy={busy} onClose={onClose}>
-    <label className="library-field">{zh ? '标题' : 'Title'}<input autoFocus value={title} maxLength={120} disabled={busy} onChange={(e) => setTitle(e.target.value)} /></label>
-    <div className="library-revision-body">{compare ? <DocumentComparison before={`# ${document.title}\n\n${document.content}`} after={`# ${title}\n\n${content}`} /> : <div className="library-edit-split"><label className="library-field">{zh ? '编辑 Markdown' : 'Edit Markdown'}<textarea className="library-editor" value={content} disabled={busy} onChange={(e) => setContent(e.target.value)} /></label><section><h3>{zh ? '实时预览' : 'Live preview'}</h3><DocumentPreview content={content} /></section></div>}</div>
-    {error && <p role="alert" className="library-error">{error}</p>}
-    <footer className="modal-footer"><button className="secondary-button" disabled={busy} onClick={() => setCompare(!compare)}>{compare ? (zh ? '继续编辑' : 'Keep editing') : (zh ? '对比修改' : 'Compare changes')}</button><button className="primary-button" disabled={busy || !title.trim() || !content.trim() || (title === document.title && content === document.content)} onClick={() => void save()}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '保存新版本' : 'Save revision')}</button></footer>
-  </LibraryDialog>
-}
 export function HistoryDialog({ document, language, onClose, onSaved }: { document: LibraryDocument; language: 'zh' | 'en'; onClose(): void; onSaved(): void }) {
   const zh = language === 'zh'
   const [versions, setVersions] = useState<LibraryDocument[]>([])

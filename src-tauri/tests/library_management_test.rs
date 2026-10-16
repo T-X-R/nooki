@@ -67,7 +67,7 @@ fn backup_round_trip_and_rejection_leave_existing_data_intact() {
   let root = Fixture::new();
   let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("saved")).unwrap();
   source_snapshots::capture(&root.0, "snapshot", std::slice::from_ref(&doc.id)).unwrap();
-  let local = BTreeMap::from([("personal-workbench:capability:com.personal.notes:entries".into(), "[]".into())]);
+  let local = BTreeMap::from([("personal-workbench:capability:com.personal.notes:entries".into(), "[]".into()), ("personal-workbench-library-drafts-v1".into(), "{}".into())]);
   let backup = user_data::capture(&root.0, local, serde_json::json!([])).unwrap();
   library::publish_document(&root.0, "com.personal.notes", "Notes", document("changed")).unwrap();
   let mut invalid = backup.clone(); invalid.files.insert("../outside.json".into(), "{}".into());

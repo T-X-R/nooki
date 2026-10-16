@@ -13,7 +13,7 @@ pub struct Backup {
   pub capabilities: serde_json::Value,
 }
 fn local_key(key: &str) -> bool {
-  key.starts_with("personal-workbench:capability:") || key == "personal-workbench:activity-events" || key == "personal-workbench-preferences"
+  key.starts_with("personal-workbench:capability:") || key == "personal-workbench:activity-events" || key == "personal-workbench-preferences" || key == "personal-workbench-library-drafts-v1"
 }
 fn safe_path(name: &str) -> bool {
   !name.contains('\\') && !name.contains('\0') && Path::new(name).components().all(|part| matches!(part, Component::Normal(_)))
