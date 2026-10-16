@@ -33,7 +33,7 @@ pub struct LibrarySection {
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum LibraryChange {
   Import { document: DocumentPublication },
-  Create { document: DocumentPublication, #[serde(rename = "topicId")] topic_id: Option<String> },
+  Create { document: DocumentPublication, #[serde(rename = "topicId")] topic_id: Option<String>, section: Option<LibrarySection> },
   Edit { id: String, title: String, content: String, expected: String },
   RestoreVersion { id: String, revision: String, expected: String },
   SaveTopic { topic: Topic },
@@ -95,22 +95,37 @@ fn edit(root: &Path, id: &str, title: String, content: String, expected: &str) -
     document_date: doc.document_date.clone(), content,
   })
 }
+fn destination(state: &Organization, topic_id: Option<String>, mut section: LibrarySection) -> Result<(Option<usize>, LibrarySection), String> {
+  if section.id.trim().is_empty() || section.id.len() > 200 || section.name.trim().is_empty() || section.name.chars().count() > 80 { return Err("栏目无效 / Invalid section".into()); }
+  if section.id.starts_with("custom-") {
+    section = state.custom_sections.iter().find(|item| item.id == section.id).ok_or("栏目已不存在，请重新选择 / Section no longer exists")?.clone();
+  }
+  if let (Some(owner), Some(requested)) = (&section.topic_id, topic_id.as_ref().filter(|id| !id.is_empty())) {
+    if owner != requested { return Err("栏目属于其他专题 / Section belongs to a different topic".into()); }
+  }
+  let topic = match topic_id.filter(|id| !id.is_empty()).or_else(|| section.topic_id.clone()) {
+    Some(id) => Some(state.topics.iter().position(|topic| topic.id == id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?),
+    None => None,
+  };
+  section.name = section.name.trim().into();
+  Ok((topic, section))
+}
 pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocumentMetadata>, String> {
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   let mut state = organization(root)?;
   match change {
-    LibraryChange::Create { mut document, topic_id } => {
-      let topic = match topic_id.filter(|id| !id.is_empty()) {
-        Some(id) => Some(state.topics.iter_mut().find(|topic| topic.id == id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?),
-        None => None,
-      };
+    LibraryChange::Create { mut document, topic_id, section } => {
+      let selected_section = section.is_some();
+      let (topic, section) = destination(&state, topic_id, section.unwrap_or(LibrarySection { id: "workbench.documents".into(), name: "我的文档 / My documents".into(), topic_id: None }))?;
       document.collection_key = "documents".into();
       document.collection_name = "我的文档 / My documents".into();
       let metadata = document_library::publish_unlocked(root, "workbench.documents", "我的文档 / My documents", document)?;
-      if let Some(topic) = topic {
+      if let Some(index) = topic {
+        let topic = &mut state.topics[index];
         if !topic.document_ids.contains(&metadata.id) { topic.document_ids.push(metadata.id.clone()); }
-        save_organization(root, &state)?;
       }
+      if selected_section { state.sections.insert(metadata.id.clone(), section); }
+      if topic.is_some() || selected_section { save_organization(root, &state)?; }
       return Ok(Some(metadata));
     }
     LibraryChange::Import { mut document } => {
@@ -187,21 +202,14 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
         for topic in &mut state.topics { topic.document_ids.retain(|value| value != &id); }
       }
     }
-    LibraryChange::Place { id, topic_id, mut section } => {
+    LibraryChange::Place { id, topic_id, section } => {
       document_library::read_unlocked(root, &id)?;
       if state.trash.contains_key(&id) { return Err("文档在回收站中 / Document is in Trash".into()); }
-      if section.id.trim().is_empty() || section.id.len() > 200 || section.name.trim().is_empty() || section.name.chars().count() > 80 { return Err("栏目无效 / Invalid section".into()); }
-      if section.id.starts_with("custom-") {
-        section = state.custom_sections.iter().find(|item| item.id == section.id).ok_or("栏目已不存在，请重新选择 / Section no longer exists")?.clone();
-      }
-      if let (Some(owner), Some(requested)) = (&section.topic_id, topic_id.as_ref().filter(|id| !id.is_empty())) {
-        if owner != requested { return Err("栏目属于其他专题 / Section belongs to a different topic".into()); }
-      }
-      if let Some(topic_id) = topic_id.filter(|id| !id.is_empty()).or_else(|| section.topic_id.clone()) {
-        let topic = state.topics.iter_mut().find(|topic| topic.id == topic_id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?;
+      let (topic, section) = destination(&state, topic_id, section)?;
+      if let Some(index) = topic {
+        let topic = &mut state.topics[index];
         if !topic.document_ids.contains(&id) { topic.document_ids.push(id.clone()); }
       }
-      section.name = section.name.trim().into();
       state.sections.insert(id, section);
     }
     LibraryChange::Origin { id, origin } => { document_library::read_unlocked(root, &id)?; state.origins.insert(id, origin); }

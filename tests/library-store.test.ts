@@ -190,3 +190,19 @@ test('sections persist topic ownership and validate names and placement within t
   assert.equal(reopened.organization().customSections?.[0].topicId, undefined)
   assert.equal(reopened.read(doc.id).revision, doc.revision)
 })
+
+test('creation saves directly to the chosen section and rejects stale or cross-topic destinations before publishing', () => {
+  const { store, data } = setup()
+  for (const id of ['meta', 'other']) store.change({ kind: 'save-topic', topic: { id, name: id, documentIds: [] } })
+  const section = { id: 'custom-direction', name: '优化方向', topicId: 'meta' }
+  store.change({ kind: 'create-section', section })
+  assert.throws(() => store.change({ kind: 'create', document: input('wrong-topic'), topicId: 'other', section }), /different topic/)
+  assert.throws(() => store.change({ kind: 'create', document: input('missing'), topicId: 'meta', section: { id: 'custom-missing', name: 'Deleted' } }), /Section no longer exists/)
+  assert.equal(store.list().length, 0)
+  const created = store.change({ kind: 'create', document: input('chosen'), topicId: 'meta', section: { id: section.id, name: 'Stale name' } })!
+  const reopened = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } })
+  assert.deepEqual(reopened.organization().sections?.[created.id], section)
+  assert.deepEqual(reopened.organization().topics[0].documentIds, [created.id])
+  assert.equal(reopened.history(created.id).length, 1)
+  assert.equal(reopened.read(created.id).content, 'Original evidence')
+})

@@ -7,7 +7,7 @@ import type { DocumentReference, SelectedDocument } from '../../../packages/capa
 import { parseReferenceHref } from '../../../packages/capability-contract/src/references.ts'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
 import { grantSelectedDocuments, readSourceReference } from '../../platform/document-grants.ts'
-import { libraryOrganization, listLibraryDocuments, readLibraryDocument, searchLibraryContent, type LibraryDocument, type LibraryDocumentMetadata, type Origin } from '../../platform/document-library.ts'
+import { changeLibrary, libraryOrganization, listLibraryDocuments, readLibraryDocument, searchLibraryContent, type LibraryDocument, type LibraryDocumentMetadata, type LibrarySection, type Origin } from '../../platform/document-library.ts'
 import type { Organization } from '../../platform/library-store.ts'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from '../conversation/conversation-model.ts'
 import { capabilityCopy, CapabilityIcon } from '../capabilities/capability-presentation.tsx'
@@ -17,6 +17,8 @@ import { DeleteDocumentsDialog, EditDocumentDialog, HistoryDialog } from './Libr
 import { LibraryManager } from './LibraryManager.tsx'
 import { LibrarySectionComposer } from './LibrarySectionComposer.tsx'
 import { LibrarySectionActions } from './LibrarySectionActions.tsx'
+
+const DOCUMENT_DRAG_TYPE = 'application/x-nooki-library-document'
 
 function LibraryMarkdown({ content, onDocument }: { content: string; onDocument: (reference: DocumentReference) => void }) {
   return <Markdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => {
@@ -52,7 +54,11 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
   const [thisWeek, setThisWeek] = useState(false)
   const [sourceTarget, setSourceTarget] = useState<DocumentReference | null>(null)
   const [source, setSource] = useState<SelectedDocument | null>(null)
-  useEffect(() => { setSourceTarget(null); setSelectedId(null); setSelectedInputs(new Set()); setQuery(''); setThisWeek(false) }, [topicId])
+  const [dragging, setDragging] = useState<{ id: string; sectionId: string } | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [moving, setMoving] = useState(false)
+  const [moveFeedback, setMoveFeedback] = useState<{ error: boolean; text: string } | null>(null)
+  useEffect(() => { setSourceTarget(null); setSelectedId(null); setSelectedInputs(new Set()); setQuery(''); setThisWeek(false); setDragging(null); setDropTarget(null); setMoveFeedback(null) }, [topicId])
   useEffect(() => { window.addEventListener('workbench:library-changed', refreshLibrary); return () => window.removeEventListener('workbench:library-changed', refreshLibrary) }, [])
   const recipients = installed.filter((cap) => cap.manifest.id !== LEGACY_REVIEW && cap.enabled && cap.manifest.permissions.includes('documents.read-selected'))
   const monday = new Date(); monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7)
@@ -124,7 +130,15 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
   }, [selectedId, sourceTarget, t, refreshKey])
 
   const locale = language === 'zh' ? 'zh-CN' : 'en-US'
-
+  const moveDocument = async (id: string, section: LibrarySection) => {
+    setDragging(null); setDropTarget(null); setMoving(true); setMoveFeedback(null)
+    try {
+      await changeLibrary({ kind: 'place', id, topicId: topicId || undefined, section })
+      setCollapsedCapabilities((current) => { const next = new Set(current); next.delete(section.id); return next })
+      setQuery(''); setSelectedId(id)
+      setMoveFeedback({ error: false, text: language === 'zh' ? `已移至「${section.name}」` : `Moved to “${section.name}”` })
+    } catch (reason) { setMoveFeedback({ error: true, text: String(reason) }) } finally { setMoving(false) }
+  }
 
   return (
     <div className="content-column library-page">
@@ -136,6 +150,7 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
         filters={<div className="library-period-filter" role="group" aria-label={language === 'zh' ? '资料日期范围' : 'Document date range'}><button aria-pressed={!thisWeek} onClick={() => setThisWeek(false)}>{language === 'zh' ? '全部' : 'All'}</button><button aria-pressed={thisWeek} onClick={() => setThisWeek(true)}><CalendarIcon />{language === 'zh' ? '本周' : 'This week'}</button></div>}
         selectionActions={<>{!!recipients.length && <button className="library-grant-action" onClick={() => { setRecipient(recipients[0]?.manifest.id ?? ''); setGrantError(null); setGrantOpen(true) }}>{language === 'zh' ? '授权读取' : 'Authorize access'}</button>}<button className="library-conversation-action" disabled={selectedInputs.size > 50} onClick={() => onAddToConversation([...selectedInputs])}><ChatBubbleIcon />{language === 'zh' ? '添加到对话' : 'Add to conversation'}</button></>}
       />
+      {moveFeedback && <p className={moveFeedback.error ? 'library-error' : 'library-notice'} role={moveFeedback.error ? 'alert' : 'status'}>{moveFeedback.text}</p>}
       {editing && <EditDocumentDialog document={editing} language={language} onClose={() => setEditing(null)} onSaved={refreshLibrary} />}
       {history && <HistoryDialog document={history} language={language} onClose={() => setHistory(null)} onSaved={refreshLibrary} />}
       {deleteIds && <DeleteDocumentsDialog ids={deleteIds} language={language} onClose={() => setDeleteIds(null)} onDeleted={refreshLibrary} />}
@@ -171,19 +186,31 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
                     : filteredTree.map((capability) => {
                       const expanded = searching || !collapsedCapabilities.has(capability.capabilityId)
                       const customSection = organization.customSections?.find((section) => section.id === capability.capabilityId)
-                      return <section className="library-capability-node" key={capability.capabilityId}>
+                      return <section className={`library-capability-node ${dropTarget === capability.capabilityId ? 'is-drop-target' : ''}`} key={capability.capabilityId}
+                        onDragOver={(event) => {
+                          if (!dragging || moving || !event.dataTransfer.types.includes(DOCUMENT_DRAG_TYPE)) return
+                          if (dragging.sectionId === capability.capabilityId) { event.dataTransfer.dropEffect = 'none'; return }
+                          event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget(capability.capabilityId)
+                        }}
+                        onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDropTarget(null) }}
+                        onDrop={(event) => {
+                          if (!dragging || moving || !event.dataTransfer.types.includes(DOCUMENT_DRAG_TYPE)) return
+                          event.preventDefault(); event.stopPropagation()
+                          const id = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE)
+                          if (id === dragging.id && visibleIdSet.has(id) && dragging.sectionId !== capability.capabilityId) void moveDocument(id, { id: capability.capabilityId, name: capability.capabilityName })
+                        }}>
                         <div className="library-section-heading-row">
                         <button type="button" className="library-capability-heading" aria-expanded={expanded} disabled={searching} onClick={() => setCollapsedCapabilities((current) => toggleKey(current, capability.capabilityId))}>
                           <ChevronRightIcon className={`library-tree-chevron ${expanded ? 'is-expanded' : ''}`} /><span><strong>{capability.capabilityName}</strong></span><em>{capability.documentCount}</em>
                         </button>
                         {customSection && <LibrarySectionActions section={customSection} language={language} />}
                         </div>
-                        {expanded && !capability.documentCount && <p className="library-section-empty">{language === 'zh' ? '选择资料后移入此栏目，或保存对话时选择这里。' : 'Move selected documents here, or choose this section when saving a conversation.'}</p>}
+                        {expanded && !capability.documentCount && <p className="library-section-empty">{language === 'zh' ? '拖拽资料到这里，或创建文档时选择此栏目。' : 'Drop documents here, or choose this section when creating a document.'}</p>}
                         {expanded && capability.collections.map((collection) => <div key={collection.key}>
                           {capability.collections.length > 1 && <div className="library-collection-caption">{collection.name}</div>}
-                          {collection.months.flatMap((month) => month.documents).map((doc) => <div className={`library-selectable-document ${selectedId === doc.id && !sourceTarget ? 'is-active' : ''}`} key={doc.id}>
+                          {collection.months.flatMap((month) => month.documents).map((doc) => <div className={`library-selectable-document ${selectedId === doc.id && !sourceTarget ? 'is-active' : ''} ${dragging?.id === doc.id ? 'is-dragging' : ''}`} key={doc.id}>
                             <input type="checkbox" aria-label={`${language === 'zh' ? '选择' : 'Select'} ${doc.title}`} checked={selectedInputs.has(doc.id)} onChange={() => setSelectedInputs((current) => toggleKey(current, doc.id))} />
-                            <button type="button" className="library-document-link" aria-current={selectedId === doc.id && !sourceTarget ? 'true' : undefined} onClick={() => { setSourceTarget(null); setSelectedId(doc.id) }}><span><strong>{doc.title}</strong><small>{doc.documentDate}</small></span></button>
+                            <button type="button" className="library-document-link" draggable={!moving} title={language === 'zh' ? '可拖拽到其他栏目' : 'Drag to another section'} onDragStart={(event) => { event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id); event.dataTransfer.effectAllowed = 'move'; setDragging({ id: doc.id, sectionId: capability.capabilityId }) }} onDragEnd={() => { setDragging(null); setDropTarget(null) }} aria-current={selectedId === doc.id && !sourceTarget ? 'true' : undefined} onClick={() => { setSourceTarget(null); setSelectedId(doc.id) }}><span><strong>{doc.title}</strong><small>{doc.documentDate}</small></span></button>
                             <button className="icon-button library-row-delete" aria-label={`${language === 'zh' ? '删除' : 'Delete'} ${doc.title}`} title={language === 'zh' ? '删除资料' : 'Delete document'} onClick={() => setDeleteIds([doc.id])}><TrashIcon /></button>
                           </div>)}
                         </div>)}

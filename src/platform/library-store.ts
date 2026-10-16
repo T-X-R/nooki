@@ -11,7 +11,7 @@ export type Origin = { threadId: string; messageId: string }
 export type Organization = { topics: Topic[]; trash: Record<string, string>; origins: Record<string, Origin>; sections?: Record<string, LibrarySection>; customSections?: LibrarySection[] }
 export type LibraryChange =
   | { kind: 'import'; document: DocumentPublication }
-  | { kind: 'create'; document: DocumentPublication; topicId?: string }
+  | { kind: 'create'; document: DocumentPublication; topicId?: string; section?: LibrarySection }
   | { kind: 'edit'; id: string; title: string; content: string; expected: string }
   | { kind: 'restore-version'; id: string; revision: string; expected: string }
   | { kind: 'save-topic'; topic: Topic }
@@ -38,6 +38,16 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
     if (!doc) throw new Error('文档不存在 / Document not found')
     return doc
   }
+  const destination = (state: LibraryState, requestedTopicId: string | undefined, requestedSection: LibrarySection) => {
+    if (!requestedSection.id.trim() || requestedSection.id.length > 200 || !requestedSection.name.trim() || [...requestedSection.name].length > 80) throw new Error('栏目无效 / Invalid section')
+    const section = requestedSection.id.startsWith('custom-') ? state.organization.customSections?.find((section) => section.id === requestedSection.id) : requestedSection
+    if (!section) throw new Error('栏目已不存在，请重新选择 / Section no longer exists')
+    if (section.topicId && requestedTopicId && section.topicId !== requestedTopicId) throw new Error('栏目属于其他专题 / Section belongs to a different topic')
+    const topicId = requestedTopicId || section.topicId
+    const topic = state.organization.topics.find((topic) => topic.id === topicId)
+    if (topicId && !topic) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
+    return { section: { ...section, name: section.name.trim() }, topic }
+  }
   const publish = (state: LibraryState, source: string, name: string, input: DocumentPublication) => {
     if (!input.title.trim() || new TextEncoder().encode(input.title).length > 240 || !input.content.trim() || new TextEncoder().encode(input.content).length > 2_000_000
       || !/^[a-z0-9-]{1,100}$/.test(input.key) || !/^[a-z0-9-]{1,100}$/.test(input.collectionKey)
@@ -62,10 +72,10 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
       let result: LibraryDocumentMetadata | null = null
       switch (change.kind) {
         case 'create': {
-          const topic = state.organization.topics.find((topic) => topic.id === change.topicId)
-          if (change.topicId && !topic) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
+          const { topic, section } = destination(state, change.topicId, change.section ?? { id: 'workbench.documents', name: '我的文档 / My documents' })
           result = publish(state, 'workbench.documents', '我的文档 / My documents', { ...change.document, collectionKey: 'documents', collectionName: '我的文档 / My documents' })
           if (topic && !topic.documentIds.includes(result.id)) topic.documentIds.push(result.id)
+          if (change.section) (state.organization.sections ??= {})[result.id] = section
           break
         }
         case 'import': result = publish(state, 'workbench.imports', '导入 / Imports', { ...change.document, collectionKey: 'imports', collectionName: '导入资料 / Imported documents' }); break
@@ -124,15 +134,9 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
         case 'place': {
           find(state, change.id)
           if (state.organization.trash[change.id]) throw new Error('文档在回收站中 / Document is in Trash')
-          if (!change.section.id.trim() || change.section.id.length > 200 || !change.section.name.trim() || [...change.section.name].length > 80) throw new Error('栏目无效 / Invalid section')
-          const section = change.section.id.startsWith('custom-') ? state.organization.customSections?.find((section) => section.id === change.section.id) : change.section
-          if (!section) throw new Error('栏目已不存在，请重新选择 / Section no longer exists')
-          if (section.topicId && change.topicId && section.topicId !== change.topicId) throw new Error('栏目属于其他专题 / Section belongs to a different topic')
-          const topicId = change.topicId || section.topicId
-          const topic = state.organization.topics.find((topic) => topic.id === topicId)
-          if (topicId && !topic) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
+          const { topic, section } = destination(state, change.topicId, change.section)
           if (topic && !topic.documentIds.includes(change.id)) topic.documentIds.push(change.id)
-          ;(state.organization.sections ??= {})[change.id] = { ...section, name: section.name.trim() }
+          ;(state.organization.sections ??= {})[change.id] = section
           break
         }
         case 'origin': find(state, change.id); state.organization.origins[change.id] = change.origin; break

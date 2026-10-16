@@ -167,6 +167,9 @@ dialog.library-create-dialog[open] { display: flex; flex-direction: column; widt
 .library-create-location strong { color: var(--ink); font-weight: 500; }
 .library-create-title { flex: none; margin: 0 0 16px; }
 .library-create-title input { font-size: 18px; font-weight: 500; padding: 10px 12px; }
+.library-create-heading { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 32%); align-items: end; gap: 16px; margin-bottom: 16px; }
+.library-create-heading > .library-field { margin: 0; }
+.library-create-heading .conversation-destination-trigger { min-height: 49px; font-size: 12px; border-color: var(--line); }
 .library-create-toolbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 10px; color: var(--ink-muted); font-size: 11px; }
 .library-create-toolbar > div { display: flex; gap: 4px; padding: 3px; border-radius: 7px; background: var(--surface-muted); }
 .library-create-toolbar button { padding: 6px 14px; border-radius: 5px; background: transparent; color: var(--ink-muted); font-size: 12px; }
@@ -181,6 +184,7 @@ dialog.library-create-dialog[open] { display: flex; flex-direction: column; widt
 .library-create-discard p { flex: 1; margin: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.6; }
 @media (max-width: 640px) {
   dialog.library-create-dialog[open] { width: calc(100vw - 24px); height: calc(100dvh - 32px); }
+  .library-create-heading { grid-template-columns: 1fr; gap: 12px; }
   .library-create-toolbar { flex-wrap: wrap; }
   .library-create-discard p { flex-basis: 100%; }
 }
@@ -212,6 +216,9 @@ dialog.library-create-dialog[open] { display: flex; flex-direction: column; widt
 .library-section-caption .icon-button { width: 24px; height: 24px; }
 .library-section-caption svg { width: 13px; height: 13px; }
 .library-section-empty { margin: 2px 6px 12px 24px; color: var(--ink-soft); font-size: 10px; line-height: 1.7; }
+.library-page .library-document-link[draggable="true"] { cursor: grab; }
+.library-page .library-selectable-document.is-dragging { opacity: .5; }
+.library-page .library-capability-node.is-drop-target { background: var(--accent-wash); border-radius: 7px; outline: 1px dashed var(--accent); outline-offset: 3px; }
 .library-section-heading-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .library-section-heading-row .library-capability-heading { flex: 1; min-width: 0; }
 .library-section-heading-row .library-capability-heading strong { overflow-wrap: anywhere; }

@@ -63,13 +63,53 @@ try {
   await topics.getByRole('textbox', { name: '专题名称' }).fill('项目笔记');
   await page.keyboard.press('Enter');
   await topics.getByRole('button', { name: '项目笔记', exact: true }).click();
+  for (const name of ['优化方向', '已归档']) {
+    await page.getByRole('button', { name: '新建栏目', exact: true }).click();
+    await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill(name);
+    await page.keyboard.press('Enter');
+    await page.getByRole('button', { name: `重命名栏目：${name}`, exact: true }).waitFor();
+  }
   await create.click();
   await dialog.getByText('项目笔记 / 我的文档', { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: /^保存到栏目 / }).click();
+  assert.deepEqual((await dialog.getByRole('option').allTextContents()).sort(), ['优化方向', '已归档', '我的文档'].sort());
+  await dialog.getByRole('option', { name: '优化方向', exact: true }).click();
+  await dialog.getByText('项目笔记 / 优化方向', { exact: true }).waitFor();
   await title.fill('专题中的新文档');
   await content.fill('写在专题里。');
   await save.click();
   await dialog.waitFor({ state: 'hidden' });
   await page.locator('.library-reader-header h2').filter({ hasText: '专题中的新文档' }).waitFor();
+  const section = name => page.locator('.library-capability-node').filter({ has: page.locator('.library-capability-heading strong', { hasText: name }) });
+  const movedLink = () => section('优化方向').locator('.library-document-link').filter({ hasText: '专题中的新文档' });
+  await movedLink().waitFor();
+  await section('已归档').locator('.library-capability-heading').click();
+  assert.equal(await section('已归档').locator('.library-capability-heading').getAttribute('aria-expanded'), 'false');
+  // Dropping outside a section cancels the move.
+  await movedLink().dragTo(page.locator('.library-page-heading'));
+  await movedLink().waitFor();
+  assert.equal(await page.locator('.is-drop-target').count(), 0);
+  await page.evaluate(() => { window.failSave = true; });
+  await movedLink().dragTo(section('已归档').locator('.library-capability-heading'));
+  await page.getByRole('alert').filter({ hasText: 'Disk full' }).waitFor();
+  await movedLink().waitFor();
+  assert.equal(await section('已归档').locator('.library-document-link').count(), 0);
+  await page.evaluate(() => { window.failSave = false; });
+  let dragTimer;
+  try {
+    await Promise.race([
+      movedLink().dragTo(section('已归档').locator('.library-capability-heading')),
+      new Promise((_, reject) => { dragTimer = setTimeout(() => reject(new Error('Drag retry did not finish')), 10000); }),
+    ]);
+  } finally { clearTimeout(dragTimer); }
+  await page.getByRole('status').filter({ hasText: '已移至「已归档」' }).waitFor();
+  await section('已归档').locator('.library-document-link').filter({ hasText: '专题中的新文档' }).waitFor();
+  assert.equal(await section('已归档').locator('.library-capability-heading').getAttribute('aria-expanded'), 'true');
+  assert.equal(await section('优化方向').locator('.library-document-link').count(), 0);
+  await page.screenshot({ path: '/private/tmp/nooki-document-drag-moved.png' });
+  await page.reload();
+  await section('已归档').locator('.library-document-link').filter({ hasText: '专题中的新文档' }).waitFor();
+  await topics.getByRole('button', { name: '项目笔记', exact: true }).click();
   await create.click();
   await title.fill('长文写作测试');
   await content.fill(source.repeat(40));
@@ -101,5 +141,9 @@ try {
   await english.getByRole('textbox', { name: 'Document title', exact: true }).waitFor();
   await english.getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.deepEqual(errors, []);
-  console.log('PASS: direct creation, durable readback, revision entry, topic membership, preview, failure retry, discard, light/dark layouts at 1240/768/640/320px, English, clean page errors');
+  console.log('PASS: direct creation into selected section, durable readback, drag cancellation/failure/retry, collapsed drop destination, revision entry, topic membership, preview, discard, light/dark layouts at 1240/768/640/320px, English, clean console');
+} catch (error) {
+  await page.screenshot({ path: '/private/tmp/nooki-drag-test-failure.png', timeout: 5000 }).catch(() => {});
+  console.error(await page.locator('.library-page').innerText({ timeout: 5000 }).catch(() => 'Library unavailable'));
+  throw error;
 } finally { await browser.close(); }

@@ -266,3 +266,23 @@ fn topic_sections_persist_scope_and_reject_cross_topic_placement() {
   assert!(serde_json::to_value(management::organization(&root.0).unwrap()).unwrap()["customSections"][0]["topicId"].is_null());
   assert_eq!(library::read_document(&root.0, &doc.id).unwrap().revision, doc.revision);
 }
+
+#[test]
+fn creation_validates_destination_before_publishing_and_saves_section_with_topic() {
+  let root = Fixture::new();
+  for id in ["meta", "other"] { management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: id.into(), name: id.into(), document_ids: vec![] } }).unwrap(); }
+  let apply = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
+  let section = serde_json::json!({ "id": "custom-direction", "name": "优化方向", "topicId": "meta" });
+  apply(serde_json::json!({ "kind": "create-section", "section": section })).unwrap();
+  for (topic, destination) in [("other", section.clone()), ("meta", serde_json::json!({ "id": "custom-missing", "name": "Deleted" }))] {
+    assert!(apply(serde_json::json!({ "kind": "create", "document": document("Original"), "topicId": topic, "section": destination })).is_err());
+    assert!(library::list_documents(&root.0).unwrap().is_empty());
+  }
+  let doc = apply(serde_json::json!({ "kind": "create", "document": document("Original"), "topicId": "meta", "section": { "id": "custom-direction", "name": "Stale name" } })).unwrap().unwrap();
+  let state = management::organization(&root.0).unwrap();
+  assert_eq!(state.sections[&doc.id].name, "优化方向");
+  assert_eq!(state.sections[&doc.id].topic_id.as_deref(), Some("meta"));
+  assert_eq!(state.topics[0].document_ids, vec![doc.id.clone()]);
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "Original");
+  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 1);
+}

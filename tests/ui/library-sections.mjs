@@ -126,6 +126,13 @@ try {
   await selectTopic('MetaDrive');
   await rename('栏目1').waitFor();
   assert.equal(await rename('测试栏目').count(), 0);
+  await page.getByRole('button', { name: '创建文档', exact: true }).click();
+  const creator = page.getByRole('dialog', { name: '创建文档', exact: true });
+  await creator.getByRole('button', { name: /^保存到栏目 / }).click();
+  assert.equal(await creator.getByRole('option', { name: '测试栏目', exact: true }).count(), 0);
+  await creator.getByRole('option', { name: '栏目1', exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  await creator.getByRole('button', { name: '取消', exact: true }).click();
   await page.getByRole('checkbox', { name: '选择 项目观察', exact: true }).check();
   await page.getByRole('button', { name: '移至栏目', exact: true }).click();
   await move.getByRole('button', { name: /^栏目 / }).click();
