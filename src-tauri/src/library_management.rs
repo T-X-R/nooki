@@ -100,7 +100,7 @@ pub fn history(root: &Path, id: &str) -> Result<Vec<LibraryDocument>, String> {
 fn edit(root: &Path, id: &str, title: String, content: String, expected: &str) -> Result<LibraryDocumentMetadata, String> {
   let doc = document_library::read_unlocked(root, id)?;
   if document_library::revision(&doc) != expected { return Err("文档已更新，请重新打开后修改 / Document changed. Reopen it before editing.".into()); }
-  document_library::publish_unlocked(root, &doc.capability_id, &doc.capability_name, DocumentPublication {
+  document_library::publish_edited_unlocked(root, &doc.capability_id, &doc.capability_name, DocumentPublication {
     key: doc.key.clone(), title, collection_key: doc.collection_key.clone(), collection_name: doc.collection_name.clone(),
     document_date: doc.document_date.clone(), content,
   })
@@ -130,7 +130,7 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       let (topic, section) = destination(&state, topic_id, section.unwrap_or(LibrarySection { id: "workbench.documents".into(), name: "我的文档 / My documents".into(), topic_id: None }))?;
       document.collection_key = "documents".into();
       document.collection_name = "我的文档 / My documents".into();
-      let metadata = document_library::publish_unlocked(root, "workbench.documents", "我的文档 / My documents", document)?;
+      let metadata = document_library::publish_edited_unlocked(root, "workbench.documents", "我的文档 / My documents", document)?;
       if let Some(index) = topic {
         let topic = &mut state.topics[index];
         if !topic.document_ids.contains(&metadata.id) { topic.document_ids.push(metadata.id.clone()); }

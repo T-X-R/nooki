@@ -6,8 +6,9 @@ Replace topic/section navigation with a familiar folder workspace, retaining Noo
 
 ```
 Library
-┌ My documents                 + ··· ┬ My documents / Project       + ┐
+┌ Library                            ┬ My documents / Project         ┐
 │ Search documents                  │                                │
+│ My documents                    +  │                                │
 │ ▾ Project                    + ··· │ Child folders and documents    │
 │   ▾ Notes                    + ··· │ or the selected document       │
 │     Document                   ··· │                                │
@@ -15,11 +16,13 @@ Library
 └───────────────────────────────────┴────────────────────────────────┘
 ```
 
-“My documents” is the root. A plus menu at root or any folder creates a Markdown document, creates a child folder, or imports Markdown/TXT into that exact location. Creation shows the destination as a breadcrumb, without a destination picker. No source/date grouping or automatic folders. The content pane shows folder contents, breadcrumbs, document reader, and a clear empty state. Click the current document title or body to edit in place. Blur saves a version and restores rendered Markdown; Cmd/Ctrl+Enter saves, and Escape cancels. Drafts persist locally across navigation/restart and are included in data backups. Save failures and version conflicts keep drafts without overwriting newer content. Retained citation snapshots remain read-only. Search spans document titles and contents across the library and shows results with their location.
+“My documents” is an icon-free, collapsible root group. Its contextual plus menu, and each folder's plus menu, immediately create an empty document or folder at the clicked location. New folders enter inline renaming; sibling untitled names are numbered. Imports retain a file picker and review. No creation dialog, destination picker, source/date grouping or automatic folders are needed.
 
-The title, current-location breadcrumb, add/manage actions, and global search share one compact workspace toolbar. The directory is slightly narrower than the original folder layout. “My documents” is an icon-free, collapsible group header.
+The compact header combines Library title/count, breadcrumbs, the current document's export/history menu and global search. It has no global add button or folder menu. The directory is narrower than the original layout. The content pane displays child folders and document rows, without document selection checkboxes or a batch toolbar. Search spans titles and bodies and shows each result's location.
 
-Folder ellipsis: Discuss, rename, move, delete. Rename edits the name in its current row or heading, with Enter/blur to save and Escape to cancel. Errors keep the draft in place for retry. Menus use bounded dimensions and fixed compact rows, rendered outside the directory layout to avoid inherited sizing in the desktop WebView. Directory document ellipsis: Discuss first, rename, move, and Trash. Folder menus also start with Discuss, including live documents in all descendant folders without duplicates. The existing 50-document conversation limit is reported without silently truncating a folder. The global toolbar has no add button or folder/root menu; for a current document it offers only Markdown export and version history. Document drag and drop moves into a folder or root; the Move dialog provides a keyboard alternative. Root ellipsis opens Trash. Existing conversation selection, authorization, revision history, citation snapshots, imports, exports, and Trash remain available. No new sharing, table, or cloud features.
+Documents use an always-formatted Markdown rich-text editor with inline title renaming, automatic versioned saves, local draft recovery, and conflict protection. A lightweight formatting toolbar and slash menu provide common blocks. The body displays no update timestamp or source textarea. Citation snapshots remain read-only. Export opens a native Save dialog for a single Markdown file, with quiet cancellation and no displayed filesystem path. See [Document editing](library-document-creation.md) for the interaction contract.
+
+Folder ellipsis: Add to conversation, rename, move, delete. Document ellipsis: Add to conversation, rename, move, supported capability authorization, original conversation when available, and Trash. Rename stays in place; Enter/blur saves and Escape cancels. Menus use bounded dimensions and compact rows outside the directory layout to avoid inherited WebView sizing. A folder attaches as one expandable container with all descendants, including empty directories. Its serialized hierarchy accompanies the retained document snapshots in task input and agent context. Shared document IDs are captured once; trashed documents are excluded. The existing 50-document conversation limit produces an explicit failure for oversized folders, without partial attachment. Both folders and documents support drag and drop, with the Move dialog as a keyboard alternative. Trash remains at the directory footer. Imports, grants, revisions, origin links and citation snapshots remain available.
 
 ## Folder contract and migration
 
@@ -30,12 +33,12 @@ Folder mutations validate names (trimmed, 1–80 characters), sibling uniqueness
 ## Acceptance and verification
 
 1. Global Library entry never expands; all folders are inside the workspace.
-2. Contextual creation/import saves directly to the clicked location, including root and empty folders.
+2. Contextual creation immediately opens an empty untitled item without a dialog; creation/import preserves the clicked destination, including root and empty folders.
 3. Nested create/rename/move/delete survives reload; duplicates and cycles fail without mutation.
 4. Old topic/section membership, shared documents, revisions, Trash, origins, and citations survive migration.
-5. Drag works to collapsed/empty folders and root, preserves content/revisions, and reports save failures without removing the source; retry works.
+5. Documents and folders drag into empty/collapsed folders or root, preserve content/revisions, reject cycles and report failed saves without removing the source.
 6. Folder and document menus support pointer and keyboard, dismiss on Escape/outside click, and restore focus. Responsive layout and long names remain usable.
-7. Conversation save selects a folder; document references still open current documents or retained snapshots.
+7. Conversation save selects a folder; folder attachments retain the complete selected hierarchy and every live source; references open current documents or retained snapshots.
 8. Run focused store/native migration tests, full platform tests, browser regression flows, TypeScript/Vite build, native tests, desktop build and reinstall. Inspect the installed app. Update the existing feature branch and PR; leave human merging unchanged.
 
 ## Implementation order

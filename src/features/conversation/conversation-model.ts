@@ -1,3 +1,4 @@
+import type { FolderAttachment } from './library-folder-attachments.ts'
 import type { LibrarySection } from '../../platform/library-store.ts'
 import type { SelectedDocument } from '../../../packages/capability-contract/src/index.ts'
 import { referenceHref } from '../../../packages/capability-contract/src/references.ts'
@@ -10,7 +11,7 @@ export type ConversationItem = { id: string; type: string; clientId?: string; te
 export type ConversationTurn = { id: string; items: ConversationItem[]; status: string; error?: { message: string }; startedAt?: number | null; completedAt?: number | null; durationMs?: number | null }
 export type Conversation = { id: string; agent?: string; archived?: boolean; name?: string; preview: string; createdAt: number; updatedAt: number; model?: string; capabilityTools?: 'available' | 'new-conversation-required'; status?: { type: string }; turns: ConversationTurn[]; nextCursor?: string | null }
 export type ConversationEvent = { method: string; params?: { threadId?: string; turnId?: string; turn?: ConversationTurn; item?: ConversationItem; itemId?: string; delta?: string; summaryIndex?: number; message?: string } }
-export type ConversationInput = { threadId: string; message: string; documentIds: string[]; snapshotId: string; uploads?: ConversationAttachment[]; skills?: string[] }
+export type ConversationInput = { threadId: string; message: string; documentIds: string[]; snapshotId: string; folders?: FolderAttachment[]; uploads?: ConversationAttachment[]; skills?: string[] }
 export type ConversationResult = { threadId: string; turnId: string; artifacts?: ConversationArtifact[] }
 export type SaveAnswerInput = { threadId?: string; messageId: string; sourceMessageId?: string; sourceArtifactId?: string; title: string; content: string; date: string; language: 'zh' | 'en'; targetDocumentId?: string; expectedRevision?: string; destination?: { folderId?: string } | { topicId?: string; section: LibrarySection } }
 

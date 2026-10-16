@@ -60,14 +60,14 @@ try {
   await deletion.getByRole('button', { name: '删除文件夹', exact: true }).click(); await deletion.waitFor({ state: 'hidden' });
   assert.equal(await directory.getByRole('button', { name: '项目观察', exact: true }).count(), 1);
   await directory.getByRole('button', { name: '测试', exact: true }).click();
-  await page.getByRole('checkbox', { name: '选择 项目观察', exact: true }).check();
-  await page.getByRole('button', { name: '移动到', exact: true }).click();
+  await page.locator('.library-folder-list').getByRole('button', { name: '文档操作 项目观察', exact: true }).click();
+  await page.getByRole('menuitem', { name: '移动到…', exact: true }).click();
   const move = page.getByRole('dialog', { name: '移动资料', exact: true });
   await move.getByRole('button', { name: /^文件夹 / }).click(); await move.getByRole('option', { name: '我的资料', exact: true }).click();
-  await move.getByRole('button', { name: '移动资料', exact: true }).click(); await move.waitFor({ state: 'hidden' });
+  await move.getByRole('button', { name: '移动', exact: true }).click(); await move.waitFor({ state: 'hidden' });
   await directory.getByRole('button', { name: '我的资料', exact: true }).click();
   if (await directory.getByRole('button', { name: '我的资料', exact: true }).getAttribute('aria-expanded') === 'false') await directory.getByRole('button', { name: '我的资料', exact: true }).click();
-  await page.getByRole('checkbox', { name: '选择 项目观察', exact: true }).waitFor();
+  await page.locator('.library-folder-list').getByRole('button', { name: '文档操作 项目观察', exact: true }).waitFor();
   await page.getByRole('searchbox').fill('keyword');
   await page.getByRole('heading', { name: '搜索结果', exact: true }).waitFor();
   await page.locator('.library-folder-item-label').filter({ hasText: '项目观察' }).waitFor();
@@ -95,6 +95,6 @@ try {
     for (const width of [1240, 800, 640]) { await page.setViewportSize({ width, height: 820 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)); await page.screenshot({ path: `/private/tmp/nooki-folders-${theme}-${width}.png` }); }
   }
   assert.deepEqual(errors, []);
-  console.log('PASS: legacy/shared migration, nested rename/move/delete, duplicate/cycle prevention, save failure, keyboard batch move, content search, contextual import, Trash restore, revision preservation, reload and responsive themes');
+  console.log('PASS: legacy/shared migration, nested rename/move/delete, duplicate/cycle prevention, save failure, keyboard document move, content search, contextual import, Trash restore, revision preservation, reload and responsive themes');
 } catch (error) { await page.screenshot({ path: '/private/tmp/nooki-folders-management-failure.png' }).catch(() => {}); throw error; }
 finally { await browser.close(); }

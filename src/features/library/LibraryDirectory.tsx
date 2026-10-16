@@ -16,28 +16,28 @@ export function LibraryAddMenu({ language, folderId, name, onCreate, onFolder }:
     <button role="menuitem" onClick={() => onCreate({ kind: 'import', folderId })}><UploadIcon />{zh ? '导入资料' : 'Import documents'}</button>
   </LibraryMenu>
 }
-export function FolderMenu({ folder, language, onAction, onRename, onDiscuss, canDiscuss }: { folder: LibraryFolder; language: 'zh' | 'en'; onAction(value: FolderAction): void; onRename(): void; onDiscuss(): void; canDiscuss: boolean }) {
+export function FolderMenu({ folder, language, onAction, onRename, onDiscuss }: { folder: LibraryFolder; language: 'zh' | 'en'; onAction(value: FolderAction): void; onRename(): void; onDiscuss(): void }) {
   const zh = language === 'zh'
   return <LibraryMenu label={`${zh ? '文件夹操作' : 'Folder actions'} ${folder.name}`} icon={<DotsHorizontalIcon />}>
-    <button role="menuitem" disabled={!canDiscuss} onClick={onDiscuss}>{zh ? '去讨论' : 'Discuss'}</button>
+    <button role="menuitem" onClick={onDiscuss}>{zh ? '添加到会话' : 'Add to conversation'}</button>
     <button role="menuitem" onClick={onRename}>{zh ? '重命名' : 'Rename'}</button>
     <button role="menuitem" onClick={() => onAction({ kind: 'move', folder })}>{zh ? '移动到…' : 'Move to…'}</button>
     <button role="menuitem" className="library-delete-action" onClick={() => onAction({ kind: 'delete', folder })}>{zh ? '删除文件夹' : 'Delete folder'}</button>
   </LibraryMenu>
 }
-export function LibraryDirectory({ language, folders, documents, folderId, selectedId, collapsed, onToggle, onFolder, onDocument, onCreate, onFolderAction, renameId, onFinishRename, folderMenu, documentMenu, dragging, dropTarget, onDrag, onDropTarget, onMove }: {
+export function LibraryDirectory({ language, folders, documents, folderId, selectedId, collapsed, onToggle, onFolder, onDocument, onCreate, onFolderAction, renameId, onFinishRename, folderMenu, documentMenu, dragging, dropTarget, onDrag, onDropTarget, canDrop, onMove }: {
   language: 'zh' | 'en'; folders: LibraryFolder[]; documents: LibraryDocumentMetadata[]; folderId: string; selectedId: string | null; collapsed: Set<string>
   onToggle(id: string): void; onFolder(id: string): void; onDocument(id: string): void; onCreate(value: LibraryCreation): void; onFolderAction(value: FolderAction): void; renameId: string | null; onFinishRename(): void
-  folderMenu(folder: LibraryFolder): React.ReactNode; documentMenu(doc: LibraryDocumentMetadata): React.ReactNode; dragging: string | null; dropTarget: string | null; onDrag(id: string | null): void; onDropTarget(id: string | null): void; onMove(id: string, folderId?: string): void
+  folderMenu(folder: LibraryFolder): React.ReactNode; documentMenu(doc: LibraryDocumentMetadata): React.ReactNode; dragging: string | null; dropTarget: string | null; onDrag(id: string | null): void; onDropTarget(id: string | null): void; canDrop(id: string): boolean; onMove(id: string, folderId?: string): void
 }) {
   const zh = language === 'zh'
   const [expandedRoot, setExpandedRoot] = useState(true)
   const rootId = useId()
   const assigned = new Set(folders.flatMap(folder => folder.documentIds))
   const drops = (id: string) => ({
-    onDragOver: (event: React.DragEvent) => { if (!dragging || !event.dataTransfer.types.includes(DOCUMENT_DRAG_TYPE)) return; event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'move'; onDropTarget(id) },
+    onDragOver: (event: React.DragEvent) => { if (!canDrop(id) || !event.dataTransfer.types.includes(DOCUMENT_DRAG_TYPE)) return; event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'move'; onDropTarget(id) },
     onDragLeave: (event: React.DragEvent) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) onDropTarget(null) },
-    onDrop: (event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); const value = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE); if (value && value === dragging && documents.some(doc => doc.id === value)) onMove(value, id || undefined); onDrag(null); onDropTarget(null) },
+    onDrop: (event: React.DragEvent) => { event.preventDefault(); event.stopPropagation(); const value = event.dataTransfer.getData(DOCUMENT_DRAG_TYPE); if (value && value === dragging && (documents.some(doc => doc.id === value) || folders.some(folder => `folder:${folder.id}` === value)) && canDrop(id)) onMove(value, id || undefined); onDrag(null); onDropTarget(null) },
   })
   const docRow = (doc: LibraryDocumentMetadata) => <li key={doc.id}><div className={`library-directory-row library-directory-document ${selectedId === doc.id ? 'is-active' : ''} ${dragging === doc.id ? 'is-dragging' : ''}`}>
     <button className="library-directory-label" draggable onDragStart={event => { event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, doc.id); event.dataTransfer.effectAllowed = 'move'; onDrag(doc.id) }} onDragEnd={() => { onDrag(null); onDropTarget(null) }} title={doc.title} aria-current={selectedId === doc.id ? 'true' : undefined} onClick={() => onDocument(doc.id)}><FileTextIcon /><span>{doc.title}</span></button><span className="library-directory-actions">{documentMenu(doc)}</span>
@@ -47,7 +47,7 @@ export function LibraryDirectory({ language, folders, documents, folderId, selec
       const expanded = !collapsed.has(folder.id)
       return <li key={folder.id}><div className={`library-directory-row ${folderId === folder.id && !selectedId ? 'is-active' : ''} ${dropTarget === folder.id ? 'is-drop-target' : ''}`} {...drops(folder.id)}>
         <button className="library-folder-disclosure icon-button" aria-label={`${zh ? (expanded ? '收起' : '展开') : (expanded ? 'Collapse' : 'Expand')} ${folder.name}`} aria-expanded={expanded} onClick={() => onToggle(folder.id)}><ChevronRightIcon className={expanded ? 'is-expanded' : ''} /></button>
-        {renameId === folder.id ? <div className="library-directory-label"><FolderIcon /><LibraryFolderRename folder={folder} language={language} onFinish={onFinishRename} /></div> : <button className="library-directory-label" title={folder.name} aria-current={folderId === folder.id && !selectedId ? 'true' : undefined} onClick={() => onFolder(folder.id)}><FolderIcon /><span>{folder.name}</span></button>}
+        {renameId === folder.id ? <div className="library-directory-label"><FolderIcon /><LibraryFolderRename folder={folder} language={language} onFinish={onFinishRename} /></div> : <button className="library-directory-label" draggable onDragStart={event => { const id = `folder:${folder.id}`; event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; onDrag(id) }} onDragEnd={() => { onDrag(null); onDropTarget(null) }} title={folder.name} aria-current={folderId === folder.id && !selectedId ? 'true' : undefined} onClick={() => onFolder(folder.id)}><FolderIcon /><span>{folder.name}</span></button>}
         <span className="library-directory-actions"><LibraryAddMenu language={language} folderId={folder.id} name={folder.name} onCreate={onCreate} onFolder={onFolderAction} />{folderMenu(folder)}</span>
       </div>{expanded && <>{children(folder.id, new Set([...seen, folder.id]))}<ul>{documents.filter(doc => folder.documentIds.includes(doc.id)).map(docRow)}</ul></>}</li>
     })}

@@ -1,3 +1,4 @@
+import type { LibrarySelection } from '../features/conversation/library-folder-attachments.ts'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -40,7 +41,7 @@ function App() {
   }, [])
   const [conversationTarget, setConversationTarget] = useState<string | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
-  const [conversationDocuments, setConversationDocuments] = useState<string[]>([])
+  const [conversationDocuments, setConversationDocuments] = useState<LibrarySelection>({ documentIds: [], folders: [] })
   const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
   const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
@@ -160,7 +161,7 @@ function App() {
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
               {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} agents={agents} capabilityAgent={capabilityAgent} />}
-              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingIds={conversationDocuments} onConsumed={() => setConversationDocuments([])} onDocument={openDocument} />}
+              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
               {view === 'library' && <LibraryPage onOpenCommand={() => setCommandOpen(true)} organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}

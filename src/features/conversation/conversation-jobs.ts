@@ -1,3 +1,4 @@
+import { attachmentDocumentIds, folderAttachmentContext } from './library-folder-attachments.ts'
 import { invoke } from '@tauri-apps/api/core'
 import type { DocumentPublication, SelectedDocument } from '../../../packages/capability-contract/src/index.ts'
 import { publicationReference } from '../../../packages/capability-contract/src/references.ts'
@@ -19,6 +20,7 @@ export const respond: TaskJob = {
   async run(value, { step, executionId, signal }) {
     const input = value as ConversationInput
     if (!input.threadId || !input.message.trim() || !Array.isArray(input.documentIds) || input.documentIds.length > 50) throw new Error('Invalid conversation input')
+    if (attachmentDocumentIds(input.folders ?? []).some(id => !input.documentIds.includes(id))) throw new Error('Folder sources are incomplete')
     validateAttachments(input.uploads ?? [], input.documentIds.length)
     const documents = await step('sources', async (): Promise<SelectedDocument[]> => {
       if (window.__TAURI_INTERNALS__) return invoke('library_capture_sources', { id: input.snapshotId, ids: input.documentIds })
@@ -28,7 +30,7 @@ export const respond: TaskJob = {
       const sources = await Promise.all(input.documentIds.map(async (id) => { const doc = await readLibraryDocument(id); return { reference: { kind: 'library-document' as const, documentId: id, title: doc.title, snapshotId: input.snapshotId, revision: doc.updatedAt }, documentDate: doc.documentDate, content: doc.content } }))
       localStorage.setItem(key, JSON.stringify(sources)); return sources
     })
-    const context = libraryContext(documents, true)
+    const context = libraryContext(documents, true) + folderAttachmentContext(input.folders ?? [])
     if (new TextEncoder().encode(context + input.message).length > 100_000) throw new Error('引用资料过长，请减少资料后重新发送 / Message and references exceed 100 KB')
     return step('codex-turn', async (): Promise<ConversationResult> => {
       signal.throwIfAborted()

@@ -53,8 +53,8 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
     if (topicId && !topic) throw new Error('专题已不存在，请重新选择 / Topic no longer exists')
     return { section: { ...section, name: section.name.trim() }, topic }
   }
-  const publish = (state: LibraryState, source: string, name: string, input: DocumentPublication) => {
-    if (!input.title.trim() || new TextEncoder().encode(input.title).length > 240 || !input.content.trim() || new TextEncoder().encode(input.content).length > 2_000_000
+  const publish = (state: LibraryState, source: string, name: string, input: DocumentPublication, allowEmpty = false) => {
+    if (!input.title.trim() || new TextEncoder().encode(input.title).length > 240 || (!allowEmpty && !input.content.trim()) || new TextEncoder().encode(input.content).length > 2_000_000
       || !/^[a-z0-9-]{1,100}$/.test(input.key) || !/^[a-z0-9-]{1,100}$/.test(input.collectionKey)
       || !/^\d{4}-\d{2}-\d{2}$/.test(input.documentDate) || !Number.isFinite(Date.parse(input.documentDate)) || new Date(input.documentDate).toISOString().slice(0, 10) !== input.documentDate) throw new Error('标题、日期或正文无效 / Invalid title, date or content')
     const id = `${source}/${input.collectionKey}/${input.documentDate.slice(0, 4)}/${input.documentDate.slice(5, 7)}/${input.key}`
@@ -79,7 +79,7 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
         case 'create': {
           const folder = folderDestination(state.organization.folders!, change.folderId)
           const { topic, section } = destination(state, change.topicId, change.section ?? { id: 'workbench.documents', name: '我的文档 / My documents' })
-          result = publish(state, 'workbench.documents', '我的文档 / My documents', { ...change.document, collectionKey: 'documents', collectionName: '我的文档 / My documents' })
+          result = publish(state, 'workbench.documents', '我的文档 / My documents', { ...change.document, collectionKey: 'documents', collectionName: '我的文档 / My documents' }, true)
           if (topic && !topic.documentIds.includes(result.id)) topic.documentIds.push(result.id)
           if (change.section) (state.organization.sections ??= {})[result.id] = section
           if (folder && !folder.documentIds.includes(result.id)) folder.documentIds.push(result.id)
@@ -125,7 +125,7 @@ export function createLibraryStore(storage: Pick<Storage, 'getItem' | 'setItem'>
           if (current.revision !== change.expected) throw new Error('文档已更新，请重新打开后修改 / Document changed. Reopen it before editing.')
           const value = change.kind === 'edit' ? change : (state.history[change.id] ?? []).find((doc) => doc.revision === change.revision)
           if (!value) throw new Error('Version not found')
-          result = publish(state, current.capabilityId, current.capabilityName, { ...current, title: value.title, content: value.content })
+          result = publish(state, current.capabilityId, current.capabilityName, { ...current, title: value.title, content: value.content }, true)
           break
         }
         case 'save-topic': {

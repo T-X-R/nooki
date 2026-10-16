@@ -63,7 +63,6 @@
 .library-folder-item-label svg { color: var(--accent-strong); }
 .library-folder-item-label strong { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .library-folder-item-label small { color: var(--ink-muted); font-size: 10px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.library-folder-select-all { display: flex; align-items: center; gap: 8px; color: var(--ink-muted); font-size: 10px; padding: 16px 8px 6px; }
 .library-folder-empty { display: flex; align-items: center; flex-direction: column; justify-content: center; min-height: 320px; text-align: center; color: var(--ink-muted); padding: 20px; }
 .library-folder-empty > svg { width: 44px; height: 44px; color: var(--accent); opacity: .6; }
 .library-folder-empty h3 { font-size: 16px; font-weight: 500; color: var(--ink); margin: 20px 0 7px; }
@@ -81,7 +80,6 @@
 .library-action-menu button:hover, .library-action-menu button:focus-visible { outline: none; background: var(--accent-wash); color: var(--accent-strong); }
 .library-action-menu button.library-delete-action { color: var(--negative); }
 .library-action-menu svg { width: 15px; height: 15px; flex: none; }
-.library-folder-page .library-batch-actions { margin-bottom: 0; }
 @media (max-width: 900px) {
   .content-column.library-folder-page { --library-directory-width: 195px; padding-inline: 18px; }
   .library-shell-location { padding-left: 18px; }
@@ -117,9 +115,9 @@
 .library-inline-document h2 { cursor: text; border-radius: 5px; }
 .library-inline-document h2:focus-visible { outline: 1px solid var(--line-strong); outline-offset: 4px; }
 .library-inline-document-title { width: 100%; min-width: 0; padding: 5px 0; border: 0; border-bottom: 1px solid var(--accent); outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 21px; font-weight: 600; line-height: 1.4; }
-.library-editable-preview { min-height: 260px; cursor: text; border-radius: 6px; }
-.library-editable-preview:focus-visible { outline: 1px solid var(--line-strong); outline-offset: 6px; }
-.library-inline-markdown { display: block; width: 100%; min-height: 300px; resize: none; overflow: hidden; padding: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.9; }
 .library-inline-save-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; color: var(--negative); font-size: 12px; }
 .library-inline-save-error p { margin: 0; }
 .library-inline-save-error button { text-decoration: underline; }
+
+.library-inline-document .library-reader-header { position: relative; padding-bottom: 8px; }
+.library-save-status { position: absolute; right: 0; top: 12px; font-size: 10px; color: var(--ink-muted); }

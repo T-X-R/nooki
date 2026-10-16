@@ -1,75 +1,81 @@
-import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
-import { changeLibrary, type LibraryDocument } from '../../platform/document-library.ts'
+import type { DocumentReference } from '../../../packages/capability-contract/src/index.ts'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import type { Editor } from '@tiptap/react'
+import { changeLibrary, readLibraryDocument, type LibraryDocument } from '../../platform/document-library.ts'
 import { createLibraryDrafts } from '../../platform/library-drafts.ts'
+import { LibraryRichText } from './LibraryRichText.tsx'
 
-export function LibraryDocumentEditor({ document, language, renameTitle, onRenamed, renderMarkdown, ref }: { ref: Ref<{ save(): Promise<boolean> }>; document: LibraryDocument; language: 'zh' | 'en'; renameTitle: boolean; onRenamed(): void; renderMarkdown(content: string): ReactNode }) {
+export function LibraryDocumentEditor({ document, language, renameTitle, onRenamed, onDocument, ref }: { ref: Ref<{ save(): Promise<boolean> }>; document: LibraryDocument; language: 'zh' | 'en'; renameTitle: boolean; onRenamed(): void; onDocument(reference: DocumentReference): void }) {
   const zh = language === 'zh'
   const [drafts] = useState(() => createLibraryDrafts(window.localStorage))
   const [recovered] = useState(() => drafts.get(document))
-  const [base, setBase] = useState(document)
   const [title, setTitle] = useState(recovered?.title ?? document.title)
   const [content, setContent] = useState(recovered?.content ?? document.content)
-  const [revision, setRevision] = useState(recovered?.revision ?? document.revision ?? document.updatedAt)
+  const state = useRef({ base: document, title, content, revision: recovered?.revision ?? document.revision ?? document.updatedAt })
   const [editingTitle, setEditingTitle] = useState(false)
-  const [editingBody, setEditingBody] = useState(!!recovered)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const pending = useRef<Promise<boolean> | null>(null)
   const titleInput = useRef<HTMLInputElement>(null)
-  const bodyInput = useRef<HTMLTextAreaElement>(null)
-  const bodyView = useRef<HTMLDivElement>(null)
-  const titleView = useRef<HTMLHeadingElement>(null)
-  useEffect(() => { if (renameTitle) { setEditingTitle(true); onRenamed() } }, [renameTitle, onRenamed])
-  useEffect(() => { if (editingTitle) { titleInput.current?.focus(); titleInput.current?.select() } }, [editingTitle])
-  useEffect(() => { if (editingBody) bodyInput.current?.focus() }, [editingBody])
-  useEffect(() => { const input = bodyInput.current; if (input) { input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px` } }, [content, editingBody])
-  const remember = (nextTitle: string, nextContent: string) => {
-    try { drafts.save(document.id, { title: nextTitle, content: nextContent, revision }) }
-    catch (reason) { setError(String(reason)) }
+  const editor = useRef<Editor | null>(null)
+  const mounted = useRef(true)
+  const remember = () => {
+    const draft = state.current
+    try { drafts.save(document.id, { title: draft.title, content: draft.content, revision: draft.revision }) }
+    catch (reason) { if (mounted.current) setError(String(reason)) }
   }
-  const save = (): Promise<boolean> => {
-    if (pending.current) return pending.current
-    if (!title.trim() || !content.trim()) { setError(zh ? '标题和正文不能为空，草稿已保留。' : 'Title and content cannot be empty. Your draft is kept.'); return Promise.resolve(false) }
-    if (title === base.title && content === base.content) return Promise.resolve(true)
-    setBusy(true); setError('')
+  const save = async (): Promise<boolean> => {
+    if (pending.current) { if (!await pending.current) return false; return save() }
+    const { base, title, content, revision } = state.current
+    if (!title.trim()) { if (mounted.current) setError(zh ? '标题不能为空，草稿已保留。' : 'A title is required. Your draft is kept.'); return false }
+    if (title === base.title && content === base.content) return true
+    if (mounted.current) { setBusy(true); setError('') }
     const operation = (async () => {
       try {
         const metadata = await changeLibrary({ kind: 'edit', id: document.id, title: title.trim(), content, expected: revision })
         const saved = { ...base, ...metadata, title: title.trim(), content }
-        setBase(saved); setTitle(saved.title); setRevision(saved.revision ?? saved.updatedAt)
-        drafts.remove(document.id)
+        const current = state.current
+        current.base = saved; current.revision = saved.revision ?? saved.updatedAt
+        if (current.title === title && current.content === content) { current.title = saved.title; drafts.remove(document.id); if (mounted.current) setTitle(saved.title) }
+        else remember()
         return true
-      } catch (reason) { setError(String(reason)); return false }
-      finally { pending.current = null; setBusy(false) }
+      } catch (reason) { if (mounted.current) setError(String(reason)); return false }
+      finally { pending.current = null; if (mounted.current) setBusy(false) }
     })()
     pending.current = operation
-    return operation
+    if (!await operation) return false
+    return state.current.title !== state.current.base.title || state.current.content !== state.current.base.content ? save() : true
   }
-  useImperativeHandle(ref, () => ({ save }))
-  const finish = async (field: 'title' | 'body') => {
-    if (!await save()) return
-    if (field === 'title') setEditingTitle(false); else setEditingBody(false)
+  const reload = async () => {
+    try {
+      const current = await readLibraryDocument(document.id)
+      state.current = { base: current, title: current.title, content: current.content, revision: current.revision ?? current.updatedAt }
+      drafts.remove(document.id); setTitle(current.title); setContent(current.content); setError(''); setEditingTitle(false)
+      editor.current?.commands.setContent(current.content, { contentType: 'markdown', emitUpdate: false })
+    } catch (reason) { setError(String(reason)) }
   }
-  const cancel = () => {
-    if (busy) return
-    setTitle(base.title); setContent(base.content); setRevision(base.revision ?? base.updatedAt)
-    drafts.remove(document.id); setError(''); setEditingTitle(false); setEditingBody(false)
-  }
-  const keys = (event: React.KeyboardEvent, field: 'title' | 'body') => {
-    if (event.nativeEvent.isComposing) return
-    if ((field === 'title' && event.key === 'Enter') || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
-      event.preventDefault(); void finish(field).then(() => requestAnimationFrame(() => (field === 'title' ? titleView.current : bodyView.current)?.focus()))
-    }
-    if (event.key === 'Escape' && !busy) { event.preventDefault(); event.stopPropagation(); cancel(); requestAnimationFrame(() => (field === 'title' ? titleView.current : bodyView.current)?.focus()) }
-  }
-  return <section className="library-inline-document">
+  const saveRef = useRef(save); saveRef.current = save
+  useImperativeHandle(ref, () => ({ save: () => saveRef.current() }))
+  useEffect(() => { if (renameTitle) { setEditingTitle(true); onRenamed() } }, [renameTitle, onRenamed])
+  useEffect(() => { if (editingTitle) { titleInput.current?.focus(); titleInput.current?.select() } }, [editingTitle])
+  useEffect(() => {
+    const current = state.current
+    if ((document.revision ?? document.updatedAt) === current.revision || pending.current || current.title !== current.base.title || current.content !== current.base.content) return
+    current.base = document; current.title = document.title; current.content = document.content; current.revision = document.revision ?? document.updatedAt
+    setTitle(document.title); setContent(document.content); editor.current?.commands.setContent(document.content, { contentType: 'markdown', emitUpdate: false })
+  }, [document])
+  useEffect(() => { const timer = window.setTimeout(() => { void saveRef.current() }, 800); return () => window.clearTimeout(timer) }, [title, content])
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; void saveRef.current() } }, [])
+  return <section className="library-inline-document" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) void saveRef.current() }}>
     <header className="library-reader-header">
-      {editingTitle ? <input ref={titleInput} className="library-inline-document-title" aria-label={zh ? '文档标题' : 'Document title'} maxLength={120} value={title} readOnly={busy} onChange={event => { setTitle(event.target.value); remember(event.target.value, content) }} onBlur={() => { void finish('title') }} onKeyDown={event => keys(event, 'title')} /> : <h2 ref={titleView} tabIndex={0} title={zh ? '点击修改标题' : 'Click to edit title'} onClick={() => { if (!busy) setEditingTitle(true) }} onKeyDown={event => { if (event.key === 'Enter' && !busy) { event.preventDefault(); setEditingTitle(true) } }}>{title}</h2>}
-      <div className="library-reader-details"><small>{zh ? '更新于' : 'Updated'} {new Date(base.updatedAt).toLocaleString(zh ? 'zh-CN' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}</small>{busy && <small role="status">{zh ? '保存中…' : 'Saving…'}</small>}</div>
+      {editingTitle ? <input ref={titleInput} className="library-inline-document-title" aria-label={zh ? '文档标题' : 'Document title'} maxLength={120} value={title} onChange={event => { state.current.title = event.target.value; setTitle(event.target.value); remember() }} onBlur={() => { void save().then(ok => { if (ok) setEditingTitle(false) }) }} onKeyDown={event => {
+        if (event.nativeEvent.isComposing) return
+        if (event.key === 'Enter') { event.preventDefault(); void save().then(ok => { if (ok) { setEditingTitle(false); editor.current?.commands.focus() } }) }
+        if (event.key === 'Escape') { state.current.title = state.current.base.title; setTitle(state.current.title); remember(); setEditingTitle(false) }
+      }} /> : <h2 tabIndex={0} title={zh ? '点击修改标题' : 'Click to edit title'} onClick={() => setEditingTitle(true)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); setEditingTitle(true) } }}>{title}</h2>}
+      {busy && <small className="library-save-status" role="status">{zh ? '保存中…' : 'Saving…'}</small>}
     </header>
-    {error && <div className="library-inline-save-error"><p role="alert">{error}</p><button className="quiet-button" disabled={busy} onClick={() => { void finish('body') }}>{zh ? '重试保存' : 'Retry save'}</button></div>}
-    <div className="library-reader-content">
-      {editingBody ? <textarea ref={bodyInput} className="library-inline-markdown" aria-label={zh ? '编辑 Markdown' : 'Edit Markdown'} value={content} readOnly={busy} onChange={event => { setContent(event.target.value); remember(title, event.target.value) }} onBlur={() => { void finish('body') }} onKeyDown={event => keys(event, 'body')} /> : <div ref={bodyView} className="library-reader-document library-editable-preview" role="region" aria-label={zh ? '文档正文' : 'Document content'} tabIndex={0} title={zh ? '点击正文即可编辑' : 'Click to edit'} onClick={event => { if (!busy && !(event.target as HTMLElement).closest('a') && !window.getSelection()?.toString()) setEditingBody(true) }} onKeyDown={event => { if (event.key === 'Enter' && !busy && event.target === event.currentTarget) { event.preventDefault(); setEditingBody(true) } }}>{renderMarkdown(content)}</div>}
-    </div>
+    {error && <div className="library-inline-save-error"><p role="alert">{error}</p><button className="quiet-button" disabled={busy} onClick={() => { void save() }}>{zh ? '重试保存' : 'Retry save'}</button>{/Document changed/.test(error) && <button className="quiet-button" disabled={busy} onClick={() => { void reload() }}>{zh ? '放弃草稿，读取最新文档' : 'Discard draft and reload'}</button>}</div>}
+    <div className="library-reader-content"><LibraryRichText initial={recovered?.content ?? document.content} language={language} onDocument={onDocument} onReady={value => { editor.current = value }} onSave={() => { void saveRef.current() }} onChange={value => { state.current.content = value; setContent(value); remember() }} /></div>
   </section>
 }

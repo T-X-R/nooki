@@ -17,12 +17,12 @@ export function downloadText(name: string, text: string, type = 'application/jso
   const link = document.createElement('a'); link.href = url; link.download = name; link.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
-export async function exportMarkdown(ids: string[]): Promise<string> {
-  if (window.__TAURI_INTERNALS__) return invoke<string>('library_export_markdown', { ids })
-  // Preview provides one readable Markdown file; desktop exports separate files in a ZIP.
-  const docs = await Promise.all(ids.map(readLibraryDocument))
-  downloadText('Nooki-documents.md', docs.map((doc) => `# ${doc.title}\n\n${doc.content}`).join('\n\n---\n\n'), 'text/markdown')
-  return '已下载 Markdown / Markdown downloaded'
+export async function exportMarkdown(id: string): Promise<boolean> {
+  if (window.__TAURI_INTERNALS__) return invoke<boolean>('library_export_markdown', { id })
+  const doc = await readLibraryDocument(id)
+  const name = doc.title.replace(/[\/\\:\x00-\x1f]/g, '').slice(0, 120) || 'Untitled'
+  downloadText(/\.md$/i.test(name) ? name : `${name}.md`, doc.content, 'text/markdown;charset=utf-8')
+  return true
 }
 export async function exportUserData(): Promise<string> {
   return taskRunner.withMaintenance(async () => {

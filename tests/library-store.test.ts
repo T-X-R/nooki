@@ -22,7 +22,7 @@ test('created documents persist without a section and join the current topic', (
 })
 test('creation rejects invalid content and stale topics without leaving documents', () => {
   const { store } = setup()
-  assert.throws(() => store.change({ kind: 'create', document: input('empty', ' ') }), /Invalid/)
+  assert.throws(() => store.change({ kind: 'create', document: { ...input('empty'), title: ' ' } }), /Invalid/)
   assert.throws(() => store.change({ kind: 'create', document: input('missing'), topicId: 'deleted' }), /Topic no longer exists/)
   assert.equal(store.list().length, 0)
   const first = store.change({ kind: 'create', document: input('first') })!
@@ -207,4 +207,16 @@ test('creation saves directly to the chosen section and rejects stale or cross-t
   assert.deepEqual(reopened.organization().topics[0].documentIds, [created.id])
   assert.equal(reopened.history(created.id).length, 1)
   assert.equal(reopened.read(created.id).content, 'Original evidence')
+})
+
+test('blank documents can be created and cleared without weakening capability publication validation', () => {
+  const { store } = setup()
+  const doc = store.change({ kind: 'create', document: input('blank', '') })!
+  assert.equal(store.read(doc.id).content, '')
+  assert.equal(store.organization().folders!.length, 0)
+  const written = store.change({ kind: 'edit', id: doc.id, title: doc.title, content: 'Written', expected: doc.revision! })!
+  store.change({ kind: 'edit', id: doc.id, title: doc.title, content: '', expected: written.revision! })
+  assert.equal(store.read(doc.id).sizeBytes, 0)
+  assert.equal(store.history(doc.id).length, 3)
+  assert.throws(() => store.publish('com.personal.notes', 'Notes', input('invalid', '')), /Invalid/)
 })

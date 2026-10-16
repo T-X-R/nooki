@@ -59,12 +59,20 @@ pub(crate) fn publish_unlocked(
   capability_name: &str,
   input: DocumentPublication,
 ) -> Result<LibraryDocumentMetadata, String> {
+  publish_content_unlocked(data_dir, capability_id, capability_name, input, false)
+}
+
+pub(crate) fn publish_edited_unlocked(data_dir: &Path, capability_id: &str, capability_name: &str, input: DocumentPublication) -> Result<LibraryDocumentMetadata, String> {
+  publish_content_unlocked(data_dir, capability_id, capability_name, input, true)
+}
+
+fn publish_content_unlocked(data_dir: &Path, capability_id: &str, capability_name: &str, input: DocumentPublication, allow_empty: bool) -> Result<LibraryDocumentMetadata, String> {
   if !valid_capability_id(capability_id) { return Err("Invalid document source".into()); }
   validate_slug(&input.key, "资料库文档键格式无效")?;
   validate_slug(&input.collection_key, "资料库集合键格式无效")?;
   validate_text(&input.title, 240, "资料库文档标题无效")?;
   validate_text(&input.collection_name, 120, "资料库集合名称无效")?;
-  if input.content.trim().is_empty() || input.content.len() > MAX_DOCUMENT_BYTES {
+  if (!allow_empty && input.content.trim().is_empty()) || input.content.len() > MAX_DOCUMENT_BYTES {
     return Err("资料库文档内容无效".into());
   }
   let date = NaiveDate::parse_from_str(&input.document_date, "%Y-%m-%d")

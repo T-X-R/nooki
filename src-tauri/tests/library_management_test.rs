@@ -23,7 +23,7 @@ fn created_documents_are_readable_revisioned_and_linked_to_the_current_topic() {
 #[test]
 fn creation_validates_content_and_topic_before_publishing() {
   let root = Fixture::new();
-  for (content, topic) in [(" ", None), ("Valid", Some("deleted"))] {
+  for (content, topic) in [("Valid", Some("deleted"))] {
     let change = serde_json::from_value(serde_json::json!({ "kind": "create", "document": document(content), "topicId": topic })).unwrap();
     assert!(management::change(&root.0, change).is_err());
     assert!(library::list_documents(&root.0).unwrap().is_empty());
@@ -339,4 +339,16 @@ fn folder_backup_roundtrip_rejects_cycles_and_missing_documents_without_touching
   assert_eq!(child.parent_id, None); assert_eq!(child.name, "Notes (2)");
   user_data::restore(&root.0, &backup, "restored-folders").unwrap();
   assert_eq!(management::organization(&root.0).unwrap().folders.unwrap().iter().find(|folder| folder.id == "child").unwrap().parent_id.as_deref(), Some("parent"));
+}
+
+#[test]
+fn empty_authored_documents_keep_revision_history_and_publication_validation() {
+  let root = Fixture::new();
+  let change = serde_json::from_value(serde_json::json!({ "kind": "create", "document": document("") })).unwrap();
+  let doc = management::change(&root.0, change).unwrap().unwrap();
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().content, "");
+  let written = management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: doc.title.clone(), content: "Written".into(), expected: doc.revision.unwrap() }).unwrap().unwrap();
+  management::change(&root.0, LibraryChange::Edit { id: doc.id.clone(), title: doc.title, content: "".into(), expected: written.revision.unwrap() }).unwrap();
+  assert_eq!(management::history(&root.0, &doc.id).unwrap().len(), 3);
+  assert!(library::publish_document(&root.0, "com.personal.notes", "Notes", document("")).is_err());
 }
