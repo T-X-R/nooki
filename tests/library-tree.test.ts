@@ -125,3 +125,14 @@ test('empty custom sections remain visible and searchable without inventing docu
   assert.equal(filterLibraryTree(tree, 'research').length, 1)
   assert.equal(filterLibraryTree(tree, 'unmatched').length, 0)
 })
+
+test('topic sections appear only in their owner and All, while shared documents remain readable', () => {
+  const sections = [{ id: 'custom-meta', name: '栏目1', topicId: 'meta' }, { id: 'custom-test', name: '栏目1', topicId: 'test' }, { id: 'custom-old', name: 'Legacy' }]
+  const doc = { ...document('notes/shared', 'notes', 'Notes', 'notes', 'Notes', '2026-10-16', 'Shared'), section: sections[0] }
+  const ids = (topicId: string, docs: LibraryDocumentMetadata[] = []) => buildLibraryTree(docs, new Map(), sections, topicId).map((node) => node.capabilityId).sort()
+  assert.deepEqual(ids('meta'), ['custom-meta'])
+  assert.deepEqual(ids('test'), ['custom-test'])
+  assert.deepEqual(ids(''), ['custom-meta', 'custom-old', 'custom-test'])
+  assert.deepEqual(ids('test', [doc]), ['custom-test', 'notes'])
+  assert.equal(buildLibraryTree([doc], new Map(), sections, 'test').find((node) => node.capabilityId === 'notes')!.collections[0].months[0].documents[0].id, doc.id)
+})

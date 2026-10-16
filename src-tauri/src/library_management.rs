@@ -23,7 +23,12 @@ pub struct Topic { pub id: String, pub name: String, pub document_ids: Vec<Strin
 #[serde(rename_all = "camelCase")]
 pub struct Origin { pub thread_id: String, pub message_id: String }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LibrarySection { pub id: String, pub name: String }
+#[serde(rename_all = "camelCase")]
+pub struct LibrarySection {
+  pub id: String, pub name: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub topic_id: Option<String>,
+}
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum LibraryChange {
@@ -132,15 +137,19 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
     }
     LibraryChange::CreateSection { mut section } => {
       section.name = section.name.trim().into();
+      section.topic_id = section.topic_id.filter(|id| !id.is_empty());
+      if let Some(id) = &section.topic_id {
+        if !state.topics.iter().any(|topic| &topic.id == id) { return Err("专题已不存在，请重新选择 / Topic no longer exists".into()); }
+      }
       if !section.id.starts_with("custom-") || section.id.len() <= 7 || section.id.len() > 107 || !section.id.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-') || section.name.is_empty() || section.name.chars().count() > 80 { return Err("栏目名称无效 / Invalid section name".into()); }
-      if state.custom_sections.iter().any(|s| s.id == section.id || s.name.to_lowercase() == section.name.to_lowercase()) { return Err("栏目已存在 / Section already exists".into()); }
+      if state.custom_sections.iter().any(|s| s.id == section.id || (s.topic_id == section.topic_id && s.name.to_lowercase() == section.name.to_lowercase())) { return Err("栏目已存在 / Section already exists".into()); }
       state.custom_sections.push(section);
     }
     LibraryChange::RenameSection { id, name } => {
-      if !state.custom_sections.iter().any(|section| section.id == id) { return Err("栏目已不存在，请重新选择 / Section no longer exists".into()); }
+      let current = state.custom_sections.iter().find(|section| section.id == id).ok_or("栏目已不存在，请重新选择 / Section no longer exists")?;
       let name = name.trim();
       if name.is_empty() || name.chars().count() > 80 { return Err("栏目名称无效 / Invalid section name".into()); }
-      if state.custom_sections.iter().any(|section| section.id != id && section.name.to_lowercase() == name.to_lowercase()) { return Err("栏目已存在 / Section already exists".into()); }
+      if state.custom_sections.iter().any(|section| section.id != id && section.topic_id == current.topic_id && section.name.to_lowercase() == name.to_lowercase()) { return Err("栏目已存在 / Section already exists".into()); }
       for section in state.custom_sections.iter_mut().chain(state.sections.values_mut()) {
         if section.id == id { section.name = name.into(); }
       }
@@ -150,7 +159,12 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       state.custom_sections.retain(|section| section.id != id);
       state.sections.retain(|_, section| section.id != id);
     }
-    LibraryChange::DeleteTopic { id } => state.topics.retain(|t| t.id != id),
+    LibraryChange::DeleteTopic { id } => {
+      state.topics.retain(|t| t.id != id);
+      for section in state.custom_sections.iter_mut().chain(state.sections.values_mut()) {
+        if section.topic_id.as_deref() == Some(&id) { section.topic_id = None; }
+      }
+    }
     LibraryChange::Trash { ids } => {
       for id in &ids { document_library::read_unlocked(root, id)?; }
       for id in ids { state.trash.insert(id, chrono::Local::now().to_rfc3339()); }
@@ -180,7 +194,10 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
       if section.id.starts_with("custom-") {
         section = state.custom_sections.iter().find(|item| item.id == section.id).ok_or("栏目已不存在，请重新选择 / Section no longer exists")?.clone();
       }
-      if let Some(topic_id) = topic_id.filter(|id| !id.is_empty()) {
+      if let (Some(owner), Some(requested)) = (&section.topic_id, topic_id.as_ref().filter(|id| !id.is_empty())) {
+        if owner != requested { return Err("栏目属于其他专题 / Section belongs to a different topic".into()); }
+      }
+      if let Some(topic_id) = topic_id.filter(|id| !id.is_empty()).or_else(|| section.topic_id.clone()) {
         let topic = state.topics.iter_mut().find(|topic| topic.id == topic_id).ok_or("专题已不存在，请重新选择 / Topic no longer exists")?;
         if !topic.document_ids.contains(&id) { topic.document_ids.push(id.clone()); }
       }

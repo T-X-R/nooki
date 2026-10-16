@@ -33,7 +33,7 @@ try {
       if (command === 'library_change') {
         const change = args.change, org = data.organization;
         if (change.kind === 'create-section') {
-          if (org.customSections.some(section => section.name.toLowerCase() === change.section.name.trim().toLowerCase())) throw new Error('Section already exists');
+          if (org.customSections.some(section => section.topicId === change.section.topicId && section.name.toLowerCase() === change.section.name.trim().toLowerCase())) throw new Error('Section already exists');
           org.customSections.push({ ...change.section, name: change.section.name.trim() });
         } else if (change.kind === 'save-topic') org.topics = org.topics.some(topic => topic.id === change.topic.id) ? org.topics.map(topic => topic.id === change.topic.id ? change.topic : topic) : [...org.topics, change.topic];
         else if (change.kind === 'delete-topic') org.topics = org.topics.filter(topic => topic.id !== change.id);

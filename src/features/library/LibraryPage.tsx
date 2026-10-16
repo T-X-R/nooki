@@ -52,7 +52,7 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
   const [thisWeek, setThisWeek] = useState(false)
   const [sourceTarget, setSourceTarget] = useState<DocumentReference | null>(null)
   const [source, setSource] = useState<SelectedDocument | null>(null)
-  useEffect(() => { setSourceTarget(null); setSelectedId(null); setSelectedDocument(null); setSelectedInputs(new Set()); setQuery(''); setThisWeek(false) }, [topicId])
+  useEffect(() => { setSourceTarget(null); setSelectedId(null); setSelectedInputs(new Set()); setQuery(''); setThisWeek(false) }, [topicId])
   useEffect(() => { window.addEventListener('workbench:library-changed', refreshLibrary); return () => window.removeEventListener('workbench:library-changed', refreshLibrary) }, [])
   const recipients = installed.filter((cap) => cap.manifest.id !== LEGACY_REVIEW && cap.enabled && cap.manifest.permissions.includes('documents.read-selected'))
   const monday = new Date(); monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7)
@@ -74,7 +74,7 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
     capability.manifest.id,
     capabilityCopy(capability, language).name,
   ]).concat([[CONVERSATION_OWNER, language === 'zh' ? '对话' : 'Conversations'], ['workbench.imports', language === 'zh' ? '导入资料' : 'Imports'], ['workbench.documents', language === 'zh' ? '我的文档' : 'My documents']])), [installed, language])
-  const tree = useMemo(() => buildLibraryTree(documents.filter((doc) => (!thisWeek || inWeek(doc.documentDate)) && (!scopeIds || scopeIds.includes(doc.id))), installedNames, organization.customSections), [documents, installedNames, thisWeek, scopeIds, organization.customSections])
+  const tree = useMemo(() => buildLibraryTree(documents.filter((doc) => (!thisWeek || inWeek(doc.documentDate)) && (!scopeIds || scopeIds.includes(doc.id))), installedNames, organization.customSections, topicId), [documents, installedNames, thisWeek, scopeIds, organization.customSections, topicId])
   const filteredTree = useMemo(() => filterLibraryTree(tree, query, contentMatches), [tree, query, contentMatches])
   const visibleIds = useMemo(() => filteredTree.flatMap((cap) => cap.collections.flatMap((collection) => collection.months.flatMap((month) => month.documents.map((doc) => doc.id)))), [filteredTree])
   const visibleIdSet = useMemo(() => new Set(visibleIds), [visibleIds])
@@ -165,7 +165,7 @@ export function LibraryPage({ topicId, organization, onSelectTopic, installed, t
                     />
                   </label>
                   <div className="library-list-caption"><label><input type="checkbox" aria-label={language === 'zh' ? '选择当前列表全部资料' : 'Select all visible documents'} checked={!!visibleIds.length && visibleIds.every((id) => selectedInputs.has(id))} ref={(el) => { if (el) el.indeterminate = selectedInputs.size > 0 && selectedInputs.size < visibleIds.length }} disabled={!visibleIds.length} onChange={(e) => setSelectedInputs(e.target.checked ? new Set(visibleIds) : new Set())} />{language === 'zh' ? '全选' : 'Select all'}</label><span>{visibleIds.length} {language === 'zh' ? '篇资料' : 'documents'}</span></div>
-                  <LibrarySectionComposer language={language} />
+                  <LibrarySectionComposer key={topicId} language={language} topicId={topicId} />
                   {filteredTree.length === 0
                     ? <div className="library-search-empty">{searching ? t('libraryNoSearchResults') : language === 'zh' ? '暂无资料' : 'No documents'}</div>
                     : filteredTree.map((capability) => {

@@ -141,7 +141,7 @@ fn conversation_placement_keeps_source_and_atomically_links_topic_with_idempoten
   let doc = library::publish_document(&root.0, "workbench.conversations", "Conversations", document("conversation result")).unwrap();
   management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: "research".into(), name: "Research".into(), document_ids: vec![] } }).unwrap();
   for _ in 0..2 {
-    management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("research".into()), section: management::LibrarySection { id: "diary".into(), name: "日记".into() } }).unwrap();
+    management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("research".into()), section: management::LibrarySection { id: "diary".into(), name: "日记".into(), topic_id: None } }).unwrap();
   }
   let state = management::organization(&root.0).unwrap();
   assert_eq!(state.topics[0].document_ids, vec![doc.id.clone()]);
@@ -149,7 +149,7 @@ fn conversation_placement_keeps_source_and_atomically_links_topic_with_idempoten
   let saved = library::read_document(&root.0, &doc.id).unwrap();
   assert_eq!(saved.capability_id, "workbench.conversations");
   assert_eq!(saved.content, "conversation result");
-  assert!(management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("deleted".into()), section: management::LibrarySection { id: "other".into(), name: "Other".into() } }).is_err());
+  assert!(management::change(&root.0, LibraryChange::Place { id: doc.id.clone(), topic_id: Some("deleted".into()), section: management::LibrarySection { id: "other".into(), name: "Other".into(), topic_id: None } }).is_err());
   assert_eq!(management::organization(&root.0).unwrap().sections[&doc.id].id, "diary");
   management::change(&root.0, LibraryChange::Trash { ids: vec![doc.id.clone()] }).unwrap();
   management::change(&root.0, LibraryChange::Purge { ids: vec![doc.id.clone()] }).unwrap();
@@ -163,11 +163,11 @@ fn empty_custom_sections_survive_backup_and_moving_preserves_document_identity()
   fs::create_dir_all(&root.0).unwrap();
   fs::write(root.0.join("library-organization.json"), r#"{"topics":[],"trash":{},"origins":{}}"#).unwrap();
   assert!(management::organization(&root.0).unwrap().custom_sections.is_empty());
-  let section = LibrarySection { id: "custom-research".into(), name: " Research ".into() };
+  let section = LibrarySection { id: "custom-research".into(), name: " Research ".into(), topic_id: None };
   management::change(&root.0, LibraryChange::CreateSection { section: section.clone() }).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().custom_sections[0].name, "Research");
-  assert!(management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: "custom-duplicate".into(), name: "research".into() } }).is_err());
-  assert!(management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: "diary".into(), name: "Invalid".into() } }).is_err());
+  assert!(management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: "custom-duplicate".into(), name: "research".into(), topic_id: None } }).is_err());
+  assert!(management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: "diary".into(), name: "Invalid".into(), topic_id: None } }).is_err());
   let backup = user_data::capture(&root.0, BTreeMap::new(), serde_json::json!([])).unwrap();
   fs::remove_file(root.0.join("library-organization.json")).unwrap();
   user_data::restore(&root.0, &backup, "restore-sections").unwrap();
@@ -185,7 +185,7 @@ fn empty_custom_sections_survive_backup_and_moving_preserves_document_identity()
 fn rename_and_delete_sections_keep_documents_topics_revisions_and_trash() {
   use management::LibrarySection;
   let root = Fixture::new();
-  let section = LibrarySection { id: "custom-research".into(), name: "Research".into() };
+  let section = LibrarySection { id: "custom-research".into(), name: "Research".into(), topic_id: None };
   management::change(&root.0, LibraryChange::CreateSection { section: section.clone() }).unwrap();
   let active = library::publish_document(&root.0, "com.personal.diary", "Diary", document("Active")).unwrap();
   let trashed = library::publish_document(&root.0, "com.personal.other", "Other", document("Trashed")).unwrap();
@@ -216,7 +216,7 @@ fn section_updates_validate_names_and_only_manage_existing_custom_sections() {
   use management::LibrarySection;
   let root = Fixture::new();
   for (id, name) in [("custom-research", "Research"), ("custom-reading", "Reading")] {
-    management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: id.into(), name: name.into() } }).unwrap();
+    management::change(&root.0, LibraryChange::CreateSection { section: LibrarySection { id: id.into(), name: name.into(), topic_id: None } }).unwrap();
   }
   let before = fs::read(root.0.join("library-organization.json")).unwrap();
   for name in [" ".to_string(), "a".repeat(81), " reading ".into()] {
@@ -236,4 +236,33 @@ fn section_updates_validate_names_and_only_manage_existing_custom_sections() {
   management::change(&root.0, delete).unwrap();
   assert_eq!(management::organization(&root.0).unwrap().custom_sections[0].name, "RESEARCH");
   assert_eq!(management::organization(&root.0).unwrap().custom_sections.len(), 1);
+}
+
+#[test]
+fn topic_sections_persist_scope_and_reject_cross_topic_placement() {
+  let root = Fixture::new();
+  for id in ["meta", "test"] { management::change(&root.0, LibraryChange::SaveTopic { topic: Topic { id: id.into(), name: id.into(), document_ids: vec![] } }).unwrap(); }
+  let apply = |value| management::change(&root.0, serde_json::from_value(value).unwrap());
+  for (id, topic) in [("custom-meta", Some("meta")), ("custom-test", Some("test")), ("custom-all", None)] {
+    apply(serde_json::json!({ "kind": "create-section", "section": { "id": id, "name": "栏目1", "topicId": topic } })).unwrap();
+  }
+  assert!(apply(serde_json::json!({ "kind": "create-section", "section": { "id": "custom-duplicate", "name": "栏目1", "topicId": "meta" } })).is_err());
+  assert!(apply(serde_json::json!({ "kind": "create-section", "section": { "id": "custom-missing", "name": "Other", "topicId": "deleted" } })).is_err());
+  apply(serde_json::json!({ "kind": "rename-section", "id": "custom-test", "name": "栏目2" })).unwrap();
+  apply(serde_json::json!({ "kind": "rename-section", "id": "custom-test", "name": "栏目1" })).unwrap();
+  let doc = library::publish_document(&root.0, "com.personal.notes", "Notes", document("Scoped")).unwrap();
+  let section = serde_json::json!({ "id": "custom-meta", "name": "栏目1" });
+  assert!(apply(serde_json::json!({ "kind": "place", "id": doc.id, "topicId": "test", "section": section })).is_err());
+  assert!(management::organization(&root.0).unwrap().topics[1].document_ids.is_empty());
+  apply(serde_json::json!({ "kind": "place", "id": doc.id, "section": section })).unwrap();
+  let state = serde_json::to_value(management::organization(&root.0).unwrap()).unwrap();
+  assert_eq!(state["customSections"][0]["topicId"], "meta");
+  assert_eq!(state["topics"][0]["documentIds"][0], doc.id);
+  let backup = user_data::capture(&root.0, BTreeMap::new(), serde_json::json!([])).unwrap();
+  fs::remove_file(root.0.join("library-organization.json")).unwrap();
+  user_data::restore(&root.0, &backup, "restore-scope").unwrap();
+  assert_eq!(serde_json::to_value(management::organization(&root.0).unwrap()).unwrap()["customSections"][0]["topicId"], "meta");
+  apply(serde_json::json!({ "kind": "delete-topic", "id": "meta" })).unwrap();
+  assert!(serde_json::to_value(management::organization(&root.0).unwrap()).unwrap()["customSections"][0]["topicId"].is_null());
+  assert_eq!(library::read_document(&root.0, &doc.id).unwrap().revision, doc.revision);
 }

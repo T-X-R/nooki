@@ -14,7 +14,7 @@ try {
     if (!localStorage.getItem('personal-workbench-library-v2')) {
       const doc = { id: 'com.personal.notes/notes/2026/10/entry', key: 'entry', capabilityId: 'com.personal.notes', capabilityName: '笔记', collectionKey: 'notes', collectionName: 'Notes', title: '项目观察', content: '# 观察\n\n保留这份文档。', documentDate: '2026-10-16', createdAt: '2026-10-16T00:00:00Z', updatedAt: '2026-10-16T00:00:00Z', revision: 'original', format: 'markdown', sizeBytes: 64 };
       const section = { id: 'custom-reading', name: '阅读笔记' };
-      localStorage.setItem('personal-workbench-library-v2', JSON.stringify({ documents: [doc], history: {}, organization: { topics: [], trash: {}, origins: {}, sections: { [doc.id]: section }, customSections: [section, { id: 'custom-other', name: '其他栏目' }] } }));
+      localStorage.setItem('personal-workbench-library-v2', JSON.stringify({ documents: [doc], history: {}, organization: { topics: [{ id: 'meta', name: 'MetaDrive', documentIds: [doc.id] }, { id: 'test', name: '测试', documentIds: [doc.id] }], trash: {}, origins: {}, sections: { [doc.id]: section }, customSections: [section, { id: 'custom-other', name: '其他栏目' }] } }));
     }
     const setItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
@@ -87,6 +87,66 @@ try {
   await deletion.getByRole('button', { name: '删除栏目', exact: true }).click();
   await deletion.waitFor({ state: 'hidden' });
   assert.equal(await page.locator('.library-document-link').count(), 1);
+  const topics = page.locator('#sidebar-library-topics');
+  const selectTopic = async name => {
+    await topics.getByRole('button', { name, exact: true }).click();
+    // Let the topic-change effects clear the previous topic's selection before selecting a row.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  };
+  const createSection = async name => {
+    await page.getByRole('button', { name: '新建栏目', exact: true }).click();
+    await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill(name);
+    await page.keyboard.press('Enter');
+    await rename(name).waitFor();
+  };
+  await selectTopic('MetaDrive');
+  await page.getByRole('button', { name: '新建栏目', exact: true }).click();
+  await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill('未保存');
+  await selectTopic('测试');
+  assert.equal(await page.getByRole('textbox', { name: '栏目名称', exact: true }).count(), 0);
+  await selectTopic('MetaDrive');
+  await createSection('栏目1');
+  await selectTopic('全部资料');
+  await rename('栏目1').waitFor();
+  await selectTopic('测试');
+  await page.locator('.library-reader-header h2').filter({ hasText: '项目观察' }).waitFor();
+  assert.equal(await rename('栏目1').count(), 0);
+  await page.getByRole('checkbox', { name: '选择 项目观察', exact: true }).check();
+  await page.getByRole('button', { name: '移至栏目', exact: true }).click();
+  const move = page.getByRole('dialog', { name: '移至栏目', exact: true });
+  await move.getByRole('button', { name: /^栏目 / }).click();
+  assert.equal(await move.getByRole('option', { name: '栏目1', exact: true }).count(), 0);
+  await page.keyboard.press('Escape');
+  await move.getByRole('button', { name: '取消', exact: true }).click();
+  await createSection('栏目1');
+  await rename('栏目1').click();
+  await field.fill('测试栏目');
+  await renameDialog.getByRole('button', { name: '保存名称', exact: true }).click();
+  await renameDialog.waitFor({ state: 'hidden' });
+  await selectTopic('MetaDrive');
+  await rename('栏目1').waitFor();
+  assert.equal(await rename('测试栏目').count(), 0);
+  await page.getByRole('checkbox', { name: '选择 项目观察', exact: true }).check();
+  await page.getByRole('button', { name: '移至栏目', exact: true }).click();
+  await move.getByRole('button', { name: /^栏目 / }).click();
+  assert.equal(await move.getByRole('option', { name: '测试栏目', exact: true }).count(), 0);
+  await move.getByRole('option', { name: '栏目1', exact: true }).click();
+  await move.getByRole('button', { name: '移动资料', exact: true }).click();
+  await move.waitFor({ state: 'hidden' });
+  await page.locator('.library-capability-node').filter({ hasText: '栏目1' }).locator('.library-document-link').waitFor();
+  await selectTopic('测试');
+  await rename('测试栏目').waitFor();
+  assert.equal(await rename('栏目1').count(), 0);
+  await page.locator('.library-capability-node').filter({ hasText: '笔记' }).locator('.library-document-link').waitFor();
+  await page.screenshot({ path: '/private/tmp/nooki-section-topic-isolation.png' });
+  await selectTopic('全部资料');
+  await page.reload();
+  await rename('栏目1').waitFor();
+  await rename('测试栏目').waitFor();
+  await selectTopic('MetaDrive');
+  await rename('栏目1').waitFor();
+  assert.equal(await rename('测试栏目').count(), 0);
+  await selectTopic('全部资料');
   await page.getByRole('button', { name: '新建栏目', exact: true }).click();
   await page.getByRole('textbox', { name: '栏目名称', exact: true }).fill('英文测试');
   await page.keyboard.press('Enter');
@@ -100,5 +160,9 @@ try {
   await page.getByRole('button', { name: 'Delete section：Reading', exact: true }).click();
   await page.getByRole('dialog', { name: 'Delete section', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.deepEqual(errors, []);
-  console.log('PASS: section rename/delete, keyboard, duplicates, cancellation, failure retry, persistence, documents retained at source, empty deletion, English, light/dark layout');
+  console.log('PASS: section rename/delete, topic isolation in tree and move destinations, shared documents, same-name sections across topics, persistence, draft reset, keyboard, cancellation, retry, English, light/dark layout');
+} catch (error) {
+  await page.screenshot({ path: '/private/tmp/nooki-section-test-failure.png' });
+  console.error(await page.locator('.library-page').innerText());
+  throw error;
 } finally { await browser.close(); }

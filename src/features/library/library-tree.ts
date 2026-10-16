@@ -24,13 +24,17 @@ export function buildLibraryTree(
   documents: LibraryDocumentMetadata[],
   installedNames: ReadonlyMap<string, string>,
   customSections: readonly LibrarySection[] = [],
+  topicId = '',
 ): LibraryCapabilityNode[] {
-  const capabilities = new Map<string, LibraryCapabilityNode>(customSections.map((section) => [section.id, {
+  const visibleSections = customSections.filter((section) => !topicId || section.topicId === topicId)
+  const sectionIds = new Set(visibleSections.map((section) => section.id))
+  const capabilities = new Map<string, LibraryCapabilityNode>(visibleSections.map((section) => [section.id, {
     capabilityId: section.id, capabilityName: section.name, installed: false, documentCount: 0, collections: [],
   }]))
 
   for (const document of documents) {
-    const section = document.section ?? { id: document.capabilityId, name: document.capabilityName }
+    const section = document.section && (!document.section.id.startsWith('custom-') || sectionIds.has(document.section.id))
+      ? document.section : { id: document.capabilityId, name: document.capabilityName }
     let capability = capabilities.get(section.id)
     if (!capability) {
       capability = {

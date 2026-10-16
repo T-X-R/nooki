@@ -166,3 +166,27 @@ test('section changes reject invalid names, duplicates and non-custom sections w
   store.change({ kind: 'delete-section', id: 'custom-reading' })
   assert.deepEqual(store.organization().customSections, [{ id: section.id, name: 'RESEARCH' }])
 })
+
+test('sections persist topic ownership and validate names and placement within that scope', () => {
+  const { store, data } = setup()
+  for (const id of ['meta', 'test']) store.change({ kind: 'save-topic', topic: { id, name: id, documentIds: [] } })
+  const meta = { id: 'custom-meta', name: '栏目1', topicId: 'meta' }
+  const other = { id: 'custom-test', name: '栏目1', topicId: 'test' }
+  store.change({ kind: 'create-section', section: meta })
+  store.change({ kind: 'create-section', section: other })
+  store.change({ kind: 'create-section', section: { id: 'custom-all', name: '栏目1' } })
+  assert.throws(() => store.change({ kind: 'create-section', section: { ...meta, id: 'custom-duplicate' } }), /already exists/)
+  assert.throws(() => store.change({ kind: 'create-section', section: { ...meta, id: 'custom-missing', topicId: 'deleted' } }), /Topic no longer exists/)
+  store.change({ kind: 'rename-section', id: other.id, name: '栏目2' })
+  store.change({ kind: 'rename-section', id: other.id, name: meta.name })
+  const doc = store.publish('notes', 'Notes', input('scoped'))
+  assert.throws(() => store.change({ kind: 'place', id: doc.id, topicId: 'test', section: meta }), /different topic/)
+  assert.deepEqual(store.organization().topics[1].documentIds, [])
+  store.change({ kind: 'place', id: doc.id, section: { id: meta.id, name: meta.name } })
+  const reopened = createLibraryStore({ getItem: (k) => data.get(k) ?? null, setItem: (k, v) => { data.set(k, v) } })
+  assert.equal(reopened.organization().customSections?.[0].topicId, 'meta')
+  assert.deepEqual(reopened.organization().topics[0].documentIds, [doc.id])
+  reopened.change({ kind: 'delete-topic', id: 'meta' })
+  assert.equal(reopened.organization().customSections?.[0].topicId, undefined)
+  assert.equal(reopened.read(doc.id).revision, doc.revision)
+})
