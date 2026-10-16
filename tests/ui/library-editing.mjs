@@ -47,10 +47,10 @@ try {
   await editor.getByRole('heading', { name: '快捷标题', level: 2, exact: true }).waitFor();
   await page.keyboard.press('Enter'); await page.keyboard.press('Meta+b'); await page.keyboard.insertText('加粗文字'); await page.keyboard.press('Meta+b');
   assert.equal(await editor.locator('strong').last().textContent(), '加粗文字');
-  await page.getByRole('button', { name: '插入内容', exact: true }).click();
-  const tools = page.getByRole('menu', { name: '插入内容', exact: true });
+  await page.keyboard.press('Enter'); await page.keyboard.insertText('/'); await quick.waitFor();
+  const tools = quick;
   assert.ok((await tools.getByRole('menuitem').allTextContents()).some(text => text.includes('待办清单')));
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape'); await page.keyboard.press('Backspace');
   // Failed writes retain a rich-text draft across reload, without adding stale data to a conversation.
   await page.evaluate(() => { window.failSave = true; }); await editor.fill('待恢复草稿'); await page.keyboard.press('Meta+Enter');
   await page.getByRole('alert').filter({ hasText: 'Disk full' }).waitFor();

@@ -2,14 +2,15 @@ import type { DocumentReference } from '../../../packages/capability-contract/sr
 import { parseReferenceHref } from '../../../packages/capability-contract/src/references.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
+import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from '@tiptap/markdown'
 import { TableKit } from '@tiptap/extension-table'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Image from '@tiptap/extension-image'
-import { FontBoldIcon, FontItalicIcon, StrikethroughIcon, CodeIcon, PlusIcon, ResetIcon, ReloadIcon } from '@radix-ui/react-icons'
-import { LibraryMenu } from './LibraryMenu.tsx'
+import { FontBoldIcon, FontItalicIcon, StrikethroughIcon, CodeIcon } from '@radix-ui/react-icons'
 import './library-rich-text.css'
 
 const extensions = [StarterKit.configure({ link: { openOnClick: false } }), Markdown, TableKit, TaskList, TaskItem.configure({ nested: true }), Image]
@@ -42,6 +43,7 @@ export function LibraryRichText({ initial, language, onChange, onSave, onReady, 
           else setActive(index => (index + (event.key === 'ArrowDown' ? 1 : -1) + actionsRef.current.length) % actionsRef.current.length)
           return true
         }
+        if (event.key === 'Escape' && editorRef.current && !editorRef.current.state.selection.empty) { event.preventDefault(); editorRef.current.commands.setTextSelection(editorRef.current.state.selection.to); return true }
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); saveRef.current(); return true }
         return false
       },
@@ -58,6 +60,8 @@ export function LibraryRichText({ initial, language, onChange, onSave, onReady, 
     },
     onSelectionUpdate: () => setSlash(null),
   })
+  const editorRef = useRef(editor); editorRef.current = editor
+  const bubbleOptions = useMemo(() => ({ placement: 'top' as const, offset: 8, shift: { padding: 8 }, scrollTarget: wrapper.current?.closest<HTMLElement>('.library-folder-content') ?? window }), [editor])
   useEffect(() => { onReady(editor); return () => onReady(null) }, [editor])
   const marks = useEditorState({ editor, selector: ({ editor }) => ({ bold: !!editor?.isActive('bold'), italic: !!editor?.isActive('italic'), strike: !!editor?.isActive('strike'), code: !!editor?.isActive('code') }) })
   const block = (run: (editor: Editor) => void) => {
@@ -77,19 +81,20 @@ export function LibraryRichText({ initial, language, onChange, onSave, onReady, 
     { label: zh ? '分隔线' : 'Divider', icon: '—', run: () => block(e => e.chain().focus().setHorizontalRule().run()) },
   ]
   actionsRef.current = blocks
-  return <div className="library-rich-text" ref={wrapper}>
-    <div className="library-format-tools" role="toolbar" aria-label={zh ? '文档工具' : 'Document tools'}>
-      <LibraryMenu label={zh ? '插入内容' : 'Insert block'} icon={<PlusIcon />}>{blocks.map(item => <button role="menuitem" key={item.label} onClick={item.run}><span className="library-block-icon" aria-hidden="true">{item.icon}</span>{item.label}</button>)}</LibraryMenu>
-      <span className="library-tool-divider" />
+  return <div className="library-rich-text" ref={wrapper} onBlur={event => {
+    const host = event.currentTarget
+    if (host.contains(event.relatedTarget as Node | null)) return
+    // Removing the focused menu also emits blur; wait until that removal finishes.
+    queueMicrotask(() => { if (host.isConnected && editor && !editor.isDestroyed && !host.contains(document.activeElement)) editor.view.dispatch(editor.state.tr.setMeta('librarySelectionTools', 'hide')) })
+  }}>
+    {editor && <BubbleMenu editor={editor} pluginKey="librarySelectionTools" updateDelay={100} options={bubbleOptions} className="library-format-tools" role="toolbar" aria-label={zh ? '文档工具' : 'Document tools'} shouldShow={({ editor, view, state, element, from, to }) => editor.isEditable && (view.hasFocus() || element.contains(document.activeElement)) && state.selection instanceof TextSelection && !state.selection.empty && !!state.doc.textBetween(from, to).trim()} onKeyDown={event => { if (event.nativeEvent.key === 'Escape') { event.preventDefault(); editor.chain().focus().setTextSelection(editor.state.selection.to).run() } }}>
       {[
         { label: zh ? '粗体' : 'Bold', icon: <FontBoldIcon />, pressed: marks?.bold, run: () => editor?.chain().focus().toggleBold().run() },
         { label: zh ? '斜体' : 'Italic', icon: <FontItalicIcon />, pressed: marks?.italic, run: () => editor?.chain().focus().toggleItalic().run() },
         { label: zh ? '删除线' : 'Strikethrough', icon: <StrikethroughIcon />, pressed: marks?.strike, run: () => editor?.chain().focus().toggleStrike().run() },
         { label: zh ? '行内代码' : 'Inline code', icon: <CodeIcon />, pressed: marks?.code, run: () => editor?.chain().focus().toggleCode().run() },
-        { label: zh ? '撤销' : 'Undo', icon: <ResetIcon />, run: () => editor?.chain().focus().undo().run() },
-        { label: zh ? '重做' : 'Redo', icon: <ReloadIcon />, run: () => editor?.chain().focus().redo().run() },
       ].map(tool => <button type="button" className="icon-button" key={tool.label} title={tool.label} aria-label={tool.label} aria-pressed={tool.pressed} onMouseDown={event => event.preventDefault()} onClick={tool.run}>{tool.icon}</button>)}
-    </div>
+    </BubbleMenu>}
     <EditorContent className="library-rich-text-content" editor={editor} />
     {slash && <div className="library-block-menu" role="menu" aria-label={zh ? '快捷插入' : 'Quick insert'} style={{ left: slash.left, top: slash.top }} onMouseDown={event => event.preventDefault()}>{blocks.map((item, index) => <button type="button" role="menuitem" key={item.label} className={index === active ? 'is-active' : ''} onMouseEnter={() => setActive(index)} onClick={item.run}><span aria-hidden="true">{item.icon}</span>{item.label}</button>)}</div>}
   </div>
