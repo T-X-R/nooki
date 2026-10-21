@@ -1,5 +1,5 @@
 /* Folder workspace uses the same surfaces and typography as the rest of Nooki. */
-.content-column.library-folder-page { --library-directory-width: clamp(180px, 20%, 216px); position: relative; width: 100%; padding: 0 24px 16px; gap: 0; }
+.content-column.library-folder-page { --library-directory-width: clamp(180px, 20%, 216px); position: relative; width: 100%; padding: 0 24px 16px 12px; gap: 0; }
 .library-shell-heading { display: grid; grid-template-columns: var(--library-directory-width) minmax(0, 1fr); flex: none; min-height: 58px; border-bottom: 1px solid var(--line); }
 .library-shell-title { display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--line); }
 .library-shell-heading h1 { font-size: 19px; font-weight: 600; letter-spacing: -.035em; margin: 0; }
@@ -29,6 +29,7 @@
 .library-directory-label > svg { flex: none; width: 16px; height: 16px; color: var(--accent-strong); }
 .library-directory-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .library-directory-document { padding-left: 20px; color: var(--ink-muted); }
+.library-directory-content li > ul .library-directory-document { padding-left: 4px; }
 .library-directory-document .library-directory-label > svg { width: 14px; height: 14px; color: var(--ink-muted); }
 .library-directory-label[draggable="true"], .library-folder-item-label[draggable="true"] { cursor: grab; }
 .library-directory-row.is-dragging { opacity: .5; }
@@ -75,7 +76,7 @@
 .library-action-menu button.library-delete-action { color: var(--negative); }
 .library-action-menu svg { width: 15px; height: 15px; flex: none; }
 @media (max-width: 900px) {
-  .content-column.library-folder-page { --library-directory-width: 180px; padding-inline: 18px; }
+  .content-column.library-folder-page { --library-directory-width: 180px; padding-inline: 12px 18px; }
   .library-shell-location { padding-left: 18px; }
   .library-shell-title { gap: 7px; }
   .library-folder-page .library-folder-content { padding-left: 18px; }

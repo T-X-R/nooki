@@ -69,7 +69,7 @@ export function CapabilitiesPage({ installed, onRefresh, onOpenCapability, onNot
   return (
     <div className="content-column capabilities-page">
       <div className="page-header-row">
-        <div><h1 className="capabilities-intro-title"><span>{t('capabilitiesHeadline')}</span><span>{t('capabilitiesHeadlineEnding')}</span></h1><p>{t('capabilitiesIntro')}</p></div>
+        <h1 className="page-section-title">{t('capabilities')}</h1>
         <button className="primary-button" onClick={() => setImportOpen(true)}><PlusIcon />{t('importCapability')}</button>
       </div>
 
