@@ -1,5 +1,5 @@
 /* Folder workspace uses the same surfaces and typography as the rest of Nooki. */
-.content-column.library-folder-page { --library-directory-width: clamp(205px, 23%, 248px); position: relative; width: 100%; padding: 0 24px 16px; gap: 0; }
+.content-column.library-folder-page { --library-directory-width: clamp(180px, 20%, 216px); position: relative; width: 100%; padding: 0 24px 16px; gap: 0; }
 .library-shell-heading { display: grid; grid-template-columns: var(--library-directory-width) minmax(0, 1fr); flex: none; min-height: 58px; border-bottom: 1px solid var(--line); }
 .library-shell-title { display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--line); }
 .library-shell-heading h1 { font-size: 19px; font-weight: 600; letter-spacing: -.035em; margin: 0; }
@@ -39,7 +39,7 @@
 .library-folder-disclosure svg { width: 12px; height: 12px; transition: transform .15s; }
 .library-folder-disclosure svg.is-expanded { transform: rotate(90deg); }
 .library-directory-hint { padding: 14px 8px; font-size: 11px; line-height: 1.8; color: var(--ink-muted); }
-.library-folder-page .library-folder-content { max-width: none; padding: 0 0 20px 24px; overflow: auto; }
+.library-folder-page .library-folder-content { max-width: none; padding: 0 24px 20px; overflow: auto; scrollbar-gutter: stable; }
 .library-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .library-breadcrumbs > span { display: contents; }
 .library-breadcrumbs svg { flex: none; width: 12px; color: var(--ink-muted); }
@@ -75,7 +75,7 @@
 .library-action-menu button.library-delete-action { color: var(--negative); }
 .library-action-menu svg { width: 15px; height: 15px; flex: none; }
 @media (max-width: 900px) {
-  .content-column.library-folder-page { --library-directory-width: 195px; padding-inline: 18px; }
+  .content-column.library-folder-page { --library-directory-width: 180px; padding-inline: 18px; }
   .library-shell-location { padding-left: 18px; }
   .library-shell-title { gap: 7px; }
   .library-folder-page .library-folder-content { padding-left: 18px; }
