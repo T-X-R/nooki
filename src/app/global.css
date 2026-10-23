@@ -123,6 +123,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .topbar-search:hover { border-color: var(--line-strong); background: var(--surface); color: var(--ink-muted); }
 .topbar-search svg { width: 14px; height: 14px; }
 .topbar-search kbd { padding: 2px 5px; }
+.page-frame { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .page-wrap { width: 100%; min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
 .content-column { width: min(100%, var(--workbench-page-width)); margin: 0 auto; padding: var(--workbench-page-top) var(--workbench-page-gutter) var(--workbench-page-bottom); }
 .content-column.capabilities-page { padding-top: var(--workbench-page-top); }
