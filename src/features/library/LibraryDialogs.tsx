@@ -1,8 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Cross2Icon } from '@radix-ui/react-icons'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { changeLibrary } from '../../platform/document-library.ts'
 import { documentDiff } from '../../shared/document-diff.ts'
 import './library-management.css'
@@ -15,9 +13,6 @@ export function LibraryDialog({ title, children, onClose, busy = false, wide = f
   return createPortal(<dialog ref={dialog} className={`library-dialog ${wide ? 'library-dialog-wide' : ''} ${className}`} aria-labelledby={heading} onCancel={(e) => { e.preventDefault(); if (!busy) onClose() }}>
     <header className="modal-header"><h2 id={heading}>{title}</h2><button type="button" className="icon-button" aria-label={zh ? '关闭' : 'Close'} disabled={busy} onClick={onClose}><Cross2Icon /></button></header>{children}
   </dialog>, document.body)
-}
-export function DocumentPreview({ content }: { content: string }) {
-  return <div className="library-preview library-reader-content"><Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown></div>
 }
 export function DocumentComparison({ before, after }: { before: string; after: string }) {
   const zh = document.documentElement.lang.startsWith('zh')

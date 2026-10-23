@@ -81,8 +81,10 @@ try {
   const chooser = page.waitForEvent('filechooser');
   await directory.getByRole('button', { name: '添加到 其他文件夹', exact: true }).click(); await page.getByRole('menuitem', { name: '导入资料', exact: true }).click();
   await (await chooser).setFiles({ name: '导入测试.md', mimeType: 'text/markdown', buffer: Buffer.from('# Imported\n\nContent') });
-  const imports = page.getByRole('dialog', { name: '导入资料', exact: true });
-  await imports.getByRole('button', { name: '导入 1 篇资料', exact: true }).click(); await imports.waitFor({ state: 'hidden' });
+  await page.getByRole('textbox', { name: '文档标题', exact: true }).waitFor();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')).documents.some(doc => doc.title === '导入测试'));
+  assert.equal(await page.getByRole('dialog', { name: '导入资料', exact: true }).count(), 0);
+  assert.equal(await page.getByText('资料已导入当前文件夹。', { exact: true }).count(), 0);
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem('personal-workbench-library-v2')));
   const imported = state.documents.find(doc => doc.title === '导入测试');
   assert.ok(state.organization.folders.find(folder => folder.name === '其他文件夹').documentIds.includes(imported.id));

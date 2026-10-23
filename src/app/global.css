@@ -123,6 +123,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .topbar-search:hover { border-color: var(--line-strong); background: var(--surface); color: var(--ink-muted); }
 .topbar-search svg { width: 14px; height: 14px; }
 .topbar-search kbd { padding: 2px 5px; }
+.page-frame { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .page-wrap { width: 100%; min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
 .content-column { width: min(100%, var(--workbench-page-width)); margin: 0 auto; padding: var(--workbench-page-top) var(--workbench-page-gutter) var(--workbench-page-bottom); }
 .content-column.capabilities-page { padding-top: var(--workbench-page-top); }
@@ -188,16 +189,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 
 .page-header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .page-header-row h1 { margin: 10px 0 7px; font-size: 40px; font-weight: 650; letter-spacing: -.065em; line-height: .98; }
+.page-header-row .page-section-title { margin: 0 0 8px; color: var(--ink); font-size: 24px; font-weight: 600; letter-spacing: -.035em; line-height: 1.3; }
 .page-header-row p { margin: 0; color: var(--ink-muted); font-size: 12px; }
-.page-header-row .capabilities-intro-title { color: var(--ink); margin: 6px 0 14px; font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
-.capabilities-intro-title > span:last-child { color: #287568; }
-:root[data-theme="dark"] .capabilities-intro-title > span:last-child { color: #85cbb9; }
 .page-header-row .task-intro-title { margin: 6px 0 14px; color: var(--ink); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
 .task-intro-title > span:last-child { color: #91633b; }
 :root[data-theme="dark"] .task-intro-title > span:last-child { color: #d6af82; }
-.page-header-row .skill-pool-intro-title { margin: 6px 0 14px; color: var(--ink); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.3; text-wrap: balance; }
-.skill-pool-intro-title > span:last-child { color: #16708d; }
-:root[data-theme="dark"] .skill-pool-intro-title > span:last-child { color: #84c8e0; }
 
 .capability-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 30px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .capability-filters { display: flex; align-items: center; gap: 4px; }

@@ -1,5 +1,5 @@
 /* Folder workspace uses the same surfaces and typography as the rest of Nooki. */
-.content-column.library-folder-page { --library-directory-width: clamp(205px, 23%, 248px); position: relative; width: 100%; padding: 0 24px 16px; gap: 0; }
+.content-column.library-folder-page { --library-directory-width: clamp(180px, 20%, 216px); position: relative; width: 100%; padding: 0 24px 16px 12px; gap: 0; }
 .library-shell-heading { display: grid; grid-template-columns: var(--library-directory-width) minmax(0, 1fr); flex: none; min-height: 58px; border-bottom: 1px solid var(--line); }
 .library-shell-title { display: flex; align-items: center; gap: 10px; border-right: 1px solid var(--line); }
 .library-shell-heading h1 { font-size: 19px; font-weight: 600; letter-spacing: -.035em; margin: 0; }
@@ -29,6 +29,7 @@
 .library-directory-label > svg { flex: none; width: 16px; height: 16px; color: var(--accent-strong); }
 .library-directory-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .library-directory-document { padding-left: 20px; color: var(--ink-muted); }
+.library-directory-content li > ul .library-directory-document { padding-left: 4px; }
 .library-directory-document .library-directory-label > svg { width: 14px; height: 14px; color: var(--ink-muted); }
 .library-directory-label[draggable="true"], .library-folder-item-label[draggable="true"] { cursor: grab; }
 .library-directory-row.is-dragging { opacity: .5; }
@@ -39,7 +40,7 @@
 .library-folder-disclosure svg { width: 12px; height: 12px; transition: transform .15s; }
 .library-folder-disclosure svg.is-expanded { transform: rotate(90deg); }
 .library-directory-hint { padding: 14px 8px; font-size: 11px; line-height: 1.8; color: var(--ink-muted); }
-.library-folder-page .library-folder-content { max-width: none; padding: 0 0 20px 24px; overflow: auto; }
+.library-folder-page .library-folder-content { max-width: none; padding: 0 24px 20px; overflow: auto; scrollbar-gutter: stable; }
 .library-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .library-breadcrumbs > span { display: contents; }
 .library-breadcrumbs svg { flex: none; width: 12px; color: var(--ink-muted); }
@@ -75,7 +76,7 @@
 .library-action-menu button.library-delete-action { color: var(--negative); }
 .library-action-menu svg { width: 15px; height: 15px; flex: none; }
 @media (max-width: 900px) {
-  .content-column.library-folder-page { --library-directory-width: 195px; padding-inline: 18px; }
+  .content-column.library-folder-page { --library-directory-width: 180px; padding-inline: 12px 18px; }
   .library-shell-location { padding-left: 18px; }
   .library-shell-title { gap: 7px; }
   .library-folder-page .library-folder-content { padding-left: 18px; }
@@ -96,7 +97,7 @@
 }
 @media (prefers-reduced-motion: reduce) { .library-folder-disclosure svg { transition: none; } }
 .library-breadcrumbs .library-breadcrumb-document { display: block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--ink); }
-.library-folder-item.is-drop-target { background: var(--accent-wash); outline: 1px dashed var(--accent); outline-offset: -1px; }
+.library-folder-content.is-drop-target, .library-folder-item.is-drop-target { background: var(--accent-wash); outline: 1px dashed var(--accent); outline-offset: -1px; }
 
 .library-folder-item-name { flex: 1; min-width: 0; }
 .library-inline-rename { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
@@ -113,11 +114,11 @@
 .library-inline-document .library-reader-header { position: relative; padding-bottom: 8px; }
 .library-save-status { position: absolute; right: 0; top: 12px; font-size: 10px; color: var(--ink-muted); }
 
-/* One continuous, borderless document surface, including keyboard focus. */
+/* Keep the editable title distinct from the document body. */
 .library-inline-document { display: flex; flex-direction: column; flex: 1; min-height: 100%; }
-.library-inline-document .library-reader-header, .library-history-preview .library-reader-header { border: 0; padding-bottom: 8px; }
+.library-inline-document .library-reader-header, .library-history-preview .library-reader-header { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
 .library-inline-document-title, .library-inline-document-title:focus, .library-inline-document-title:focus-visible { padding: 0; border: 0; outline: none; box-shadow: none; border-radius: 0; background: transparent; letter-spacing: -.035em; }
-.library-inline-document .library-reader-content { display: flex; flex: 1; flex-direction: column; overflow: visible; padding-top: 8px; padding-bottom: 0; }
+.library-inline-document .library-reader-content { display: flex; flex: 1; flex-direction: column; overflow: visible; padding-top: 20px; padding-bottom: 0; }
 .library-folder-page .library-workspace.has-history { grid-template-columns: var(--library-directory-width) minmax(0, 1fr) clamp(200px, 25%, 260px); }
 .library-workspace.has-history .library-folder-content { padding-right: 18px; }
 .library-history-preview { flex: 1; min-width: 0; }

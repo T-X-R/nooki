@@ -32,11 +32,6 @@ dialog.library-dialog-wide { width: min(980px, calc(100vw - 64px)); }
 .library-field input, .library-field textarea, .library-dialog select { padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: var(--surface-strong); color: var(--ink); min-width: 0; }
 .library-dialog select { max-width: 100%; font-size: 12px; }
 .library-field input:focus, .library-field textarea:focus { outline: none; border-color: var(--line-strong); box-shadow: none; }
-.library-editor-heading { display: grid; grid-template-columns: 1fr 160px; gap: 16px; }
-.library-editor { width: 100%; box-sizing: border-box; min-height: 210px; height: min(40dvh, 420px); resize: vertical; font-family: ui-monospace, monospace !important; font-size: 12px !important; line-height: 1.8 !important; }
-.library-preview.library-reader-content { min-height: 210px; max-height: 46dvh; overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-strong); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
-.library-preview > :first-child { margin-top: 0; }
-.library-preview img { max-width: 100%; }
 /* Dialog containers stay plain; controls use the shared neutral focus treatment. */
 dialog:focus, dialog:focus-visible, [role="dialog"]:focus, [role="dialog"]:focus-visible { outline: none; }
 .library-diff { display: flex; flex-direction: column; min-height: 0; }
@@ -85,16 +80,9 @@ dialog:focus, dialog:focus-visible, [role="dialog"]:focus, [role="dialog"]:focus
 .data-capability-list .quiet-button { font-size: 11px; padding: 7px; }
 @media (max-width: 1050px) { .library-page .library-reader { padding-left: 20px; } }
 @media (max-width: 760px) { .data-management { margin-left: 0; } }
-@media (max-width: 640px) { .library-page .library-workspace { grid-template-columns: 1fr; } .library-page .library-reader { padding-left: 0; } .library-editor-heading { grid-template-columns: 1fr; gap: 0; } dialog.library-dialog { width: calc(100vw - 24px); padding: 18px; max-height: calc(100dvh - 32px); } .data-setting-row { grid-template-columns: 30px 1fr; } .data-setting-row > button { grid-column: 2; justify-self: start; } }
+@media (max-width: 640px) { .library-page .library-workspace { grid-template-columns: 1fr; } .library-page .library-reader { padding-left: 0; } dialog.library-dialog { width: calc(100vw - 24px); padding: 18px; max-height: calc(100dvh - 32px); } .data-setting-row { grid-template-columns: 30px 1fr; } .data-setting-row > button { grid-column: 2; justify-self: start; } }
 
 
-dialog.library-import-dialog[open] { display: flex; flex-direction: column; height: min(720px, calc(100dvh - 64px)); overflow: hidden; }
-.library-import-dialog > .modal-header, .library-import-dialog > .library-editor-heading, .library-import-dialog > select, .library-import-dialog > .modal-footer { flex: none; }
-.library-import-dialog > .modal-header { margin-bottom: 4px; }
-.library-import-body { flex: 1; min-height: 0; }
-.library-import-body > * { display: flex; flex-direction: column; height: 100%; min-height: 0; margin: 0; }
-.library-import-body h3 { margin: 0 0 8px; font-size: 12px; font-weight: 400; }
-.library-import-body .library-editor, .library-import-body .library-preview { flex: 1; height: 0; min-height: 0; max-height: none; resize: none; }
 
 .library-create-location { flex: none; margin: 0 0 16px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .library-create-location strong { color: var(--ink); font-weight: 500; }
