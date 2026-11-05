@@ -91,6 +91,12 @@ export function createTaskBoard(storage: Storage) {
       return id
     },
     setPaused: (paused: boolean) => change(current => ({ ...current, paused })),
+    remove: (id: string) => change(current => {
+      const card = current.cards.find(item => item.id === id)
+      if (!card) return current
+      if (card.status === 'running') throw new Error('Stop the running task before deleting it')
+      return { ...current, cards: current.cards.filter(item => item.id !== id) }
+    }),
     delegate: (id: string, authorization: BoardAuthorization) => queue(id, card => card.status === 'todo' ? { ...card, authorization } : undefined),
     continue: (id: string, message: string) => {
       message = message.trim()

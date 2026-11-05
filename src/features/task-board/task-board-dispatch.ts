@@ -61,13 +61,19 @@ export function createBoardDispatcher(board: ReturnType<typeof createTaskBoard>,
     }
   }
 
+  async function stop(id: string) {
+    const card = board.snapshot().cards.find(item => item.id === id && item.status === 'running')
+    if (!card) return
+    if (card.runId && dependencies.find(card.runId)?.status === 'running') await dependencies.stop(card.runId)
+    await finish(card, { status: 'stopped', error: undefined })
+  }
+
   return {
     reconcile: (available: boolean) => serialize(() => reconcile(available)),
-    stop: (id: string) => serialize(async () => {
-      const card = board.snapshot().cards.find(item => item.id === id && item.status === 'running')
-      if (!card) return
-      if (card.runId && dependencies.find(card.runId)?.status === 'running') await dependencies.stop(card.runId)
-      await finish(card, { status: 'stopped', error: undefined })
+    stop: (id: string) => serialize(() => stop(id)),
+    remove: (id: string) => serialize(async () => {
+      await stop(id)
+      await board.remove(id)
     }),
   }
 }

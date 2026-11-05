@@ -1,4 +1,4 @@
-import { ArrowTopRightIcon, Cross2Icon, LightningBoltIcon, PlusIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -8,6 +8,7 @@ import { taskBoardAgent } from './task-board-agent.ts'
 import type { Language } from '../../shared/i18n.ts'
 import { taskBoard } from './task-board.ts'
 import type { BoardStatus } from './task-board-store.ts'
+import nookiIcon from '../../assets/nooki-icon.png'
 import './task-board.css'
 
 const columns: { key: string; zh: string; en: string; statuses: BoardStatus[] }[] = [
@@ -17,8 +18,9 @@ const columns: { key: string; zh: string; en: string; statuses: BoardStatus[] }[
   { key: 'done', zh: '已完成', en: 'Done', statuses: ['done'] },
 ]
 
-export function TaskBoardPage({ language, toolbar, activity, agentAvailable, onConversation }: { language: Language; toolbar: ReactNode; activity: ReactNode; agentAvailable: boolean; onConversation(id: string): void }) {
+export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void }) {
   const zh = language === 'zh'
+  const [today, setToday] = useState(() => new Date())
   const state = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
   const [ready, setReady] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
@@ -47,6 +49,30 @@ export function TaskBoardPage({ language, toolbar, activity, agentAvailable, onC
   const running = state.cards.some(item => item.status === 'running')
   const agentStatus = running ? (zh ? '正在处理 1 项' : 'Working on 1 task')
     : agentAvailable ? (zh ? '空闲' : 'Idle') : (zh ? 'Codex 不可用' : 'Codex unavailable')
+  const locale = zh ? 'zh-CN' : 'en-US'
+  const dateLabel = new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(today)
+  const month = new Intl.DateTimeFormat(locale, { month: 'short' }).format(today)
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(today)
+  const dateStamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const refresh = () => {
+      const now = new Date()
+      setToday(now)
+      clearTimeout(timer)
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      timer = setTimeout(refresh, midnight.getTime() - now.getTime())
+    }
+    refresh()
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
 
   const load = () => {
     setError('')
@@ -99,8 +125,6 @@ export function TaskBoardPage({ language, toolbar, activity, agentAvailable, onC
     trigger.current = origin
     setSelected(null)
     setCreating(true)
-    setTitle('')
-    setDescription('')
     setError('')
   }
 
@@ -131,15 +155,22 @@ export function TaskBoardPage({ language, toolbar, activity, agentAvailable, onC
   const statusBadge = (status: BoardStatus) => <span className={`task-board-status ${status}`}>{statuses[status]}</span>
   const agentName = (delegated: boolean) => delegated ? 'Nooki Agent' : zh ? '自己处理' : 'Personal'
   return <div className="task-board" ref={board} onKeyDown={event => { if (event.key === 'Escape' && open && !event.nativeEvent.isComposing) { event.preventDefault(); close() } }}>
-    <div className="task-board-content" ref={content}>
+    <div className="task-board-content" ref={content} onClick={event => {
+      if (open && event.target instanceof Element && !event.target.closest('button, a, input, textarea, select, label, summary')) close()
+    }}>
       {toolbar}
       <div className="content-column">
-        <header className="page-intro">
-          <div><div className="eyebrow">WORKSPACE</div><h1>{zh ? '任务板' : 'Task board'}</h1></div>
+        <header className="task-board-heading">
+          <div className="task-board-title-group">
+            <time className="task-board-date" dateTime={dateStamp} aria-label={dateLabel}>
+              <span aria-hidden="true">{month}</span><strong aria-hidden="true">{String(today.getDate()).padStart(2, '0')}</strong>
+            </time>
+            <div><div className="task-board-date-caption"><span>{weekday}</span><span>{today.getFullYear()}</span></div><h1>{zh ? '任务板' : 'Task board'}</h1></div>
+          </div>
           <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
         </header>
         <div className="task-board-agent">
-          <span><LightningBoltIcon /><strong>Nooki Agent</strong><span role="status">{agentStatus}{queued > 0 ? (zh ? ` · ${queued} 项排队` : ` · ${queued} queued`) : ''}</span></span>
+          <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={nookiIcon} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queued > 0 ? (zh ? ` · ${queued} 项排队` : ` · ${queued} queued`) : ''}</span></span>
           <button className="text-button" disabled={!ready || busy} aria-pressed={!state.paused} onClick={() => void act(() => taskBoard.setPaused(!state.paused))}>{state.paused ? (zh ? '自动接取 · 暂停' : 'Auto-pickup paused') : (zh ? '自动接取 · 开启' : 'Auto-pickup on')}</button>
         </div>
         {!open && error && <p className="task-board-error" role="alert">{error} {!ready && <button className="secondary-button" onClick={load}>{zh ? '重试' : 'Retry'}</button>}</p>}
@@ -149,36 +180,47 @@ export function TaskBoardPage({ language, toolbar, activity, agentAvailable, onC
             return <section className="task-board-lane" key={column.key} aria-label={zh ? column.zh : column.en}>
               <h2><span className={`task-board-dot ${column.key}`} />{zh ? column.zh : column.en}<span className="task-board-count">{cards.length}</span></h2>
               {cards.map(item => <button key={item.id} className="task-board-card" aria-controls={open ? 'task-board-detail' : undefined} aria-pressed={item.id === selected} onClick={event => {
+                if (selected === item.id && !creating) { close(); return }
                 trigger.current = event.currentTarget
                 setCreating(false)
                 setSelected(item.id)
                 setError('')
               }}><strong>{item.title}</strong><span className="task-board-card-meta">{agentName(!!item.authorization)}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span></button>)}
-              {column.key === 'todo' ? <button className="text-button task-board-quick-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '添加待办' : 'Add to-do'}</button>
-                : !cards.length && <p className="task-board-empty">{zh ? '暂无任务' : 'No tasks'}</p>}
+              {!cards.length && <p className="task-board-empty">{zh ? '暂无任务' : 'No tasks'}</p>}
             </section>
           })}
         </div>
-        <details className="task-board-activity"><summary>{zh ? '最近活动' : 'Recent activity'}</summary>{activity}</details>
       </div>
     </div>
-    {open && <aside ref={panel} className="task-board-panel" id="task-board-detail" aria-labelledby="task-board-detail-title">
+    {open && <aside ref={panel} className={`task-board-panel ${creating ? 'task-board-panel-create' : ''}`} id="task-board-detail" aria-labelledby="task-board-detail-title">
       <header>
-        <div><div className="eyebrow">{creating ? 'TASK BOARD' : 'TASK'}</div><h2 id="task-board-detail-title">{creating ? (zh ? '新建任务' : 'New task') : card?.title}</h2>
+        <div className={creating ? 'task-board-create-heading' : undefined}>{creating && <span className="task-board-compose-icon"><Pencil2Icon /></span>}<div>{!creating && <div className="eyebrow">TASK</div>}<h2 id="task-board-detail-title">{creating ? (zh ? '新建任务' : 'New task') : card?.title}</h2>
           {!creating && card && <div className="task-board-card-meta">{statusBadge(card.status)}<span>{agentName(!!card.authorization)}</span></div>}
+        </div></div>
+        <div className="task-board-panel-tools">
+          {!creating && card && <button className="icon-button task-board-delete" disabled={busy} aria-label={zh ? '删除任务' : 'Delete task'} title={zh ? '删除任务' : 'Delete task'} onClick={() => void act(async () => {
+            await taskBoardAgent.remove(card.id)
+            setSelected(current => current === card.id ? null : current)
+            requestAnimationFrame(() => {
+              if (!panel.current) board.current?.querySelector<HTMLButtonElement>('.task-board-add')?.focus({ preventScroll: true })
+            })
+          })}><TrashIcon /></button>}
+          <button className="icon-button" ref={closeButton} onClick={close} aria-label={zh ? '关闭任务详情' : 'Close task details'}><Cross2Icon /></button>
         </div>
-        <button className="icon-button" ref={closeButton} onClick={close} aria-label={zh ? '关闭任务详情' : 'Close task details'}><Cross2Icon /></button>
       </header>
       {creating ? <form className="task-board-form" onSubmit={event => {
         event.preventDefault()
-        void act(async () => { const id = await taskBoard.add(title, description); setCreating(false); setSelected(id) })
+        void act(async () => { const id = await taskBoard.add(title, description); setTitle(''); setDescription(''); setCreating(false); setSelected(id) })
       }}>
         <div className="task-board-panel-body">
-          <label>{zh ? '任务名称' : 'Title'}<input ref={titleInput} value={title} onChange={event => setTitle(event.target.value)} required maxLength={120} /></label>
-          <label>{zh ? '任务要求或备注' : 'Task requirements or notes'}<textarea value={description} onChange={event => setDescription(event.target.value)} rows={5} maxLength={20_000} /></label>
+          <div className="task-board-compose-meta"><span className="task-board-compose-status"><span />{zh ? '待办' : 'To do'}</span><span>{zh ? '自己处理' : 'Personal'}</span></div>
+          <div className="task-board-composer">
+            <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
+            <label className="task-board-description-label"><span>{zh ? '任务要求或备注' : 'Task requirements or notes'}</span><textarea value={description} onChange={event => setDescription(event.target.value)} placeholder={zh ? '补充背景、需要的结果，或一条完成标准…' : 'Add context, the result you need, or what success looks like…'} rows={7} maxLength={20_000} /></label>
+          </div>
           {error && <p className="task-board-error" role="alert">{error}</p>}
         </div>
-        <footer><button type="button" className="secondary-button" onClick={close}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}</button></footer>
+        <footer><p className="task-board-compose-note">{zh ? '创建后，可交给 Nooki Agent 处理。' : 'After creating, you can delegate to Nooki Agent.'}</p><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
       </form> : card && <>
         <div className="task-board-panel-body">
           <section><h3>{zh ? '任务要求' : 'Task requirements'}</h3><p className="task-board-text">{card.description || (zh ? '暂无补充说明' : 'No additional notes')}</p></section>

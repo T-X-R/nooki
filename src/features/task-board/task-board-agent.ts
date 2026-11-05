@@ -92,4 +92,5 @@ export const taskBoardAgent = {
     await taskBoard.delegate(id, { snapshotId, documentIds })
   },
   stop: dispatcher.stop,
+  remove: dispatcher.remove,
 }

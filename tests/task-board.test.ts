@@ -86,3 +86,41 @@ test('an interrupted claim with no persisted execution requires a user decision'
   await dispatcher.reconcile(true)
   assert.equal(board.snapshot().cards[0].status, 'stopped')
 })
+
+test('deleting a card persists its removal without recreating it on reload', async () => {
+  let saved = null
+  const storage = { read: async () => saved, write: async state => { saved = structuredClone(state) } }
+  const board = createTaskBoard(storage)
+  const first = await board.add('Remove me', '')
+  const second = await board.add('Keep me', '')
+  await board.complete(first)
+  await board.remove(first)
+  const reopened = createTaskBoard(storage)
+  await reopened.initialize()
+  assert.deepEqual(reopened.snapshot().cards.map(card => card.id), [second])
+})
+
+test('deleting a running card waits for cancellation and preserves it when cancellation fails', async () => {
+  const { createBoardDispatcher } = await import('../src/features/task-board/task-board-dispatch.ts')
+  const board = createTaskBoard({ read: async () => null, write: async () => {} })
+  const id = await board.add('Running task', '')
+  await board.delegate(id, { snapshotId: 'snapshot', documentIds: [] })
+  let failStop = true
+  let stopped = 0
+  const dispatcher = createBoardDispatcher(board, {
+    find: () => ({ status: 'running' }),
+    createThread: async () => 'thread',
+    start: async () => {},
+    delivery: async () => assert.fail('a deleted card has no new delivery'),
+    stop: async () => { if (failStop) throw new Error('Cancel failed'); stopped++ },
+  })
+  await dispatcher.reconcile(true)
+  await assert.rejects(board.remove(id), /running/i)
+  await assert.rejects(dispatcher.remove(id), /Cancel failed/)
+  assert.equal(board.snapshot().cards[0].status, 'running')
+  failStop = false
+  await dispatcher.remove(id)
+  await dispatcher.reconcile(true)
+  assert.equal(stopped, 1)
+  assert.deepEqual(board.snapshot().cards, [])
+})
