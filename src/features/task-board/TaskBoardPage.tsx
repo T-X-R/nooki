@@ -1,7 +1,5 @@
-import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { taskBoardAgent } from './task-board-agent.ts'
 import type { Language } from '../../shared/i18n.ts'
 import { taskBoard } from './task-board.ts'
@@ -32,6 +30,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   const [response, setResponse] = useState('')
   const [revising, setRevising] = useState(false)
   const [draftSources, setDraftSources] = useState<BoardSource[]>([])
+  const [editDraft, setEditDraft] = useState<{ id: string; title: string; description: string; sources: BoardSource[] } | null>(null)
   const board = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLElement>(null)
@@ -39,6 +38,8 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   const closeButton = useRef<HTMLButtonElement>(null)
   const titleInput = useRef<HTMLInputElement>(null)
   const card = state.cards.find(item => item.id === selected)
+  const editing = card?.status === 'todo' && editDraft?.id === card.id ? editDraft : null
+  const composing = creating || !!editing
   const open = creating || !!card
   const statuses: Record<BoardStatus, string> = zh
     ? { todo: '待办', queued: '排队中', running: '执行中', question: '待补充', review: '待验收', stopped: '已停止', done: '已完成' }
@@ -106,9 +107,9 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   }, [open, state, ready, agentAvailable])
 
   useLayoutEffect(() => {
-    if (creating) titleInput.current?.focus({ preventScroll: true })
+    if (creating || editing) titleInput.current?.focus({ preventScroll: true })
     else if (selected) closeButton.current?.focus({ preventScroll: true })
-  }, [creating, selected])
+  }, [creating, selected, editing?.id])
 
   function close() {
     setCreating(false)
@@ -175,19 +176,24 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
                 setError('')
               }}><strong>{item.title}</strong>{item.createdAt === undefined
                 ? <span className="task-board-card-date" aria-label={zh ? '未记录日期' : 'Date not recorded'}>—</span>
-                : <time className="task-board-card-date" dateTime={new Date(item.createdAt).toISOString()}>{cardDate.format(item.createdAt)}</time>}</button>)}
+                : <time className="task-board-card-date" dateTime={new Date(item.createdAt).toISOString()}>{cardDate.format(item.createdAt)}</time>}{item.status === 'queued' && <span className="task-board-card-queued">{statuses.queued}</span>}</button>)}
               {!cards.length && <p className="task-board-empty">{column.empty[zh ? 0 : 1]}</p>}</div>
             </section>
           })}
         </div>
       </div>
     </div>
-    {open && <aside ref={panel} className={`task-board-panel ${creating ? 'task-board-panel-create' : ''}`} id="task-board-detail" aria-labelledby="task-board-detail-title">
+    {open && <aside ref={panel} className={`task-board-panel ${composing ? 'task-board-panel-create' : ''}`} id="task-board-detail" aria-labelledby="task-board-detail-title">
       <header>
-        <div className="task-board-detail-heading"><h2 id={creating ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : (zh ? '任务详情' : 'Task details')}</h2></div>
+        <div className="task-board-detail-heading"><h2 id={composing ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : editing ? (zh ? '编辑任务' : 'Edit task') : (zh ? '任务详情' : 'Task details')}</h2></div>
         <div className="task-board-panel-tools">
+          {!creating && !editing && card?.status === 'todo' && <button className="icon-button" disabled={busy} aria-label={zh ? '编辑任务' : 'Edit task'} title={zh ? '编辑任务' : 'Edit task'} onClick={() => {
+            setEditDraft({ id: card.id, title: card.title, description: card.description, sources: card.sources ?? [] })
+            setError('')
+          }}><Pencil2Icon /></button>}
           {!creating && card && <button className="icon-button task-board-delete" disabled={busy} aria-label={zh ? '删除任务' : 'Delete task'} title={zh ? '删除任务' : 'Delete task'} onClick={() => void act(async () => {
             await taskBoardAgent.remove(card.id)
+            setEditDraft(current => current?.id === card.id ? null : current)
             setSelected(current => current === card.id ? null : current)
             requestAnimationFrame(() => {
               if (!panel.current) board.current?.querySelector<HTMLButtonElement>('.task-board-add')?.focus({ preventScroll: true })
@@ -196,18 +202,29 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
           <button className="icon-button" ref={closeButton} onClick={close} aria-label={zh ? '关闭任务详情' : 'Close task details'}><Cross2Icon /></button>
         </div>
       </header>
-      {creating ? <form className="task-board-form" onSubmit={event => {
+      {composing ? <form className="task-board-form" onSubmit={event => {
         event.preventDefault()
-        void act(async () => { await taskBoard.add(title, description, draftSources); setTitle(''); setDescription(''); setDraftSources([]); close() })
+        void act(async () => {
+          if (editing) {
+            await taskBoard.edit(editing.id, editing.title, editing.description, editing.sources)
+            setEditDraft(null)
+          } else {
+            await taskBoard.add(title, description, draftSources)
+            setTitle(''); setDescription(''); setDraftSources([]); close()
+          }
+        })
       }}>
         <div className="task-board-panel-body">
           <div className="task-board-sheet task-board-composer">
-            <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
-            <TaskDescriptionInput zh={zh} value={description} sources={draftSources} onChange={setDescription} onSources={setDraftSources} />
+            <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={editing ? editing.title : title} onChange={event => editing ? setEditDraft(current => current ? { ...current, title: event.target.value } : current) : setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
+            <TaskDescriptionInput key={editing?.id ?? 'new'} zh={zh} value={editing ? editing.description : description} sources={editing ? editing.sources : draftSources} onChange={value => editing ? setEditDraft(current => current ? { ...current, description: value } : current) : setDescription(value)} onSources={sources => editing ? setEditDraft(current => current ? { ...current, sources } : current) : setDraftSources(sources)} />
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
         </div>
-        <footer><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); setDraftSources([]); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
+        <footer><div><button type="button" className="task-board-compose-cancel" disabled={busy} onClick={() => {
+          if (editing) { setEditDraft(null); setError('') }
+          else { setTitle(''); setDescription(''); setDraftSources([]); close() }
+        }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !(editing ? editing.title : title).trim()}>{editing ? (zh ? '保存修改' : 'Save changes') : (zh ? '创建任务' : 'Create task')}<ArrowRightIcon /></button></div></footer>
       </form> : card && <>
         <div className="task-board-panel-body">
           <div className="task-board-sheet">
@@ -217,13 +234,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             </div>
             {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
             <TaskReferences zh={zh} sources={card.sources ?? []} />
-            {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
             {card.status === 'question' && <section><h3>{zh ? 'Agent 想确认' : 'Agent needs input'}</h3><p className="task-board-text">{card.delivery?.text}</p></section>}
-            {card.delivery && !card.delivery.question && (card.status === 'review' || card.status === 'done') && <section>
-              <h3>{zh ? '交付物' : 'Delivery'}</h3>
-              {card.delivery.artifacts.map(file => <details className="task-board-file" key={file.id}><summary>{file.name}</summary><BoardMarkdown>{file.content}</BoardMarkdown></details>)}
-              {card.delivery.text && <BoardMarkdown>{card.delivery.text}</BoardMarkdown>}
-            </section>}
             {(card.status === 'question' || (card.status === 'review' && revising)) && <label>{card.status === 'question' ? (zh ? '补充信息' : 'Additional details') : (zh ? '修改意见' : 'Revision feedback')}
               <textarea value={response} onChange={event => setResponse(event.target.value)} rows={4} maxLength={20_000} />
             </label>}
@@ -231,7 +242,8 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
         </div>
-        {card.status !== 'done' && <footer>
+        {(card.threadId || card.status !== 'done') && <footer>
+          {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
           {card.status === 'todo' && <>
             <button className="text-button task-board-complete" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
             <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id, card.sources?.map(source => source.id) ?? []))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
@@ -252,8 +264,4 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
       </>}
     </aside>}
   </div>
-}
-
-function BoardMarkdown({ children }: { children: string }) {
-  return <div className="conversation-markdown task-board-markdown"><Markdown remarkPlugins={[remarkGfm]} skipHtml disallowedElements={['img', 'a']} unwrapDisallowed>{children}</Markdown></div>
 }

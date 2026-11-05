@@ -13,11 +13,12 @@
 .task-board-lane-cards { display: grid; align-content: start; gap: 10px; min-height: 320px; padding: 0 10px 14px; }
 .task-board-lane h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; font-size: 13px; font-weight: 650; }
 .task-board-count { margin-left: auto; color: var(--ink-muted); font: 11px ui-monospace, monospace; padding: 2px 6px; border-radius: 5px; background: var(--surface-muted); }
-.task-board-card { display: grid; gap: 18px; width: 100%; padding: 16px; align-content: start; border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 11px; background: var(--surface-strong); text-align: left; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 3%, transparent); transition: border-color .15s, background .15s; overflow-wrap: anywhere; }
+.task-board-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; width: 100%; padding: 16px; align-content: start; border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 11px; background: var(--surface-strong); text-align: left; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 3%, transparent); transition: border-color .15s, background .15s; overflow-wrap: anywhere; }
 .task-board-card:hover { border-color: var(--line-strong); background: var(--surface-strong); }
 .task-board-card[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); background: var(--surface-strong); box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 3%, transparent); }
-.task-board-card strong { color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.6; text-wrap: balance; }
-.task-board-card-date { justify-self: end; color: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.task-board-card strong { grid-column: 1 / -1; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.6; text-wrap: balance; }
+.task-board-card-queued { grid-column: 1; grid-row: 2; justify-self: start; align-self: center; padding: 3px 7px; border-radius: 999px; color: var(--accent-strong); background: var(--accent-soft); font-size: 10px; line-height: 1.4; }
+.task-board-card-date { grid-column: 2; grid-row: 2; justify-self: end; color: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .task-board-empty { display: grid; place-items: center; min-height: 220px; margin: 0; padding: 24px 14px; color: var(--ink-muted); font-size: 11px; line-height: 1.7; text-align: center; text-wrap: balance; }
 .task-board-panel { justify-self: end; z-index: 1; width: min(100%, clamp(360px, 43vw, 560px)); display: flex; flex-direction: column; border-left: 1px solid var(--line-strong); background: var(--surface); box-shadow: -14px 0 36px color-mix(in srgb, var(--ink) 8%, transparent); --task-panel-padding: clamp(20px, 2.3vw, 30px); }
 .task-board-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px var(--task-panel-padding) 10px; background: var(--surface); }
@@ -47,16 +48,13 @@
 .task-board-agent > button { border-radius: 7px; padding: 6px 9px; background: var(--accent-soft); color: var(--accent-strong); }
 .task-board-agent > button[aria-pressed="false"] { color: var(--ink-muted); background: var(--surface-muted); }
 .task-board-agent + .task-board-columns { margin-top: 0; }
-.task-board-status { --status-color: var(--ink-muted); display: inline-flex; align-items: center; gap: 6px; color: var(--status-color); font-size: 11px; }
+.task-board-status { --status-color: var(--ink-muted); display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; color: var(--status-color); background: color-mix(in srgb, var(--status-color) 9%, var(--surface-strong)); font-size: 11px; line-height: 1.4; }
 .task-board-status::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 .task-board-status.queued, .task-board-status.running { --status-color: var(--accent-strong); }
 .task-board-status.question, .task-board-status.review, .task-board-status.stopped { --status-color: color-mix(in srgb, var(--warning) 72%, var(--ink)); }
 .task-board-status.done { --status-color: color-mix(in srgb, var(--positive) 76%, var(--ink)); }
 .task-board-muted { color: var(--ink-muted); font-size: 12px; }
-.task-board-file > summary { cursor: pointer; font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
-.task-board-conversation { justify-self: start; font-size: 13px; }
-.task-board-file { border: 1px solid var(--line); border-radius: 9px; background: var(--surface-strong); padding: 12px; margin-bottom: 10px; }
-.task-board-markdown { overflow-wrap: anywhere; }
+.task-board-panel footer .task-board-conversation { margin-right: auto; padding: 8px 0; font-size: 12px; }
 .task-board-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; padding: 4px 0 5px; }
 .task-board-title-group { display: grid; gap: 10px; }
 .task-board-heading h1 { margin: 0; font-size: clamp(32px, 3.4vw, 44px); font-weight: 650; letter-spacing: -.055em; line-height: 1.15; }
@@ -79,8 +77,7 @@
 .task-board-composer textarea { flex: 1; min-height: 170px; padding: 0; border: 0; border-radius: 0; background: transparent; line-height: 1.95; font-size: 14px; resize: none; box-shadow: none; }
 .task-board-composer textarea::placeholder { color: var(--ink-muted); opacity: .8; }
 .task-board-composer :is(input, textarea):focus-visible { outline: none; }
-.task-board-composer > label:focus-within { border-color: var(--accent); }
-.task-board-composer textarea:focus-visible { outline: 1px solid var(--accent-soft); outline-offset: 5px; }
+.task-board-composer:focus-within > label:first-child { border-color: var(--accent); }
 .task-board-panel-create footer { display: flex; justify-content: flex-end; padding-block: 18px; }
 .task-board-panel-create footer > div { display: flex; gap: 12px; align-items: center; }
 .task-board-panel-create footer .primary-button { flex: none; gap: 12px; min-height: 39px; padding-inline: 15px; }

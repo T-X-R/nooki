@@ -46,7 +46,7 @@ try {
           return args.ids.map(id => {
             const doc = documents.find(item => item.id === id)
             if (!doc) throw new Error('Missing Library document')
-            return { reference: { kind: 'library-document', documentId: id, title: doc.title, snapshotId: args.id, revision: '1' }, documentDate: doc.documentDate, content: '文档正文：试用反馈原始记录' }
+            return { reference: { kind: 'library-document', documentId: id, title: doc.title, snapshotId: args.id, revision: '1' }, documentDate: doc.documentDate, content: id === 'feedback' ? '文档正文：试用反馈原始记录' : '文档正文：产品定位与边界' }
           })
         }
         if (command === 'conversation_list') return { data: thread ? [thread] : [], nextCursor: null }
@@ -58,7 +58,7 @@ try {
         if (command === 'conversation_read') return structuredClone(thread)
         if (command === 'conversation_run') {
           if (!args.request.taskBoard || args.request.threadId !== thread.id) throw new Error('Invalid board execution')
-          if (!args.request.context.includes('试用反馈原始记录')) throw new Error('Task Library references did not reach Codex')
+          if (!args.request.context.includes('产品定位与边界')) throw new Error('Task Library references did not reach Codex')
           await new Promise(resolve => setTimeout(resolve, 180))
           const turn = {
             id: 'turn-' + ++turnCount, status: 'completed',
@@ -71,7 +71,7 @@ try {
         throw new Error('Unexpected ' + command)
       },
     }
-    function assertTitle(title) { if (title !== '整理试用反馈，提出改进建议') throw new Error('Invalid board thread title') }
+    function assertTitle(title) { if (title !== '整理试用反馈，提出改进建议（修订）') throw new Error('Invalid board thread title') }
   })
   await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/')
   await page.getByRole('heading', { name: '任务板' }).waitFor()
@@ -168,6 +168,32 @@ try {
     }
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light' })
   }
+  const revisedTitle = '整理试用反馈，提出改进建议（修订）'
+  await panel.getByRole('button', { name: '编辑任务', exact: true }).click()
+  assert.equal(await panel.getByLabel('任务名称').inputValue(), '整理试用反馈，提出改进建议')
+  await panel.getByLabel('任务名称').fill(revisedTitle)
+  await description.fill('根据产品说明整理改进建议。')
+  await panel.getByRole('button', { name: '移除引用 试用反馈' }).click()
+  await panel.getByRole('button', { name: '引用文件', exact: true }).click()
+  await panel.getByRole('option', { name: '产品说明 产品资料' }).click()
+  await page.locator('.task-board-content').click({ position: { x: 12, y: 400 } })
+  await panel.waitFor({ state: 'hidden' })
+  await card.click()
+  assert.equal(await panel.getByLabel('任务名称').inputValue(), revisedTitle, 'Dismissal preserves the unsaved edit')
+  await panel.getByRole('button', { name: '移除引用 产品说明' }).waitFor()
+  await description.focus()
+  assert.equal(await description.evaluate(element => getComputedStyle(element).outlineStyle), 'none', 'Body input blends into the paper')
+  if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) {
+    await description.focus()
+    await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/edit-light.png`, animations: 'disabled' })
+  }
+  await panel.getByRole('button', { name: '保存修改', exact: true }).click()
+  await panel.getByRole('heading', { name: revisedTitle, exact: true }).waitFor()
+  await panel.getByText('根据产品说明整理改进建议。', { exact: true }).waitFor()
+  await panel.getByRole('button', { name: '编辑任务', exact: true }).click()
+  await panel.getByLabel('任务名称').fill('不应保存的标题')
+  await panel.getByRole('button', { name: '取消', exact: true }).click()
+  await panel.getByRole('heading', { name: revisedTitle, exact: true }).waitFor()
   await card.click()
   await panel.waitFor({ state: 'hidden' })
   await card.click()
@@ -175,19 +201,44 @@ try {
   await page.reload()
   await card.click()
   assert.equal(await card.locator('time').getAttribute('datetime'), new Date(createdAt).toISOString(), 'Creation date survives reload')
-  await panel.locator('.task-board-references').getByText('试用反馈', { exact: true }).waitFor()
+  await panel.locator('.task-board-references').getByText('产品说明', { exact: true }).waitFor()
+  await card.click()
+  await page.getByRole('button', { name: '自动接取 · 开启', exact: true }).click()
+  await card.click()
   await panel.getByRole('button', { name: '交给 Agent' }).click()
+  await card.getByText('排队中', { exact: true }).waitFor()
+  assert.equal(await card.locator('time').getAttribute('datetime'), new Date(createdAt).toISOString())
+  await card.click()
+  await page.getByRole('button', { name: '自动接取 · 暂停', exact: true }).click()
+  await page.getByRole('region', { name: '待我处理' }).locator('.task-board-card').filter({ hasText: revisedTitle }).waitFor()
+  assert.equal(await card.getByText('排队中', { exact: true }).count(), 0)
+  await card.click()
   await panel.getByText('面向哪个团队？').waitFor()
-  assert.deepEqual(await page.evaluate(() => window.qa.capturedIds), ['feedback'])
-  await page.locator('.sidebar').getByRole('button', { name: '整理试用反馈，提出改进建议', exact: true }).waitFor()
+  assert.equal(await panel.getByRole('button', { name: '编辑任务', exact: true }).count(), 0, 'Delegated tasks cannot be edited as todos')
+  assert.deepEqual(await page.evaluate(() => window.qa.capturedIds), ['brief'])
+  await page.locator('.sidebar').getByRole('button', { name: revisedTitle, exact: true }).waitFor()
   await panel.getByLabel('补充信息').fill('面向内部产品团队')
   await panel.getByRole('button', { name: '提交并继续' }).click()
-  await panel.getByText('草稿已完成。').waitFor()
+  await panel.locator('.task-board-status.review').waitFor()
+  assert.equal(await panel.getByText('草稿已完成。', { exact: true }).count(), 0, 'Delivery stays in the execution conversation')
+  assert.equal(await panel.getByText('交付物', { exact: true }).count(), 0)
+  assert.equal(await panel.locator('.task-board-sheet').getByRole('button', { name: '打开执行会话' }).count(), 0)
+  const conversationLink = panel.locator('footer').getByRole('button', { name: '打开执行会话' })
+  const linkBounds = await conversationLink.boundingBox()
+  const acceptBounds = await panel.getByRole('button', { name: '验收通过' }).boundingBox()
+  assert.ok(linkBounds.x < acceptBounds.x && Math.abs(linkBounds.y - acceptBounds.y) < 20, 'Conversation action sits at the bottom left')
+  if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(theme => { document.documentElement.dataset.theme = theme }, theme)
+      await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/review-${theme}.png`, animations: 'disabled' })
+    }
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'light' })
+  }
   await panel.getByRole('button', { name: '验收通过' }).click()
   await page.getByRole('region', { name: '已完成' }).locator('.task-board-card').filter({ hasText: '整理试用反馈，提出改进建议' }).waitFor()
   assert.equal(await page.evaluate(() => window.qa.turnCount), 2)
   await panel.getByRole('button', { name: '打开执行会话' }).click()
-  await page.locator('.conversation-thread-title').getByText('整理试用反馈，提出改进建议').waitFor()
+  await page.locator('.conversation-thread-title').getByText(revisedTitle).waitFor()
   await page.getByRole('button', { name: '任务板', exact: true }).click()
   await card.click()
   await panel.getByRole('button', { name: '删除任务', exact: true }).click()
@@ -204,7 +255,7 @@ try {
   assert.equal(await page.locator('.task-board-date').getAttribute('datetime'), '2026-11-06', 'The local date updates at midnight')
   assert.equal(await page.getByText('星期五', { exact: true }).count(), 1)
   assert.deepEqual(errors, [])
-  console.log('Task board Library mentions, persisted references, dates, overlay dismissal, draft persistence, deletion, Codex handoff and acceptance passed')
+  console.log('Task board todo editing, cancel, references, Library mentions, persisted references, dates, overlay dismissal, draft persistence, deletion, Codex handoff and acceptance passed')
 } finally {
   await browser.close()
 }

@@ -29,6 +29,15 @@ type Storage = {
   write(state: BoardState): Promise<void>
 }
 
+function draftContent(title: string, description: string, sources: BoardSource[]) {
+  title = title.trim()
+  description = description.trim()
+  if (!title || title.length > 120 || description.length > 20_000) throw new Error('Invalid task title or description')
+  const references = [...new Map(sources.map(source => [source.id, { ...source }])).values()]
+  if (references.length > 50) throw new Error('Too many task references')
+  return { title, description, sources: references.length ? references : undefined }
+}
+
 export function createTaskBoard(storage: Storage) {
   let state: BoardState = { cards: [] }
   let initialization: Promise<void> | undefined
@@ -86,14 +95,17 @@ export function createTaskBoard(storage: Storage) {
     snapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     async add(title: string, description: string, sources: BoardSource[] = []) {
-      title = title.trim()
-      description = description.trim()
-      if (!title || title.length > 120 || description.length > 20_000) throw new Error('Invalid task title or description')
-      const references = [...new Map(sources.map(source => [source.id, { ...source }])).values()]
-      if (references.length > 50) throw new Error('Too many task references')
+      const draft = draftContent(title, description, sources)
       const id = crypto.randomUUID()
-      await change(current => ({ ...current, cards: [...current.cards, { id, title, description, status: 'todo', createdAt: Date.now(), ...(references.length ? { sources: references } : {}) }] }))
+      await change(current => ({ ...current, cards: [...current.cards, { id, ...draft, status: 'todo', createdAt: Date.now() }] }))
       return id
+    },
+    async edit(id: string, title: string, description: string, sources: BoardSource[] = []) {
+      const draft = draftContent(title, description, sources)
+      return updateCard(id, card => {
+        if (card.status !== 'todo') throw new Error('Only todo tasks can be edited')
+        return { ...card, ...draft }
+      })
     },
     setPaused: (paused: boolean) => change(current => ({ ...current, paused })),
     remove: (id: string) => change(current => {

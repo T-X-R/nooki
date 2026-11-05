@@ -167,3 +167,42 @@ test('creation dates persist through reload, delegation withdrawal and completio
   assert.equal(reopened.snapshot().cards.find(card => card.id === id).createdAt, createdAt)
   assert.equal(reopened.snapshot().cards.find(card => card.id === 'legacy').createdAt, undefined)
 })
+
+test('editing a todo saves its content and references without changing its creation date', async () => {
+  let saved = null
+  const storage = { read: async () => saved, write: async state => { saved = structuredClone(state) } }
+  const board = createTaskBoard(storage)
+  const id = await board.add('Original', 'Original notes', [{ id: 'a', title: 'Old file' }])
+  const createdAt = board.snapshot().cards[0].createdAt
+  const sources = [{ id: 'b', title: 'New file' }]
+  await board.edit(id, ' Updated ', ' Updated notes ', sources)
+  sources[0].title = 'External mutation'
+  const reopened = createTaskBoard(storage)
+  await reopened.initialize()
+  assert.deepEqual(reopened.snapshot().cards[0], { id, title: 'Updated', description: 'Updated notes', status: 'todo', createdAt, sources: [{ id: 'b', title: 'New file' }] })
+  await reopened.edit(id, 'Updated', '', [])
+  assert.equal(reopened.snapshot().cards[0].sources, undefined, 'All references can be removed')
+})
+
+test('editing is limited to todo tasks and invalid changes leave the card intact', async () => {
+  const board = createTaskBoard({ read: async () => null, write: async () => {} })
+  const id = await board.add('Original', 'Notes')
+  const original = structuredClone(board.snapshot().cards[0])
+  for (const [title, description, sources] of [[' ', '', []], ['x'.repeat(121), '', []], ['Valid', 'x'.repeat(20_001), []], ['Valid', '', Array.from({ length: 51 }, (_, index) => ({ id: String(index), title: 'File' }))]]) {
+    await assert.rejects(board.edit(id, title, description, sources))
+    assert.deepEqual(board.snapshot().cards[0], original)
+  }
+  await board.delegate(id, { snapshotId: 'snapshot', documentIds: [] })
+  for (const status of ['queued', 'running', 'question', 'review', 'stopped', 'done']) {
+    await board.updateCard(id, card => ({ ...card, status }))
+    await assert.rejects(board.edit(id, 'Changed', '', []), /todo/i)
+    assert.equal(board.snapshot().cards[0].title, 'Original')
+  }
+})
+
+test('editing an older todo does not invent a creation timestamp', async () => {
+  const board = createTaskBoard({ read: async () => ({ cards: [{ id: 'old', title: 'Older task', description: '', status: 'todo' }] }), write: async () => {} })
+  await board.edit('old', 'Revised older task', 'New notes', [])
+  assert.equal(board.snapshot().cards[0].createdAt, undefined)
+  assert.equal(board.snapshot().cards[0].title, 'Revised older task')
+})
