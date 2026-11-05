@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ArrowTopRightIcon, CheckCircledIcon, CircleIcon, Cross2Icon, FileTextIcon, Pencil2Icon, PersonIcon, PlusIcon, TrashIcon, UpdateIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, FileTextIcon, Pencil2Icon, PersonIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,11 +11,11 @@ import type { BoardStatus } from './task-board-store.ts'
 import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
 
-const columns: { key: string; zh: string; en: string; hint: [string, string]; icon: ReactNode; statuses: BoardStatus[] }[] = [
-  { key: 'todo', zh: '待办', en: 'To do', hint: ['想法与下一步', 'Ideas and next steps'], icon: <CircleIcon />, statuses: ['todo', 'queued'] },
-  { key: 'running', zh: '执行中', en: 'In progress', hint: ['Agent 正在推进', 'Agent is working'], icon: <UpdateIcon />, statuses: ['running'] },
-  { key: 'review', zh: '待我处理', en: 'Needs attention', hint: ['补充信息或验收成果', 'Input or delivery review'], icon: <PersonIcon />, statuses: ['question', 'review', 'stopped'] },
-  { key: 'done', zh: '已完成', en: 'Done', hint: ['已完成与验收的任务', 'Finished and accepted'], icon: <CheckCircledIcon />, statuses: ['done'] },
+const columns: { key: string; zh: string; en: string; hint: [string, string]; empty: [string, string]; statuses: BoardStatus[] }[] = [
+  { key: 'todo', zh: '待办', en: 'To do', hint: ['想法与下一步', 'Ideas and next steps'], empty: ['等待新的待办', 'Waiting for your next idea'], statuses: ['todo', 'queued'] },
+  { key: 'running', zh: '执行中', en: 'In progress', hint: ['Agent 正在推进', 'Agent is working'], empty: ['暂无执行中的任务', 'No tasks in progress'], statuses: ['running'] },
+  { key: 'review', zh: '待我处理', en: 'Needs attention', hint: ['补充信息或验收成果', 'Input or delivery review'], empty: ['暂时没有需要你处理的任务', 'Nothing needs your attention'], statuses: ['question', 'review', 'stopped'] },
+  { key: 'done', zh: '已完成', en: 'Done', hint: ['已完成与验收的任务', 'Finished and accepted'], empty: ['完成的任务会留在这里', 'Completed tasks will appear here'], statuses: ['done'] },
 ]
 
 export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void }) {
@@ -173,10 +173,10 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
         </div>
         {!open && error && <p className="task-board-error" role="alert">{error} {!ready && <button className="secondary-button" onClick={load}>{zh ? '重试' : 'Retry'}</button>}</p>}
         <div className="task-board-columns">
-          {columns.map(column => {
+          {columns.map((column, index) => {
             const cards = state.cards.filter(item => column.statuses.includes(item.status))
             return <section className={`task-board-lane ${column.key}`} key={column.key} aria-label={zh ? column.zh : column.en}>
-              <header className="task-board-lane-heading"><h2><span className="task-board-stage-icon" aria-hidden="true">{column.icon}</span>{zh ? column.zh : column.en}<span className="task-board-count">{cards.length}</span></h2><p>{column.hint[zh ? 0 : 1]}</p></header>
+              <header className="task-board-lane-heading"><h2><span className="task-board-stage-marker" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>{zh ? column.zh : column.en}<span className="task-board-count">{cards.length}</span></h2><p>{column.hint[zh ? 0 : 1]}</p></header>
               <div className="task-board-lane-cards">{cards.map(item => <button key={item.id} className="task-board-card" aria-controls={open ? 'task-board-detail' : undefined} aria-pressed={item.id === selected} onClick={event => {
                 if (selected === item.id && !creating) { close(); return }
                 trigger.current = event.currentTarget
@@ -184,7 +184,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
                 setSelected(item.id)
                 setError('')
               }}><strong>{item.title}</strong>{item.description && <span className="task-board-card-preview">{item.description}</span>}<span className="task-board-card-meta">{agentName(!!item.authorization)}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span></button>)}
-              {!cards.length && <div className="task-board-empty"><span aria-hidden="true">{column.icon}</span><p>{zh ? '暂无任务' : 'No tasks'}</p></div>}</div>
+              {!cards.length && <p className="task-board-empty">{column.empty[zh ? 0 : 1]}</p>}</div>
             </section>
           })}
         </div>

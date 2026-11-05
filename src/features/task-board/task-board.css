@@ -9,8 +9,7 @@
 .task-board-lane.done { --lane-color: var(--positive); }
 .task-board-lane-heading { padding: 16px 14px 14px; border-top: 2px solid color-mix(in srgb, var(--lane-color) 55%, var(--line)); }
 .task-board-lane-heading > p { margin: 7px 0 0; color: var(--ink-muted); font-size: 11px; line-height: 1.5; }
-.task-board-stage-icon { display: inline-flex; color: var(--lane-color); }
-.task-board-stage-icon svg { width: 15px; height: 15px; }
+.task-board-stage-marker { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 7px; color: var(--lane-color); background: color-mix(in srgb, var(--lane-color) 9%, var(--surface-strong)); font: 500 10px ui-monospace, monospace; letter-spacing: -.03em; }
 .task-board-lane-cards { display: grid; align-content: start; gap: 10px; min-height: 320px; padding: 0 10px 14px; }
 .task-board-lane h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; font-size: 13px; font-weight: 650; }
 .task-board-count { margin-left: auto; color: var(--ink-muted); font: 11px ui-monospace, monospace; padding: 2px 6px; border-radius: 5px; background: var(--surface-muted); }
@@ -20,10 +19,7 @@
 .task-board-card strong { color: var(--ink); font-size: 14px; font-weight: 650; }
 .task-board-card > span { color: var(--ink-muted); font-size: 12px; }
 .task-board-card-preview { margin: 0; color: var(--ink-muted); font-size: 12px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.task-board-empty { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--ink-soft); }
-.task-board-empty > span { display: grid; place-items: center; width: 42px; height: 42px; border: 1px dashed var(--line-strong); border-radius: 14px; }
-.task-board-empty svg { width: 19px; height: 19px; opacity: .7; }
-.task-board-empty p { margin: 0; font-size: 11px; }
+.task-board-empty { display: grid; place-items: center; min-height: 220px; margin: 0; padding: 24px 14px; color: var(--ink-muted); font-size: 11px; line-height: 1.7; text-align: center; text-wrap: balance; }
 .task-board-panel { justify-self: end; z-index: 1; width: min(100%, clamp(360px, 42vw, 560px)); display: flex; flex-direction: column; border-left: 1px solid var(--line-strong); background: var(--surface-strong); box-shadow: -14px 0 36px color-mix(in srgb, var(--ink) 8%, transparent); animation: task-board-enter .2s ease-out; --task-panel-padding: clamp(22px, 3vw, 36px); }
 .task-board-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px var(--task-panel-padding); border-bottom: 1px solid var(--line); background: var(--surface-strong); }
 .task-board-panel > header .icon-button { flex: none; }
