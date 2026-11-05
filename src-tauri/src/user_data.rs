@@ -109,6 +109,7 @@ pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), Strin
       if card.get(field).is_some_and(|value| !value.is_string()) { return Err("Invalid task card metadata".into()); }
     }
     if card.get("queuedAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task queue position".into()); }
+    if card.get("createdAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task creation date".into()); }
     if let Some(sources) = card.get("sources") {
       let sources = sources.as_array().filter(|sources| sources.len() <= 50).ok_or("Invalid task references")?;
       for source in sources {

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, FileTextIcon, Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -6,6 +6,7 @@ import { taskBoardAgent } from './task-board-agent.ts'
 import type { Language } from '../../shared/i18n.ts'
 import { taskBoard } from './task-board.ts'
 import { TaskDescriptionInput } from './TaskDescriptionInput.tsx'
+import { TaskReferences } from './TaskReferences.tsx'
 import type { BoardSource, BoardStatus } from './task-board-store.ts'
 import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
@@ -50,6 +51,8 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   const dateLabel = new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(today)
   const shortDate = new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(today)
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(today)
+  const cardDate = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
+  const fullDate = new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' })
   const dateStamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
   useEffect(() => {
@@ -170,7 +173,9 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
                 setCreating(false)
                 setSelected(item.id)
                 setError('')
-              }}><strong>{item.title}</strong>{item.description && <span className="task-board-card-preview">{item.description}</span>}{(!!item.sources?.length || ['queued', 'question', 'review', 'stopped'].includes(item.status)) && <span className="task-board-card-meta">{!!item.sources?.length && <span className="task-board-card-source-count"><FileTextIcon />{item.sources.length}</span>}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span>}</button>)}
+              }}><strong>{item.title}</strong>{item.createdAt === undefined
+                ? <span className="task-board-card-date" aria-label={zh ? '未记录日期' : 'Date not recorded'}>—</span>
+                : <time className="task-board-card-date" dateTime={new Date(item.createdAt).toISOString()}>{cardDate.format(item.createdAt)}</time>}</button>)}
               {!cards.length && <p className="task-board-empty">{column.empty[zh ? 0 : 1]}</p>}</div>
             </section>
           })}
@@ -179,7 +184,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     </div>
     {open && <aside ref={panel} className={`task-board-panel ${creating ? 'task-board-panel-create' : ''}`} id="task-board-detail" aria-labelledby="task-board-detail-title">
       <header>
-        <div className={creating ? 'task-board-create-heading' : 'task-board-detail-heading'}>{creating && <span className="task-board-compose-icon"><Pencil2Icon /></span>}<h2 id={creating ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : (zh ? '任务详情' : 'Task details')}</h2></div>
+        <div className="task-board-detail-heading"><h2 id={creating ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : (zh ? '任务详情' : 'Task details')}</h2></div>
         <div className="task-board-panel-tools">
           {!creating && card && <button className="icon-button task-board-delete" disabled={busy} aria-label={zh ? '删除任务' : 'Delete task'} title={zh ? '删除任务' : 'Delete task'} onClick={() => void act(async () => {
             await taskBoardAgent.remove(card.id)
@@ -196,37 +201,39 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
         void act(async () => { await taskBoard.add(title, description, draftSources); setTitle(''); setDescription(''); setDraftSources([]); close() })
       }}>
         <div className="task-board-panel-body">
-          <div className="task-board-composer">
+          <div className="task-board-sheet task-board-composer">
             <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
             <TaskDescriptionInput zh={zh} value={description} sources={draftSources} onChange={setDescription} onSources={setDraftSources} />
+            {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
-          {error && <p className="task-board-error" role="alert">{error}</p>}
         </div>
         <footer><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); setDraftSources([]); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
       </form> : card && <>
         <div className="task-board-panel-body">
-          <div className="task-board-detail-intro">
-            {statusBadge(card.status)}
-            <h2 id="task-board-detail-title">{card.title}</h2>
+          <div className="task-board-sheet">
+            <div className="task-board-detail-intro">
+              <h2 id="task-board-detail-title">{card.title}</h2>
+              <div className="task-board-detail-meta">{card.createdAt !== undefined && <time dateTime={new Date(card.createdAt).toISOString()}>{zh ? `${fullDate.format(card.createdAt)}创建` : `Created ${fullDate.format(card.createdAt)}`}</time>}{statusBadge(card.status)}</div>
+            </div>
+            {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
+            <TaskReferences zh={zh} sources={card.sources ?? []} />
+            {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
+            {card.status === 'question' && <section><h3>{zh ? 'Agent 想确认' : 'Agent needs input'}</h3><p className="task-board-text">{card.delivery?.text}</p></section>}
+            {card.delivery && !card.delivery.question && (card.status === 'review' || card.status === 'done') && <section>
+              <h3>{zh ? '交付物' : 'Delivery'}</h3>
+              {card.delivery.artifacts.map(file => <details className="task-board-file" key={file.id}><summary>{file.name}</summary><BoardMarkdown>{file.content}</BoardMarkdown></details>)}
+              {card.delivery.text && <BoardMarkdown>{card.delivery.text}</BoardMarkdown>}
+            </section>}
+            {(card.status === 'question' || (card.status === 'review' && revising)) && <label>{card.status === 'question' ? (zh ? '补充信息' : 'Additional details') : (zh ? '修改意见' : 'Revision feedback')}
+              <textarea value={response} onChange={event => setResponse(event.target.value)} rows={4} maxLength={20_000} />
+            </label>}
+            {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
+            {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
-          {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
-          {!!card.sources?.length && <div className="task-board-references" aria-label={zh ? '已引用文件' : 'Referenced files'}>{card.sources.map(source => <span key={source.id}><FileTextIcon /><span>{source.title}</span></span>)}</div>}
-          {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
-          {card.status === 'question' && <section><h3>{zh ? 'Agent 想确认' : 'Agent needs input'}</h3><p className="task-board-text">{card.delivery?.text}</p></section>}
-          {card.delivery && !card.delivery.question && (card.status === 'review' || card.status === 'done') && <section>
-            <h3>{zh ? '交付物' : 'Delivery'}</h3>
-            {card.delivery.artifacts.map(file => <details className="task-board-file" key={file.id}><summary>{file.name}</summary><BoardMarkdown>{file.content}</BoardMarkdown></details>)}
-            {card.delivery.text && <BoardMarkdown>{card.delivery.text}</BoardMarkdown>}
-          </section>}
-          {(card.status === 'question' || (card.status === 'review' && revising)) && <label>{card.status === 'question' ? (zh ? '补充信息' : 'Additional details') : (zh ? '修改意见' : 'Revision feedback')}
-            <textarea value={response} onChange={event => setResponse(event.target.value)} rows={4} maxLength={20_000} />
-          </label>}
-          {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
-          {error && <p className="task-board-error" role="alert">{error}</p>}
         </div>
         {card.status !== 'done' && <footer>
           {card.status === 'todo' && <>
-            <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
+            <button className="text-button task-board-complete" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
             <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id, card.sources?.map(source => source.id) ?? []))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
           </>}
           {card.status === 'running' && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoardAgent.stop(card.id))}>{zh ? '停止执行' : 'Stop execution'}</button>}

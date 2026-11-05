@@ -1,7 +1,8 @@
-import { Cross2Icon, FileTextIcon } from '@radix-ui/react-icons'
+import { FileTextIcon } from '@radix-ui/react-icons'
 import { useEffect, useId, useRef, useState } from 'react'
 import { listLibraryDocuments, type LibraryDocumentMetadata } from '../../platform/document-library.ts'
 import type { BoardSource } from './task-board-store.ts'
+import { TaskReferences } from './TaskReferences.tsx'
 
 export function TaskDescriptionInput({ zh, value, sources, onChange, onSources }: {
   zh: boolean
@@ -52,8 +53,8 @@ export function TaskDescriptionInput({ zh, value, sources, onChange, onSources }
   }
   return <div className="task-board-description-editor">
     <label className="task-board-description-label">
-      <span>{zh ? '任务要求或备注' : 'Task requirements or notes'}</span>
-      <textarea ref={editor} value={value} maxLength={20_000} rows={7}
+      <span className="visually-hidden">{zh ? '任务要求或备注' : 'Task requirements or notes'}</span>
+      <textarea ref={editor} value={value} maxLength={20_000} rows={6}
         placeholder={zh ? '写下背景和期待的结果，输入 @ 引用资料…' : 'Add context and the result you need. Type @ to reference Library files…'}
         aria-autocomplete="list" aria-controls={picking ? menuId : undefined}
         aria-activedescendant={picking && canChoose ? `${menuId}-${active}` : undefined}
@@ -70,6 +71,12 @@ export function TaskDescriptionInput({ zh, value, sources, onChange, onSources }
           } else if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); choose(matches[active]) }
         }} />
     </label>
+    <div className="task-board-editor-tools"><button className="task-board-reference-trigger" type="button" aria-expanded={picking} aria-controls={picking ? menuId : undefined} onMouseDown={event => event.preventDefault()} onClick={() => {
+      const caret = editor.current?.selectionStart ?? value.length
+      setMention({ start: caret, end: caret, query: '' })
+      setHighlighted(0)
+      editor.current?.focus({ preventScroll: true })
+    }}><span aria-hidden="true">@</span>{zh ? '引用文件' : 'Reference a file'}</button><span>{zh ? '也可直接输入 @' : 'Or type @'}</span></div>
     {picking && <div className="task-board-reference-menu" onMouseDown={event => event.preventDefault()}>
       <div className="task-board-reference-menu-heading"><span>@</span><span className="task-board-reference-query">{mention.query || (zh ? '引用资料库文件' : 'Reference a Library file')}</span><small>{zh ? '↑↓ 选择 · Enter 确认' : '↑↓ select · Enter confirm'}</small></div>
       <div role="listbox" id={menuId} aria-label={zh ? '资料库文件' : 'Library files'}>
@@ -84,6 +91,6 @@ export function TaskDescriptionInput({ zh, value, sources, onChange, onSources }
           </button>)}
       </div>
     </div>}
-    {!!sources.length && <div className="task-board-references" aria-label={zh ? '已引用文件' : 'Referenced files'}>{sources.map(source => <span key={source.id}><FileTextIcon /><span>{source.title}</span><button type="button" aria-label={`${zh ? '移除引用' : 'Remove reference'} ${source.title}`} onClick={() => onSources(sources.filter(item => item.id !== source.id))}><Cross2Icon /></button></span>)}</div>}
+    <TaskReferences zh={zh} sources={sources} onRemove={id => onSources(sources.filter(item => item.id !== id))} />
   </div>
 }

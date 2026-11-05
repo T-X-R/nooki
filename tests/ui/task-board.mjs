@@ -9,7 +9,7 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => {
     let tasks = []
-    let board = JSON.parse(sessionStorage.getItem('board') || 'null')
+    let board = JSON.parse(sessionStorage.getItem('board') || 'null') || { cards: [{ id: 'legacy', title: '旧任务示例', description: '旧说明', status: 'done' }] }
     let thread
     const callbacks = new Map()
     let callback = 0
@@ -71,7 +71,7 @@ try {
         throw new Error('Unexpected ' + command)
       },
     }
-    function assertTitle(title) { if (title !== '整理试用反馈') throw new Error('Invalid board thread title') }
+    function assertTitle(title) { if (title !== '整理试用反馈，提出改进建议') throw new Error('Invalid board thread title') }
   })
   await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/')
   await page.getByRole('heading', { name: '任务板' }).waitFor()
@@ -82,9 +82,11 @@ try {
   assert.equal(await page.locator('.task-board-date').getAttribute('datetime'), expectedDate)
   assert.equal(await page.getByText('最近活动', { exact: true }).count(), 0)
   assert.equal(await page.getByRole('button', { name: '添加待办', exact: true }).count(), 0)
+  const legacy = page.locator('.task-board-card').filter({ hasText: '旧任务示例' })
+  assert.equal(await legacy.locator('.task-board-card-date').innerText(), '—', 'Legacy tasks do not receive an invented date')
   const panel = page.locator('.task-board-panel')
   const columns = page.locator('.task-board-columns')
-  const card = page.locator('.task-board-card').filter({ hasText: '整理试用反馈' })
+  const card = page.locator('.task-board-card').filter({ hasText: '整理试用反馈，提出改进建议' })
   await page.getByRole('button', { name: '新建任务' }).click()
   for (const theme of ['light', 'dark']) {
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme }, theme)
@@ -104,7 +106,7 @@ try {
     }
   }
   await page.evaluate(() => { document.documentElement.dataset.theme = 'light' })
-  await panel.getByLabel('任务名称').fill('整理试用反馈')
+  await panel.getByLabel('任务名称').fill('整理试用反馈，提出改进建议')
   const description = panel.getByLabel('任务要求或备注')
   await description.fill('联系 user@example.com')
   assert.equal(await panel.getByRole('listbox').count(), 0, 'Email addresses do not open the reference picker')
@@ -112,7 +114,8 @@ try {
   await panel.getByText('没有找到匹配的文件').waitFor()
   await page.keyboard.press('Escape')
   assert.equal(await panel.isVisible(), true, 'Escape dismisses the mention menu before the task panel')
-  await description.fill('整理反馈并给出草稿。 @')
+  await description.fill('整理反馈并给出草稿。')
+  await panel.getByRole('button', { name: '引用文件', exact: true }).click()
   await panel.getByRole('option', { name: '试用反馈 用户研究' }).waitFor()
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('Enter')
@@ -139,15 +142,21 @@ try {
   await page.locator('.task-board-content').click({ position: { x: 12, y: 400 } })
   await panel.waitFor({ state: 'hidden' })
   await page.getByRole('button', { name: '新建任务' }).click()
-  assert.equal(await panel.getByLabel('任务名称').inputValue(), '整理试用反馈', 'Dismissing a new task preserves its draft')
+  assert.equal(await panel.getByLabel('任务名称').inputValue(), '整理试用反馈，提出改进建议', 'Dismissing a new task preserves its draft')
   await panel.getByRole('button', { name: '移除引用 试用反馈' }).waitFor()
   await panel.getByRole('button', { name: '创建任务' }).click()
   await panel.waitFor({ state: 'hidden' })
   await card.waitFor()
+  const createdAt = await page.evaluate(() => JSON.parse(sessionStorage.getItem('board')).cards.find(card => card.id !== 'legacy').createdAt)
+  assert.equal(await card.locator('time').getAttribute('datetime'), new Date(createdAt).toISOString())
+  assert.equal(await card.locator('time').innerText(), await page.evaluate(date => new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(date), createdAt))
+  assert.equal(await card.locator(':scope > *').count(), 2, 'Cards contain only the title and date')
+  assert.equal((await card.innerText()).includes('创建'), false)
   if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/board-light.png`, animations: 'disabled' })
   const before = await columns.boundingBox()
   await card.click()
   await panel.getByRole('button', { name: '交给 Agent' }).waitFor()
+  assert.equal(await panel.locator('.task-board-sheet').count(), 1)
   assert.equal(await panel.getByText('自己处理', { exact: true }).count(), 0)
   assert.equal(await panel.getByText('任务要求', { exact: true }).count(), 0)
   assert.equal(await panel.locator('.task-board-progress, .task-board-sources').count(), 0)
@@ -165,19 +174,20 @@ try {
   await page.keyboard.press('Escape')
   await page.reload()
   await card.click()
+  assert.equal(await card.locator('time').getAttribute('datetime'), new Date(createdAt).toISOString(), 'Creation date survives reload')
   await panel.locator('.task-board-references').getByText('试用反馈', { exact: true }).waitFor()
   await panel.getByRole('button', { name: '交给 Agent' }).click()
   await panel.getByText('面向哪个团队？').waitFor()
   assert.deepEqual(await page.evaluate(() => window.qa.capturedIds), ['feedback'])
-  await page.locator('.sidebar').getByRole('button', { name: '整理试用反馈', exact: true }).waitFor()
+  await page.locator('.sidebar').getByRole('button', { name: '整理试用反馈，提出改进建议', exact: true }).waitFor()
   await panel.getByLabel('补充信息').fill('面向内部产品团队')
   await panel.getByRole('button', { name: '提交并继续' }).click()
   await panel.getByText('草稿已完成。').waitFor()
   await panel.getByRole('button', { name: '验收通过' }).click()
-  await page.getByRole('region', { name: '已完成' }).locator('.task-board-card').waitFor()
+  await page.getByRole('region', { name: '已完成' }).locator('.task-board-card').filter({ hasText: '整理试用反馈，提出改进建议' }).waitFor()
   assert.equal(await page.evaluate(() => window.qa.turnCount), 2)
   await panel.getByRole('button', { name: '打开执行会话' }).click()
-  await page.locator('.conversation-thread-title').getByText('整理试用反馈').waitFor()
+  await page.locator('.conversation-thread-title').getByText('整理试用反馈，提出改进建议').waitFor()
   await page.getByRole('button', { name: '任务板', exact: true }).click()
   await card.click()
   await panel.getByRole('button', { name: '删除任务', exact: true }).click()

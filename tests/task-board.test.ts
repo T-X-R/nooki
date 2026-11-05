@@ -150,3 +150,20 @@ test('task references deduplicate by document ID and enforce the source limit', 
   assert.deepEqual(board.snapshot().cards[0].sources.map(source => source.id), ['a', 'b'])
   await assert.rejects(board.add('Too many sources', '', Array.from({ length: 51 }, (_, index) => ({ id: String(index), title: 'Notes' }))), /references/i)
 })
+
+test('creation dates persist through reload, delegation withdrawal and completion; legacy dates stay unknown', async () => {
+  let saved = { cards: [{ id: 'legacy', title: 'Older task', description: '', status: 'todo' }] }
+  const storage = { read: async () => saved, write: async state => { saved = structuredClone(state) } }
+  const board = createTaskBoard(storage)
+  const before = Date.now()
+  const id = await board.add('Dated task', '')
+  const createdAt = board.snapshot().cards.find(card => card.id === id).createdAt
+  assert.ok(createdAt >= before && createdAt <= Date.now())
+  await board.delegate(id, { snapshotId: 'snapshot', documentIds: [] })
+  await board.withdraw(id)
+  await board.complete(id)
+  const reopened = createTaskBoard(storage)
+  await reopened.initialize()
+  assert.equal(reopened.snapshot().cards.find(card => card.id === id).createdAt, createdAt)
+  assert.equal(reopened.snapshot().cards.find(card => card.id === 'legacy').createdAt, undefined)
+})
