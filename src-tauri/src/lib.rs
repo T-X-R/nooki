@@ -205,19 +205,27 @@ fn capability_documents_publish(
 async fn conversation_list(cursor: Option<String>, archived: Option<bool>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   let first_page = cursor.is_none();
   let mut page = bridge.list(cursor, archived.unwrap_or(false)).await?;
-  if first_page && archived != Some(true) {
-    let data = page["data"].as_array_mut().ok_or("Invalid conversation page")?;
-    for card in task_goals::conversation_cards(state.data_dir())? {
-      let summary = task_goals::conversation_summary(&card);
-      if let Some(existing) = data.iter_mut().find(|thread| thread["id"] == summary["id"]) { *existing = summary; } else { data.push(summary); }
-    }
+  let cards = task_goals::conversation_cards(state.data_dir())?;
+  let data = page["data"].as_array_mut().ok_or("Invalid conversation page")?;
+  data.retain(|thread| !cards.iter().any(|card| card["threadId"] == thread["id"]));
+  if first_page {
+    data.extend(cards.iter().filter(|card| (card["archived"] == true) == archived.unwrap_or(false)).map(task_goals::conversation_summary));
   }
   Ok(page)
 }
 #[tauri::command]
-async fn conversation_change(id: String, action: codex_conversations::ConversationAction, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
-  if task_goals::conversation_card(state.data_dir(), &id)?.is_some() { return Err("Manage this task conversation from its task board card".into()); }
-  bridge.change(&id, action).await
+async fn conversation_change(id: String, action: codex_conversations::ConversationAction, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  if let Some(card) = task_goals::conversation_card(state.data_dir(), &id)? {
+    let op = match action {
+      codex_conversations::ConversationAction::Archive => "archive",
+      codex_conversations::ConversationAction::Restore => "unarchive",
+      codex_conversations::ConversationAction::Delete => return Err("关联任务的执行会话不支持单独删除 / Linked task conversations cannot be deleted separately".into()),
+    };
+    let board = task_worker::request(state.data_dir(), serde_json::json!({"op":op,"id":card["id"]})).await?;
+    return board["cards"].as_array().and_then(|cards| cards.iter().find(|c| c["id"] == card["id"])).map(task_goals::conversation_summary).ok_or("Task conversation missing".into());
+  }
+  bridge.change(&id, action).await?;
+  Ok(serde_json::Value::Null)
 }
 #[tauri::command]
 async fn conversation_create(state: tauri::State<'_, PlatformState>, pool: tauri::State<'_, skill_pool::SkillPool>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {

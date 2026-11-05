@@ -165,12 +165,51 @@ async fn task_conversation_exposes_native_history_and_routes_user_messages_to_it
     assert!(history["turns"][0]["items"].as_array().unwrap().iter().any(|i| i["clientId"] == "followup-one"));
     worker.command(json!({"op":"stop","id":"first"})).await.unwrap();
     worker.command(json!({"op":"message","id":"first","message":"Revise the report","messageId":"followup-two"})).await.unwrap();
-    assert_eq!(read(&mut worker).await["cards"][0]["status"], "queued");
     worker.tick().await.unwrap();
-    let revised = fs::read_to_string(root.join("task-inputs/first.md")).unwrap();
-    assert!(revised.contains("## Conversation follow-ups\n\nRevise the report"));
+    assert_eq!(fs::read_to_string(root.join("task-inputs/first.md")).unwrap(), brief);
+    let history = worker.command(json!({"op":"history","id":"first"})).await.unwrap();
+    assert!(history["turns"].as_array().unwrap().iter().flat_map(|t| t["items"].as_array().unwrap()).any(|i| i["clientId"] == "followup-two"));
     worker.command(json!({"op":"stop","id":"first"})).await.unwrap();
     let trace = fs::read_to_string(root.join("goal-runtime/conversation-workspace/fake-requests.jsonl")).unwrap();
-    assert!(!trace.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).any(|r| r["method"] == "turn/start"));
+    let starts: Vec<Value> = trace.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).filter(|r| r["method"] == "turn/start").collect();
+    assert_eq!(starts.len(), 1);
+    assert_eq!(starts[0]["params"]["input"], json!([{"type":"text","text":"Revise the report"}]));
+    drop(worker); fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn completed_task_chat_and_archive_preserve_goal_and_acceptance() {
+    let (root, mut worker) = fixture(); add(&mut worker,"first").await; worker.tick().await.unwrap();
+    assert!(worker.command(json!({"op":"archive","id":"first"})).await.is_err());
+    let tid = read(&mut worker).await["cards"][0]["threadId"].clone();
+    let marker = root.join("goal-runtime/conversation-workspace/complete-goal"); fs::write(&marker, tid.as_str().unwrap()).unwrap();
+    while marker.exists() { tokio::time::sleep(Duration::from_millis(10)).await; }
+    finish(&root, &tid).await; worker.tick().await.unwrap();
+    let delivery = read(&mut worker).await["cards"][0]["delivery"].clone();
+    worker.command(json!({"op":"message","id":"first","message":"Hello","messageId":"chat-before-acceptance"})).await.unwrap();
+    worker.tick().await.unwrap();
+    assert_eq!(read(&mut worker).await["cards"][0]["delivery"], delivery);
+    worker.command(json!({"op":"accept","id":"first"})).await.unwrap();
+    worker.command(json!({"op":"message","id":"first","message":"Hello","messageId":"chat-after-acceptance"})).await.unwrap();
+    worker.tick().await.unwrap();
+    let board = read(&mut worker).await;
+    assert_eq!(board["cards"][0]["status"], "done");
+    assert_eq!(board["cards"][0]["goal"]["status"], "complete");
+    assert_eq!(board["cards"][0]["delivery"], delivery);
+    worker.command(json!({"op":"archive","id":"first"})).await.unwrap();
+    assert_eq!(read(&mut worker).await["cards"][0]["archived"], true);
+    drop(worker);
+    let mut worker = GoalWorker::new(root.clone(), root.join("codex").to_string_lossy().into());
+    worker.tick().await.unwrap();
+    let history = worker.command(json!({"op":"history","id":"first"})).await.unwrap();
+    assert_eq!(history["archived"], true);
+    assert!(worker.command(json!({"op":"message","id":"first","message":"Hello","messageId":"archived-message"})).await.is_err());
+    worker.command(json!({"op":"unarchive","id":"first"})).await.unwrap();
+    assert_eq!(read(&mut worker).await["cards"][0]["status"], "done");
+    assert_eq!(read(&mut worker).await["cards"][0]["archived"], false);
+    let trace = fs::read_to_string(root.join("goal-runtime/conversation-workspace/fake-requests.jsonl")).unwrap();
+    let calls: Vec<Value> = trace.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!(calls.iter().filter(|r| r["method"] == "thread/goal/set" && r["params"]["status"] == "active").count(), 1);
+    assert_eq!(calls.iter().filter(|r| r["method"] == "turn/start").count(), 2);
     drop(worker); fs::remove_dir_all(root).unwrap();
 }

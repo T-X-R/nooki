@@ -28,9 +28,9 @@ export const conversationClient = {
   async list(cursor?: string | null, archived = false): Promise<{ data: Conversation[]; nextCursor: string | null }> { await this.connect(); return invoke('conversation_list', { cursor: cursor ?? null, archived }) },
   async change(id: string, action: 'archive' | 'restore' | 'delete') {
     await this.connect()
-    await invoke('conversation_change', { id, action })
+    const managed = await invoke<Conversation | null>('conversation_change', { id, action })
     revisions[id] = (revisions[id] ?? 0) + 1
-    cache = { ...cache, [id]: action === 'restore' ? { ...(cache[id] ?? { id, preview: '', createdAt: 0, updatedAt: 0, turns: [] }), archived: false } : { id, preview: '', createdAt: 0, updatedAt: 0, turns: [], archived: true } }
+    cache = { ...cache, [id]: managed?.taskId ? { ...managed, turns: cache[id]?.turns ?? [] } : action === 'restore' ? { ...(cache[id] ?? { id, preview: '', createdAt: 0, updatedAt: 0, turns: [] }), archived: false } : { id, preview: '', createdAt: 0, updatedAt: 0, turns: [], archived: true } }
     emit()
     window.dispatchEvent(new Event('workbench:conversations-changed'))
   },
@@ -43,10 +43,10 @@ export const conversationClient = {
   },
   async read(id: string, cursor?: string | null) {
     await this.connect()
-    if (cache[id]?.archived) throw new Error('会话已归档，请先恢复 / Restore this archived conversation first')
+    if (cache[id]?.archived && !cache[id]?.taskId) throw new Error('会话已归档，请先恢复 / Restore this archived conversation first')
     const before = revisions[id] ?? 0
     const thread = await invoke<Conversation>('conversation_read', { id, cursor: cursor ?? null })
-    if (cache[id]?.archived) throw new Error('会话已归档，请先恢复 / Restore this archived conversation first')
+    if (cache[id]?.archived && !cache[id]?.taskId) throw new Error('会话已归档，请先恢复 / Restore this archived conversation first')
     const previous = cache[id]
     if (previous) {
       const items = new Map(previous.turns.flatMap((turn) => turn.items.map((item) => [item.id, item] as const)))

@@ -87,7 +87,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const thread = selected ? cache[selected] : undefined
   const boardTask = thread?.task ?? board.cards.find(card => card.threadId === selected)
   const goalTask = boardTask?.engine === 'goals' ? boardTask : undefined
-  const taskInputDisabled = !!boardTask && (boardTask.status === 'done' || (!goalTask && !['question', 'review'].includes(boardTask.status)))
+  const taskInputDisabled = goalTask ? !!goalTask.archived || !!goalTask.restored : !!boardTask && !['question', 'review'].includes(boardTask.status)
   const messageReceipt = useRef<{ thread: string; text: string; id: string } | null>(null)
   const conversationTasks = tasks.filter((t) => t.capabilityId === CONVERSATION_OWNER && (t.input as { threadId?: string }).threadId === selected)
   const running = conversationTasks.find((t) => t.job === 'respond' && t.status === 'running')
@@ -276,7 +276,9 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
         </div>
         <div className="conversation-composer-area">
           {goalTask?.error && <p className="conversation-error" role="alert">{goalTask.error}</p>}
-          {boardTask?.status === 'done' && <p className="conversation-recovery">{zh ? '任务已验收，执行会话保留在这里。' : 'This task has been accepted. Its conversation remains here.'}</p>}
+          {!goalTask && boardTask?.status === 'done' && <p className="conversation-recovery">{zh ? '任务已验收，执行会话保留在这里。' : 'This task has been accepted. Its conversation remains here.'}</p>}
+          {goalTask?.restored && <p className="conversation-recovery">{zh ? '此任务来自备份，请先在任务详情恢复执行。' : 'This task was restored from a backup. Resume it from its task details first.'}</p>}
+          {goalTask?.archived && <div className="conversation-recovery"><span>{zh ? '会话已归档，可恢复后继续聊天。' : 'This conversation is archived. Restore it to continue chatting.'}</span><button className="quiet-button" disabled={busy} onClick={() => void act(async () => { await conversationClient.change(selected!, 'restore'); await conversationClient.read(selected!) })}>{zh ? '恢复会话' : 'Restore conversation'}</button></div>}
           {thread?.capabilityTools === 'new-conversation-required' && <div className="conversation-recovery"><span>{zh ? '这个较早的 Codex 会话不能加载能力工具；新建会话后即可调用已安装能力。' : 'This older Codex conversation cannot load capability tools. Start a new conversation to use installed capabilities.'}</span></div>}
           {historyError && <p className="conversation-error" role="alert">{historyError}</p>}
           {error && <div className="conversation-error" role="alert"><span>{error}</span><button className="icon-button" aria-label={zh ? '关闭提示' : 'Dismiss'} onClick={() => setError(null)}><Cross2Icon /></button></div>}
@@ -293,7 +295,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
               </button>)}
             </div>}
             {!!attached.length && <div className="conversation-attachments conversation-skill-chips">{attached.map((name) => <span key={name}><span><Share1Icon />{name}</span></span>)}</div>}
-            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={boardTask ? (zh ? '补充要求或反馈…' : 'Add instructions or feedback…') : (zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…')} value={text} disabled={!!preparing || taskInputDisabled}
+            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={boardTask ? (zh ? '输入消息…' : 'Message…') : (zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…')} value={text} disabled={!!preparing || taskInputDisabled}
               onChange={(event) => { setText(event.target.value); trackMention(event.target) }}
               onClick={(event) => trackMention(event.currentTarget)}
               onBlur={() => setMention(null)}

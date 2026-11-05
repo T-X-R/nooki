@@ -25,7 +25,13 @@ try {
         if (command === 'capability_agent') return 'codex'
         if (['tasks_read', 'list_capabilities', 'library_list_documents'].includes(command)) return []
         if (command === 'tasks_write') return null
-        if (command === 'conversation_list') return { data: board.cards.filter(c => c.threadId).map(c => ({ id: c.threadId, name: c.title, createdAt: c.createdAt / 1000, taskId: c.id, turns: [] })), nextCursor: null }
+        if (command === 'conversation_list') return { data: board.cards.filter(c => c.threadId && !!c.archived === !!args.archived).map(c => ({ id: c.threadId, name: c.title, createdAt: c.createdAt / 1000, updatedAt: c.createdAt / 1000, taskId: c.id, archived: !!c.archived, turns: [] })), nextCursor: null }
+        if (command === 'conversation_change') {
+          const card = board.cards.find(c => c.threadId === args.id)
+          if (args.action === 'delete') throw new Error('Task conversation cannot be deleted separately')
+          card.archived = args.action === 'archive'; save()
+          return { id: card.threadId, name: card.title, taskId: card.id, archived: card.archived, turns: [] }
+        }
         if (command === 'conversation_read') {
           const card = board.cards.find(c => c.threadId === args.id)
           if (!card) throw new Error('Task conversation missing')
@@ -35,7 +41,7 @@ try {
             items.push({ id: 'question-one', type: 'agentMessage', delivery: 'async', questions: [{ title: '选择语言', options: ['中文', 'English'] }] })
             if (answered) items.push({ id: 'question-reply', type: 'userMessage', clientId: 'async-answer-question-one', content: [{ type: 'text', text: '中文' }] })
           }
-          return structuredClone({ id: card.threadId, name: card.title, taskId: card.id, task: { ...card, deliveryTurnId: 'turn-1' }, turns: [{ id: 'turn-1', status: card.activeTurn ? 'inProgress' : 'completed', items }] })
+          return structuredClone({ id: card.threadId, name: card.title, taskId: card.id, archived: !!card.archived, task: { ...card, deliveryTurnId: 'turn-1' }, turns: [{ id: 'turn-1', status: card.activeTurn ? 'inProgress' : 'completed', items }] })
         }
         if (command === 'conversation_answer_question') { answered = true; requests.push(command); return null }
         if (command === 'library_organization') return { topics: [], folders: [], origins: {}, trash: {} }
@@ -107,7 +113,7 @@ try {
   await panel.getByRole('button', { name: '打开执行会话' }).click()
   await conversation.getByText('echo sample', { exact: true }).waitFor()
   await page.locator('.sidebar').getByRole('button', { name: '验证原生 Goal', exact: true }).waitFor()
-  assert.equal(await page.locator('.sidebar').getByRole('button', { name: '归档会话：验证原生 Goal', exact: true }).count(), 0, 'Task ownership is not bypassed by ordinary archive actions')
+  assert.equal(await page.locator('.sidebar').getByRole('button', { name: '归档会话：验证原生 Goal', exact: true }).isDisabled(), true, 'Running tasks must pause or stop before archiving')
   await conversation.getByRole('button', { name: '拒绝', exact: true }).click()
   await conversation.getByText('Codex 请求授权', { exact: true }).waitFor({ state: 'hidden' })
   await page.evaluate(() => window.qaGoals.patch({ status: 'question', requests: [{ id: 10, method: 'item/tool/requestUserInput', params: { questions: [{ id: 'audience', question: '报告面向谁？', options: [{ label: '产品团队', description: '内部报告' }] }] } }] }))
@@ -141,7 +147,10 @@ try {
   await panel.getByRole('button', { name: '验收通过' }).click()
   await panel.getByText('已完成', { exact: true }).waitFor()
   await panel.getByRole('button', { name: '打开执行会话' }).click()
-  assert.equal(await conversation.getByRole('textbox', { name: '消息', exact: true }).isDisabled(), true)
+  await conversation.getByRole('textbox', { name: '消息', exact: true }).fill('你好')
+  await conversation.getByRole('button', { name: '发送消息', exact: true }).click()
+  await conversation.locator('.conversation-user').getByText('你好', { exact: true }).waitFor()
+  assert.equal((await page.evaluate(() => window.qaGoals.state())).cards[0].status, 'done')
   await page.reload()
   await page.locator('.sidebar').getByRole('button', { name: '验证原生 Goal', exact: true }).click()
   await originalTask.waitFor()
@@ -152,6 +161,22 @@ try {
   await panel.getByRole('button', { name: '打开执行会话' }).click()
   await originalTask.waitFor()
   assert.equal(await originalTask.count(), 1)
+  await page.locator('.sidebar').getByRole('button', { name: '归档会话：验证原生 Goal', exact: true }).click()
+  await page.locator('.sidebar').getByRole('button', { name: '验证原生 Goal', exact: true }).waitFor({ state: 'hidden' })
+  await page.locator('.sidebar').getByRole('button', { name: '任务板', exact: true }).click()
+  await card.click()
+  await panel.getByRole('button', { name: '打开执行会话' }).click()
+  await conversation.getByText('会话已归档，可恢复后继续聊天。', { exact: true }).waitFor()
+  assert.equal(await conversation.getByRole('textbox', { name: '消息', exact: true }).isDisabled(), true)
+  await conversation.getByRole('button', { name: '恢复会话', exact: true }).click()
+  await page.locator('.sidebar').getByRole('button', { name: '验证原生 Goal', exact: true }).waitFor()
+  await page.locator('.sidebar').getByRole('button', { name: '归档会话：验证原生 Goal', exact: true }).click()
+  await page.locator('.sidebar').getByRole('button', { name: /设置/ }).click()
+  await page.getByRole('button', { name: '已归档会话', exact: true }).click()
+  await page.getByRole('button', { name: '恢复会话：验证原生 Goal', exact: true }).waitFor()
+  assert.equal(await page.getByRole('button', { name: '删除会话：验证原生 Goal', exact: true }).count(), 0)
+  await page.getByRole('button', { name: '恢复会话：验证原生 Goal', exact: true }).click()
+  await originalTask.waitFor()
   assert.deepEqual(errors, [])
   console.log('Goal UI: separate workspace block, board-to-conversation navigation, shared sidebar, native approvals/questions, messages and delivery passed')
 } finally { await browser.close() }

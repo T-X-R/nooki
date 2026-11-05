@@ -8,6 +8,8 @@ export type BoardStatus = 'todo' | 'queued' | 'running' | 'question' | 'review' 
 
 export type BoardCard = {
   engine?: 'goals'
+  archived?: boolean
+  restored?: boolean
   cwd?: string
   activeTurn?: boolean
   execution?: { cwd: string; model: string; approvalPolicy: string; sandbox: string; outputs: string }

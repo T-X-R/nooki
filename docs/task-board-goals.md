@@ -31,7 +31,7 @@ An isolated Codex 0.162.0 app-server test completed four native turns with zero 
 | Pause continuation | Set the Goal to paused | Current turn finishes; no next turn |
 | Stop | Pause the Goal, interrupt active turns, reconcile native history | Show stopping until no active turn remains; keep files |
 | Answer / approve | Forward the user's answer or one-time decision to the native request | No inferred answer or automatic approval |
-| Request changes | Persist feedback and revise the Goal's request reference | Codex reads the new feedback and decides the work |
+| Request changes / chat | Open the same conversation and forward the user message directly | Codex interprets it in native thread context |
 | Accept | Mark the delivered task accepted | Does not launch a turn |
 
 Approval policy is `on-request`, with workspace-write sandbox and network access retained in the execution contract. The original model/provider, reasoning effort, reviewer, runtime roots, sandbox and host overrides are retained. A mismatch prevents reactivation. No global Codex configuration is changed. Standard native command/file approvals, per-turn permission requests, synchronous questions and asynchronous question items are supported. Unknown native request types remain visible for user handling. If a disconnected approval is not replayed by Codex, the task reports that fact; Nooki does not fabricate an approval.
@@ -40,9 +40,13 @@ The default queue is serial. An uncertain active session holds its slot until re
 
 The task worker uses a private Unix socket and an OS ownership lock. Durable claims are flushed before activation. The desktop installer hands ownership to the new binary without interrupting Codex. No login item is installed: sleep/offline time does not execute work, and launching Nooki after reboot reconciles retained tasks. Native session history and credentials remain in Codex's own storage.
 
-New Goal history is read through the task worker in the existing conversation page. Its shared composer routes explicit user messages to the owning worker: active turns receive native steering; idle tasks retain feedback and reactivate the native Goal. Ordinary conversation execution cannot attach a second controller to a task-owned thread. This user-directed path never produces automatic continuation prompts. The internal request file includes conversation follow-ups and reference material only when nonempty; earlier native command output remains an unchanged historical record. Legacy to-dos and delegated draft tasks retain the existing renderer coordinator and original permissions; they are not silently converted to executable Goals.
+New Goal history is read through the task worker in the existing conversation page. Its shared composer routes explicit user messages to the owning worker: active turns receive native steering; idle threads receive a native user turn with the original execution context. Messages do not rewrite the task file or automatically reactivate a completed or paused Goal. Accepted tasks remain accepted while their conversations can continue. Ordinary conversation execution cannot attach a second controller to a task-owned thread. Only explicit user messages start these turns; all automatic continuation still belongs to native Goals. A completed Goal delivery snapshot is not replaced by a subsequent greeting. The internal request file includes conversation follow-ups and reference material only when nonempty; earlier native command output remains an unchanged historical record. Legacy to-dos and delegated draft tasks retain the existing renderer coordinator and original permissions; they are not silently converted to executable Goals.
 
 Delivery text and top-level Markdown/text outputs (up to 50 files, 2 MB each, 8 MB total) are snapshotted after the final successful turn. Code and other file formats remain in the selected workspace and are linked by Codex's final delivery. The existing document preview, comparison, download and Library-save UI is reused. Backup restore requires background execution to be stopped and imports Goals paused; it does not copy Codex credentials/history or arbitrary project directories, nor authorize execution on another machine.
+
+## Conversation archiving
+
+Idle task conversations can be archived through the existing sidebar and restored from Settings or their task-linked history. The owning worker forwards native archive/unarchive operations, retains the task card and reads archived history without resuming the thread. An active turn or active Goal must be paused/stopped before archiving. Restoring an archive does not activate a Goal. Linked task conversations cannot be permanently deleted separately from the task card.
 
 ## Implementation validation
 

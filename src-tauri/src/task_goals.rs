@@ -1,4 +1,4 @@
-//! Durable task lifecycle. Codex alone schedules turns and decides goal completion.
+//! Durable task lifecycle. Codex alone schedules automatic continuation and decides goal completion.
 use crate::codex_conversations::CodexConversations;
 use serde_json::{json, Value};
 use std::{collections::{HashMap, HashSet}, fs, path::{Path, PathBuf}, sync::Arc};
@@ -64,7 +64,7 @@ pub fn conversation_card(root: &Path, thread: &str) -> Result<Option<Value>, Str
     Ok(conversation_cards(root)?.into_iter().find(|c| c["threadId"] == thread))
 }
 pub fn conversation_summary(card: &Value) -> Value {
-    json!({"id":card["threadId"],"name":card["title"],"preview":card["description"],"createdAt":card["createdAt"].as_u64().unwrap_or_default()/1000,"updatedAt":card["createdAt"].as_u64().unwrap_or_default()/1000,"agent":"codex","taskId":card["id"],"turns":[],"status":{"type":if card["activeTurn"] == true {"active"} else {"idle"}}})
+    json!({"id":card["threadId"],"name":card["title"],"preview":card["description"],"createdAt":card["createdAt"].as_u64().unwrap_or_default()/1000,"updatedAt":card["createdAt"].as_u64().unwrap_or_default()/1000,"agent":"codex","taskId":card["id"],"archived":card["archived"] == true,"turns":[],"status":{"type":if card["activeTurn"] == true {"active"} else {"idle"}}})
 }
 pub struct GoalWorker {
     root: PathBuf,
@@ -155,6 +155,7 @@ impl GoalWorker {
         format!("User request revision {}. Read the full request including any new feedback before working. Complete the user's task: {}. The full user request and immutable references are in {}. Standalone document output directory: {}. Read the request before working. Follow the user's scope and authorizations. When achieved, mark the native Goal complete and provide the delivery for human acceptance.", card["feedback"].as_array().map_or(0, Vec::len), card["title"].as_str().unwrap_or_default(), card["execution"]["brief"].as_str().unwrap_or_default(), card["execution"]["outputs"].as_str().unwrap_or_default())
     }
     async fn reconcile_card(&mut self, card: &mut Value) -> Result<(), String> {
+        let accepted = card["status"] == "done";
         let thread = card["threadId"].as_str().ok_or("Task session missing")?.to_string();
         self.restore(card).await?;
         if matches!(card["intent"].as_str(), Some("pause" | "stop")) {
@@ -178,6 +179,7 @@ impl GoalWorker {
             }
         }
         card["requests"] = json!(requests);
+        if card["delivery"].is_object() && card.get("deliveryGoal").is_none() { card["deliveryGoal"] = card["goal"].clone(); }
         card["goal"] = goal.clone();
         card["activeTurn"] = json!(active);
         if goal.is_null() && !active && !matches!(card["intent"].as_str(), Some("pause" | "stop")) {
@@ -186,12 +188,12 @@ impl GoalWorker {
         }
         if card["intent"] == "activate" || card["intent"] == "uncertain" { card["intent"] = json!("run"); }
         let waiting = history["status"]["activeFlags"].as_array().is_some_and(|flags| !flags.is_empty());
-        let status = project_status(goal["status"].as_str().unwrap_or(""), active, card["intent"].as_str().unwrap_or("run"), !requests.is_empty() || waiting);
+        let status = if accepted { "done" } else { project_status(goal["status"].as_str().unwrap_or(""), active, card["intent"].as_str().unwrap_or("run"), !requests.is_empty() || waiting) };
         card["status"] = json!(status);
         card.as_object_mut().unwrap().remove("error");
         if waiting && requests.is_empty() { card["error"] = json!("Codex is waiting for input, but the request was not replayed after reconnect. Stop and resume this task to request input again; no approval was granted."); }
         if history["status"]["type"] == "systemError" { card["error"] = json!("Codex reported a session error. Review the execution history before resuming."); card["status"] = json!("blocked"); }
-        if !active && status == "review" && card["deliveryTurnId"] != turns.last().map(|t| t["id"].clone()).unwrap_or(Value::Null) {
+        if !active && status == "review" && card["deliveryGoal"] != goal && card["deliveryTurnId"] != turns.last().map(|t| t["id"].clone()).unwrap_or(Value::Null) {
             if turns.last().is_none_or(|t| t["status"] != "completed") {
                 card["status"] = json!("blocked");
                 card["error"] = json!("The goal completed but its final turn did not finish successfully. Review the history before resuming.");
@@ -204,6 +206,7 @@ impl GoalWorker {
             };
             card["delivery"] = json!({"text":text,"artifacts":files});
             card["deliveryTurnId"] = turns.last().unwrap()["id"].clone();
+            card["deliveryGoal"] = goal;
         }
         Ok(())
     }
@@ -215,15 +218,15 @@ impl GoalWorker {
         for card in board["cards"].as_array_mut().unwrap().iter_mut().filter(|c| c["engine"] == "goals" && c["status"] == "running" && !c["threadId"].is_string()) {
             card["status"] = json!("blocked"); card["error"] = json!("Task startup was interrupted before a session was retained. Resume explicitly.");
         }
-        for card in board["cards"].as_array_mut().unwrap().iter_mut().filter(|c| c["engine"] == "goals" && c["threadId"].is_string() && c["status"] != "done" && c["status"] != "queued" && c["restored"] != true) {
+        for card in board["cards"].as_array_mut().unwrap().iter_mut().filter(|c| c["engine"] == "goals" && c["threadId"].is_string() && (c["status"] != "done" || c["activeTurn"] == true || c["goal"]["status"] == "active") && c["status"] != "queued" && c["restored"] != true && c["archived"] != true) {
             if matches!(card["status"].as_str(), Some("paused" | "stopped" | "review" | "blocked" | "usageLimited" | "budgetLimited"))
                 && card["activeTurn"] == false && !card["error"].is_string()
                 && card["threadId"].as_str().is_some_and(|thread| self.loaded.contains(thread)) { continue; }
             if let Err(error) = self.reconcile_card(card).await { card["error"] = json!(error); }
         }
-        let occupied = board["cards"].as_array().unwrap().iter().any(|c| c["activeTurn"] == true || matches!(c["status"].as_str(), Some("running" | "question" | "pausing" | "stopping")) || (c["engine"] == "goals" && c["error"].is_string() && c["threadId"].is_string() && c["activeTurn"] != false));
+        let occupied = board["cards"].as_array().unwrap().iter().any(|c| c["activeTurn"] == true || (c["goal"]["status"] == "active" && c["archived"] != true) || matches!(c["status"].as_str(), Some("running" | "question" | "pausing" | "stopping")) || (c["engine"] == "goals" && c["error"].is_string() && c["threadId"].is_string() && c["activeTurn"] != false));
         if board["paused"] != true && !occupied {
-            if let Some(index) = board["cards"].as_array().unwrap().iter().enumerate().filter(|(_, c)| c["engine"] == "goals" && c["status"] == "queued" && c["restored"] != true).min_by_key(|(_, c)| c["queuedAt"].as_u64().unwrap_or_default()).map(|(index, _)| index) {
+            if let Some(index) = board["cards"].as_array().unwrap().iter().enumerate().filter(|(_, c)| c["engine"] == "goals" && c["status"] == "queued" && c["restored"] != true && c["archived"] != true).min_by_key(|(_, c)| c["queuedAt"].as_u64().unwrap_or_default()).map(|(index, _)| index) {
                 let mut card = board["cards"][index].clone();
                 card["status"] = json!("running"); card["intent"] = json!("activate"); card["activeTurn"] = json!(true);
                 board["cards"][index] = card.clone(); save(&self.root, &board)?;
@@ -274,6 +277,7 @@ impl GoalWorker {
             let index = board["cards"].as_array().unwrap().iter().position(|c| c["id"] == request["id"] && c["engine"] == "goals").ok_or("Goal task not found")?;
             let mut card = board["cards"][index].clone();
             let thread = card["threadId"].as_str().unwrap_or_default().to_string();
+            if card["archived"] == true && !matches!(op, "history" | "archive" | "unarchive" | "remove") { return Err("请先恢复已归档会话 / Restore this archived conversation first".into()); }
             let mut user_message = request["message"].as_str().unwrap_or_default().to_string();
             if op == "message" && (request["documentIds"].as_array().is_some_and(|ids| !ids.is_empty()) || request["uploads"].as_array().is_some_and(|uploads| !uploads.is_empty())) {
                 let message_id = id(&request["messageId"])?;
@@ -285,7 +289,7 @@ impl GoalWorker {
             }
             match op {
                 "history" => {
-                    if !matches!(card["status"].as_str(), Some("done" | "queued")) && card["restored"] != true {
+                    if card["status"] != "queued" && card["restored"] != true && card["archived"] != true {
                         self.reconcile_card(&mut card).await?;
                         board["cards"][index] = card.clone(); save(&self.root, &board)?;
                     }
@@ -299,42 +303,63 @@ impl GoalWorker {
                     }
                     history["turns"] = json!(turns);
                     history["name"] = card["title"].clone(); history["agent"] = json!("codex");
-                    history["taskId"] = card["id"].clone(); history["task"] = card;
+                    history["taskId"] = card["id"].clone(); history["archived"] = json!(card["archived"] == true); history["task"] = card;
                     return Ok(history);
                 }
                 "pause" | "stop" => {
                     card["intent"] = json!(if op == "pause" {"pause"} else {"stop"});
-                    card["status"] = json!(if op == "pause" {"pausing"} else {"stopping"});
+                    if card["status"] != "done" { card["status"] = json!(if op == "pause" {"pausing"} else {"stopping"}); }
                     board["cards"][index] = card.clone(); save(&self.root, &board)?;
                     if thread.is_empty() { card["status"] = json!(if op == "pause" {"paused"} else {"stopped"}); }
                     else { self.restore(&card).await?; self.reconcile_card(&mut card).await?; }
                 }
-                "resume" | "feedback" | "message" => {
+                "archive" | "unarchive" => {
+                    if thread.is_empty() { return Err("Task session is missing".into()); }
+                    let archive = op == "archive";
+                    if (card["archived"] == true) == archive { return Ok(board); }
+                    if archive {
+                        if card["status"] == "queued" { return Err("请先暂停或停止任务再归档 / Pause or stop this task before archiving".into()); }
+                        self.reconcile_card(&mut card).await?;
+                        if card["activeTurn"] == true || card["goal"]["status"] == "active" { return Err("请先暂停或停止任务并等待本轮结束 / Pause or stop this task and wait for its current turn before archiving".into()); }
+                    }
+                    self.rpc(if archive { "thread/archive" } else { "thread/unarchive" }, json!({"threadId":thread})).await?;
+                    self.loaded.remove(&thread);
+                    card["archived"] = json!(archive);
+                }
+                "message" => {
+                    if card["restored"] == true { return Err("Restore the task execution context from its task card before chatting".into()); }
+                    if thread.is_empty() { return Err("Task session is missing".into()); }
+                    let message_id = id(&request["messageId"])?;
+                    let message = user_message.as_str();
+                    if message.trim().is_empty() || message.chars().count() > 20_000 { return Err("Invalid message".into()); }
+                    self.restore(&card).await?;
+                    let history = self.rpc("thread/read", json!({"threadId":thread,"includeTurns":true})).await?;
+                    let turns = history["thread"]["turns"].as_array().cloned().unwrap_or_default();
+                    if turns.iter().flat_map(|t| t["items"].as_array().into_iter().flatten()).any(|i| i["clientId"] == message_id)
+                        || card["userMessages"].as_array().into_iter().flatten().any(|m| m["id"] == message_id) { return Ok(board); }
+                    let input = json!([{"type":"text","text":message}]);
+                    if let Some(turn) = turns.iter().find(|t| t["status"] == "inProgress") {
+                        self.rpc("turn/steer", json!({"threadId":thread,"expectedTurnId":turn["id"],"clientUserMessageId":message_id,"input":input})).await?;
+                    } else {
+                        if history["thread"]["status"]["type"] == "active" { return Err("Wait for the current turn to become available".into()); }
+                        // Only an explicit user message starts a turn. Never rewrite or reactivate the Goal.
+                        card["intent"] = json!("run"); card["activeTurn"] = json!(true);
+                        if card["status"] != "done" { card["status"] = json!("running"); }
+                        board["cards"][index] = card.clone(); save(&self.root, &board)?;
+                        self.rpc("turn/start", json!({"threadId":thread,"clientUserMessageId":message_id,"input":input})).await?;
+                    }
+                    self.reconcile_card(&mut card).await?;
+                }
+                "resume" | "feedback" => {
                     if card["status"] == "done" { return Err("Accepted tasks cannot be resumed".into()); }
                     if !thread.is_empty() {
                         self.restore(&card).await?;
-                        // Read actual activity before changing intent; a stale UI must not restart work.
                         let history = self.rpc("thread/read", json!({"threadId":thread,"includeTurns":true})).await?;
-                        let turns = history["thread"]["turns"].as_array().cloned().unwrap_or_default();
-                        card["activeTurn"] = json!(turns.iter().any(|t| t["status"] == "inProgress") || history["thread"]["status"]["type"] == "active");
-                        if op == "message" {
-                            let message_id = id(&request["messageId"])?;
-                            let message = Some(user_message.as_str()).filter(|s| !s.trim().is_empty() && s.chars().count() <= 20_000).ok_or("Invalid message")?;
-                            if turns.iter().flat_map(|t| t["items"].as_array().into_iter().flatten()).any(|i| i["clientId"] == message_id)
-                                || card["userMessages"].as_array().into_iter().flatten().any(|m| m["id"] == message_id) { return Ok(board); }
-                            if let Some(turn) = turns.iter().find(|t| t["status"] == "inProgress") {
-                                self.rpc("turn/steer", json!({"threadId":thread,"expectedTurnId":turn["id"],"clientUserMessageId":message_id,"input":[{"type":"text","text":message}]})).await?;
-                                return Ok(board);
-                            }
-                            if card["activeTurn"] != true {
-                                if !card["userMessages"].is_array() { card["userMessages"] = json!([]); }
-                                card["userMessages"].as_array_mut().unwrap().push(json!({"id":message_id,"text":message,"afterTurnId":turns.last().map(|t| t["id"].clone())}));
-                            }
-                        }
+                        card["activeTurn"] = json!(history["thread"]["turns"].as_array().into_iter().flatten().any(|t| t["status"] == "inProgress") || history["thread"]["status"]["type"] == "active");
                     }
                     if card["activeTurn"] == true { return Err("Wait for the current turn to finish before resuming".into()); }
-                    if op == "feedback" || op == "message" {
-                        let feedback = Some(user_message.as_str()).filter(|s| !s.trim().is_empty() && s.chars().count() <= 20_000).ok_or("Invalid feedback")?;
+                    if op == "feedback" {
+                        let feedback = request["message"].as_str().filter(|s| !s.trim().is_empty() && s.chars().count() <= 20_000).ok_or("Invalid feedback")?;
                         if !card["feedback"].is_array() { card["feedback"] = json!([]); }
                         card["feedback"].as_array_mut().unwrap().push(json!(feedback));
                     }
