@@ -3,7 +3,7 @@ import { taskRunner } from '../../platform/tasks.ts'
 import { conversationClient } from '../conversation/conversation-client.ts'
 import { CONVERSATION_OWNER, isAsyncQuestion, isConversationAnswer, type ConversationInput, type ConversationResult } from '../conversation/conversation-model.ts'
 import { createBoardDispatcher } from './task-board-dispatch.ts'
-import { taskBoard } from './task-board.ts'
+import { taskBoard, goalCommand } from './task-board.ts'
 
 const questionHeading = '## NOOKI_QUESTION'
 const find = (id: string) => taskRunner.getSnapshot().find(record =>
@@ -77,6 +77,12 @@ export const taskBoardAgent = {
   start() {
     if (connected || !window.__TAURI_INTERNALS__) return
     connected = true
+    let refreshing = false
+    setInterval(() => {
+      if (refreshing) return
+      refreshing = true
+      void taskBoard.refresh().catch(error => console.error('Task board refresh failed', error)).finally(() => { refreshing = false })
+    }, 2000)
     taskBoard.subscribe(wake)
     taskRunner.subscribe(wake)
     wake()
@@ -91,6 +97,8 @@ export const taskBoardAgent = {
     if (documentIds.length) await invoke('library_capture_sources', { id: snapshotId, ids: documentIds })
     await taskBoard.delegate(id, { snapshotId, documentIds })
   },
-  stop: dispatcher.stop,
-  remove: dispatcher.remove,
+  stop: (id: string) => taskBoard.snapshot().cards.find(card => card.id === id)?.engine === 'goals'
+    ? goalCommand({ op: 'stop', id }).then(() => {}) : dispatcher.stop(id),
+  remove: (id: string) => taskBoard.snapshot().cards.find(card => card.id === id)?.engine === 'goals'
+    ? taskBoard.remove(id) : dispatcher.remove(id),
 }

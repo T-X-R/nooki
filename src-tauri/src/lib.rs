@@ -1,3 +1,5 @@
+pub mod task_goals;
+pub mod task_worker;
 pub mod codex_conversations;
 mod codex_background;
 pub mod conversation_documents;
@@ -426,13 +428,28 @@ fn tasks_write(records: Vec<serde_json::Value>, state: tauri::State<'_, Platform
 }
 
 #[tauri::command]
-fn task_board_read(state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
-  state.read_task_board()
+async fn task_board_choose_directory(window: tauri::WebviewWindow) -> Result<Option<String>, String> {
+  let (sender, receiver) = tokio::sync::oneshot::channel();
+  window.app_handle().clone().run_on_main_thread(move || {
+    let dialog = rfd::AsyncFileDialog::new().set_parent(&window).pick_folder();
+    tauri::async_runtime::spawn(async move { let _ = sender.send(dialog.await.map(|file| file.path().to_string_lossy().into_owned())); });
+  }).map_err(|e| e.to_string())?;
+  receiver.await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn task_board_write(board: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), String> {
-  state.write_task_board(&board)
+async fn task_board_command(request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  task_worker::request(state.data_dir(), request).await
+}
+
+#[tauri::command]
+async fn task_board_read(state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  task_worker::request(state.data_dir(), serde_json::json!({"op":"read"})).await
+}
+
+#[tauri::command]
+async fn task_board_write(board: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  task_worker::request(state.data_dir(), serde_json::json!({"op":"legacy","board":board})).await
 }
 
 #[tauri::command]
@@ -525,7 +542,7 @@ pub fn run() {
       user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown, user_data::conversation_export_document,
       tasks_read,
       tasks_write,
-      task_board_read, task_board_write,
+      task_board_read, task_board_write, task_board_command, task_board_choose_directory,
       task_cancel_invocation,
       capability_broker_ready,
       capability_broker_respond,

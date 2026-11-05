@@ -4,9 +4,15 @@ export type BoardAuthorization = { snapshotId: string; documentIds: string[] }
 export type BoardSource = { id: string; title: string }
 export type BoardDelivery = { text: string; artifacts: ConversationArtifact[]; question?: boolean }
 
-export type BoardStatus = 'todo' | 'queued' | 'running' | 'question' | 'review' | 'stopped' | 'done'
+export type BoardStatus = 'todo' | 'queued' | 'running' | 'question' | 'review' | 'stopped' | 'done' | 'paused' | 'pausing' | 'stopping' | 'blocked' | 'usageLimited' | 'budgetLimited'
 
 export type BoardCard = {
+  engine?: 'goals'
+  cwd?: string
+  activeTurn?: boolean
+  execution?: { cwd: string; model: string; approvalPolicy: string; sandbox: string; outputs: string }
+  goal?: { status: string; tokensUsed: number; timeUsedSeconds: number }
+  requests?: { id: string | number; method: string; params: { command?: string; reason?: string; questions?: { id: string; header?: string; question: string; options?: { label: string; description: string }[] }[]; [key: string]: unknown } }[]
   id: string
   title: string
   description: string
@@ -26,7 +32,7 @@ export type BoardState = { cards: BoardCard[]; paused?: boolean }
 
 type Storage = {
   read(): Promise<BoardState | null>
-  write(state: BoardState): Promise<void>
+  write(state: BoardState): Promise<BoardState | void>
 }
 
 function draftContent(title: string, description: string, sources: BoardSource[]) {
@@ -62,8 +68,8 @@ export function createTaskBoard(storage: Storage) {
       if (maintenance) throw new Error('Data maintenance in progress')
       const next = update(state)
       if (next === state) return
-      await storage.write(next)
-      publish(next)
+      const saved = await storage.write(next)
+      publish(saved ?? next)
     })
     pending = operation.catch(() => undefined)
     return operation
@@ -86,6 +92,12 @@ export function createTaskBoard(storage: Storage) {
 
   return {
     initialize, change, updateCard,
+    replace: publish,
+    async refresh() {
+      await pending
+      const saved = await storage.read()
+      if (saved && JSON.stringify(saved) !== JSON.stringify(state)) publish(saved)
+    },
     async withMaintenance<T>(action: () => Promise<T>) {
       if (maintenance) throw new Error('Data maintenance in progress')
       maintenance = true

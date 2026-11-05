@@ -21,6 +21,7 @@ pub struct CodexConversations {
   sink: Arc<dyn Fn(Value) + Send + Sync>,
   capability_bridge: Option<Arc<CapabilityBridge>>,
   capability_threads: Mutex<HashSet<String>>,
+  goal_requests: bool,
 }
 struct Client {
   connection: AsyncMutex<SplitSink<crate::codex_background::Connection, Message>>,
@@ -74,7 +75,15 @@ impl CodexConversations {
   pub fn new(binary: String, root: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self {
     let capability_threads = std::fs::read(root.join("capability-tool-threads.json")).ok()
       .and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
-    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads) }
+    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads), goal_requests: false }
+  }
+  // Only the dedicated task worker owns this transport and answers its native requests.
+  pub(crate) fn with_goal_requests(mut self) -> Self { self.goal_requests = true; self }
+  pub(crate) async fn goal_rpc(&self, method: &str, params: Value) -> Result<Value, String> {
+    self.connect().await?.request(method, params).await
+  }
+  pub(crate) async fn goal_reply(&self, id: Value, result: Value) -> Result<(), String> {
+    self.connect().await?.send(json!({"id":id,"result":result})).await
   }
   pub fn with_capability_bridge(mut self, bridge: Arc<CapabilityBridge>) -> Self { self.capability_bridge = Some(bridge); self }
   fn capability_tools_enabled(&self, thread_id: &str) -> bool {
@@ -104,6 +113,7 @@ impl CodexConversations {
     let weak = Arc::downgrade(&client);
     let sink = self.sink.clone();
     let capability_bridge = self.capability_bridge.clone();
+    let goal_requests = self.goal_requests;
     let reading = tokio::spawn(async move {
       while let Some(Ok(message)) = reader.next().await {
         if message.is_close() { break; }
@@ -111,6 +121,7 @@ impl CodexConversations {
         let Some(client) = weak.upgrade() else { break };
         let Ok(message) = serde_json::from_str::<Value>(&line) else { continue };
         if message.get("method").is_some() && message.get("id").is_some() {
+          if goal_requests { sink(message); continue; }
           // Workspace writes need no escalation. Interactive actions outside that scope stay declined.
           let method = message["method"].as_str().unwrap_or("");
           if method == "item/tool/call" && message["params"]["tool"] == crate::capability_bridge::TOOL_NAME {
@@ -154,6 +165,7 @@ impl CodexConversations {
         client.alive.store(false, Ordering::Relaxed);
         if let Ok(mut pending) = client.pending.lock() { for (_, sender) in pending.drain() { let _ = sender.send(Err("Codex connection closed".into())); } }
         let _ = client.events.send(json!({"method":"workbench/disconnected"}));
+        if goal_requests { sink(json!({"method":"workbench/disconnected"})); }
       }
     });
     *client.reader.lock().map_err(|_| "Codex reader unavailable")? = Some(reading.abort_handle());

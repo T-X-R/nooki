@@ -25,7 +25,7 @@ export function createBoardDispatcher(board: ReturnType<typeof createTaskBoard>,
 
   async function reconcile(available: boolean) {
     await board.initialize()
-    const running = board.snapshot().cards.find(card => card.status === 'running')
+    const running = board.snapshot().cards.find(card => card.engine !== 'goals' && card.status === 'running')
     if (running) {
       const record = running.runId ? dependencies.find(running.runId) : undefined
       if (record?.status === 'running') return
@@ -43,8 +43,8 @@ export function createBoardDispatcher(board: ReturnType<typeof createTaskBoard>,
     const runId = crypto.randomUUID()
     let claimed: BoardCard | undefined
     await board.change(state => {
-      if (state.paused || state.cards.some(card => card.status === 'running')) return state
-      const card = state.cards.filter(item => item.status === 'queued' && item.authorization)
+      if (state.paused || state.cards.some(card => card.activeTurn || ['running', 'pausing', 'stopping', 'question'].includes(card.status) && card.engine === 'goals' || card.status === 'running')) return state
+      const card = state.cards.filter(item => item.engine !== 'goals' && item.status === 'queued' && item.authorization)
         .sort((a, b) => (a.queuedAt ?? 0) - (b.queuedAt ?? 0))[0]
       if (!card) return state
       const next: BoardCard = { ...card, status: 'running', runId }

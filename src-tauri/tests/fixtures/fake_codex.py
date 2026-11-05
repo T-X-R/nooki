@@ -57,10 +57,27 @@ def connections():
         except (OSError,UnicodeError):pass
         finally:peer.close();peer=None
 
+def goal_start(t):
+    if t.get('goal',{}).get('status')!='active' or t['status']['type']=='active':return
+    n=len(t['turns'])+1
+    turn={'id':'goal-turn-'+str(n),'status':'inProgress','items':[]}
+    t['turns'].append(turn);t['status']={'type':'active'};persist()
+    event('turn/started',{'threadId':t['id'],'turn':turn})
+
 def background():
     while True:
         time.sleep(0.03)
         if not fixture_workspace.exists():os._exit(0)
+        if Path('complete-goal').exists():
+            tid=Path('complete-goal').read_text();Path('complete-goal').unlink()
+            threads[tid]['goal']['status']='complete';persist()
+        if Path('finish-goal-turn').exists():
+            tid=Path('finish-goal-turn').read_text();Path('finish-goal-turn').unlink()
+            t=threads[tid];turn=t['turns'][-1]
+            turn['items'].append({'id':'goal-answer-'+str(len(t['turns'])),'type':'agentMessage','phase':'final_answer','text':'Native goal delivery'})
+            turn['status']='completed';t['status']={'type':'idle'};persist()
+            event('turn/completed',{'threadId':tid,'turn':turn})
+            goal_start(t)
         if Path('finish-background').exists():
             Path('finish-background').unlink()
             for t in threads.values():
@@ -73,6 +90,10 @@ def background():
 threading.Thread(target=background,daemon=True).start()
 def event(method,params):out({'method':method,'params':params})
 def sandbox_state(params):
+    if params.get('sandbox') == 'workspace-write':
+        sandbox={'type':'workspaceWrite','networkAccess':True,'writableRoots':[params['cwd']]+params.get('config',{}).get('sandbox_workspace_write.writable_roots',[])}
+        if Path('wrong-goal-policy').exists():sandbox={'type':'readOnly','networkAccess':False}
+        return {'sandbox':sandbox,'approvalPolicy':params.get('approvalPolicy'),'model':params.get('model','fixture-model')}
     if params.get('sandbox') == 'read-only' and not Path('omit-board-sandbox').exists():
         return {'sandbox':{'type':'readOnly','networkAccess':False},'approvalPolicy':params.get('approvalPolicy')}
     return {}
@@ -89,6 +110,16 @@ for line in connections():
     def error(message):out({'id':rid,'error':{'code':-32600,'message':message}})
     if method=='initialize':reply({'userAgent':'fake-codex'})
     elif method=='config/read':reply({'config':{},'layers':[{'config':{'mcp_servers':{'fixture':{'command':'unavailable'}}}}]})
+    elif method=='thread/goal/get':reply({'goal':threads[p['threadId']].get('goal')})
+    elif method=='thread/goal/set':
+        t=threads[p['threadId']]
+        goal=t.setdefault('goal',{'status':'paused','tokensUsed':0,'timeUsedSeconds':0})
+        goal.update({k:v for k,v in p.items() if k in ('status','objective')});persist();reply({'goal':goal})
+        goal_start(t)
+        if Path('goal-request-approval').exists():
+            Path('goal-request-approval').unlink()
+            pending_tools[9900]=(t,t['turns'][-1])
+            out({'id':9900,'method':'item/commandExecution/requestApproval','params':{'threadId':t['id'],'turnId':t['turns'][-1]['id'],'command':'echo fixture','reason':'Fixture approval'}})
     elif method=='thread/name/set':
         threads[p['threadId']]['name']=p['name'];persist();reply({})
     elif method=='thread/start':

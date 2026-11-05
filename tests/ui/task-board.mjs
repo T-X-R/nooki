@@ -32,7 +32,15 @@ try {
         if (command === 'capability_agent') return 'codex'
         if (command === 'tasks_read') return structuredClone(tasks)
         if (command === 'tasks_write') { tasks = structuredClone(args.records); return null }
-        if (command === 'task_board_read') return board
+        if (command === 'task_board_command') {
+          const r = args.request
+          if (r.op === 'add') board.cards.push({ ...r, engine: 'goals', status: 'queued', createdAt: Date.now() })
+          else if (r.op === 'queue-pause') board.paused = r.paused
+          else throw new Error('Unexpected goal operation ' + r.op)
+          sessionStorage.setItem('board', JSON.stringify(board))
+          return structuredClone(board)
+        }
+        if (command === 'task_board_read') return structuredClone(board)
         if (command === 'task_board_write') {
           board = structuredClone(args.board)
           sessionStorage.setItem('board', JSON.stringify(board))
@@ -151,10 +159,18 @@ try {
   const createdAt = await page.evaluate(() => JSON.parse(sessionStorage.getItem('board')).cards.find(card => card.id !== 'legacy').createdAt)
   assert.equal(await card.locator('time').getAttribute('datetime'), new Date(createdAt).toISOString())
   assert.equal(await card.locator('time').innerText(), await page.evaluate(date => new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(date), createdAt))
-  assert.equal(await card.locator(':scope > *').count(), 2, 'Cards contain only the title and date')
+  assert.equal(await card.locator(':scope > *').count(), 3, 'New tasks show their queue status')
   assert.equal((await card.innerText()).includes('创建'), false)
   if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/board-light.png`, animations: 'disabled' })
   const before = await columns.boundingBox()
+  // Load a legacy todo fixture to retain coverage for editing and the original draft-only delegation.
+  await page.evaluate(() => {
+    const saved = JSON.parse(sessionStorage.getItem('board'))
+    const task = saved.cards.find(card => card.id !== 'legacy')
+    delete task.engine; task.status = 'todo'
+    sessionStorage.setItem('board', JSON.stringify(saved))
+  })
+  await page.reload()
   await card.click()
   await panel.getByRole('button', { name: '交给 Agent' }).waitFor()
   assert.equal(await panel.locator('.task-board-sheet').count(), 1)
