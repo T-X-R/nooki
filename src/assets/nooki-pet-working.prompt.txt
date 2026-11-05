@@ -1,0 +1,20 @@
+Generated with the built-in image_gen tool and approved by the user.
+References: the original nooki-agent-cat.png and expression option 03 (focused
+white eyes) from the six-expression comparison sheet.
+
+The approved preview GIF is bundled byte-for-byte without further artwork edits.
+It contains 16 frames at 256x256, looping in approximately 2.01 seconds.
+nooki-pet-working-still.png is its first frame for reduced motion.
+
+Prompt:
+Create a precise 4x4 animation sprite sheet, 16 consecutive row-major frames,
+for the Nooki desktop pet working loop. Use the selected focused eyes: two small
+solid pure-white softly rounded trapezoid shapes with subtly slanted upper edges.
+No pupils, irises, dark notches, outlines or eyebrows. Preserve the round glossy
+near-black blob, asymmetric pointed ears, tiny w mouth, thin white whiskers,
+cyan left rim and pink right/bottom rim. Two compact purposeful forward nods per
+two-second loop with subtle compress-and-release and tiny alternating ear flex.
+No lateral wagging or drifting. Keep scale and center stable. Frames 1-4 nod,
+5-8 recover, 9-12 make a smaller nod, and 13-16 return to the starting pose.
+Same focused eyes in every frame. Tight gently pulsing rim, transparent background,
+equal padded cells, no labels, particles, shadows, accessories, arms or legs.

@@ -1,8 +1,8 @@
 Generated using the built-in image_gen tool with nooki-agent-cat.png as the edit target.
 The approved 4x4 sprite sheet contains 16 frames. Each cell was cropped and encoded
 at 192x192 into lossless animated WebP, 5 fps, looping every 3.2 seconds.
-The same frames were used for the approved GIF preview. No new state animations
-have been designed. The task-board avatar and application icon are unchanged.
+The same frames were used for the approved GIF preview. This remains the idle
+and fallback artwork. The task-board avatar and application icon are unchanged.
 
 Prompt:
 Produce a 4 by 4 regular animation sprite sheet of the exact supplied Nooki cat.

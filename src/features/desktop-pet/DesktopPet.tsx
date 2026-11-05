@@ -4,6 +4,8 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import petAnimation from '../../assets/nooki-pet-idle.webp'
 import petStill from '../../assets/nooki-agent-cat.png'
+import workingAnimation from '../../assets/nooki-pet-working.gif'
+import workingStill from '../../assets/nooki-pet-working-still.png'
 import { petActivity, petStatusLabels, type PetBoard } from './pet-activity.ts'
 import './desktop-pet.css'
 
@@ -21,6 +23,7 @@ export function DesktopPet() {
   const dragging = useRef(false)
   const zh = snapshot?.preferences.language !== 'en'
   const activity = petActivity(snapshot?.board ?? { cards: [] })
+  const working = !error && activity.status === 'running'
   const label = error ? (zh ? '状态暂不可用' : 'Status unavailable') : !snapshot ? (zh ? '读取状态…' : 'Loading…') : petStatusLabels[activity.status][zh ? 0 : 1]
 
   useEffect(() => {
@@ -89,7 +92,7 @@ export function DesktopPet() {
       <button type="button" className="pet-avatar pet-art" aria-label={zh ? `查看任务状态：${label}；拖动可移动桌宠` : `View task activity: ${label}; drag to move pet`} aria-expanded={expanded}
         onPointerDown={event => { if (event.button === 0) gesture.current = { x: event.clientX, y: event.clientY, dragged: false } }} onPointerMove={drag}
         onPointerCancel={() => { gesture.current = null }} onClick={() => { if (!gesture.current?.dragged) void expand(!expanded); gesture.current = null }}>
-        <img className="pet-animated" src={petAnimation} alt="" draggable={false} /><img className="pet-still" src={petStill} alt="" draggable={false} />
+        <img className="pet-animated" src={working ? workingAnimation : petAnimation} alt="" draggable={false} /><img className="pet-still" src={working ? workingStill : petStill} alt="" draggable={false} />
       </button>
     </div>
   </div>

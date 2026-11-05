@@ -2,7 +2,9 @@
 
 Settings includes a **Wake desktop pet** switch within **Appearance**, with no preview card or separate section. The switch is off by default. Enabling it shows the Nooki cat above ordinary desktop windows. The task-board avatar remains static.
 
-The first release uses the approved 16-frame idle animation for every task state. The animation is packaged as transparent lossless WebP (3.2 seconds per loop); it uses the same artwork and frames as the GIF preview. Status-specific artwork is deferred. Reduced motion uses the existing still cat.
+The pet uses the approved focused-eye working animation when the highest-priority activity is running. It has solid white eyes without pupils and two small nods per loop. The approved 16-frame GIF is bundled unchanged (about two seconds per loop). Other states retain the original idle animation until their artwork is designed. Read errors also fall back to the idle artwork rather than implying that stale work is still running. Reduced motion shows the first working frame during execution and the existing still cat otherwise.
+
+The idle animation remains transparent lossless WebP (3.2 seconds per loop). Existing activity priority applies to animation selection: questions, blockers, and review take precedence over running tasks, and pausing/stopping use the fallback artwork.
 
 ## Interaction
 

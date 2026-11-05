@@ -42,6 +42,7 @@ try {
   await page.getByRole('button', { name: /查看任务状态：需要你处理/ }).waitFor()
   assert.equal(await page.locator('.app-shell').count(), 0)
   assert.equal(await page.locator('.pet-status').count(), 0)
+  assert.match(await page.locator('.pet-animated').getAttribute('src'), /nooki-pet-idle/)
   assert.equal(await page.locator('.pet-animated').evaluate(img => img.complete && img.naturalWidth > 0), true)
   assert.ok(await page.evaluate(() => document.body.scrollWidth <= innerWidth))
   await mkdir('/tmp/nooki-pet-ui', { recursive: true })
@@ -89,13 +90,36 @@ try {
     await page.screenshot({ path: `/tmp/nooki-pet-ui/corner-${right}-${below}.png`, omitBackground: true })
     await page.getByRole('button', { name: '收起任务列表' }).click()
   }
+  await page.setViewportSize({ width: 160, height: 108 })
+  const running = { id: 'working', title: '执行中的任务', status: 'running', threadId: 'thread-working' }
+  async function expectArtwork(cards, artwork) {
+    await page.evaluate(cards => { window.qaPet.board = { cards } }, cards)
+    await page.waitForFunction(artwork => {
+      const img = document.querySelector('.pet-animated')
+      return img.src.includes(artwork) && img.complete && img.naturalWidth > 0
+    }, artwork)
+  }
+  await expectArtwork([running], 'nooki-pet-working.gif')
+  await page.screenshot({ path: '/tmp/nooki-pet-ui/working.png', omitBackground: true })
+  // Higher-priority attention states must not look like ongoing autonomous work.
+  for (const status of ['question', 'blocked', 'review']) {
+    await expectArtwork([running, { id: status, title: status, status }], 'nooki-pet-idle')
+    await expectArtwork([running], 'nooki-pet-working.gif')
+  }
+  await expectArtwork([{ ...running, status: 'paused' }], 'nooki-pet-idle')
+  await expectArtwork([{ ...running, status: 'done', activeTurn: true }], 'nooki-pet-working.gif')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   assert.equal(await page.locator('.pet-still').isVisible(), true)
   assert.equal(await page.locator('.pet-animated').isVisible(), false)
+  assert.match(await page.locator('.pet-still').getAttribute('src'), /nooki-pet-working-still/)
+  await page.waitForFunction(() => { const img = document.querySelector('.pet-still'); return img.complete && img.naturalWidth > 0 })
+  await page.screenshot({ path: '/tmp/nooki-pet-ui/working-reduced-motion.png', omitBackground: true })
   await page.evaluate(() => { window.qaPet.failed = true })
   await page.getByRole('button', { name: /查看任务状态：状态暂不可用/ }).waitFor()
+  assert.match(await page.locator('.pet-animated').getAttribute('src'), /nooki-pet-idle/)
   await page.evaluate(() => { window.qaPet.failed = false; window.qaPet.board = { paused: true, cards: [] }; window.qaPet.preferences.language = 'en' })
   await page.getByRole('button', { name: /View task activity: Auto-pickup paused/ }).waitFor()
+  assert.match(await page.locator('.pet-animated').getAttribute('src'), /nooki-pet-idle/)
   assert.deepEqual(errors, [])
   console.log('Pet rendering, priority, navigation, collapse, themes, reduced motion and read recovery passed')
 
