@@ -1,4 +1,5 @@
 pub mod task_goals;
+mod desktop_pet;
 pub mod task_worker;
 pub mod codex_conversations;
 mod codex_background;
@@ -547,9 +548,22 @@ pub fn run() {
       app.manage(task_execution::TaskExecutions::default());
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);
+      desktop_pet::initialize(app.handle(), app.path().app_data_dir()?).map_err(std::io::Error::other)?;
       Ok(())
     })
+    .on_window_event(|window, event| {
+      if window.label() == "main" {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+          if desktop_pet::keep_main(window.app_handle()) { api.prevent_close(); let _ = window.hide(); }
+        }
+      } else if window.label() == "desktop-pet" && matches!(event, tauri::WindowEvent::Focused(false)) {
+        desktop_pet::collapse(window.app_handle());
+      }
+    })
     .invoke_handler(tauri::generate_handler![
+      desktop_pet::desktop_pet_preferences, desktop_pet::desktop_pet_set_enabled, desktop_pet::desktop_pet_appearance,
+      desktop_pet::desktop_pet_ready, desktop_pet::desktop_pet_snapshot, desktop_pet::desktop_pet_expand, desktop_pet::desktop_pet_save_position,
+      desktop_pet::desktop_pet_open_conversation, desktop_pet::desktop_pet_navigation, desktop_pet::desktop_pet_navigation_ack,
       developer_integration::developer_integration,
       developer_integration::developer_integration_install,
       developer_integration::developer_kit_export,
@@ -597,6 +611,10 @@ pub fn run() {
       library_list_documents,
       library_read_document,
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+      #[cfg(target_os = "macos")]
+      if matches!(event, tauri::RunEvent::Reopen { .. }) { let _ = desktop_pet::show_main(app); }
+    });
 }

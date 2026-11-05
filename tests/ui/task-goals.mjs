@@ -16,10 +16,13 @@ try {
       state() { return board },
       requests() { return requests },
     }
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = {
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
       transformCallback() { return 1 }, unregisterCallback() {},
       async invoke(command, args = {}) {
+        if (command === "desktop_pet_preferences") return { enabled: false };
+        if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
         if (command.startsWith('plugin:') || command === 'capability_broker_ready') return null
         if (command === 'agent_tools') return [{ id: 'codex', detected: true, signIn: { state: 'in' } }]
         if (command === 'capability_agent') return 'codex'

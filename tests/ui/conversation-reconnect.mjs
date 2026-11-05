@@ -22,8 +22,11 @@ try {
       emit('turn/completed', { threadId: thread.id, turn: structuredClone(thread.turns[0]) });
       complete?.({ threadId: thread.id, turnId: thread.turns[0].id, artifacts: [] });
     } };
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback(fn) { const id = nextId++; callbacks.set(id, fn); return id; }, unregisterCallback(id) { callbacks.delete(id); }, async invoke(command, args = {}) {
       if (command === 'plugin:event|listen') { events.set(args.event, args.handler); return args.handler; }
+      if (command === "desktop_pet_preferences") return { enabled: false };
+      if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
       if (command.startsWith('plugin:')) return null;
       if (command === 'capability_agent') return 'codex';
       if (['agent_tools', 'list_capabilities', 'skill_pool_list', 'library_list_documents', 'library_search_content'].includes(command)) return [];

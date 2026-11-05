@@ -20,12 +20,15 @@ try {
       { id: 'brief', title: '产品说明', collectionName: '产品资料', documentDate: '2026-11-04' },
     ]
     window.qa = { get turnCount() { return turnCount }, get capturedIds() { return capturedIds } }
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = {
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
       transformCallback(fn) { callbacks.set(++callback, fn); return callback },
       unregisterCallback(id) { callbacks.delete(id) },
       async invoke(command, args = {}) {
         if (command === 'plugin:event|listen') return args.handler
+        if (command === "desktop_pet_preferences") return { enabled: false };
+        if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
         if (command.startsWith('plugin:')) return null
         if (command === 'capability_broker_ready') return null
         if (command === 'agent_tools') return [{ id: 'codex', detected: true, signIn: { state: 'in' } }]

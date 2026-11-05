@@ -6,6 +6,7 @@ import { isDesktopHost, testCapabilityAgent, type AgentTool } from '../../platfo
 import { ConversationArchives } from '../conversation/ConversationArchives.tsx'
 import { useWorkbench } from '../../platform/preferences.ts'
 import { DataManagement } from './DataManagement.tsx'
+import { PetSettings } from '../desktop-pet/PetSettings.tsx'
 import { agentNote, agentStanding, canChoose, listedAgents } from './agent-standing.ts'
 import { visibleSections, type SettingsSectionId } from './settings-sections.ts'
 
@@ -77,10 +78,10 @@ export function SettingsPage({ onOpenConversation, installed, onNotice, agents, 
         </div>
       ),
     'appearance': (
-      <div className="theme-options">
+      <><div className="theme-options">
         <button className={`theme-option ${theme === 'light' ? 'selected' : ''}`} onClick={() => setTheme('light')}><span className="theme-preview theme-preview-light"><SunIcon /></span><span><strong>{t('light')}</strong><small>{t('lightDescription')}</small></span>{theme === 'light' && <CheckIcon className="selected-check" />}</button>
         <button className={`theme-option ${theme === 'dark' ? 'selected' : ''}`} onClick={() => setTheme('dark')}><span className="theme-preview theme-preview-dark"><MoonIcon /></span><span><strong>{t('dark')}</strong><small>{t('darkDescription')}</small></span>{theme === 'dark' && <CheckIcon className="selected-check" />}</button>
-      </div>
+      </div>{desktop && <PetSettings />}</>
     ),
     'language': (
       <div className="theme-options language-options">

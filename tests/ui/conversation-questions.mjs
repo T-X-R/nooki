@@ -20,8 +20,11 @@ try {
       thread.turns[0].items.push({ id: 'final', type: 'agentMessage', phase: 'final_answer', text: '周报已完成。' });
       persist(); this.emit('turn/completed', { threadId: thread.id, turn: structuredClone(thread.turns[0]) });
     }, later() { const item = { id: 'later', type: 'reasoning', summary: ['正在完成后续工作'] }; thread.turns[0].items.push(item); persist(); this.emit('item/completed', { threadId: thread.id, turnId: 'turn', item }); }, continue() { this.emit('item/reasoning/summaryTextDelta', { threadId: thread.id, turnId: 'turn', itemId: 'reason', summaryIndex: 0, delta: '\n正在整理工作记录' }); } };
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback(fn) { const id = nextId++; callbacks.set(id, fn); return id; }, unregisterCallback(id) { callbacks.delete(id); }, async invoke(command, args = {}) {
       if (command === 'plugin:event|listen') { events.set(args.event, args.handler); return args.handler; }
+      if (command === "desktop_pet_preferences") return { enabled: false };
+      if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
       if (command.startsWith('plugin:')) return null;
       if (command === 'capability_agent') return 'codex';
       if (['agent_tools', 'list_capabilities', 'skill_pool_list', 'library_list_documents', 'library_search_content', 'tasks_read'].includes(command)) return [];

@@ -1,0 +1,34 @@
+import { useEffect, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import { useTranslation } from 'react-i18next'
+import './desktop-pet.css'
+
+export function PetSettings() {
+  const { t } = useTranslation()
+  const [enabled, setEnabled] = useState(false)
+  const [busy, setBusy] = useState(true)
+  const [ready, setReady] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let current = true
+    void invoke<{ enabled: boolean }>('desktop_pet_preferences').then(p => {
+      if (current) { setEnabled(p.enabled); setReady(true) }
+    }).catch(reason => { if (current) setError(String(reason)) }).finally(() => { if (current) setBusy(false) })
+    return () => { current = false }
+  }, [])
+  async function toggle() {
+    setBusy(true); setError('')
+    try {
+      const p = await invoke<{ enabled: boolean }>('desktop_pet_set_enabled', { enabled: !enabled })
+      setEnabled(p.enabled)
+    } catch (reason) { setError(String(reason)) }
+    finally { setBusy(false) }
+  }
+  return <div>
+    <div className="pet-setting">
+      <label htmlFor="desktop-pet-switch">{t('showDesktopPet')}</label>
+      <button id="desktop-pet-switch" type="button" className="pet-switch" role="switch" aria-checked={enabled} aria-label={t('showDesktopPet')} disabled={busy || !ready} onClick={() => void toggle()}><span /></button>
+    </div>
+    {error && <p role="alert" className="pet-error">{error}</p>}
+  </div>
+}

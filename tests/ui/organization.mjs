@@ -20,7 +20,10 @@ try {
     const persist = () => localStorage.setItem('qa-organization', JSON.stringify(data));
     window.qa = { data, failDelete: '', loseDeleteResponse: '', failArchive: false, failList: false, deleted: [], pages: [] };
     let callbackId = 0;
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback: () => ++callbackId, unregisterCallback: () => {}, invoke: async (command, args = {}) => {
+      if (command === "desktop_pet_preferences") return { enabled: false };
+      if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
       if (command.startsWith('plugin:')) return null;
       if (command === 'capability_agent') return 'codex';
       if (command === 'agent_tools') return [{ id: 'codex', name: 'Codex', directory: '/tmp/.codex/skills', detected: true, readsPool: false, custom: false, signIn: { state: 'in', method: 'ChatGPT', hint: null }, servesCapabilities: true }];

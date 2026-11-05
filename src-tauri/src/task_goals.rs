@@ -49,7 +49,7 @@ fn save(root: &Path, board: &Value) -> Result<(), String> {
     fs::rename(temporary, root.join("task-board.json")).map_err(|e| e.to_string())?;
     fs::File::open(root).and_then(|directory| directory.sync_all()).map_err(|e| e.to_string())
 }
-fn load(root: &Path) -> Result<Value, String> {
+pub(crate) fn load(root: &Path) -> Result<Value, String> {
     let path = root.join("task-board.json");
     if !path.exists() { return Ok(json!({"cards":[]})); }
     let board = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
