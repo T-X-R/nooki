@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArchiveIcon, BackpackIcon, CalendarIcon, ChatBubbleIcon, ChevronRightIcon, CubeIcon, EnterIcon, GearIcon, KeyboardIcon, LightningBoltIcon, MagnifyingGlassIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { ArchiveIcon, BackpackIcon, DashboardIcon, ChatBubbleIcon, ChevronRightIcon, CubeIcon, EnterIcon, GearIcon, KeyboardIcon, LightningBoltIcon, MagnifyingGlassIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
 import i18n from '../shared/i18n.ts'
 import type { Theme, View } from '../platform/preferences.ts'
 
@@ -13,7 +13,7 @@ export function CommandPalette({ onClose, onNavigate, onNotice, theme, onToggleT
   useEffect(() => inputRef.current?.focus(), [])
 
   const commands = useMemo(() => [
-    { label: t('openToday'), hint: t('navigation'), icon: CalendarIcon, action: () => onNavigate('today') },
+    { label: t('openToday'), hint: t('navigation'), icon: DashboardIcon, action: () => onNavigate('today') },
     { label: i18n.language.startsWith('zh') ? '打开对话' : 'Open conversations', hint: t('navigation'), icon: ChatBubbleIcon, action: () => onNavigate('conversations') },
     { label: t('openLibrary'), hint: t('navigation'), icon: ArchiveIcon, action: () => onNavigate('library') },
     { label: i18n.language.startsWith('zh') ? '打开技能池' : 'Open skill pool', hint: t('navigation'), icon: BackpackIcon, action: () => onNavigate('skills') },

@@ -21,6 +21,7 @@ pub struct CodexConversations {
   sink: Arc<dyn Fn(Value) + Send + Sync>,
   capability_bridge: Option<Arc<CapabilityBridge>>,
   capability_threads: Mutex<HashSet<String>>,
+  goal_requests: bool,
 }
 struct Client {
   connection: AsyncMutex<SplitSink<crate::codex_background::Connection, Message>>,
@@ -74,7 +75,15 @@ impl CodexConversations {
   pub fn new(binary: String, root: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self {
     let capability_threads = std::fs::read(root.join("capability-tool-threads.json")).ok()
       .and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
-    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads) }
+    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads), goal_requests: false }
+  }
+  // Only the dedicated task worker owns this transport and answers its native requests.
+  pub(crate) fn with_goal_requests(mut self) -> Self { self.goal_requests = true; self }
+  pub(crate) async fn goal_rpc(&self, method: &str, params: Value) -> Result<Value, String> {
+    self.connect().await?.request(method, params).await
+  }
+  pub(crate) async fn goal_reply(&self, id: Value, result: Value) -> Result<(), String> {
+    self.connect().await?.send(json!({"id":id,"result":result})).await
   }
   pub fn with_capability_bridge(mut self, bridge: Arc<CapabilityBridge>) -> Self { self.capability_bridge = Some(bridge); self }
   fn capability_tools_enabled(&self, thread_id: &str) -> bool {
@@ -104,6 +113,7 @@ impl CodexConversations {
     let weak = Arc::downgrade(&client);
     let sink = self.sink.clone();
     let capability_bridge = self.capability_bridge.clone();
+    let goal_requests = self.goal_requests;
     let reading = tokio::spawn(async move {
       while let Some(Ok(message)) = reader.next().await {
         if message.is_close() { break; }
@@ -111,6 +121,7 @@ impl CodexConversations {
         let Some(client) = weak.upgrade() else { break };
         let Ok(message) = serde_json::from_str::<Value>(&line) else { continue };
         if message.get("method").is_some() && message.get("id").is_some() {
+          if goal_requests { sink(message); continue; }
           // Workspace writes need no escalation. Interactive actions outside that scope stay declined.
           let method = message["method"].as_str().unwrap_or("");
           if method == "item/tool/call" && message["params"]["tool"] == crate::capability_bridge::TOOL_NAME {
@@ -154,6 +165,7 @@ impl CodexConversations {
         client.alive.store(false, Ordering::Relaxed);
         if let Ok(mut pending) = client.pending.lock() { for (_, sender) in pending.drain() { let _ = sender.send(Err("Codex connection closed".into())); } }
         let _ = client.events.send(json!({"method":"workbench/disconnected"}));
+        if goal_requests { sink(json!({"method":"workbench/disconnected"})); }
       }
     });
     *client.reader.lock().map_err(|_| "Codex reader unavailable")? = Some(reading.abort_handle());
@@ -207,15 +219,57 @@ impl CodexConversations {
     client.fresh.lock().map_err(|_| "Codex session state unavailable")?.remove(id);
     Ok(())
   }
-  pub async fn create(&self) -> Result<Value, String> {
+  pub async fn create(&self) -> Result<Value, String> { self.create_thread(None).await }
+
+  pub async fn create_board_thread(&self, title: &str) -> Result<Value, String> {
+    let title = title.trim();
+    if title.is_empty() || title.chars().count() > 120 { return Err("Invalid task title".into()); }
+    self.create_thread(Some(title)).await
+  }
+
+  async fn board_config(client: &Client, cwd: &Path) -> Result<Value, String> {
+    let effective = client.request("config/read", json!({"cwd":cwd,"includeLayers":true})).await?;
+    let mut disabled = serde_json::Map::new();
+    let layers = effective["layers"].as_array().into_iter().flatten().map(|layer| &layer["config"]);
+    for config in std::iter::once(&effective["config"]).chain(layers) {
+      if let Some(servers) = config["mcp_servers"].as_object() {
+        for name in servers.keys() { disabled.insert(name.clone(), json!({"enabled":false})); }
+      }
+    }
+    // Board turns draft from the supplied context. They do not need machine or connector tools.
+    Ok(json!({
+      "mcp_servers":disabled,"web_search":"disabled",
+      "features":{
+        "shell_tool":false,"unified_exec":false,"view_image":false,"image_generation":false,
+        "browser_use":false,"browser_use_external":false,"in_app_browser":false,
+        "apps":false,"plugins":false,"multi_agent":false,"multi_agent_v2":false
+      }
+    }))
+  }
+
+  fn verify_board_sandbox(result: &Value) -> Result<(), String> {
+    if result["sandbox"]["type"] != "readOnly" || result["sandbox"]["networkAccess"] != false || result["approvalPolicy"] != "never" {
+      return Err("Codex 未确认任务板的只读执行策略 / Codex did not confirm the task board's read-only policy".into());
+    }
+    Ok(())
+  }
+
+  async fn create_thread(&self, title: Option<&str>) -> Result<Value, String> {
     let client = self.connect().await?;
     let mut params = json!({"cwd":self.workspace(),"ephemeral":false,"approvalPolicy":"never","sandbox":"read-only","developerInstructions":CONVERSATION_INSTRUCTIONS});
-    if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool(&self.root)]); }
+    if title.is_some() {
+      params["config"] = Self::board_config(&client, &self.workspace()).await?;
+    } else if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool(&self.root)]); }
     let result = client.request("thread/start", params).await?;
-    let thread = result["thread"].clone();
+    if title.is_some() { Self::verify_board_sandbox(&result)?; }
+    let mut thread = result["thread"].clone();
     let thread_id = thread["id"].as_str().ok_or("Codex did not return a session ID")?;
     client.fresh.lock().map_err(|_| "Codex session state unavailable")?.insert(thread_id.into());
-    if self.capability_bridge.is_some() {
+    if let Some(title) = title {
+      // The task title is also retained by the runner if an older app server cannot name fresh threads.
+      let _ = client.request("thread/name/set", json!({"threadId":thread_id,"name":title})).await;
+      thread["name"] = json!(title);
+    } else if self.capability_bridge.is_some() {
       if let Err(error) = self.remember_capability_tools(thread_id) {
         log::warn!("Could not persist Codex capability-tool session {thread_id}: {error}");
       }
@@ -281,6 +335,15 @@ impl CodexConversations {
     self.watch_turn(client, thread_id, request_id, turn, events, cancelled).await
   }
   pub async fn run_with_documents(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken) -> Result<Value, String> {
+    self.run_turn(thread_id, message, context, request_id, inputs, skills, cancelled, false).await
+  }
+  pub async fn run_board(&self, request: &crate::conversation_host::ConversationRequest, cancelled: CancellationToken) -> Result<Value, String> {
+    if self.capability_tools_enabled(&request.thread_id) || !request.skills.is_empty() {
+      return Err("Task board requires a dedicated Codex session without capability tools".into());
+    }
+    self.run_turn(&request.thread_id, &request.message, &request.context, &request.request_id, &request.documents, &[], cancelled, true).await
+  }
+  async fn run_turn(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken, board: bool) -> Result<Value, String> {
     if message.trim().is_empty() || message.len() + context.len() > 100_000 { return Err("Message and references must contain between 1 and 100000 UTF-8 bytes".into()); }
     if request_id.is_empty() || !request_id.bytes().all(|b|b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
     let client = self.connect().await?;
@@ -297,7 +360,20 @@ impl CodexConversations {
     if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
     let document_context = conversation_documents::prepare(&self.root, thread_id, request_id, inputs)?;
     let document_workspace = conversation_documents::workspace(&self.root, thread_id).canonicalize().map_err(|e| e.to_string())?;
-    if !fresh { client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never","sandbox":"workspace-write","developerInstructions":self.developer_instructions(thread_id),"config":{"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true}})).await?; }
+    if !fresh {
+      let mut params = json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never"});
+      if board {
+        params["sandbox"] = json!("read-only");
+        params["config"] = Self::board_config(&client, &document_workspace).await?;
+        params["developerInstructions"] = json!(CONVERSATION_INSTRUCTIONS);
+      } else {
+        params["sandbox"] = json!("workspace-write");
+        params["developerInstructions"] = json!(self.developer_instructions(thread_id));
+        params["config"] = json!({"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true});
+      }
+      let resumed = client.request("thread/resume", params).await?;
+      if board { Self::verify_board_sandbox(&resumed)?; }
+    }
     let turn = {
       if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
       // An uncertain start must reconcile history before it can be retried.
@@ -306,7 +382,10 @@ impl CodexConversations {
       // composer sends for `$skill`. Codex loads it; Nooki neither reads nor repeats it.
       let mut input: Vec<Value> = skills.iter().map(|skill| json!({"type":"skill","name":skill.invocation,"path":skill.path})).collect();
       input.push(json!({"type":"text","text":message}));
-      let result = client.request("turn/start", json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","sandboxPolicy":{"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true},"input":input,"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"})).await?;
+      let mut params = json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","input":input,"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"});
+      params["sandboxPolicy"] = if board { json!({"type":"readOnly","networkAccess":false}) }
+        else { json!({"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true}) };
+      let result = client.request("turn/start", params).await?;
       let turn = result["turn"].clone();
       if let Err(error) = write_receipt(&receipt, &json!({"threadId":thread_id,"turnId":turn["id"]})) {
         let _ = client.request("turn/interrupt",json!({"threadId":thread_id,"turnId":turn["id"]})).await;

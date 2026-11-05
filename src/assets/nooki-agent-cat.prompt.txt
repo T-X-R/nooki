@@ -1,0 +1,7 @@
+Generated with the built-in image_gen tool, using nooki-icon.png as the design reference.
+The app icon remains unchanged. nooki-agent-cat.png is a 256px transparent UI export.
+
+Use case: stylized-concept
+Asset type: Nooki Agent avatar used at 34px in a desktop app.
+Reference image: the supplied Nooki app icon is the visual design reference; create a new same-family cat head variant, not the identical app icon.
+Primary request: derive one companion cat head from this reference's plump rounded black cat, triangular ears, tiny luminous white eyes and tiny w mouth, thin iridescent cyan-pink-lavender illuminated edge, softly glowing glossy dark material. Preserve this distinctive simple character style and proportions. Make an attentive slight head tilt with a small asymmetrical ear pose so it is an original Agent variant. Isolate only the cat head, no body, no ground, no tile or black backdrop. Enlarge the face silhouette to fill about 85% of a square with generous crisp luminous edges so it reads clearly small on both white and dark UIs. Transparent background. Polished understated render, no text, no accessories, no new character style, no cream fur, no stars or additional objects.

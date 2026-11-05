@@ -1,3 +1,6 @@
+import { taskBoard, goalCommand } from '../task-board/task-board.ts'
+import { ConversationGoalRequests } from './ConversationGoalRequests.tsx'
+import { ConversationTaskCard } from './ConversationTaskCard.tsx'
 import { attachmentDocumentIds, type FolderAttachment, type LibrarySelection } from './library-folder-attachments.ts'
 import { FolderIcon } from '../library/LibraryDirectory.tsx'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
@@ -51,8 +54,9 @@ function TurnProcess({ turn, zh, children }: { turn: ConversationTurn; zh: boole
   </details>
 }
 
-export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
+export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument, onTask }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void; onTask(id: string): void }) {
   const zh = language === 'zh'
+  const board = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
   const cache = useSyncExternalStore(conversationClient.subscribe, conversationClient.getSnapshot, conversationClient.getSnapshot)
   const capabilityInvocations = useSyncExternalStore(capabilityInvocationStore.subscribe, capabilityInvocationStore.getSnapshot, capabilityInvocationStore.getSnapshot)
@@ -72,6 +76,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const [query, setQuery] = useState('')
   const [matches, setMatches] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [preparing, setPreparing] = useState<{ threadId: string | null; message: string; documentIds: string[]; folders: FolderAttachment[]; uploads: ConversationAttachment[] } | null>(null)
   const [saving, setSaving] = useState<SaveAnswerInput | null>(null)
@@ -80,6 +85,10 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const follow = useRef(true)
   const composer = useRef<HTMLTextAreaElement>(null)
   const thread = selected ? cache[selected] : undefined
+  const boardTask = thread?.task ?? board.cards.find(card => card.threadId === selected)
+  const goalTask = boardTask?.engine === 'goals' ? boardTask : undefined
+  const taskInputDisabled = goalTask ? !!goalTask.archived || !!goalTask.restored : !!boardTask && !['question', 'review'].includes(boardTask.status)
+  const messageReceipt = useRef<{ thread: string; text: string; id: string } | null>(null)
   const conversationTasks = tasks.filter((t) => t.capabilityId === CONVERSATION_OWNER && (t.input as { threadId?: string }).threadId === selected)
   const running = conversationTasks.find((t) => t.job === 'respond' && t.status === 'running')
   const stopped = [...conversationTasks].reverse().find((t) => t.job === 'respond' && ['failed', 'cancelled', 'interrupted'].includes(t.status))
@@ -87,12 +96,12 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const pending = running
     ? (thread?.turns.some((turn) => turn.items.some((item) => item.type === 'userMessage' && item.clientId === running.id)) ? null : running.input as ConversationInput)
     : preparing?.threadId === selected ? preparing : null
-  const loading = !!selected && !thread && !error && !pending
+  const loading = !!selected && !thread && !error && !historyError && !pending
   const legacy = tasks.filter((t) => t.capabilityId === LEGACY_REVIEW && t.job === 'generate' && t.status === 'completed')
   const act = async (action: () => Promise<unknown>) => { setBusy(true); setError(null); try { await action() } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   const select = (id: string | null) => {
     drafts.set(selected ?? 'new', { text, ids, folders, uploads }); currentSession = id; setSelected(id); setMention(null)
-    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setFolders(draft?.folders ?? []); setUploads(draft?.uploads ?? []); setPicker(false); setShowLegacy(false); setError(null); follow.current = true
+    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setFolders(draft?.folders ?? []); setUploads(draft?.uploads ?? []); setPicker(false); setShowLegacy(false); setError(null); setHistoryError(null); follow.current = true
   }
   useEffect(() => {
     let current = true
@@ -125,9 +134,20 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   useEffect(() => {
     if (!selected) return
     let current = true
-    void conversationClient.read(selected).catch((e) => { if (current) setError(String(e)) })
+    void conversationClient.read(selected).then(() => { if (current) setHistoryError(null) }).catch((e) => { if (current) setHistoryError(String(e)) })
     return () => { current = false }
   }, [selected, taskStatus])
+  useEffect(() => {
+    if (!selected || !(thread?.taskId || goalTask?.id)) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+    const refresh = async () => {
+      try { await conversationClient.read(selected); if (!cancelled) setHistoryError(null) } catch (error) { if (!cancelled) setHistoryError(String(error)) }
+      if (!cancelled) timer = setTimeout(() => void refresh(), 2000)
+    }
+    timer = setTimeout(() => void refresh(), 2000)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [selected, thread?.taskId, goalTask?.id])
   useEffect(() => {
     if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight
   }, [thread, running, pending])
@@ -151,7 +171,21 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   }
   const chooseSkill = (skill: PoolSkill) => { if (mention) editComposer(applySkillMention(text, mention, skill)) }
   const send = () => void act(async () => {
-    if (!text.trim() || busy || running || thread?.turns.some((t) => t.status === 'inProgress')) return
+    if (!text.trim() || busy || taskInputDisabled) return
+    if (boardTask) {
+      if (!goalTask && (ids.length || folders.length || uploads.length)) throw new Error(zh ? '旧任务仅支持文字反馈；新任务可引用资料。' : 'Legacy tasks accept text feedback only; new tasks support references.')
+      validateAttachments(uploads, new Set([...ids, ...attachmentDocumentIds(folders)]).size)
+      if (goalTask) {
+        const message = text.trim()
+        if (messageReceipt.current?.thread !== selected || messageReceipt.current?.text !== message) messageReceipt.current = { thread: selected!, text: message, id: crypto.randomUUID() }
+        await goalCommand({ op: 'message', id: goalTask.id, message, messageId: messageReceipt.current.id, documentIds: [...new Set([...ids, ...attachmentDocumentIds(folders)])], uploads })
+        messageReceipt.current = null
+      } else { await taskBoard.continue(boardTask.id, text.trim()) }
+      setText(''); setIds([]); setFolders([]); setUploads([]); setMention(null); setPicker(false)
+      await conversationClient.read(selected!)
+      return
+    }
+    if (running || thread?.turns.some((t) => t.status === 'inProgress')) return
     validateAttachments(uploads, new Set([...ids, ...attachmentDocumentIds(folders)]).size)
     const message = text.trim()
     const documentIds = [...new Set([...ids, ...attachmentDocumentIds(folders)])]
@@ -186,6 +220,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   }
   const uploadAttachments = (item: ConversationItem) => (tasks.find((record) => record.id === item.clientId)?.input as ConversationInput | undefined)?.uploads ?? []
   const turnArtifacts = (turnId: string) => [
+    ...(thread?.task?.deliveryTurnId === turnId ? thread.task.delivery?.artifacts ?? [] : []),
     ...conversationTasks.filter((task) => task.job === 'respond' && task.status === 'completed' && (task.result as ConversationResult | null)?.turnId === turnId).flatMap((task) => (task.result as ConversationResult).artifacts ?? []),
     ...capabilityInvocations.filter((invocation) => invocation.context?.threadId === selected && invocation.context.turnId === turnId)
       .map(capabilityDraftArtifact).filter((artifact) => artifact !== null),
@@ -210,7 +245,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const renderQuestion = (turn: ConversationTurn, item: ConversationItem) => isAsyncQuestion(item) ? <ConversationQuestion key={item.id} threadId={thread!.id} turnId={turn.id} item={item} active={turn.status === 'inProgress'} reply={asyncQuestionReply(thread!.turns, item.id)} zh={zh} /> : <aside className="conversation-question" key={item.id}><strong>{zh ? '执行中的消息' : 'Message during the task'}</strong><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} zh={zh} /></aside>
   const taskHint = (task: TaskRecord) => task.status === 'interrupted' ? (zh ? '会话连接已断开，可重新连接以核对执行状态。' : 'The connection was lost. Reconnect to check the execution state.') : task.status === 'cancelled' ? (zh ? '已请求停止，可重新连接核对状态，或发送新消息继续。' : 'Stop requested. Reconnect to check its state, or send a message to continue.') : task.error
   const showInitialPlaceholder = conversationTasks.filter((task) => task.job === 'respond').length <= 1 && waitingForInitialResponse(thread?.turns ?? [], !!thread?.nextCursor)
-  const empty = !showLegacy && !loading && !pending && !thread?.turns.length && !running
+  const empty = !goalTask && !showLegacy && !loading && !pending && !thread?.turns.length && !running
   return <div className="conversation-page">
     <header className="conversation-toolbar">
       {selected && <span className="conversation-thread-title">{thread?.name || thread?.preview}</span>}
@@ -222,6 +257,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
       <section className={`conversation-main ${empty ? 'is-empty' : ''}`} aria-label={zh ? '当前对话' : 'Current conversation'}>
 
         <div className="conversation-messages" ref={scroll} onWheel={(event) => { if (event.deltaY < 0) follow.current = false }} onKeyDown={(event) => { if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) follow.current = false }} onClickCapture={(event) => { if ((event.target as HTMLElement).closest('summary')) follow.current = false }} onScroll={() => { const el = scroll.current!; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 2 }}>
+          {!showLegacy && goalTask && <ConversationTaskCard task={goalTask} zh={zh} onOpen={onTask} />}
           {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} zh={zh} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : loading ? <div className="conversation-state" role="status"><ReloadIcon className="spin" />{zh ? '正在读取对话…' : 'Loading conversation…'}</div> : empty ? <div className="conversation-empty"><h2>{greeting?.[language]}</h2><p>{zh ? '带上一个问题，或几份资料，慢慢理出头绪。' : 'Bring a question or a few documents, and work through them at your own pace.'}</p></div> : <>
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
             {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.filter((item) => item.type === 'userMessage' && !questionReplyIds.has(item.id)).map((item) => renderItem(turn, item))}
@@ -236,9 +272,15 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
             </article></div>}
             {showInitialPlaceholder && (preparing || running) && <div className="conversation-state" role="status"><ReloadIcon className="spin" />{preparing ? (zh ? '正在准备对话…' : 'Preparing conversation…') : (zh ? '正在生成…' : 'Generating…')}</div>}
           </>}
+          {goalTask && <ConversationGoalRequests task={goalTask} zh={zh} busy={busy} act={act} />}
         </div>
         <div className="conversation-composer-area">
+          {goalTask?.error && <p className="conversation-error" role="alert">{goalTask.error}</p>}
+          {!goalTask && boardTask?.status === 'done' && <p className="conversation-recovery">{zh ? '任务已验收，执行会话保留在这里。' : 'This task has been accepted. Its conversation remains here.'}</p>}
+          {goalTask?.restored && <p className="conversation-recovery">{zh ? '此任务来自备份，请先在任务详情恢复执行。' : 'This task was restored from a backup. Resume it from its task details first.'}</p>}
+          {goalTask?.archived && <div className="conversation-recovery"><span>{zh ? '会话已归档，可恢复后继续聊天。' : 'This conversation is archived. Restore it to continue chatting.'}</span><button className="quiet-button" disabled={busy} onClick={() => void act(async () => { await conversationClient.change(selected!, 'restore'); await conversationClient.read(selected!) })}>{zh ? '恢复会话' : 'Restore conversation'}</button></div>}
           {thread?.capabilityTools === 'new-conversation-required' && <div className="conversation-recovery"><span>{zh ? '这个较早的 Codex 会话不能加载能力工具；新建会话后即可调用已安装能力。' : 'This older Codex conversation cannot load capability tools. Start a new conversation to use installed capabilities.'}</span></div>}
+          {historyError && <p className="conversation-error" role="alert">{historyError}</p>}
           {error && <div className="conversation-error" role="alert"><span>{error}</span><button className="icon-button" aria-label={zh ? '关闭提示' : 'Dismiss'} onClick={() => setError(null)}><Cross2Icon /></button></div>}
           {stopped && stopped.id === latestResponseTask?.id && !running && <div className="conversation-recovery"><span>{taskHint(stopped)}</span><button className="quiet-button" disabled={busy} onClick={() => void act(() => taskRunner.reconnect(stopped.id))}><ReloadIcon />{zh ? '重新连接' : 'Reconnect'}</button></div>}
           {picker && <section className="conversation-picker"><header><label><MagnifyingGlassIcon /><input autoFocus placeholder={zh ? '搜索标题、正文或来源' : 'Search titles, content or sources'} value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="icon-button" aria-label={zh ? '关闭资料选择' : 'Close document picker'} onClick={() => setPicker(false)}><Cross2Icon /></button></header><div className="conversation-picker-list">{filtered.map((doc) => <label key={doc.id}><input type="checkbox" checked={ids.includes(doc.id)} disabled={!ids.includes(doc.id) && new Set([...ids, ...attachmentDocumentIds(folders)]).size + uploads.length >= 50} onChange={() => setIds((current) => current.includes(doc.id) ? current.filter((id) => id !== doc.id) : [...current, doc.id])} /><FileTextIcon /><span><strong>{doc.title}</strong><small>{doc.collectionName} · {doc.documentDate}</small></span></label>)}{!filtered.length && <p>{zh ? '没有找到资料。' : 'No documents found.'}</p>}</div></section>}
@@ -253,7 +295,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
               </button>)}
             </div>}
             {!!attached.length && <div className="conversation-attachments conversation-skill-chips">{attached.map((name) => <span key={name}><span><Share1Icon />{name}</span></span>)}</div>}
-            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…'} value={text} disabled={!!preparing}
+            <textarea ref={composer} aria-label={zh ? '消息' : 'Message'} placeholder={boardTask ? (zh ? '输入消息…' : 'Message…') : (zh ? '输入消息，$ 或 / 调用技能，或添加一份文档开始修改…' : 'Write a message, type $ or / to use a skill, or add a document to revise…')} value={text} disabled={!!preparing || taskInputDisabled}
               onChange={(event) => { setText(event.target.value); trackMention(event.target) }}
               onClick={(event) => trackMention(event.currentTarget)}
               onBlur={() => setMention(null)}
@@ -268,7 +310,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
                 }
                 if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (!busy) send() }
               }} />
-            <footer><button className={`quiet-button ${picker ? 'is-active' : ''}`} type="button" disabled={busy} onClick={() => { setPicker(!picker); void listLibraryDocuments().then(setDocuments).catch((e) => setError(String(e))) }}><PlusIcon />{zh ? '引用资料' : 'Add documents'}</button><button className="quiet-button" type="button" disabled={busy} onClick={() => uploadInput.current?.click()}><UploadIcon />{zh ? '上传附件' : 'Attach file'}</button><span>{zh ? 'Enter 发送 · Shift Enter 换行' : 'Enter to send · Shift Enter for a new line'}</span>{running ? <button className="conversation-send" type="button" aria-label={zh ? '停止生成' : 'Stop response'} onClick={() => void act(() => taskRunner.cancel(running.id))}><StopIcon /></button> : <button className="conversation-send" type="submit" disabled={!text.trim() || busy || !!thread?.turns.some((turn) => turn.status === 'inProgress')} aria-label={zh ? '发送消息' : 'Send message'}><ArrowUpIcon /></button>}</footer>
+            <footer><button className={`quiet-button ${picker ? 'is-active' : ''}`} type="button" disabled={busy} onClick={() => { setPicker(!picker); void listLibraryDocuments().then(setDocuments).catch((e) => setError(String(e))) }}><PlusIcon />{zh ? '引用资料' : 'Add documents'}</button><button className="quiet-button" type="button" disabled={busy} onClick={() => uploadInput.current?.click()}><UploadIcon />{zh ? '上传附件' : 'Attach file'}</button><span>{zh ? 'Enter 发送 · Shift Enter 换行' : 'Enter to send · Shift Enter for a new line'}</span>{goalTask?.activeTurn && <button className="conversation-send" type="button" aria-label={zh ? '停止执行' : 'Stop execution'} onClick={() => void act(async () => { await goalCommand({ op: 'stop', id: goalTask.id }); await conversationClient.read(selected!) })}><StopIcon /></button>}{running && !boardTask ? <button className="conversation-send" type="button" aria-label={zh ? '停止生成' : 'Stop response'} onClick={() => void act(() => taskRunner.cancel(running.id))}><StopIcon /></button> : <button className="conversation-send" type="submit" disabled={!text.trim() || busy || taskInputDisabled || (!goalTask && !!thread?.turns.some((turn) => turn.status === 'inProgress'))} aria-label={zh ? '发送消息' : 'Send message'}><ArrowUpIcon /></button>}</footer>
           </form>
         </div>
       </section>

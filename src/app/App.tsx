@@ -14,7 +14,8 @@ import { taskRunner } from '../platform/tasks.ts'
 import i18n from '../shared/i18n.ts'
 import { CONVERSATION_OWNER, LEGACY_REVIEW } from '../features/conversation/conversation-model.ts'
 import { ConversationPage } from '../features/conversation/ConversationPage.tsx'
-import { TodayPage } from '../features/activity/TodayPage.tsx'
+import { TaskBoardPage } from '../features/task-board/TaskBoardPage.tsx'
+import { taskBoardAgent } from '../features/task-board/task-board-agent.ts'
 import { CapabilitiesPage } from '../features/capabilities/CapabilitiesPage.tsx'
 import { CapabilityErrorBoundary, CapabilityPage } from '../features/capabilities/CapabilityPage.tsx'
 import { LibraryPage } from '../features/library/LibraryPage.tsx'
@@ -39,11 +40,11 @@ function App() {
     load(); window.addEventListener('workbench:library-changed', load)
     return () => { current = false; window.removeEventListener('workbench:library-changed', load) }
   }, [])
+  const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [conversationTarget, setConversationTarget] = useState<string | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [conversationDocuments, setConversationDocuments] = useState<LibrarySelection>({ documentIds: [], folders: [] })
   const [documentTarget, setDocumentTarget] = useState<DocumentReference | null>(null)
-  const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
   const [agents, setAgents] = useState<AgentTool[]>([])
   const [capabilityAgent, setChosenAgent] = useState('codex')
@@ -67,11 +68,15 @@ function App() {
     void Promise.all([listAgentTools(), getCapabilityAgent()]).then(([tools, chosen]) => { setAgents(tools); setChosenAgent(chosen) })
   }
   useEffect(refreshAgents, [])
+  const codexAvailable = agents.some(agent => agent.id === 'codex' && agent.detected && agent.signIn.state !== 'out')
+  useEffect(() => { taskBoardAgent.setAvailable(codexAvailable) }, [codexAvailable])
+
 
   const refreshCapabilities = async () => {
     try {
       setInstalledCapabilities(await getInstalledCapabilityPackagesWithState())
       await taskRunner.initialize()
+      taskBoardAgent.start()
     } catch {
       showNotice(t('capabilitiesLoadFailed'))
     }
@@ -159,11 +164,11 @@ function App() {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
-              {view !== 'library' && <Topbar onOpenCommand={() => setCommandOpen(true)} />}
-              <div className="page-wrap">
-              {view === 'today' && <TodayPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} onDocument={openDocument} onTask={(id) => { setTaskTarget(id); navigate('tasks') }} agents={agents} capabilityAgent={capabilityAgent} />}
-              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
-              {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
+              {view !== 'library' && view !== 'today' && <Topbar onOpenCommand={() => setCommandOpen(true)} />}
+              <div className={view === 'today' ? 'page-wrap task-board-wrap' : 'page-wrap'}>
+              {view === 'today' && <TaskBoardPage targetId={taskTarget} onTargetConsumed={() => setTaskTarget(null)} language={language} agentAvailable={codexAvailable} onConversation={id => { setConversationTarget(id); navigate('conversations') }} toolbar={<Topbar onOpenCommand={() => setCommandOpen(true)} />} />}
+              {view === 'conversations' && <ConversationPage onTask={id => { setTaskTarget(id); navigate('today') }} onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
+              {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
               {view === 'library' && <LibraryPage onOpenCommand={() => setCommandOpen(true)} organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}

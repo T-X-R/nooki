@@ -178,3 +178,11 @@ dialog.conversation-document-dialog[open] { display: flex; flex-direction: colum
 .conversation-folder-name, .conversation-folder-source { display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; font-size: 12px; }
 .conversation-folder-name small, .conversation-folder-source small { color: var(--ink-muted); margin-left: 5px; }
 .conversation-folder-source { margin-bottom: 8px; }
+
+.conversation-goal-request pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.conversation-request-actions, .conversation-request-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+
+.conversation-task-card { max-width: var(--conversation-width); margin: 0 auto 20px; }
+.conversation-task-card button { display: block; width: min(360px, 85%); min-height: 72px; margin-left: auto; padding: 20px 24px; border: 1px solid var(--line); border-radius: 12px 12px 3px 12px; background: var(--accent-wash); color: var(--ink); font-size: 14px; font-weight: 550; line-height: 1.65; overflow-wrap: anywhere; text-align: left; }
+.conversation-task-card button:hover { border-color: var(--accent); color: var(--accent-strong); }
+.conversation-task-card button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

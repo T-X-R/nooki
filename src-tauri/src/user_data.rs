@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, io::Write, path::{Component, Path}};
 use tauri::Manager;
 
-const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "capability-tool-threads.json", "agent-sessions", "tasks.json"];
+const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "capability-tool-threads.json", "agent-sessions", "tasks.json", "task-board.json", "task-inputs", "task-outputs"];
 const LIMIT: usize = 128_000_000;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +28,7 @@ fn collect(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) -> Re
   } else {
     let name = path.strip_prefix(root).map_err(|e| e.to_string())?.to_string_lossy().into_owned();
     if name.starts_with("conversation-workspaces/") && (name.split('/').count() != 3 || !["md", "txt"].iter().any(|ext| name.to_ascii_lowercase().ends_with(&format!(".{ext}")))) { return Ok(()); }
+    if name.starts_with("task-outputs/") && (name.split('/').count() != 3 || !["md", "txt"].iter().any(|ext| name.ends_with(&format!(".{ext}")))) { return Ok(()); }
     if name.starts_with("agent-sessions/") && (name.split('/').count() != 2 || !name.to_ascii_lowercase().ends_with(".jsonl")) { return Ok(()); }
     if name.ends_with(".pending") || name.ends_with(".tmp") { return Ok(()); }
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
@@ -37,6 +38,7 @@ fn collect(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) -> Re
   Ok(())
 }
 pub fn capture(root: &Path, local_storage: BTreeMap<String, String>, capabilities: serde_json::Value) -> Result<Backup, String> {
+  let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; try the backup again")?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
   let mut files = BTreeMap::new();
   for name in ROOTS { collect(root, &root.join(name), &mut files)?; }
@@ -49,7 +51,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
   serde_json::from_value::<Vec<crate::capability_runtime::InstalledCapability>>(backup.capabilities.clone()).map_err(|_| "Invalid capability inventory")?;
   if backup.files.len() > 100_000 || backup.files.values().chain(backup.local_storage.values()).map(String::len).sum::<usize>() > LIMIT { return Err("Backup exceeds 128 MB".into()); }
   for (name, content) in &backup.files {
-    if !safe_path(name) || !(name.ends_with(".json") || name.ends_with(".md") || (name.starts_with("conversation-workspaces/") && (name.to_ascii_lowercase().ends_with(".txt") || name.to_ascii_lowercase().ends_with(".md"))) || (name.starts_with("agent-sessions/") && name.to_ascii_lowercase().ends_with(".jsonl"))) { return Err("Invalid backup path".into()); }
+    if !safe_path(name) || !(name.ends_with(".json") || name.ends_with(".md") || (name.starts_with("task-outputs/") && name.ends_with(".txt")) || (name.starts_with("conversation-workspaces/") && (name.to_ascii_lowercase().ends_with(".txt") || name.to_ascii_lowercase().ends_with(".md"))) || (name.starts_with("agent-sessions/") && name.to_ascii_lowercase().ends_with(".jsonl"))) { return Err("Invalid backup path".into()); }
     if name.ends_with(".json") { serde_json::from_str::<serde_json::Value>(content).map_err(|_| format!("Invalid JSON in {name}"))?; }
     if name.starts_with("document-history/") {
       let doc: document_library::LibraryDocument = serde_json::from_str(content).map_err(|_| "Invalid document history")?;
@@ -75,6 +77,10 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
     }
     if key == "personal-workbench-preferences" && !parsed["state"].is_object() { return Err("Invalid interface preferences".into()); }
   }
+  if let Some(board) = backup.files.get("task-board.json") {
+    let board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
+    validate_task_board(&board)?;
+  }
   if let Some(tasks) = backup.files.get("tasks.json") {
     let parsed: serde_json::Value = serde_json::from_str(tasks).map_err(|e| e.to_string())?;
     let tasks = parsed.as_array().ok_or("Invalid task history")?;
@@ -83,6 +89,57 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
         || !task["checkpoints"].is_object() || !task["attempt"].is_u64()
         || !["running", "completed", "failed", "cancelled", "interrupted"].contains(&task["status"].as_str().unwrap_or("")) { return Err("Invalid task record".into()); }
     }
+  }
+  Ok(())
+}
+pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), String> {
+  let cards = board["cards"].as_array().ok_or("Invalid task board")?;
+  let mut ids = std::collections::HashSet::new();
+  if let Some(paused) = board.get("paused") {
+    if !paused.is_boolean() { return Err("Invalid task board pause state".into()); }
+  }
+  for card in cards {
+    let id = card["id"].as_str().filter(|id| !id.is_empty()).ok_or("Invalid task card ID")?;
+    let title = card["title"].as_str().filter(|title| !title.trim().is_empty() && title.chars().count() <= 120);
+    let description = card["description"].as_str().filter(|text| text.chars().count() <= 20_000);
+    let status = card["status"].as_str().unwrap_or("");
+    if !ids.insert(id) || title.is_none() || description.is_none()
+      || !["todo", "queued", "running", "question", "review", "stopped", "done", "paused", "pausing", "stopping", "blocked", "usageLimited", "budgetLimited"].contains(&status) {
+      return Err("Invalid task card".into());
+    }
+    if card["engine"] == "goals" {
+      if id.len() > 100 || !id.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') { return Err("Invalid goal task identity".into()); }
+      if let Some(execution) = card.get("execution") {
+        if !execution["cwd"].as_str().is_some_and(|s| Path::new(s).is_absolute()) || execution["sandbox"] != "workspace-write" || execution["approvalPolicy"] != "on-request" || execution["config"]["features.goals"] != true {
+          return Err("Invalid goal execution contract".into());
+        }
+      }
+    }
+    for field in ["threadId", "runId", "followUp", "error"] {
+      if card.get(field).is_some_and(|value| !value.is_string()) { return Err("Invalid task card metadata".into()); }
+    }
+    if card.get("queuedAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task queue position".into()); }
+    if card.get("createdAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task creation date".into()); }
+    if let Some(sources) = card.get("sources") {
+      let sources = sources.as_array().filter(|sources| sources.len() <= 50).ok_or("Invalid task references")?;
+      for source in sources {
+        document_library::validate_id(source["id"].as_str().ok_or("Invalid task reference")?)?;
+        if !source["title"].is_string() { return Err("Invalid task reference title".into()); }
+      }
+    }
+    if let Some(delivery) = card.get("delivery") {
+      let artifacts = delivery["artifacts"].as_array().ok_or("Invalid task delivery")?;
+      if !delivery["text"].is_string() || delivery.get("question").is_some_and(|value| !value.is_boolean())
+        || artifacts.iter().any(|artifact| ["id", "name", "content"].iter().any(|key| !artifact[key].is_string())) {
+        return Err("Invalid task delivery".into());
+      }
+    }
+    if let Some(auth) = card.get("authorization") {
+      let snapshot = auth["snapshotId"].as_str().filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-'));
+      let docs = auth["documentIds"].as_array().filter(|docs| docs.len() <= 50).ok_or("Invalid task sources")?;
+      if snapshot.is_none() { return Err("Invalid task snapshot".into()); }
+      for doc in docs { document_library::validate_id(doc.as_str().ok_or("Invalid task source")?)?; }
+    } else if card["engine"] != "goals" && !matches!(status, "todo" | "done") { return Err("Task delegation is missing".into()); }
   }
   Ok(())
 }
@@ -120,6 +177,13 @@ pub fn restored_id(root: &Path) -> Result<Option<String>, String> {
   serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map(Some).map_err(|e| e.to_string())
 }
 pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), String> {
+  let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; stop tasks before restoring")?;
+  if root.join("task-board.json").exists() {
+    let board: serde_json::Value = serde_json::from_slice(&fs::read(root.join("task-board.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    if board["cards"].as_array().into_iter().flatten().any(|card| card["engine"] == "goals" && (card["activeTurn"] == true || !matches!(card["status"].as_str(), Some("queued" | "paused" | "stopped" | "review" | "done")))) {
+      return Err("Stop background goals and wait for confirmation before restoring data".into());
+    }
+  }
   let _guard = DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
   validate(backup)?;
   if transaction.is_empty() || transaction.len() > 100 || !transaction.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid restore transaction".into()); }
@@ -127,6 +191,19 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   let directory = root.join(".data-restore");
   let next = directory.join("next");
   write_files(&next, &backup.files)?;
+  if let Some(board) = backup.files.get("task-board.json") {
+    let mut board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
+    // Importing an archive does not authorize new agent execution on this machine.
+    board["paused"] = serde_json::Value::Bool(true);
+    for card in board["cards"].as_array_mut().into_iter().flatten().filter(|c| c["engine"] == "goals" && c["status"] != "done") {
+      card["status"] = serde_json::json!("paused");
+      card["intent"] = serde_json::json!("pause");
+      card["restored"] = serde_json::json!(true);
+      card["activeTurn"] = serde_json::json!(false);
+      card["requests"] = serde_json::json!([]);
+    }
+    library_management::write_json(&next.join("task-board.json"), &board)?;
+  }
   // Read every document before touching existing data, including legacy records.
   for doc in document_library::list_unlocked(&next)? {
     document_library::read_unlocked(&next, &doc.id)?;

@@ -1,3 +1,5 @@
+pub mod task_goals;
+pub mod task_worker;
 pub mod codex_conversations;
 mod codex_background;
 pub mod conversation_documents;
@@ -200,35 +202,69 @@ fn capability_documents_publish(
 }
 
 #[tauri::command]
-async fn conversation_list(cursor: Option<String>, archived: Option<bool>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
-  bridge.list(cursor, archived.unwrap_or(false)).await
+async fn conversation_list(cursor: Option<String>, archived: Option<bool>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  let first_page = cursor.is_none();
+  let mut page = bridge.list(cursor, archived.unwrap_or(false)).await?;
+  let cards = task_goals::conversation_cards(state.data_dir())?;
+  let data = page["data"].as_array_mut().ok_or("Invalid conversation page")?;
+  data.retain(|thread| !cards.iter().any(|card| card["threadId"] == thread["id"]));
+  if first_page {
+    data.extend(cards.iter().filter(|card| (card["archived"] == true) == archived.unwrap_or(false)).map(task_goals::conversation_summary));
+  }
+  Ok(page)
 }
 #[tauri::command]
-async fn conversation_change(id: String, action: codex_conversations::ConversationAction, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
-  bridge.change(&id, action).await
+async fn conversation_change(id: String, action: codex_conversations::ConversationAction, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  if let Some(card) = task_goals::conversation_card(state.data_dir(), &id)? {
+    let op = match action {
+      codex_conversations::ConversationAction::Archive => "archive",
+      codex_conversations::ConversationAction::Restore => "unarchive",
+      codex_conversations::ConversationAction::Delete => return Err("关联任务的执行会话不支持单独删除 / Linked task conversations cannot be deleted separately".into()),
+    };
+    let board = task_worker::request(state.data_dir(), serde_json::json!({"op":op,"id":card["id"]})).await?;
+    return board["cards"].as_array().and_then(|cards| cards.iter().find(|c| c["id"] == card["id"])).map(task_goals::conversation_summary).ok_or("Task conversation missing".into());
+  }
+  bridge.change(&id, action).await?;
+  Ok(serde_json::Value::Null)
 }
 #[tauri::command]
 async fn conversation_create(state: tauri::State<'_, PlatformState>, pool: tauri::State<'_, skill_pool::SkillPool>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   bridge.create(&resolved_agent(&state, &pool)?).await
 }
 #[tauri::command]
-async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+async fn conversation_create_board_thread(title: String, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  bridge.create_board_thread(&title).await
+}
+#[tauri::command]
+async fn conversation_read(id: String, cursor: Option<String>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  if let Some(card) = task_goals::conversation_card(state.data_dir(), &id)? {
+    return task_worker::request(state.data_dir(), serde_json::json!({"op":"history","id":card["id"]})).await;
+  }
   bridge.read(&id, cursor).await
 }
 #[tauri::command]
-async fn conversation_answer_question(thread_id: String, turn_id: String, item_id: String, answers: Vec<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+async fn conversation_answer_question(thread_id: String, turn_id: String, item_id: String, answers: Vec<String>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+  if let Some(card) = task_goals::conversation_card(state.data_dir(), &thread_id)? {
+    let answers: serde_json::Map<String, serde_json::Value> = answers.iter().enumerate().map(|(i, a)| (i.to_string(), serde_json::json!({"answers":[a]}))).collect();
+    return task_worker::request(state.data_dir(), serde_json::json!({"op":"reply","id":card["id"],"requestId":format!("async-answer-{item_id}"),"answers":answers})).await.map(|_| ());
+  }
   bridge.answer_question(&thread_id, &turn_id, &item_id, &answers).await
 }
 #[tauri::command]
-async fn conversation_reconnect(thread_id: String, request_id: String, execution_id: String, bridge: tauri::State<'_, conversation_host::ConversationHost>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+async fn conversation_reconnect(thread_id: String, request_id: String, execution_id: String, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  if task_goals::conversation_card(state.data_dir(), &thread_id)?.is_some() { return Err("This task conversation reconnects through its background Goal worker".into()); }
   bridge.reconnect(&thread_id, &request_id, executions.token(&execution_id)?).await
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
+struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] task_board: bool, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
 #[tauri::command]
-async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
-  bridge.run(&conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents, skills: request.skills }, &pool, executions.token(&request.execution_id)?).await
+async fn conversation_run(request: ConversationRequest, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  if task_goals::conversation_card(state.data_dir(), &request.thread_id)?.is_some() { return Err("This task conversation is controlled by its background Goal worker".into()); }
+  let cancelled = executions.token(&request.execution_id)?;
+  let input = conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents, skills: request.skills };
+  if request.task_board { bridge.run_board(&input, cancelled).await }
+  else { bridge.run(&input, &pool, cancelled).await }
 }
 #[tauri::command]
 fn library_capture_sources(id: String, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<Vec<source_snapshots::SnapshotDocument>, String> {
@@ -419,6 +455,31 @@ fn tasks_write(records: Vec<serde_json::Value>, state: tauri::State<'_, Platform
 }
 
 #[tauri::command]
+async fn task_board_choose_directory(window: tauri::WebviewWindow) -> Result<Option<String>, String> {
+  let (sender, receiver) = tokio::sync::oneshot::channel();
+  window.app_handle().clone().run_on_main_thread(move || {
+    let dialog = rfd::AsyncFileDialog::new().set_parent(&window).pick_folder();
+    tauri::async_runtime::spawn(async move { let _ = sender.send(dialog.await.map(|file| file.path().to_string_lossy().into_owned())); });
+  }).map_err(|e| e.to_string())?;
+  receiver.await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn task_board_command(request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  task_worker::request(state.data_dir(), request).await
+}
+
+#[tauri::command]
+async fn task_board_read(state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  task_worker::request(state.data_dir(), serde_json::json!({"op":"read"})).await
+}
+
+#[tauri::command]
+async fn task_board_write(board: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  task_worker::request(state.data_dir(), serde_json::json!({"op":"legacy","board":board})).await
+}
+
+#[tauri::command]
 fn task_cancel_invocation(id: String, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<(), String> {
   executions.cancel(&id)
 }
@@ -501,13 +562,14 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
-      conversation_list, conversation_change, conversation_create, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
+      conversation_list, conversation_change, conversation_create, conversation_create_board_thread, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
       library_management::library_history,
       user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown, user_data::conversation_export_document,
       tasks_read,
       tasks_write,
+      task_board_read, task_board_write, task_board_command, task_board_choose_directory,
       task_cancel_invocation,
       capability_broker_ready,
       capability_broker_respond,

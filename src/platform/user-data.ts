@@ -3,11 +3,12 @@ import type { LibraryDocument, Organization } from './library-store.ts'
 import { invoke } from '@tauri-apps/api/core'
 import { readLibraryDocument } from './document-library.ts'
 import { taskRunner } from './tasks.ts'
+import { taskBoard } from '../features/task-board/task-board.ts'
 import { createDataRestore, restoreJournalKey } from './data-restore.ts'
 
 export type DataBackup = { format: string; version: number; createdAt: string; files: Record<string, string>; localStorage: Record<string, string>; capabilities: unknown }
 export const isUserDataKey = (key: string) => key.startsWith('personal-workbench:capability:') || key === 'personal-workbench:activity-events' || key === 'personal-workbench-preferences' || key === 'personal-workbench-library-drafts-v1'
-const previewKeys = ['personal-workbench-library-v2', 'personal-workbench-document-library', 'personal-workbench-tasks-v1', 'personal-workbench-document-grants-v1']
+const previewKeys = ['personal-workbench-library-v2', 'personal-workbench-document-library', 'personal-workbench-tasks-v1', 'personal-workbench-document-grants-v1', 'personal-workbench-task-board']
 const owned = (key: string) => isUserDataKey(key) || (!window.__TAURI_INTERNALS__ && (previewKeys.includes(key) || key.startsWith('workbench-source-snapshot:')))
 export function localUserData(): Record<string, string> {
   return Object.fromEntries(Object.keys(localStorage).filter(owned).map((key) => [key, localStorage.getItem(key)!]))
@@ -25,13 +26,13 @@ export async function exportMarkdown(id: string): Promise<boolean> {
   return true
 }
 export async function exportUserData(): Promise<string> {
-  return taskRunner.withMaintenance(async () => {
+  return taskBoard.withMaintenance(() => taskRunner.withMaintenance(async () => {
     const localStorage = localUserData()
     if (window.__TAURI_INTERNALS__) return invoke<string>('user_data_export', { localStorage })
     const backup: DataBackup = { format: 'workbench-preview-data', version: 1, createdAt: new Date().toISOString(), files: {}, localStorage, capabilities: [] }
     downloadText(`Nooki-preview-${Date.now()}.workbench.json`, JSON.stringify(backup))
     return '浏览器预览数据已下载 / Browser preview backup downloaded'
-  })
+  }))
 }
 export function parseBackup(text: string): DataBackup {
   if (new TextEncoder().encode(text).length > 160_000_000) throw new Error('备份过大 / Backup is too large')
@@ -55,7 +56,7 @@ export async function recoverLocalRestore() {
   await createDataRestore(localStorage, owned, window.__TAURI_INTERNALS__ ? { commit: async () => {}, committedId: () => invoke<string | null>('user_data_restored_id') } : undefined).recover()
 }
 export async function restoreUserData(backup: DataBackup): Promise<void> {
-  return taskRunner.withMaintenance(async () => {
+  return taskBoard.withMaintenance(() => taskRunner.withMaintenance(async () => {
     try { await createDataRestore(localStorage, owned, window.__TAURI_INTERNALS__ ? {
       commit: (transaction) => invoke('user_data_restore', { backup, transaction }),
       committedId: () => invoke<string | null>('user_data_restored_id'),
@@ -64,5 +65,5 @@ export async function restoreUserData(backup: DataBackup): Promise<void> {
       throw error
     }
     window.location.reload()
-  })
+  }))
 }
