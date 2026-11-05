@@ -231,6 +231,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             </div>
             {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
             <TaskReferences zh={zh} sources={card.sources ?? []} />
+            {card.engine === 'goals' && <dl className="task-board-workspace"><dt>{zh ? '工作目录' : 'Workspace'}</dt><dd>{card.execution?.cwd || card.cwd || (zh ? '接单时创建独立任务目录' : 'A dedicated workspace will be created on pickup')}</dd></dl>}
             {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>

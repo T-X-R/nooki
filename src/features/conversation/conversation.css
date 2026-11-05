@@ -181,3 +181,11 @@ dialog.conversation-document-dialog[open] { display: flex; flex-direction: colum
 
 .conversation-goal-request pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
 .conversation-request-actions, .conversation-request-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+
+.conversation-task-card { max-width: var(--conversation-width); margin: 0 auto 28px; padding: 20px 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-strong); overflow-wrap: anywhere; }
+.conversation-task-card header { color: var(--ink-soft); font-size: 10px; }
+.conversation-task-card h2 { margin: 8px 0 12px; font-size: 17px; font-weight: 600; line-height: 1.5; }
+.conversation-task-card > p { margin: 0; white-space: pre-wrap; font-size: 12px; line-height: 1.9; }
+.conversation-task-card dl { display: grid; gap: 6px; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.7; }
+.conversation-task-card dt { color: var(--ink-soft); }
+.conversation-task-card dd { margin: 0; color: var(--ink-muted); }

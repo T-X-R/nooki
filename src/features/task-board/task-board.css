@@ -117,3 +117,6 @@
 .task-goal-workspace { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-top: 18px; padding: 20px 24px; border-radius: 14px; background: var(--surface-strong); box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 3%, transparent); }
 .task-goal-workspace label { min-width: 0; gap: 10px; }
 .task-goal-workspace .secondary-button { height: 39px; white-space: nowrap; }
+.task-board-workspace { display: grid; gap: 8px; margin: 0; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.8; }
+.task-board-workspace dt { color: var(--ink-soft); }
+.task-board-workspace dd { margin: 0; color: var(--ink-muted); overflow-wrap: anywhere; }

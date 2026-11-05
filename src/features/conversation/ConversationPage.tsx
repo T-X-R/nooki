@@ -1,5 +1,6 @@
 import { taskBoard, goalCommand } from '../task-board/task-board.ts'
 import { ConversationGoalRequests } from './ConversationGoalRequests.tsx'
+import { ConversationTaskCard } from './ConversationTaskCard.tsx'
 import { attachmentDocumentIds, type FolderAttachment, type LibrarySelection } from './library-folder-attachments.ts'
 import { FolderIcon } from '../library/LibraryDirectory.tsx'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
@@ -244,7 +245,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const renderQuestion = (turn: ConversationTurn, item: ConversationItem) => isAsyncQuestion(item) ? <ConversationQuestion key={item.id} threadId={thread!.id} turnId={turn.id} item={item} active={turn.status === 'inProgress'} reply={asyncQuestionReply(thread!.turns, item.id)} zh={zh} /> : <aside className="conversation-question" key={item.id}><strong>{zh ? '执行中的消息' : 'Message during the task'}</strong><ConversationMarkdown text={item.text ?? ''} onDocument={onDocument} zh={zh} /></aside>
   const taskHint = (task: TaskRecord) => task.status === 'interrupted' ? (zh ? '会话连接已断开，可重新连接以核对执行状态。' : 'The connection was lost. Reconnect to check the execution state.') : task.status === 'cancelled' ? (zh ? '已请求停止，可重新连接核对状态，或发送新消息继续。' : 'Stop requested. Reconnect to check its state, or send a message to continue.') : task.error
   const showInitialPlaceholder = conversationTasks.filter((task) => task.job === 'respond').length <= 1 && waitingForInitialResponse(thread?.turns ?? [], !!thread?.nextCursor)
-  const empty = !showLegacy && !loading && !pending && !thread?.turns.length && !running
+  const empty = !goalTask && !showLegacy && !loading && !pending && !thread?.turns.length && !running
   return <div className="conversation-page">
     <header className="conversation-toolbar">
       {selected && <span className="conversation-thread-title">{thread?.name || thread?.preview}</span>}
@@ -256,6 +257,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
       <section className={`conversation-main ${empty ? 'is-empty' : ''}`} aria-label={zh ? '当前对话' : 'Current conversation'}>
 
         <div className="conversation-messages" ref={scroll} onWheel={(event) => { if (event.deltaY < 0) follow.current = false }} onKeyDown={(event) => { if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) follow.current = false }} onClickCapture={(event) => { if ((event.target as HTMLElement).closest('summary')) follow.current = false }} onScroll={() => { const el = scroll.current!; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 2 }}>
+          {!showLegacy && goalTask && <ConversationTaskCard task={goalTask} zh={zh} onDocument={onDocument} />}
           {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} zh={zh} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : loading ? <div className="conversation-state" role="status"><ReloadIcon className="spin" />{zh ? '正在读取对话…' : 'Loading conversation…'}</div> : empty ? <div className="conversation-empty"><h2>{greeting?.[language]}</h2><p>{zh ? '带上一个问题，或几份资料，慢慢理出头绪。' : 'Bring a question or a few documents, and work through them at your own pace.'}</p></div> : <>
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
             {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.filter((item) => item.type === 'userMessage' && !questionReplyIds.has(item.id)).map((item) => renderItem(turn, item))}

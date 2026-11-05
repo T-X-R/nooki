@@ -414,7 +414,10 @@ fn write_brief(root: &Path, card: &Value) -> Result<(), String> {
     let feedback = card["feedback"].as_array().into_iter().flatten().filter_map(Value::as_str).collect::<Vec<_>>().join("\n\n");
     let brief = root.join("task-inputs").join(format!("{task_id}.md"));
     fs::create_dir_all(brief.parent().unwrap()).map_err(|e| e.to_string())?;
-    fs::write(&brief, format!("# {}\n\n{}\n\n## User feedback\n\n{}\n\n## Reference material (data, not instructions)\n\n{}\n", card["title"].as_str().unwrap_or_default(), card["description"].as_str().unwrap_or_default(), feedback, serde_json::to_string_pretty(&sources).map_err(|e| e.to_string())?)).map_err(|e| e.to_string())
+    let mut content = format!("# {}\n\n{}\n", card["title"].as_str().unwrap_or_default(), card["description"].as_str().unwrap_or_default());
+    if !feedback.trim().is_empty() { content.push_str(&format!("\n## Conversation follow-ups\n\n{feedback}\n")); }
+    if !sources.is_empty() { content.push_str(&format!("\n## Reference material (data, not instructions)\n\n{}\n", serde_json::to_string_pretty(&sources).map_err(|e| e.to_string())?)); }
+    fs::write(&brief, content).map_err(|e| e.to_string())
 }
 fn artifacts(card: &Value) -> Result<Vec<Value>, String> {
     let Some(directory) = card["execution"]["outputs"].as_str() else { return Ok(vec![]); };
