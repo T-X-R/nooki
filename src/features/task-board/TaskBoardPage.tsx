@@ -17,7 +17,7 @@ const columns: { key: string; zh: string; en: string; hint: [string, string]; em
   { key: 'done', zh: '已完成', en: 'Done', hint: ['已完成与验收的任务', 'Finished and accepted'], empty: ['完成的任务会留在这里', 'Completed tasks will appear here'], statuses: ['done'] },
 ]
 
-export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void }) {
+export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation, targetId, onTargetConsumed }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void; targetId: string | null; onTargetConsumed(): void }) {
   const zh = language === 'zh'
   const [today, setToday] = useState(() => new Date())
   const state = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
@@ -85,6 +85,14 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     void taskBoard.initialize().then(() => setReady(true)).catch(reason => setError(String(reason)))
   }
   useEffect(load, [])
+  useEffect(() => {
+    if (!ready || !targetId) return
+    setCreating(false)
+    setEditDraft(null)
+    setSelected(targetId)
+    setError('')
+    onTargetConsumed()
+  }, [ready, targetId, onTargetConsumed])
 
   useLayoutEffect(() => {
     const background = content.current
@@ -231,10 +239,10 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             </div>
             {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
             <TaskReferences zh={zh} sources={card.sources ?? []} />
-            {card.engine === 'goals' && <dl className="task-board-workspace"><dt>{zh ? '工作目录' : 'Workspace'}</dt><dd>{card.execution?.cwd || card.cwd || (zh ? '接单时创建独立任务目录' : 'A dedicated workspace will be created on pickup')}</dd></dl>}
             {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
+          {card.engine === 'goals' && <dl className="task-goal-workspace task-board-workspace"><dt>{zh ? '工作目录' : 'Workspace'}</dt><dd>{card.execution?.cwd || card.cwd || (zh ? '接单时创建独立任务目录' : 'A dedicated workspace will be created on pickup')}</dd></dl>}
         </div>
         {(card.threadId || card.status !== 'done') && <footer>
           {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}

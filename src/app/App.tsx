@@ -40,6 +40,7 @@ function App() {
     load(); window.addEventListener('workbench:library-changed', load)
     return () => { current = false; window.removeEventListener('workbench:library-changed', load) }
   }, [])
+  const [taskTarget, setTaskTarget] = useState<string | null>(null)
   const [conversationTarget, setConversationTarget] = useState<string | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [conversationDocuments, setConversationDocuments] = useState<LibrarySelection>({ documentIds: [], folders: [] })
@@ -165,8 +166,8 @@ function App() {
             >
               {view !== 'library' && view !== 'today' && <Topbar onOpenCommand={() => setCommandOpen(true)} />}
               <div className={view === 'today' ? 'page-wrap task-board-wrap' : 'page-wrap'}>
-              {view === 'today' && <TaskBoardPage language={language} agentAvailable={codexAvailable} onConversation={id => { setConversationTarget(id); navigate('conversations') }} toolbar={<Topbar onOpenCommand={() => setCommandOpen(true)} />} />}
-              {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
+              {view === 'today' && <TaskBoardPage targetId={taskTarget} onTargetConsumed={() => setTaskTarget(null)} language={language} agentAvailable={codexAvailable} onConversation={id => { setConversationTarget(id); navigate('conversations') }} toolbar={<Topbar onOpenCommand={() => setCommandOpen(true)} />} />}
+              {view === 'conversations' && <ConversationPage onTask={id => { setTaskTarget(id); navigate('today') }} onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
               {view === 'library' && <LibraryPage onOpenCommand={() => setCommandOpen(true)} organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}

@@ -54,7 +54,7 @@ function TurnProcess({ turn, zh, children }: { turn: ConversationTurn; zh: boole
   </details>
 }
 
-export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void }) {
+export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument, onTask }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void; onTask(id: string): void }) {
   const zh = language === 'zh'
   const board = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
@@ -257,7 +257,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
       <section className={`conversation-main ${empty ? 'is-empty' : ''}`} aria-label={zh ? '当前对话' : 'Current conversation'}>
 
         <div className="conversation-messages" ref={scroll} onWheel={(event) => { if (event.deltaY < 0) follow.current = false }} onKeyDown={(event) => { if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) follow.current = false }} onClickCapture={(event) => { if ((event.target as HTMLElement).closest('summary')) follow.current = false }} onScroll={() => { const el = scroll.current!; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 2 }}>
-          {!showLegacy && goalTask && <ConversationTaskCard task={goalTask} zh={zh} onDocument={onDocument} />}
+          {!showLegacy && goalTask && <ConversationTaskCard task={goalTask} zh={zh} onOpen={onTask} />}
           {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} zh={zh} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : loading ? <div className="conversation-state" role="status"><ReloadIcon className="spin" />{zh ? '正在读取对话…' : 'Loading conversation…'}</div> : empty ? <div className="conversation-empty"><h2>{greeting?.[language]}</h2><p>{zh ? '带上一个问题，或几份资料，慢慢理出头绪。' : 'Bring a question or a few documents, and work through them at your own pace.'}</p></div> : <>
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
             {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.filter((item) => item.type === 'userMessage' && !questionReplyIds.has(item.id)).map((item) => renderItem(turn, item))}
