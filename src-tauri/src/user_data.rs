@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, io::Write, path::{Component, Path}};
 use tauri::Manager;
 
-const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "capability-tool-threads.json", "agent-sessions", "tasks.json"];
+const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "capability-tool-threads.json", "agent-sessions", "tasks.json", "task-board.json"];
 const LIMIT: usize = 128_000_000;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,6 +74,18 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
       if events.iter().any(|event| ["id", "type", "title", "source", "occurredAt"].iter().any(|field| !event[field].is_string())) { return Err("Invalid activity record".into()); }
     }
     if key == "personal-workbench-preferences" && !parsed["state"].is_object() { return Err("Invalid interface preferences".into()); }
+  }
+  if let Some(board) = backup.files.get("task-board.json") {
+    let board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
+    let cards = board["cards"].as_array().ok_or("Invalid task board")?;
+    let mut ids = std::collections::HashSet::new();
+    for card in cards {
+      let id = card["id"].as_str().filter(|id| !id.is_empty()).ok_or("Invalid task card ID")?;
+      if !ids.insert(id) || !card["title"].is_string() || !card["description"].is_string()
+        || !["todo", "queued", "running", "question", "review", "stopped", "done"].contains(&card["status"].as_str().unwrap_or("")) {
+        return Err("Invalid task card".into());
+      }
+    }
   }
   if let Some(tasks) = backup.files.get("tasks.json") {
     let parsed: serde_json::Value = serde_json::from_str(tasks).map_err(|e| e.to_string())?;

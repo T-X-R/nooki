@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarIcon, ChevronRightIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, Pencil2Icon, SunIcon } from '@radix-ui/react-icons'
+import { DashboardIcon, ChevronRightIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, Pencil2Icon, SunIcon } from '@radix-ui/react-icons'
 import type { InstalledCapability } from '../platform/capability-host.ts'
 import { LibraryNavigation } from '../features/library/LibraryNavigation.tsx'
 import { ConversationNavigation } from '../features/conversation/ConversationNavigation.tsx'
@@ -40,7 +40,7 @@ export function Sidebar({ activeConversationId, onOpenConversation, activeView, 
             <span className="nav-item-main"><Pencil2Icon />{language === 'zh' ? '创建会话' : 'New conversation'}</span>
           </button>
           <button className={`nav-item ${activeView === 'today' ? 'is-active' : ''}`} aria-current={activeView === 'today' ? 'page' : undefined} onClick={() => onNavigate('today')}>
-            <span className="nav-item-main"><CalendarIcon />{t('today')}</span>
+            <span className="nav-item-main"><DashboardIcon />{t('today')}</span>
           </button>
           <button className={`nav-item ${activeView === 'skills' ? 'is-active' : ''}`} aria-current={activeView === 'skills' ? 'page' : undefined} onClick={() => onNavigate('skills')}>
             <span className="nav-item-main"><LayersIcon />{language === 'zh' ? '技能池' : 'Skill pool'}</span>

@@ -419,6 +419,16 @@ fn tasks_write(records: Vec<serde_json::Value>, state: tauri::State<'_, Platform
 }
 
 #[tauri::command]
+fn task_board_read(state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
+  state.read_task_board()
+}
+
+#[tauri::command]
+fn task_board_write(board: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), String> {
+  state.write_task_board(&board)
+}
+
+#[tauri::command]
 fn task_cancel_invocation(id: String, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<(), String> {
   executions.cancel(&id)
 }
@@ -508,6 +518,7 @@ pub fn run() {
       user_data::user_data_export, user_data::user_data_restore, user_data::user_data_restored_id, user_data::library_export_markdown, user_data::conversation_export_document,
       tasks_read,
       tasks_write,
+      task_board_read, task_board_write,
       task_cancel_invocation,
       capability_broker_ready,
       capability_broker_respond,

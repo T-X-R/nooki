@@ -82,7 +82,7 @@ await page.addInitScript((installed)=>{
 }, installed);
 await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
 await page.getByRole('button',{name:'历史测试会话',exact:true}).waitFor();
-assert.deepEqual(await page.locator('.primary-nav > button .nav-item-main, .primary-nav > div > button .nav-item-main').allTextContents(), ['创建会话', '今日', '技能池', '资料库', '能力']);
+assert.deepEqual(await page.locator('.primary-nav > button .nav-item-main, .primary-nav > div > button .nav-item-main').allTextContents(), ['创建会话', '任务板', '技能池', '资料库', '能力']);
 assert.equal(await page.locator('.sidebar').getByRole('button', {name:'任务',exact:true}).count(), 0);
 assert.equal(await page.locator('.sidebar-content > :last-child').getAttribute('class'), 'nav-conversations sidebar-conversations');
 const capabilitiesToggle = page.getByRole('button', {name:'能力',exact:true});

@@ -264,6 +264,14 @@ impl PlatformState {
     persist_json(&self.data_dir.join("tasks.json"), &records)
   }
 
+  pub fn read_task_board(&self) -> Result<serde_json::Value, String> {
+    load_json(&self.data_dir.join("task-board.json"))
+  }
+
+  pub fn write_task_board(&self, board: &serde_json::Value) -> Result<(), String> {
+    persist_json(&self.data_dir.join("task-board.json"), board)
+  }
+
   pub fn package_payload(&self, id: &str, previous: bool) -> Result<crate::package_installer::PackagePayload, String> {
     let registry = self.registry.read().map_err(|_| "能力注册表暂时不可用")?;
     let installed = registry.capabilities.iter().find(|item| item.manifest.id == id).ok_or("能力尚未安装")?;
