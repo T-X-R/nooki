@@ -124,3 +124,29 @@ test('deleting a running card waits for cancellation and preserves it when cance
   assert.equal(stopped, 1)
   assert.deepEqual(board.snapshot().cards, [])
 })
+
+test('Library references survive reload and withdrawal without changing legacy cards', async () => {
+  let saved = null
+  const storage = { read: async () => saved, write: async state => { saved = structuredClone(state) } }
+  const board = createTaskBoard(storage)
+  const sources = [{ id: 'feedback', title: '试用反馈' }, { id: 'brief', title: 'Product brief' }]
+  const id = await board.add('Read feedback', 'Prepare a draft', sources)
+  sources[0].title = 'Changed outside the board'
+  const reopened = createTaskBoard(storage)
+  await reopened.initialize()
+  assert.deepEqual(reopened.snapshot().cards[0].sources, [
+    { id: 'feedback', title: '试用反馈' }, { id: 'brief', title: 'Product brief' },
+  ])
+  await reopened.delegate(id, { snapshotId: 'snapshot', documentIds: ['feedback', 'brief'] })
+  await reopened.withdraw(id)
+  assert.equal(reopened.snapshot().cards[0].sources.length, 2)
+  const legacy = await reopened.add('No references', '')
+  assert.equal(reopened.snapshot().cards.find(card => card.id === legacy).sources, undefined)
+})
+
+test('task references deduplicate by document ID and enforce the source limit', async () => {
+  const board = createTaskBoard({ read: async () => null, write: async () => {} })
+  await board.add('Same title', '', [{ id: 'a', title: 'Notes' }, { id: 'a', title: 'Notes' }, { id: 'b', title: 'Notes' }])
+  assert.deepEqual(board.snapshot().cards[0].sources.map(source => source.id), ['a', 'b'])
+  await assert.rejects(board.add('Too many sources', '', Array.from({ length: 51 }, (_, index) => ({ id: String(index), title: 'Notes' }))), /references/i)
+})

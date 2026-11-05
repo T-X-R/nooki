@@ -30,7 +30,8 @@ export const respond: TaskJob = {
       const sources = await Promise.all(input.documentIds.map(async (id) => { const doc = await readLibraryDocument(id); return { reference: { kind: 'library-document' as const, documentId: id, title: doc.title, snapshotId: input.snapshotId, revision: doc.updatedAt }, documentDate: doc.documentDate, content: doc.content } }))
       localStorage.setItem(key, JSON.stringify(sources)); return sources
     })
-    const context = libraryContext(documents, true) + folderAttachmentContext(input.folders ?? [])
+    // Board sessions cannot read files with tools, so their captured source text travels inline.
+    const context = libraryContext(documents, !input.boardTask) + folderAttachmentContext(input.folders ?? [])
     if (new TextEncoder().encode(context + input.message).length > 100_000) throw new Error('引用资料过长，请减少资料后重新发送 / Message and references exceed 100 KB')
     return step('codex-turn', async (): Promise<ConversationResult> => {
       signal.throwIfAborted()

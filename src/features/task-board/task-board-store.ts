@@ -1,6 +1,7 @@
 import type { ConversationArtifact } from '../conversation/conversation-documents.ts'
 
 export type BoardAuthorization = { snapshotId: string; documentIds: string[] }
+export type BoardSource = { id: string; title: string }
 export type BoardDelivery = { text: string; artifacts: ConversationArtifact[]; question?: boolean }
 
 export type BoardStatus = 'todo' | 'queued' | 'running' | 'question' | 'review' | 'stopped' | 'done'
@@ -10,6 +11,7 @@ export type BoardCard = {
   title: string
   description: string
   status: BoardStatus
+  sources?: BoardSource[]
   authorization?: BoardAuthorization
   queuedAt?: number
   threadId?: string
@@ -82,12 +84,14 @@ export function createTaskBoard(storage: Storage) {
     },
     snapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
-    async add(title: string, description: string) {
+    async add(title: string, description: string, sources: BoardSource[] = []) {
       title = title.trim()
       description = description.trim()
       if (!title || title.length > 120 || description.length > 20_000) throw new Error('Invalid task title or description')
+      const references = [...new Map(sources.map(source => [source.id, { ...source }])).values()]
+      if (references.length > 50) throw new Error('Too many task references')
       const id = crypto.randomUUID()
-      await change(current => ({ ...current, cards: [...current.cards, { id, title, description, status: 'todo' }] }))
+      await change(current => ({ ...current, cards: [...current.cards, { id, title, description, status: 'todo', ...(references.length ? { sources: references } : {}) }] }))
       return id
     },
     setPaused: (paused: boolean) => change(current => ({ ...current, paused })),
@@ -105,7 +109,7 @@ export function createTaskBoard(storage: Storage) {
     },
     retry: (id: string) => queue(id, card => card.status === 'stopped' && card.authorization ? card : undefined),
     withdraw: (id: string) => updateCard(id, card => ['queued', 'question', 'stopped'].includes(card.status)
-      ? { id: card.id, title: card.title, description: card.description, status: 'todo' } : card),
+      ? { id: card.id, title: card.title, description: card.description, ...(card.sources ? { sources: card.sources } : {}), status: 'todo' } : card),
     complete: (id: string) => updateCard(id, card => ['todo', 'review'].includes(card.status) ? { ...card, status: 'done' } : card),
   }
 }

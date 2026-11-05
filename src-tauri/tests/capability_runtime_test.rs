@@ -167,3 +167,20 @@ fn updating_an_installed_capability_preserves_its_enabled_state() {
   assert_eq!(persisted, vec![updated]);
   fs::remove_dir_all(data_dir).expect("test data should be removed");
 }
+
+#[test]
+fn task_board_references_are_validated_and_survive_native_storage() {
+  let root = test_data_dir("board-references");
+  let state = PlatformState::load(root.clone()).unwrap();
+  let source_id = "workbench.documents/documents/2026/11/notes";
+  let valid = serde_json::json!({"cards":[{"id":"card","title":"Read notes","description":"","status":"todo","sources":[{"id":source_id,"title":"Notes"}]}]});
+  state.write_task_board(&valid).unwrap();
+  assert_eq!(state.read_task_board().unwrap(), valid);
+  for sources in [serde_json::json!("invalid"), serde_json::json!([{"id":"../outside","title":"Notes"}]), serde_json::json!([{"id":source_id,"title":42}]), serde_json::json!(vec![serde_json::json!({"id":source_id,"title":"Notes"}); 51])] {
+    let mut invalid = valid.clone();
+    invalid["cards"][0]["sources"] = sources;
+    assert!(state.write_task_board(&invalid).is_err());
+    assert_eq!(state.read_task_board().unwrap(), valid);
+  }
+  fs::remove_dir_all(root).unwrap();
+}

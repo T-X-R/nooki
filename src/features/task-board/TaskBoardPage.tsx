@@ -1,13 +1,12 @@
-import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, FileTextIcon, Pencil2Icon, PersonIcon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, FileTextIcon, Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { LibraryDocumentMetadata } from '../../platform/library-store.ts'
-import { listLibraryDocuments } from '../../platform/document-library.ts'
 import { taskBoardAgent } from './task-board-agent.ts'
 import type { Language } from '../../shared/i18n.ts'
 import { taskBoard } from './task-board.ts'
-import type { BoardStatus } from './task-board-store.ts'
+import { TaskDescriptionInput } from './TaskDescriptionInput.tsx'
+import type { BoardSource, BoardStatus } from './task-board-store.ts'
 import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
 
@@ -31,9 +30,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   const [busy, setBusy] = useState(false)
   const [response, setResponse] = useState('')
   const [revising, setRevising] = useState(false)
-  const [documents, setDocuments] = useState<LibraryDocumentMetadata[] | null>(null)
-  const [sources, setSources] = useState<string[]>([])
-  const [loadingDocuments, setLoadingDocuments] = useState(false)
+  const [draftSources, setDraftSources] = useState<BoardSource[]>([])
   const board = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLElement>(null)
@@ -80,7 +77,6 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   }
   useEffect(load, [])
   useEffect(() => {
-    setSources([])
     setResponse('')
     setRevising(false)
   }, [selected])
@@ -136,14 +132,6 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     finally { setBusy(false) }
   }
 
-  async function loadDocuments() {
-    if (documents || loadingDocuments) return
-    setLoadingDocuments(true)
-    try { setDocuments(await listLibraryDocuments()) }
-    catch (reason) { setError(String(reason)) }
-    finally { setLoadingDocuments(false) }
-  }
-
   function submitResponse(id: string) {
     return act(async () => {
       await taskBoard.continue(id, response)
@@ -153,7 +141,6 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   }
 
   const statusBadge = (status: BoardStatus) => <span className={`task-board-status ${status}`}>{statuses[status]}</span>
-  const agentName = (delegated: boolean) => delegated ? 'Nooki Agent' : zh ? '自己处理' : 'Personal'
   return <div className="task-board" ref={board} onKeyDown={event => { if (event.key === 'Escape' && open && !event.nativeEvent.isComposing) { event.preventDefault(); close() } }}>
     <div className="task-board-content" ref={content} onClick={event => {
       if (open && event.target instanceof Element && !event.target.closest('button, a, input, textarea, select, label, summary')) close()
@@ -183,7 +170,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
                 setCreating(false)
                 setSelected(item.id)
                 setError('')
-              }}><strong>{item.title}</strong>{item.description && <span className="task-board-card-preview">{item.description}</span>}<span className="task-board-card-meta">{agentName(!!item.authorization)}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span></button>)}
+              }}><strong>{item.title}</strong>{item.description && <span className="task-board-card-preview">{item.description}</span>}{(!!item.sources?.length || ['queued', 'question', 'review', 'stopped'].includes(item.status)) && <span className="task-board-card-meta">{!!item.sources?.length && <span className="task-board-card-source-count"><FileTextIcon />{item.sources.length}</span>}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span>}</button>)}
               {!cards.length && <p className="task-board-empty">{column.empty[zh ? 0 : 1]}</p>}</div>
             </section>
           })}
@@ -192,7 +179,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     </div>
     {open && <aside ref={panel} className={`task-board-panel ${creating ? 'task-board-panel-create' : ''}`} id="task-board-detail" aria-labelledby="task-board-detail-title">
       <header>
-        <div className="task-board-create-heading"><span className="task-board-compose-icon">{creating ? <Pencil2Icon /> : <FileTextIcon />}</span><h2 id={creating ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : (zh ? '任务详情' : 'Task details')}</h2></div>
+        <div className={creating ? 'task-board-create-heading' : 'task-board-detail-heading'}>{creating && <span className="task-board-compose-icon"><Pencil2Icon /></span>}<h2 id={creating ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : (zh ? '任务详情' : 'Task details')}</h2></div>
         <div className="task-board-panel-tools">
           {!creating && card && <button className="icon-button task-board-delete" disabled={busy} aria-label={zh ? '删除任务' : 'Delete task'} title={zh ? '删除任务' : 'Delete task'} onClick={() => void act(async () => {
             await taskBoardAgent.remove(card.id)
@@ -206,37 +193,24 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
       </header>
       {creating ? <form className="task-board-form" onSubmit={event => {
         event.preventDefault()
-        void act(async () => { await taskBoard.add(title, description); setTitle(''); setDescription(''); close() })
+        void act(async () => { await taskBoard.add(title, description, draftSources); setTitle(''); setDescription(''); setDraftSources([]); close() })
       }}>
         <div className="task-board-panel-body">
           <div className="task-board-composer">
             <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
-            <label className="task-board-description-label"><span>{zh ? '任务要求或备注' : 'Task requirements or notes'}</span><textarea value={description} onChange={event => setDescription(event.target.value)} placeholder={zh ? '补充背景、需要的结果，或一条完成标准…' : 'Add context, the result you need, or what success looks like…'} rows={7} maxLength={20_000} /></label>
+            <TaskDescriptionInput zh={zh} value={description} sources={draftSources} onChange={setDescription} onSources={setDraftSources} />
           </div>
           {error && <p className="task-board-error" role="alert">{error}</p>}
         </div>
-        <footer><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
+        <footer><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); setDraftSources([]); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
       </form> : card && <>
         <div className="task-board-panel-body">
           <div className="task-board-detail-intro">
-            <div className="task-board-detail-meta">{statusBadge(card.status)}<span>{card.authorization ? <img src={agentCat} alt="" /> : <PersonIcon />}{agentName(!!card.authorization)}</span></div>
+            {statusBadge(card.status)}
             <h2 id="task-board-detail-title">{card.title}</h2>
-            <ol className="task-board-progress" aria-label={zh ? '任务阶段' : 'Task stages'}>{columns.map(column => <li key={column.key} aria-current={column.statuses.includes(card.status) ? 'step' : undefined}><span /><span>{zh ? column.zh : column.en}</span></li>)}</ol>
           </div>
-          <section className="task-board-requirements"><h3><FileTextIcon />{zh ? '任务要求' : 'Task requirements'}</h3><p className={`task-board-text ${!card.description ? 'task-board-muted' : ''}`}>{card.description || (zh ? '暂无补充说明' : 'No additional notes')}</p></section>
-          {card.status === 'todo' && agentAvailable && <details className="task-board-sources" onToggle={event => { if (event.currentTarget.open) void loadDocuments() }}>
-            <summary>{zh ? '关联资料（可选）' : 'Attach Library documents (optional)'}{sources.length > 0 && ` · ${sources.length}`}</summary>
-            <p>{zh ? '委托时会将所选资料的当前版本提供给 Codex。' : 'Delegating shares a snapshot of the selected documents with Codex.'}</p>
-            {loadingDocuments && <p role="status">{zh ? '正在读取资料…' : 'Loading documents…'}</p>}
-            {documents?.length === 0 && <p>{zh ? '资料库暂无文档。' : 'The Library has no documents.'}</p>}
-            {documents?.map(doc => <label key={doc.id}>
-              <input type="checkbox" checked={sources.includes(doc.id)} disabled={busy || (sources.length >= 50 && !sources.includes(doc.id))} onChange={event => {
-                const checked = event.target.checked
-                setSources(current => checked ? [...current, doc.id] : current.filter(id => id !== doc.id))
-              }} />{doc.title}
-            </label>)}
-          </details>}
-          {!!card.authorization?.documentIds.length && <p className="task-board-muted">{zh ? `已关联 ${card.authorization.documentIds.length} 份资料快照` : `${card.authorization.documentIds.length} attached document snapshots`}</p>}
+          {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
+          {!!card.sources?.length && <div className="task-board-references" aria-label={zh ? '已引用文件' : 'Referenced files'}>{card.sources.map(source => <span key={source.id}><FileTextIcon /><span>{source.title}</span></span>)}</div>}
           {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
           {card.status === 'question' && <section><h3>{zh ? 'Agent 想确认' : 'Agent needs input'}</h3><p className="task-board-text">{card.delivery?.text}</p></section>}
           {card.delivery && !card.delivery.question && (card.status === 'review' || card.status === 'done') && <section>
@@ -253,7 +227,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
         {card.status !== 'done' && <footer>
           {card.status === 'todo' && <>
             <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
-            <button className="primary-button" disabled={busy || !agentAvailable || loadingDocuments} onClick={() => void act(() => taskBoardAgent.delegate(card.id, sources))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
+            <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id, card.sources?.map(source => source.id) ?? []))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
           </>}
           {card.status === 'running' && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoardAgent.stop(card.id))}>{zh ? '停止执行' : 'Stop execution'}</button>}
           {['queued', 'question', 'stopped'].includes(card.status) && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoard.withdraw(card.id))}>{zh ? '撤回委托' : 'Withdraw delegation'}</button>}

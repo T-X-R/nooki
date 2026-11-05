@@ -14,7 +14,12 @@ try {
     const callbacks = new Map()
     let callback = 0
     let turnCount = 0
-    window.qa = { get turnCount() { return turnCount } }
+    let capturedIds = []
+    const documents = [
+      { id: 'feedback', title: '试用反馈', collectionName: '用户研究', documentDate: '2026-11-05' },
+      { id: 'brief', title: '产品说明', collectionName: '产品资料', documentDate: '2026-11-04' },
+    ]
+    window.qa = { get turnCount() { return turnCount }, get capturedIds() { return capturedIds } }
     window.__TAURI_INTERNALS__ = {
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
       transformCallback(fn) { callbacks.set(++callback, fn); return callback },
@@ -33,9 +38,17 @@ try {
           sessionStorage.setItem('board', JSON.stringify(board))
           return null
         }
-        if (command === 'list_capabilities' || command === 'library_list_documents') return []
+        if (command === 'list_capabilities') return []
+        if (command === 'library_list_documents') return documents
         if (command === 'library_organization') return { topics: [], folders: [], origins: {}, trash: {} }
-        if (command === 'library_capture_sources') return []
+        if (command === 'library_capture_sources') {
+          capturedIds = args.ids
+          return args.ids.map(id => {
+            const doc = documents.find(item => item.id === id)
+            if (!doc) throw new Error('Missing Library document')
+            return { reference: { kind: 'library-document', documentId: id, title: doc.title, snapshotId: args.id, revision: '1' }, documentDate: doc.documentDate, content: '文档正文：试用反馈原始记录' }
+          })
+        }
         if (command === 'conversation_list') return { data: thread ? [thread] : [], nextCursor: null }
         if (command === 'conversation_create_board_thread') {
           assertTitle(args.title)
@@ -45,6 +58,7 @@ try {
         if (command === 'conversation_read') return structuredClone(thread)
         if (command === 'conversation_run') {
           if (!args.request.taskBoard || args.request.threadId !== thread.id) throw new Error('Invalid board execution')
+          if (!args.request.context.includes('试用反馈原始记录')) throw new Error('Task Library references did not reach Codex')
           await new Promise(resolve => setTimeout(resolve, 180))
           const turn = {
             id: 'turn-' + ++turnCount, status: 'completed',
@@ -91,11 +105,42 @@ try {
   }
   await page.evaluate(() => { document.documentElement.dataset.theme = 'light' })
   await panel.getByLabel('任务名称').fill('整理试用反馈')
-  await panel.getByLabel('任务要求或备注').fill('整理反馈并给出草稿。')
+  const description = panel.getByLabel('任务要求或备注')
+  await description.fill('联系 user@example.com')
+  assert.equal(await panel.getByRole('listbox').count(), 0, 'Email addresses do not open the reference picker')
+  await description.fill('整理反馈并给出草稿。 @不存在')
+  await panel.getByText('没有找到匹配的文件').waitFor()
+  await page.keyboard.press('Escape')
+  assert.equal(await panel.isVisible(), true, 'Escape dismisses the mention menu before the task panel')
+  await description.fill('整理反馈并给出草稿。 @')
+  await panel.getByRole('option', { name: '试用反馈 用户研究' }).waitFor()
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+  await panel.getByRole('button', { name: '移除引用 产品说明' }).click()
+  await description.fill('整理反馈并给出草稿。 @试用')
+  await panel.getByRole('option', { name: '试用反馈 用户研究' }).click()
+  assert.equal(await description.inputValue(), '整理反馈并给出草稿。 ')
+  if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) {
+    await description.fill('整理反馈并给出草稿。 @')
+    await panel.getByRole('option', { name: '产品说明 产品资料' }).waitFor()
+    assert.equal(await panel.getByRole('option', { name: '试用反馈 用户研究' }).count(), 0, 'Already attached documents are excluded')
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(theme => { document.documentElement.dataset.theme = theme }, theme)
+      for (const width of [980, 1240]) {
+        await page.setViewportSize({ width, height: 820 })
+        assert.ok(await panel.evaluate(element => element.scrollWidth <= element.clientWidth))
+        await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/reference-picker-${theme}-${width}.png`, animations: 'disabled' })
+      }
+    }
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'light' })
+    await page.keyboard.press('Escape')
+    await description.fill('整理反馈并给出草稿。')
+  }
   await page.locator('.task-board-content').click({ position: { x: 12, y: 400 } })
   await panel.waitFor({ state: 'hidden' })
   await page.getByRole('button', { name: '新建任务' }).click()
   assert.equal(await panel.getByLabel('任务名称').inputValue(), '整理试用反馈', 'Dismissing a new task preserves its draft')
+  await panel.getByRole('button', { name: '移除引用 试用反馈' }).waitFor()
   await panel.getByRole('button', { name: '创建任务' }).click()
   await panel.waitFor({ state: 'hidden' })
   await card.waitFor()
@@ -103,6 +148,9 @@ try {
   const before = await columns.boundingBox()
   await card.click()
   await panel.getByRole('button', { name: '交给 Agent' }).waitFor()
+  assert.equal(await panel.getByText('自己处理', { exact: true }).count(), 0)
+  assert.equal(await panel.getByText('任务要求', { exact: true }).count(), 0)
+  assert.equal(await panel.locator('.task-board-progress, .task-board-sources').count(), 0)
   assert.deepEqual(await columns.boundingBox(), before)
   if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) {
     for (const theme of ['light', 'dark']) {
@@ -117,8 +165,10 @@ try {
   await page.keyboard.press('Escape')
   await page.reload()
   await card.click()
+  await panel.locator('.task-board-references').getByText('试用反馈', { exact: true }).waitFor()
   await panel.getByRole('button', { name: '交给 Agent' }).click()
   await panel.getByText('面向哪个团队？').waitFor()
+  assert.deepEqual(await page.evaluate(() => window.qa.capturedIds), ['feedback'])
   await page.locator('.sidebar').getByRole('button', { name: '整理试用反馈', exact: true }).waitFor()
   await panel.getByLabel('补充信息').fill('面向内部产品团队')
   await panel.getByRole('button', { name: '提交并继续' }).click()
@@ -144,7 +194,7 @@ try {
   assert.equal(await page.locator('.task-board-date').getAttribute('datetime'), '2026-11-06', 'The local date updates at midnight')
   assert.equal(await page.getByText('星期五', { exact: true }).count(), 1)
   assert.deepEqual(errors, [])
-  console.log('Task board dates, overlay dismissal, draft persistence, deletion, Codex handoff and acceptance passed')
+  console.log('Task board Library mentions, persisted references, dates, overlay dismissal, draft persistence, deletion, Codex handoff and acceptance passed')
 } finally {
   await browser.close()
 }
