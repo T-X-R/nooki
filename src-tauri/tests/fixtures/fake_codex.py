@@ -72,9 +72,9 @@ def background():
                         persist();event('turn/completed',{'threadId':t['id'],'turn':turn})
 threading.Thread(target=background,daemon=True).start()
 def event(method,params):out({'method':method,'params':params})
-def active_profile(params):
-    if params.get('permissions') and not Path('omit-board-permissions').exists():
-        return {'activePermissionProfile':{'id':params['permissions']},'approvalPolicy':params.get('approvalPolicy')}
+def sandbox_state(params):
+    if params.get('sandbox') == 'read-only' and not Path('omit-board-sandbox').exists():
+        return {'sandbox':{'type':'readOnly','networkAccess':False},'approvalPolicy':params.get('approvalPolicy')}
     return {}
 for line in connections():
     request=json.loads(line);method=request.get('method');p=request.get('params',{});rid=request.get('id')
@@ -94,7 +94,7 @@ for line in connections():
     elif method=='thread/start':
         tid='session-'+str(len(threads)+1)
         threads[tid]={'id':tid,'cwd':p.get('cwd',os.getcwd()),'preview':'','source':'vscode','updatedAt':1,'status':{'type':'idle'},'turns':[]}
-        reply({'thread':threads[tid],**active_profile(p)})
+        reply({'thread':threads[tid],**sandbox_state(p)})
     elif method=='thread/list':reply({'data':[t for t in threads.values() if t['turns'] and bool(t.get('archived')) == bool(p.get('archived')) and (not p.get('cwd') or t['cwd'] in (p['cwd'] if isinstance(p['cwd'],list) else [p['cwd']])) and (not p.get('sourceKinds') or t['source'] in p['sourceKinds'])],'nextCursor':None})
     elif method in ('thread/archive','thread/unarchive','thread/delete'):
         t=threads.get(p['threadId'])
@@ -111,7 +111,7 @@ for line in connections():
             error('Active turn history is unavailable');continue
         if method=='thread/resume' and not t['turns']:error('no rollout found');continue
         if method=='thread/resume' and p.get('cwd'):t['cwd']=p['cwd'];persist()
-        reply({'thread':{**t,'turns':t['turns'] if method=='thread/read' and p.get('includeTurns') else []},**active_profile(p)})
+        reply({'thread':{**t,'turns':t['turns'] if method=='thread/read' and p.get('includeTurns') else []},**sandbox_state(p)})
     elif method=='thread/turns/list':
         if Path('list-turns-unsupported').exists():error('list_turns is not supported yet');continue
         t=threads.get(p['threadId'])

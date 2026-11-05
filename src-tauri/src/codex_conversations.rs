@@ -13,8 +13,6 @@ use tokio_util::sync::CancellationToken;
 #[serde(rename_all = "lowercase")]
 pub enum ConversationAction { Archive, Restore, Delete }
 
-const BOARD_PERMISSIONS: &str = "nooki-task-board";
-
 // Codex owns session persistence. This adapter owns only transport and execution receipts.
 pub struct CodexConversations {
   binary: String,
@@ -226,19 +224,20 @@ impl CodexConversations {
         for name in servers.keys() { disabled.insert(name.clone(), json!({"enabled":false})); }
       }
     }
+    // Board turns draft from the supplied context. They do not need machine or connector tools.
     Ok(json!({
       "mcp_servers":disabled,"web_search":"disabled",
-      "features":{"apps":false,"plugins":false,"multi_agent":false,"multi_agent_v2":false},
-      "permissions":{(BOARD_PERMISSIONS):{
-        "filesystem":{":root":"deny",":minimal":"read",":slash_tmp":"deny",":tmpdir":"deny",":workspace_roots":{".":"write"}},
-        "network":{"enabled":false}
-      }}
+      "features":{
+        "shell_tool":false,"unified_exec":false,"view_image":false,"image_generation":false,
+        "browser_use":false,"browser_use_external":false,"in_app_browser":false,
+        "apps":false,"plugins":false,"multi_agent":false,"multi_agent_v2":false
+      }
     }))
   }
 
-  fn verify_board_permissions(result: &Value) -> Result<(), String> {
-    if result["activePermissionProfile"]["id"] != BOARD_PERMISSIONS || result["approvalPolicy"] != "never" {
-      return Err("任务板需要支持专用权限配置的 Codex CLI / Task board requires Codex CLI support for named permission profiles".into());
+  fn verify_board_sandbox(result: &Value) -> Result<(), String> {
+    if result["sandbox"]["type"] != "readOnly" || result["sandbox"]["networkAccess"] != false || result["approvalPolicy"] != "never" {
+      return Err("Codex 未确认任务板的只读执行策略 / Codex did not confirm the task board's read-only policy".into());
     }
     Ok(())
   }
@@ -247,12 +246,10 @@ impl CodexConversations {
     let client = self.connect().await?;
     let mut params = json!({"cwd":self.workspace(),"ephemeral":false,"approvalPolicy":"never","sandbox":"read-only","developerInstructions":CONVERSATION_INSTRUCTIONS});
     if title.is_some() {
-      params.as_object_mut().unwrap().remove("sandbox");
-      params["permissions"] = json!(BOARD_PERMISSIONS);
       params["config"] = Self::board_config(&client, &self.workspace()).await?;
     } else if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool(&self.root)]); }
     let result = client.request("thread/start", params).await?;
-    if title.is_some() { Self::verify_board_permissions(&result)?; }
+    if title.is_some() { Self::verify_board_sandbox(&result)?; }
     let mut thread = result["thread"].clone();
     let thread_id = thread["id"].as_str().ok_or("Codex did not return a session ID")?;
     client.fresh.lock().map_err(|_| "Codex session state unavailable")?.insert(thread_id.into());
@@ -354,7 +351,7 @@ impl CodexConversations {
     if !fresh {
       let mut params = json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never"});
       if board {
-        params["permissions"] = json!(BOARD_PERMISSIONS);
+        params["sandbox"] = json!("read-only");
         params["config"] = Self::board_config(&client, &document_workspace).await?;
         params["developerInstructions"] = json!(CONVERSATION_INSTRUCTIONS);
       } else {
@@ -363,7 +360,7 @@ impl CodexConversations {
         params["config"] = json!({"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true});
       }
       let resumed = client.request("thread/resume", params).await?;
-      if board { Self::verify_board_permissions(&resumed)?; }
+      if board { Self::verify_board_sandbox(&resumed)?; }
     }
     let turn = {
       if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
@@ -374,8 +371,8 @@ impl CodexConversations {
       let mut input: Vec<Value> = skills.iter().map(|skill| json!({"type":"skill","name":skill.invocation,"path":skill.path})).collect();
       input.push(json!({"type":"text","text":message}));
       let mut params = json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","input":input,"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"});
-      if board { params["permissions"] = json!(BOARD_PERMISSIONS); }
-      else { params["sandboxPolicy"] = json!({"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true}); }
+      params["sandboxPolicy"] = if board { json!({"type":"readOnly","networkAccess":false}) }
+        else { json!({"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true}) };
       let result = client.request("turn/start", params).await?;
       let turn = result["turn"].clone();
       if let Err(error) = write_receipt(&receipt, &json!({"threadId":thread_id,"turnId":turn["id"]})) {

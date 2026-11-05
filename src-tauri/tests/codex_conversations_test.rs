@@ -438,26 +438,24 @@ async fn board_turns_use_a_named_codex_thread_and_disable_configured_tools() {
     assert!(call["params"].get("dynamicTools").is_none());
     assert_eq!(call["params"]["config"]["mcp_servers"]["fixture"]["enabled"], false);
     assert_eq!(call["params"]["config"]["web_search"], "disabled");
-    assert_eq!(call["params"]["permissions"], "nooki-task-board");
-    let policy = &call["params"]["config"]["permissions"]["nooki-task-board"];
-    assert_eq!(policy["network"]["enabled"], false);
-    assert_eq!(policy["filesystem"][":root"], "deny");
-    assert_eq!(policy["filesystem"][":workspace_roots"]["."], "write");
+    assert_eq!(call["params"]["sandbox"], "read-only");
+    for tool in ["shell_tool", "unified_exec", "view_image", "browser_use", "plugins"] {
+      assert_eq!(call["params"]["config"]["features"][tool], false);
+    }
   }
   for call in calls.iter().filter(|call| call["method"] == "turn/start") {
-    assert_eq!(call["params"]["permissions"], "nooki-task-board");
-    assert!(call["params"].get("sandboxPolicy").is_none());
+    assert_eq!(call["params"]["sandboxPolicy"], json!({"type":"readOnly","networkAccess":false}));
   }
   drop(bridge);
   let _ = std::fs::remove_dir_all(root);
 }
 
 #[tokio::test]
-async fn board_fails_closed_when_the_server_does_not_confirm_its_permissions() {
+async fn board_fails_closed_when_the_server_does_not_confirm_its_sandbox() {
   let (root, bridge, _) = fixture();
   std::fs::create_dir(root.join("conversation-workspace")).unwrap();
-  std::fs::write(root.join("conversation-workspace/omit-board-permissions"), "").unwrap();
-  assert!(bridge.create_board_thread("Board task").await.unwrap_err().contains("named permission profiles"));
+  std::fs::write(root.join("conversation-workspace/omit-board-sandbox"), "").unwrap();
+  assert!(bridge.create_board_thread("Board task").await.unwrap_err().contains("read-only policy"));
   drop(bridge);
   let _ = std::fs::remove_dir_all(root);
 }
@@ -468,15 +466,13 @@ async fn board_fails_closed_when_the_server_does_not_confirm_its_permissions() {
 async fn live_board_turn_is_visible_in_conversations() {
   let root = PathBuf::from("/private/tmp").join(format!("nooki-board-live-{}", std::process::id()));
   std::fs::create_dir(&root).unwrap();
-  let outside = root.join("outside.txt");
-  std::fs::write(&outside, "Synthetic file outside the task workspace").unwrap();
   let binary = std::env::var("NOOKI_LIVE_CODEX").unwrap_or_else(|_| "codex".into());
   let bridge = CodexConversations::new(binary, root.clone(), Arc::new(|_| {}));
   let thread = bridge.create_board_thread("Nooki task board verification").await.unwrap();
   let id = thread["id"].as_str().unwrap().to_string();
   let request = app_lib::conversation_host::ConversationRequest {
     thread_id: id.clone(), request_id: "board-live".into(),
-    message: format!("This is a synthetic sandbox verification. Run exactly this shell command in the current working directory and then reply with exactly NOOKI_BOARD_OK: if cat '{}' >/dev/null 2>&1; then echo outside-readable; else printf 'workspace-sandbox-ok' > task-board-check.md; fi", outside.display()),
+    message: "Synthetic task board verification. Return exactly NOOKI_BOARD_OK in your final response. Do not use any tools.".into(),
     context: String::new(), documents: DocumentInputs::default(), skills: vec![],
   };
   let checked = tokio::time::timeout(std::time::Duration::from_secs(120), async {
@@ -488,9 +484,6 @@ async fn live_board_turn_is_visible_in_conversations() {
     }
     if !history["turns"][0]["items"].as_array().is_some_and(|items| items.iter().any(|item| item["text"].as_str().is_some_and(|text| text.trim() == "NOOKI_BOARD_OK"))) {
       return Err("Synthetic final answer was missing".to_string());
-    }
-    if !result["artifacts"].as_array().is_some_and(|items| items.iter().any(|item| item["name"] == "task-board-check.md" && item["content"] == "workspace-sandbox-ok")) {
-      return Err("Task write or outside-workspace read restriction failed".to_string());
     }
     Ok(())
   }).await;

@@ -17,9 +17,9 @@ const dispatcher = createBoardDispatcher(taskBoard, {
     if (!authorization || !threadId) throw new Error('Task authorization or session missing')
     const requirements = [
       'Work on this delegated Nooki task and prepare a draft for human review.',
-      'Use only the attached task materials and this session workspace. Do not send, publish, or overwrite user documents.',
+      'Use only the attached task materials and the conversation. Return all drafts as Markdown text; do not use tools, send messages, or publish changes.',
       'If you must ask the user something before proceeding, put ' + questionHeading + ' on the first line of your final response, then write the question and finish this turn.',
-      'Otherwise return the result in your final response or a Markdown draft, and state any evidence or assumptions.',
+      'Otherwise deliver the complete draft in your final response, with any evidence or assumptions.',
       '',
       card.title,
       card.description,
