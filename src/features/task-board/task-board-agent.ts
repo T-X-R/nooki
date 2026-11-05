@@ -83,7 +83,12 @@ export const taskBoardAgent = {
       refreshing = true
       void taskBoard.refresh().catch(error => console.error('Task board refresh failed', error)).finally(() => { refreshing = false })
     }, 2000)
-    taskBoard.subscribe(wake)
+    let threadIds = ''
+    taskBoard.subscribe(() => {
+      wake()
+      const next = taskBoard.snapshot().cards.map(card => card.threadId ?? '').join(',')
+      if (threadIds !== next) { threadIds = next; window.dispatchEvent(new Event('workbench:conversations-changed')) }
+    })
     taskRunner.subscribe(wake)
     wake()
   },

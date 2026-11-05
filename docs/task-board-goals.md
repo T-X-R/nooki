@@ -8,13 +8,13 @@ Each task retains its native thread and execution context. Resume explicitly res
 
 The worker is the only task-board writer. An OS lock prevents duplicate workers, and local IPC carries operations and snapshots. Persist claims and native thread identities before activating Goals. Uncertain handoffs reconcile the existing thread rather than resend a task. Transport recovery does not grant new permissions or replay external effects.
 
-The task interface exposes working-directory selection, native questions and approvals, execution history and delivery. Library source snapshots and Markdown previews are reused. Codex keeps its configured skills and tools; the previous draft-only restrictions apply only to legacy task sessions. Renderer-dependent Nooki capability packages are not advertised as headless tools.
+The task board exposes task intake, a separate working-directory block, status, pause/stop and human acceptance. An Open execution conversation action navigates to the existing conversation page and sidebar entry for the same native thread. Questions, approvals, user messages, execution history and delivery appear only in that shared conversation interface. Library source snapshots and Markdown previews are reused. Codex keeps its configured skills and tools; the previous draft-only restrictions apply only to legacy task sessions. Renderer-dependent Nooki capability packages are not advertised as headless tools.
 
 ## Implementation checkpoints
 
 - [x] Native Goal adapter: explicit context restoration, pause versus stop, final-turn barrier, interaction forwarding.
 - [x] Durable background worker: queue, single ownership, migration, recovery, IPC and data-maintenance exclusion.
-- [x] Task interface: auto-queue, directory selection, controls, native requests, delivery and history.
+- [x] Task interface: auto-queue, separate directory selection, controls and navigation to the shared execution conversation.
 - [x] Verification: focused regression tests, existing suites, browser lifecycle, real Codex integration, packaged worker.
 - [x] Desktop delivery: built, reinstalled and verified the local app; the existing task-board PR remains the review target.
 
@@ -34,19 +34,19 @@ An isolated Codex 0.162.0 app-server test completed four native turns with zero 
 | Request changes | Persist feedback and revise the Goal's request reference | Codex reads the new feedback and decides the work |
 | Accept | Mark the delivered task accepted | Does not launch a turn |
 
-Approval policy is `on-request`, with workspace-write sandbox and network access shown at creation. The original model/provider, reasoning effort, reviewer, runtime roots, sandbox and host overrides are retained. A mismatch prevents reactivation. No global Codex configuration is changed. Standard native command/file approvals, per-turn permission requests, synchronous questions and asynchronous question items are supported. Unknown native request types remain visible for user handling. If a disconnected approval is not replayed by Codex, the task reports that fact; Nooki does not fabricate an approval.
+Approval policy is `on-request`, with workspace-write sandbox and network access retained in the execution contract. The original model/provider, reasoning effort, reviewer, runtime roots, sandbox and host overrides are retained. A mismatch prevents reactivation. No global Codex configuration is changed. Standard native command/file approvals, per-turn permission requests, synchronous questions and asynchronous question items are supported. Unknown native request types remain visible for user handling. If a disconnected approval is not replayed by Codex, the task reports that fact; Nooki does not fabricate an approval.
 
 The default queue is serial. An uncertain active session holds its slot until reconciled. Queue pickup can be paused separately from an individual Goal. A user-paused or stopped Goal resumes only through explicit action. Native blocked, usage-limited and budget-limited states are surfaced without an automatic retry loop.
 
 The task worker uses a private Unix socket and an OS ownership lock. Durable claims are flushed before activation. The desktop installer hands ownership to the new binary without interrupting Codex. No login item is installed: sleep/offline time does not execute work, and launching Nooki after reboot reconciles retained tasks. Native session history and credentials remain in Codex's own storage.
 
-New Goal history is read through the task worker and has no second conversation composer. Legacy to-dos and delegated draft tasks retain the existing renderer coordinator and original permissions; they are not silently converted to executable Goals.
+New Goal history is read through the task worker in the existing conversation page. Its shared composer routes explicit user messages to the owning worker: active turns receive native steering; idle tasks retain feedback and reactivate the native Goal. Ordinary conversation execution cannot attach a second controller to a task-owned thread. This user-directed path never produces automatic continuation prompts. Legacy to-dos and delegated draft tasks retain the existing renderer coordinator and original permissions; they are not silently converted to executable Goals.
 
 Delivery text and top-level Markdown/text outputs (up to 50 files, 2 MB each, 8 MB total) are snapshotted after the final successful turn. Code and other file formats remain in the selected workspace and are linked by Codex's final delivery. The existing document preview, comparison, download and Library-save UI is reused. Backup restore requires background execution to be stopped and imports Goals paused; it does not copy Codex credentials/history or arbitrary project directories, nor authorize execution on another machine.
 
 ## Implementation validation
 
-- Native protocol fixture: pause versus stop, restart with explicit context, no host continuation turns, approval forwarding, stale renderer writes, policy mismatch, final-turn barrier, immutable delivery, feedback and backup-restore gating.
+- Native protocol fixture: pause versus stop, restart with explicit context, no host continuation turns, approval forwarding, task conversation history and explicit user messages, stale renderer writes, policy mismatch, final-turn barrier, immutable delivery, feedback and backup-restore gating.
 - Real Codex 0.162.0: a document task produced a verified Markdown artifact and reached human review only after the final turn ended.
 - Real worker lifecycle: a four-step file task paused after its first turn, remained paused after worker restart, stopped in its second turn, then resumed the same thread after both worker and app-server restart. Four native turns produced exactly `1, 2, 3, 4`, with no duplicated steps.
 - Browser checks cover auto-queue, workspace selection, pause/stop, approvals, questions, persisted state, delivery preview, native history, human acceptance, and legacy task behavior at 980 px and 1240 px in both themes.

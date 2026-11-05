@@ -149,3 +149,24 @@ async fn final_turn_barrier_immutable_delivery_feedback_and_restored_queue() {
     assert_eq!(read(&mut worker).await["cards"][0]["status"], "paused", "Enabling pickup does not reactivate imported goals");
     drop(worker); fs::remove_dir_all(root).unwrap();
 }
+
+#[tokio::test]
+async fn task_conversation_exposes_native_history_and_routes_user_messages_to_its_owner() {
+    let (root, mut worker) = fixture(); add(&mut worker,"first").await; worker.tick().await.unwrap();
+    let history = worker.command(json!({"op":"history","id":"first"})).await.unwrap();
+    assert_eq!(history["name"], "Write a document");
+    assert_eq!(history["task"]["id"], "first");
+    worker.command(json!({"op":"message","id":"first","message":"Please include sources","messageId":"followup-one"})).await.unwrap();
+    let history = worker.command(json!({"op":"history","id":"first"})).await.unwrap();
+    assert_eq!(history["turns"].as_array().unwrap().len(), 1);
+    assert!(history["turns"][0]["items"].as_array().unwrap().iter().any(|i| i["clientId"] == "followup-one"));
+    worker.command(json!({"op":"stop","id":"first"})).await.unwrap();
+    worker.command(json!({"op":"message","id":"first","message":"Revise the report","messageId":"followup-two"})).await.unwrap();
+    assert_eq!(read(&mut worker).await["cards"][0]["status"], "queued");
+    worker.tick().await.unwrap();
+    assert!(fs::read_to_string(root.join("task-inputs/first.md")).unwrap().contains("Revise the report"));
+    worker.command(json!({"op":"stop","id":"first"})).await.unwrap();
+    let trace = fs::read_to_string(root.join("goal-runtime/conversation-workspace/fake-requests.jsonl")).unwrap();
+    assert!(!trace.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).any(|r| r["method"] == "turn/start"));
+    drop(worker); fs::remove_dir_all(root).unwrap();
+}

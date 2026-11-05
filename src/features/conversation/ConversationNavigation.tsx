@@ -56,10 +56,10 @@ export function ConversationNavigation({ language, active, selectedId, onSelect 
     {expanded && <div className="nav-conversation-history" id="sidebar-conversation-history">
       {visibleSessions.slice(0, visibleCount).map((session) => {
         const running = tasks.some((task) => task.capabilityId === CONVERSATION_OWNER && task.job === 'respond' && (task.input as ConversationInput).threadId === session.id && task.status === 'running') || session.status?.type === 'active'
-        return <div className="nav-list-row" key={session.id}><button className="nav-row-label" title={session.name || session.preview} aria-current={active && selectedId === session.id ? 'page' : undefined} onClick={() => onSelect(session.id)}><span>{session.name || session.preview || (zh ? '新对话' : 'New conversation')}</span></button><div className="nav-row-actions"><button className="icon-button" disabled={!!changing || running} aria-label={`${zh ? '归档会话' : 'Archive conversation'}：${session.name || session.preview}`} title={running ? (zh ? '会话完成后可归档' : 'Archive after this conversation finishes') : (zh ? '归档会话' : 'Archive conversation')} onClick={() => {
+        return <div className="nav-list-row" key={session.id}><button className="nav-row-label" title={session.name || session.preview} aria-current={active && selectedId === session.id ? 'page' : undefined} onClick={() => onSelect(session.id)}><span>{session.name || session.preview || (zh ? '新对话' : 'New conversation')}</span></button><div className="nav-row-actions">{!session.taskId && <button className="icon-button" disabled={!!changing || running} aria-label={`${zh ? '归档会话' : 'Archive conversation'}：${session.name || session.preview}`} title={running ? (zh ? '会话完成后可归档' : 'Archive after this conversation finishes') : (zh ? '归档会话' : 'Archive conversation')} onClick={() => {
           setChanging(session.id); setError(null)
           void conversationClient.change(session.id, 'archive').then(() => { setSessions((rows) => rows.filter((row) => row.id !== session.id)); if (selectedId === session.id) onSelect(null) }).catch((reason) => setError(String(reason))).finally(() => setChanging(null))
-        }}><ArchiveIcon /></button></div></div>
+        }}><ArchiveIcon /></button>}</div></div>
       })}
       {busy && <p role="status">{zh ? '正在读取会话…' : 'Loading conversations…'}</p>}
       {error && <><p role="alert">{error}</p><button disabled={busy} onClick={() => setRefresh((value) => value + 1)}>{zh ? '重试' : 'Retry'}</button></>}

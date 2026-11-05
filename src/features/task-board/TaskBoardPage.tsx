@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core'
-import { GoalTaskDetails } from './GoalTaskDetails.tsx'
 import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { taskBoardAgent } from './task-board-agent.ts'
@@ -30,8 +29,6 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   const [cwd, setCwd] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [response, setResponse] = useState('')
-  const [revising, setRevising] = useState(false)
   const [draftSources, setDraftSources] = useState<BoardSource[]>([])
   const [editDraft, setEditDraft] = useState<{ id: string; title: string; description: string; sources: BoardSource[] } | null>(null)
   const board = useRef<HTMLDivElement>(null)
@@ -88,10 +85,6 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     void taskBoard.initialize().then(() => setReady(true)).catch(reason => setError(String(reason)))
   }
   useEffect(load, [])
-  useEffect(() => {
-    setResponse('')
-    setRevising(false)
-  }, [selected])
 
   useLayoutEffect(() => {
     const background = content.current
@@ -142,14 +135,6 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     try { await operation() }
     catch (reason) { setError(String(reason)) }
     finally { setBusy(false) }
-  }
-
-  function submitResponse(id: string) {
-    return act(async () => {
-      await taskBoard.continue(id, response)
-      setResponse('')
-      setRevising(false)
-    })
   }
 
   const statusBadge = (status: BoardStatus) => <span className={`task-board-status ${status}`}>{statuses[status]}</span>
@@ -226,13 +211,12 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
           <div className="task-board-sheet task-board-composer">
             <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={editing ? editing.title : title} onChange={event => editing ? setEditDraft(current => current ? { ...current, title: event.target.value } : current) : setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
             <TaskDescriptionInput key={editing?.id ?? 'new'} zh={zh} value={editing ? editing.description : description} sources={editing ? editing.sources : draftSources} onChange={value => editing ? setEditDraft(current => current ? { ...current, description: value } : current) : setDescription(value)} onSources={sources => editing ? setEditDraft(current => current ? { ...current, sources } : current) : setDraftSources(sources)} />
-            {creating && !!window.__TAURI_INTERNALS__ && <div className="task-goal-workspace">
-              <label>{zh ? '工作目录（可选）' : 'Workspace (optional)'}<input value={cwd} onChange={event => setCwd(event.target.value)} placeholder={zh ? '留空使用独立任务目录' : 'Use a dedicated task workspace'} /></label>
-              <button type="button" className="secondary-button" onClick={() => void act(async () => { const path = await invoke<string | null>('task_board_choose_directory'); if (path) setCwd(path) })}>{zh ? '选择目录' : 'Choose directory'}</button>
-              <p>{zh ? '创建后自动排队。Codex 可修改工作目录并联网；需要额外权限时会向你请求。关闭窗口后继续执行，成果由你验收。' : 'Creation queues the task. Codex can edit the workspace and access the network; additional permissions require approval. Work continues after the window closes. You review the delivery.'}</p>
-            </div>}
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
+            {creating && !!window.__TAURI_INTERNALS__ && <section className="task-goal-workspace" aria-label={zh ? '工作目录' : 'Workspace'}>
+              <label>{zh ? '工作目录（可选）' : 'Workspace (optional)'}<input value={cwd} onChange={event => setCwd(event.target.value)} placeholder={zh ? '留空使用独立任务目录' : 'Use a dedicated task workspace'} /></label>
+              <button type="button" className="secondary-button" onClick={() => void act(async () => { const path = await invoke<string | null>('task_board_choose_directory'); if (path) setCwd(path) })}>{zh ? '选择目录' : 'Choose directory'}</button>
+            </section>}
         </div>
         <footer><div><button type="button" className="task-board-compose-cancel" disabled={busy} onClick={() => {
           if (editing) { setEditDraft(null); setError('') }
@@ -247,17 +231,12 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             </div>
             {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
             <TaskReferences zh={zh} sources={card.sources ?? []} />
-            {card.engine !== 'goals' && card.status === 'question' && <section><h3>{zh ? 'Agent 想确认' : 'Agent needs input'}</h3><p className="task-board-text">{card.delivery?.text}</p></section>}
-            {((card.engine !== 'goals' && card.status === 'question') || (['review', 'blocked', 'budgetLimited', 'usageLimited', 'paused', 'stopped'].includes(card.status) && revising)) && <label>{card.status === 'question' ? (zh ? '补充信息' : 'Additional details') : (zh ? '修改意见' : 'Revision feedback')}
-              <textarea value={response} onChange={event => setResponse(event.target.value)} rows={4} maxLength={20_000} />
-            </label>}
-            {card.engine === 'goals' && <GoalTaskDetails key={card.id} card={card} zh={zh} act={act} />}
             {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
         </div>
         {(card.threadId || card.status !== 'done') && <footer>
-          {card.threadId && card.engine !== 'goals' && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
+          {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
           {card.status === 'todo' && <>
             <button className="text-button task-board-complete" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
             <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id, card.sources?.map(source => source.id) ?? []))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
@@ -266,15 +245,10 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
           {['running', 'question', 'pausing', 'stopping'].includes(card.status) && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoardAgent.stop(card.id))}>{zh ? '停止执行' : 'Stop execution'}</button>}
           {card.engine !== 'goals' && ['queued', 'question', 'stopped'].includes(card.status) && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoard.withdraw(card.id))}>{zh ? '撤回委托' : 'Withdraw delegation'}</button>}
           {['stopped', 'paused', 'blocked', 'usageLimited', 'budgetLimited'].includes(card.status) && <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoard.retry(card.id))}>{zh ? '恢复执行' : 'Resume execution'}</button>}
-          {['review', 'blocked', 'budgetLimited', 'usageLimited', 'paused', 'stopped'].includes(card.status) && (revising
-            ? <button className="secondary-button" disabled={busy} onClick={() => { setRevising(false); setResponse('') }}>{zh ? '取消修改' : 'Cancel revision'}</button>
-            : <>
-              <button className="secondary-button" disabled={busy} onClick={() => setRevising(true)}>{zh ? '要求修改' : 'Request changes'}</button>
-              {card.status === 'review' && <button className="primary-button" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '验收通过' : 'Accept delivery'}</button>}
-            </>)}
-          {((card.engine !== 'goals' && card.status === 'question') || (['review', 'blocked', 'budgetLimited', 'usageLimited', 'paused', 'stopped'].includes(card.status) && revising)) && <button className="primary-button" disabled={busy || !response.trim()} onClick={() => void submitResponse(card.id)}>
-            {card.status === 'question' ? (zh ? '提交并继续' : 'Submit and continue') : (zh ? '提交修改意见' : 'Submit feedback')}
-          </button>}
+          {card.status === 'review' && <>
+            {card.threadId && <button className="secondary-button" disabled={busy} onClick={() => onConversation(card.threadId!)}>{zh ? '要求修改' : 'Request changes'}</button>}
+            <button className="primary-button" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '验收通过' : 'Accept delivery'}</button>
+          </>}
         </footer>}
       </>}
     </aside>}

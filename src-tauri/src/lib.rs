@@ -202,11 +202,21 @@ fn capability_documents_publish(
 }
 
 #[tauri::command]
-async fn conversation_list(cursor: Option<String>, archived: Option<bool>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
-  bridge.list(cursor, archived.unwrap_or(false)).await
+async fn conversation_list(cursor: Option<String>, archived: Option<bool>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  let first_page = cursor.is_none();
+  let mut page = bridge.list(cursor, archived.unwrap_or(false)).await?;
+  if first_page && archived != Some(true) {
+    let data = page["data"].as_array_mut().ok_or("Invalid conversation page")?;
+    for card in task_goals::conversation_cards(state.data_dir())? {
+      let summary = task_goals::conversation_summary(&card);
+      if let Some(existing) = data.iter_mut().find(|thread| thread["id"] == summary["id"]) { *existing = summary; } else { data.push(summary); }
+    }
+  }
+  Ok(page)
 }
 #[tauri::command]
-async fn conversation_change(id: String, action: codex_conversations::ConversationAction, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+async fn conversation_change(id: String, action: codex_conversations::ConversationAction, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+  if task_goals::conversation_card(state.data_dir(), &id)?.is_some() { return Err("Manage this task conversation from its task board card".into()); }
   bridge.change(&id, action).await
 }
 #[tauri::command]
@@ -218,22 +228,31 @@ async fn conversation_create_board_thread(title: String, bridge: tauri::State<'_
   bridge.create_board_thread(&title).await
 }
 #[tauri::command]
-async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+async fn conversation_read(id: String, cursor: Option<String>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  if let Some(card) = task_goals::conversation_card(state.data_dir(), &id)? {
+    return task_worker::request(state.data_dir(), serde_json::json!({"op":"history","id":card["id"]})).await;
+  }
   bridge.read(&id, cursor).await
 }
 #[tauri::command]
-async fn conversation_answer_question(thread_id: String, turn_id: String, item_id: String, answers: Vec<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+async fn conversation_answer_question(thread_id: String, turn_id: String, item_id: String, answers: Vec<String>, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<(), String> {
+  if let Some(card) = task_goals::conversation_card(state.data_dir(), &thread_id)? {
+    let answers: serde_json::Map<String, serde_json::Value> = answers.iter().enumerate().map(|(i, a)| (i.to_string(), serde_json::json!({"answers":[a]}))).collect();
+    return task_worker::request(state.data_dir(), serde_json::json!({"op":"reply","id":card["id"],"requestId":format!("async-answer-{item_id}"),"answers":answers})).await.map(|_| ());
+  }
   bridge.answer_question(&thread_id, &turn_id, &item_id, &answers).await
 }
 #[tauri::command]
-async fn conversation_reconnect(thread_id: String, request_id: String, execution_id: String, bridge: tauri::State<'_, conversation_host::ConversationHost>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+async fn conversation_reconnect(thread_id: String, request_id: String, execution_id: String, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  if task_goals::conversation_card(state.data_dir(), &thread_id)?.is_some() { return Err("This task conversation reconnects through its background Goal worker".into()); }
   bridge.reconnect(&thread_id, &request_id, executions.token(&execution_id)?).await
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] task_board: bool, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
 #[tauri::command]
-async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+async fn conversation_run(request: ConversationRequest, state: tauri::State<'_, PlatformState>, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
+  if task_goals::conversation_card(state.data_dir(), &request.thread_id)?.is_some() { return Err("This task conversation is controlled by its background Goal worker".into()); }
   let cancelled = executions.token(&request.execution_id)?;
   let input = conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents, skills: request.skills };
   if request.task_board { bridge.run_board(&input, cancelled).await }

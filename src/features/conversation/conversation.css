@@ -178,3 +178,6 @@ dialog.conversation-document-dialog[open] { display: flex; flex-direction: colum
 .conversation-folder-name, .conversation-folder-source { display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; font-size: 12px; }
 .conversation-folder-name small, .conversation-folder-source small { color: var(--ink-muted); margin-left: 5px; }
 .conversation-folder-source { margin-bottom: 8px; }
+
+.conversation-goal-request pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.conversation-request-actions, .conversation-request-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }

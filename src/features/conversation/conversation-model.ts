@@ -1,3 +1,4 @@
+import type { BoardCard } from '../task-board/task-board-store.ts'
 import type { FolderAttachment } from './library-folder-attachments.ts'
 import type { LibrarySection } from '../../platform/library-store.ts'
 import type { SelectedDocument } from '../../../packages/capability-contract/src/index.ts'
@@ -9,7 +10,7 @@ export const LEGACY_REVIEW = 'com.personal.weekly-review'
 export type AsyncQuestion = { title: string; options?: string[] | null }
 export type ConversationItem = { id: string; type: string; clientId?: string; text?: string; phase?: string; delivery?: string | null; questions?: AsyncQuestion[] | null; summary?: string[]; content?: { type: string; text?: string }[]; command?: string; aggregatedOutput?: string; status?: string; tool?: string; server?: string; changes?: unknown[]; error?: unknown; result?: unknown }
 export type ConversationTurn = { id: string; items: ConversationItem[]; status: string; error?: { message: string }; startedAt?: number | null; completedAt?: number | null; durationMs?: number | null }
-export type Conversation = { id: string; agent?: string; archived?: boolean; name?: string; preview: string; createdAt: number; updatedAt: number; model?: string; capabilityTools?: 'available' | 'new-conversation-required'; status?: { type: string }; turns: ConversationTurn[]; nextCursor?: string | null }
+export type Conversation = { id: string; taskId?: string; task?: BoardCard & { deliveryTurnId?: string }; agent?: string; archived?: boolean; name?: string; preview: string; createdAt: number; updatedAt: number; model?: string; capabilityTools?: 'available' | 'new-conversation-required'; status?: { type: string }; turns: ConversationTurn[]; nextCursor?: string | null }
 export type ConversationEvent = { method: string; params?: { threadId?: string; turnId?: string; turn?: ConversationTurn; item?: ConversationItem; itemId?: string; delta?: string; summaryIndex?: number; message?: string } }
 export type ConversationInput = { boardTask?: { runId: string; title: string }; threadId: string; message: string; documentIds: string[]; snapshotId: string; folders?: FolderAttachment[]; uploads?: ConversationAttachment[]; skills?: string[] }
 export type ConversationResult = { threadId: string; turnId: string; artifacts?: ConversationArtifact[] }
