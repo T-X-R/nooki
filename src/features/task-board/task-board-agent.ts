@@ -1,0 +1,95 @@
+import { invoke } from '@tauri-apps/api/core'
+import { taskRunner } from '../../platform/tasks.ts'
+import { conversationClient } from '../conversation/conversation-client.ts'
+import { CONVERSATION_OWNER, isAsyncQuestion, isConversationAnswer, type ConversationInput, type ConversationResult } from '../conversation/conversation-model.ts'
+import { createBoardDispatcher } from './task-board-dispatch.ts'
+import { taskBoard } from './task-board.ts'
+
+const questionHeading = '## NOOKI_QUESTION'
+const find = (id: string) => taskRunner.getSnapshot().find(record =>
+  record.capabilityId === CONVERSATION_OWNER && record.job === 'respond' && (record.input as ConversationInput).boardTask?.runId === id)
+
+const dispatcher = createBoardDispatcher(taskBoard, {
+  find,
+  createThread: async card => (await conversationClient.create(card.title)).id,
+  async start(card, runId) {
+    const { authorization, threadId } = card
+    if (!authorization || !threadId) throw new Error('Task authorization or session missing')
+    const requirements = [
+      'Work on this delegated Nooki task and prepare a draft for human review.',
+      'Use only the attached task materials and this session workspace. Do not send, publish, or overwrite user documents.',
+      'If you must ask the user something before proceeding, put ' + questionHeading + ' on the first line of your final response, then write the question and finish this turn.',
+      'Otherwise return the result in your final response or a Markdown draft, and state any evidence or assumptions.',
+      '',
+      card.title,
+      card.description,
+    ]
+    if (card.followUp) requirements.push('', 'User follow-up:', card.followUp)
+    const input: ConversationInput = {
+      threadId, message: requirements.join('\n'), ...authorization, boardTask: { runId, title: card.title },
+    }
+    await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
+  },
+  async delivery(id) {
+    const result = find(id)?.result as ConversationResult | undefined
+    if (!result?.threadId || !result.turnId) throw new Error('Codex did not return a turn')
+    let thread = await conversationClient.read(result.threadId)
+    let turn = thread.turns.find(item => item.id === result.turnId)
+    while (!turn && thread.nextCursor) {
+      thread = await conversationClient.read(result.threadId, thread.nextCursor)
+      turn = thread.turns.find(item => item.id === result.turnId)
+    }
+    if (!turn) throw new Error('Task turn could not be found in Codex history')
+    const text = turn.items.filter(isConversationAnswer).map(item => item.text?.trim()).filter(Boolean).at(-1) ?? ''
+    const artifacts = result.artifacts ?? []
+    const [heading, ...body] = text.split(/\r?\n/)
+    if (heading === questionHeading && body.join('\n').trim()) return { text: body.join('\n').trim(), artifacts: [], question: true }
+    if (!text && !artifacts.length) {
+      const questions = turn.items.filter(isAsyncQuestion).flatMap(item => item.questions?.map(question => question.title) ?? [])
+      if (questions.length) return { text: questions.join('\n'), artifacts: [], question: true }
+      throw new Error('Codex completed this turn without a delivery')
+    }
+    return { text, artifacts }
+  },
+  async stop(id) {
+    const record = find(id)
+    if (!record) return
+    await taskRunner.cancel(record.id)
+    await taskRunner.settled(record.id)
+  },
+})
+
+let available = false
+let connected = false
+let scheduled = false
+function wake() {
+  if (!connected || scheduled) return
+  scheduled = true
+  queueMicrotask(() => {
+    scheduled = false
+    void dispatcher.reconcile(available).catch(error => {
+      console.error('Task board synchronization failed', error)
+    })
+  })
+}
+
+export const taskBoardAgent = {
+  start() {
+    if (connected || !window.__TAURI_INTERNALS__) return
+    connected = true
+    taskBoard.subscribe(wake)
+    taskRunner.subscribe(wake)
+    wake()
+  },
+  setAvailable(next: boolean) {
+    available = next
+    wake()
+  },
+  async delegate(id: string, documentIds: string[]) {
+    if (!available) throw new Error('Codex is unavailable')
+    const snapshotId = crypto.randomUUID()
+    if (documentIds.length) await invoke('library_capture_sources', { id: snapshotId, ids: documentIds })
+    await taskBoard.delegate(id, { snapshotId, documentIds })
+  },
+  stop: dispatcher.stop,
+}

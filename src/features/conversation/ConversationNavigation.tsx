@@ -26,7 +26,7 @@ export function ConversationNavigation({ language, active, selectedId, onSelect 
     const session = history.get(input.threadId) ?? (task.status === 'running' ? cache[input.threadId] : undefined)
     if (!session) continue
     history.set(input.threadId, {
-      ...session, id: input.threadId, preview: session?.preview || input.message,
+      ...session, id: input.threadId, name: session.name || input.boardTask?.title, preview: session?.preview || input.message,
       turns: [],
     })
   }

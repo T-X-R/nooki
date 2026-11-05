@@ -16,6 +16,7 @@ import { CONVERSATION_OWNER, LEGACY_REVIEW } from '../features/conversation/conv
 import { ConversationPage } from '../features/conversation/ConversationPage.tsx'
 import { TodayActivity } from '../features/activity/TodayActivity.tsx'
 import { TaskBoardPage } from '../features/task-board/TaskBoardPage.tsx'
+import { taskBoardAgent } from '../features/task-board/task-board-agent.ts'
 import { CapabilitiesPage } from '../features/capabilities/CapabilitiesPage.tsx'
 import { CapabilityErrorBoundary, CapabilityPage } from '../features/capabilities/CapabilityPage.tsx'
 import { LibraryPage } from '../features/library/LibraryPage.tsx'
@@ -68,11 +69,15 @@ function App() {
     void Promise.all([listAgentTools(), getCapabilityAgent()]).then(([tools, chosen]) => { setAgents(tools); setChosenAgent(chosen) })
   }
   useEffect(refreshAgents, [])
+  const codexAvailable = agents.some(agent => agent.id === 'codex' && agent.detected && agent.signIn.state !== 'out')
+  useEffect(() => { taskBoardAgent.setAvailable(codexAvailable) }, [codexAvailable])
+
 
   const refreshCapabilities = async () => {
     try {
       setInstalledCapabilities(await getInstalledCapabilityPackagesWithState())
       await taskRunner.initialize()
+      taskBoardAgent.start()
     } catch {
       showNotice(t('capabilitiesLoadFailed'))
     }
@@ -162,7 +167,7 @@ function App() {
             >
               {view !== 'library' && view !== 'today' && <Topbar onOpenCommand={() => setCommandOpen(true)} />}
               <div className={view === 'today' ? 'page-wrap task-board-wrap' : 'page-wrap'}>
-              {view === 'today' && <TaskBoardPage language={language} toolbar={<Topbar onOpenCommand={() => setCommandOpen(true)} />} activity={<TodayActivity language={language} installed={installedCapabilities.filter(cap => cap.manifest.id !== LEGACY_REVIEW)} onDocument={openDocument} onTask={id => { setTaskTarget(id); navigate('tasks') }} onCapability={openCapability} />} />}
+              {view === 'today' && <TaskBoardPage language={language} agentAvailable={codexAvailable} onConversation={id => { setConversationTarget(id); navigate('conversations') }} toolbar={<Topbar onOpenCommand={() => setCommandOpen(true)} />} activity={<TodayActivity language={language} installed={installedCapabilities.filter(cap => cap.manifest.id !== LEGACY_REVIEW)} onDocument={openDocument} onTask={id => { setTaskTarget(id); navigate('tasks') }} onCapability={openCapability} />} />}
               {view === 'conversations' && <ConversationPage onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} selectedId={taskTarget} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}

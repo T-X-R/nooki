@@ -77,15 +77,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
   }
   if let Some(board) = backup.files.get("task-board.json") {
     let board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
-    let cards = board["cards"].as_array().ok_or("Invalid task board")?;
-    let mut ids = std::collections::HashSet::new();
-    for card in cards {
-      let id = card["id"].as_str().filter(|id| !id.is_empty()).ok_or("Invalid task card ID")?;
-      if !ids.insert(id) || !card["title"].is_string() || !card["description"].is_string()
-        || !["todo", "queued", "running", "question", "review", "stopped", "done"].contains(&card["status"].as_str().unwrap_or("")) {
-        return Err("Invalid task card".into());
-      }
-    }
+    validate_task_board(&board)?;
   }
   if let Some(tasks) = backup.files.get("tasks.json") {
     let parsed: serde_json::Value = serde_json::from_str(tasks).map_err(|e| e.to_string())?;
@@ -95,6 +87,41 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
         || !task["checkpoints"].is_object() || !task["attempt"].is_u64()
         || !["running", "completed", "failed", "cancelled", "interrupted"].contains(&task["status"].as_str().unwrap_or("")) { return Err("Invalid task record".into()); }
     }
+  }
+  Ok(())
+}
+pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), String> {
+  let cards = board["cards"].as_array().ok_or("Invalid task board")?;
+  let mut ids = std::collections::HashSet::new();
+  if let Some(paused) = board.get("paused") {
+    if !paused.is_boolean() { return Err("Invalid task board pause state".into()); }
+  }
+  for card in cards {
+    let id = card["id"].as_str().filter(|id| !id.is_empty()).ok_or("Invalid task card ID")?;
+    let title = card["title"].as_str().filter(|title| !title.trim().is_empty() && title.chars().count() <= 120);
+    let description = card["description"].as_str().filter(|text| text.chars().count() <= 20_000);
+    let status = card["status"].as_str().unwrap_or("");
+    if !ids.insert(id) || title.is_none() || description.is_none()
+      || !["todo", "queued", "running", "question", "review", "stopped", "done"].contains(&status) {
+      return Err("Invalid task card".into());
+    }
+    for field in ["threadId", "runId", "followUp", "error"] {
+      if card.get(field).is_some_and(|value| !value.is_string()) { return Err("Invalid task card metadata".into()); }
+    }
+    if card.get("queuedAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task queue position".into()); }
+    if let Some(delivery) = card.get("delivery") {
+      let artifacts = delivery["artifacts"].as_array().ok_or("Invalid task delivery")?;
+      if !delivery["text"].is_string() || delivery.get("question").is_some_and(|value| !value.is_boolean())
+        || artifacts.iter().any(|artifact| ["id", "name", "content"].iter().any(|key| !artifact[key].is_string())) {
+        return Err("Invalid task delivery".into());
+      }
+    }
+    if let Some(auth) = card.get("authorization") {
+      let snapshot = auth["snapshotId"].as_str().filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-'));
+      let docs = auth["documentIds"].as_array().filter(|docs| docs.len() <= 50).ok_or("Invalid task sources")?;
+      if snapshot.is_none() { return Err("Invalid task snapshot".into()); }
+      for doc in docs { document_library::validate_id(doc.as_str().ok_or("Invalid task source")?)?; }
+    } else if !matches!(status, "todo" | "done") { return Err("Task delegation is missing".into()); }
   }
   Ok(())
 }
@@ -139,6 +166,12 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   let directory = root.join(".data-restore");
   let next = directory.join("next");
   write_files(&next, &backup.files)?;
+  if let Some(board) = backup.files.get("task-board.json") {
+    let mut board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
+    // Importing an archive does not authorize new agent execution on this machine.
+    board["paused"] = serde_json::Value::Bool(true);
+    library_management::write_json(&next.join("task-board.json"), &board)?;
+  }
   // Read every document before touching existing data, including legacy records.
   for doc in document_library::list_unlocked(&next)? {
     document_library::read_unlocked(&next, &doc.id)?;

@@ -165,6 +165,12 @@ impl ConversationHost {
         self.save(&catalog)?;
         Ok(Self::view(&session))
     }
+    pub async fn create_board_thread(&self, title: &str) -> Result<Value, String> {
+        self.codex.create_board_thread(title).await
+    }
+    pub async fn run_board(&self, request: &ConversationRequest, cancelled: CancellationToken) -> Result<Value, String> {
+        self.codex.run_board(request, cancelled).await
+    }
     pub async fn read(&self, id: &str, cursor: Option<String>) -> Result<Value, String> {
         if let Some(session) = self.load()?.sessions.get(id).cloned() {
             return Ok(Self::view(&session));

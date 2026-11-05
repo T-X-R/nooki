@@ -415,3 +415,88 @@ async fn archive_refuses_a_running_turn() {
   token.cancel(); assert!(handle.await.unwrap().is_err());
   drop(bridge); let _ = std::fs::remove_dir_all(root);
 }
+
+#[tokio::test]
+async fn board_turns_use_a_named_codex_thread_and_disable_configured_tools() {
+  let (root, bridge, _) = fixture();
+  let thread = bridge.create_board_thread("Board task").await.unwrap();
+  let id = thread["id"].as_str().unwrap().to_string();
+  let request = |key: &str| app_lib::conversation_host::ConversationRequest {
+    thread_id: id.clone(), request_id: key.into(), message: "Draft for review".into(), context: String::new(),
+    documents: DocumentInputs::default(), skills: vec![],
+  };
+  for key in ["board-first", "board-revision"] {
+    let result = bridge.run_board(&request(key), CancellationToken::new()).await.unwrap();
+    assert_eq!(result["threadId"], id);
+  }
+  let list = bridge.list(None, false).await.unwrap();
+  assert_eq!(list["data"][0]["name"], "Board task");
+  assert_eq!(list["data"][0]["turns"].as_array().unwrap().len(), 2);
+  let calls: Vec<Value> = std::fs::read_to_string(root.join("conversation-workspace/fake-requests.jsonl")).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+  for method in ["thread/start", "thread/resume"] {
+    let call = calls.iter().find(|call| call["method"] == method).unwrap();
+    assert!(call["params"].get("dynamicTools").is_none());
+    assert_eq!(call["params"]["config"]["mcp_servers"]["fixture"]["enabled"], false);
+    assert_eq!(call["params"]["config"]["web_search"], "disabled");
+    assert_eq!(call["params"]["permissions"], "nooki-task-board");
+    let policy = &call["params"]["config"]["permissions"]["nooki-task-board"];
+    assert_eq!(policy["network"]["enabled"], false);
+    assert_eq!(policy["filesystem"][":root"], "deny");
+    assert_eq!(policy["filesystem"][":workspace_roots"]["."], "write");
+  }
+  for call in calls.iter().filter(|call| call["method"] == "turn/start") {
+    assert_eq!(call["params"]["permissions"], "nooki-task-board");
+    assert!(call["params"].get("sandboxPolicy").is_none());
+  }
+  drop(bridge);
+  let _ = std::fs::remove_dir_all(root);
+}
+
+#[tokio::test]
+async fn board_fails_closed_when_the_server_does_not_confirm_its_permissions() {
+  let (root, bridge, _) = fixture();
+  std::fs::create_dir(root.join("conversation-workspace")).unwrap();
+  std::fs::write(root.join("conversation-workspace/omit-board-permissions"), "").unwrap();
+  assert!(bridge.create_board_thread("Board task").await.unwrap_err().contains("named permission profiles"));
+  drop(bridge);
+  let _ = std::fs::remove_dir_all(root);
+}
+
+/// Opt-in smoke test with the signed-in local Codex. All inputs are synthetic.
+#[tokio::test]
+#[ignore]
+async fn live_board_turn_is_visible_in_conversations() {
+  let root = PathBuf::from("/private/tmp").join(format!("nooki-board-live-{}", std::process::id()));
+  std::fs::create_dir(&root).unwrap();
+  let outside = root.join("outside.txt");
+  std::fs::write(&outside, "Synthetic file outside the task workspace").unwrap();
+  let binary = std::env::var("NOOKI_LIVE_CODEX").unwrap_or_else(|_| "codex".into());
+  let bridge = CodexConversations::new(binary, root.clone(), Arc::new(|_| {}));
+  let thread = bridge.create_board_thread("Nooki task board verification").await.unwrap();
+  let id = thread["id"].as_str().unwrap().to_string();
+  let request = app_lib::conversation_host::ConversationRequest {
+    thread_id: id.clone(), request_id: "board-live".into(),
+    message: format!("This is a synthetic sandbox verification. Run exactly this shell command in the current working directory and then reply with exactly NOOKI_BOARD_OK: if cat '{}' >/dev/null 2>&1; then echo outside-readable; else printf 'workspace-sandbox-ok' > task-board-check.md; fi", outside.display()),
+    context: String::new(), documents: DocumentInputs::default(), skills: vec![],
+  };
+  let checked = tokio::time::timeout(std::time::Duration::from_secs(120), async {
+    let result = bridge.run_board(&request, CancellationToken::new()).await?;
+    let history = bridge.read(&id, None).await?;
+    let list = bridge.list(None, false).await?;
+    if result["threadId"] != id || !list["data"].as_array().is_some_and(|items| items.iter().any(|item| item["id"] == id && item["name"] == "Nooki task board verification")) {
+      return Err("Named task thread was missing from the conversation list".to_string());
+    }
+    if !history["turns"][0]["items"].as_array().is_some_and(|items| items.iter().any(|item| item["text"].as_str().is_some_and(|text| text.trim() == "NOOKI_BOARD_OK"))) {
+      return Err("Synthetic final answer was missing".to_string());
+    }
+    if !result["artifacts"].as_array().is_some_and(|items| items.iter().any(|item| item["name"] == "task-board-check.md" && item["content"] == "workspace-sandbox-ok")) {
+      return Err("Task write or outside-workspace read restriction failed".to_string());
+    }
+    Ok(())
+  }).await;
+  if bridge.change(&id, app_lib::codex_conversations::ConversationAction::Archive).await.is_ok() {
+    let _ = bridge.change(&id, app_lib::codex_conversations::ConversationAction::Delete).await;
+  }
+  println!("Isolated test workspace: {}", root.display());
+  checked.unwrap().unwrap();
+}

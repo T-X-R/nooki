@@ -212,6 +212,10 @@ async fn conversation_create(state: tauri::State<'_, PlatformState>, pool: tauri
   bridge.create(&resolved_agent(&state, &pool)?).await
 }
 #[tauri::command]
+async fn conversation_create_board_thread(title: String, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
+  bridge.create_board_thread(&title).await
+}
+#[tauri::command]
 async fn conversation_read(id: String, cursor: Option<String>, bridge: tauri::State<'_, conversation_host::ConversationHost>) -> Result<serde_json::Value, String> {
   bridge.read(&id, cursor).await
 }
@@ -225,10 +229,13 @@ async fn conversation_reconnect(thread_id: String, request_id: String, execution
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
+struct ConversationRequest { thread_id: String, message: String, context: String, request_id: String, execution_id: String, #[serde(default)] task_board: bool, #[serde(default)] skills: Vec<String>, #[serde(flatten)] documents: conversation_documents::DocumentInputs }
 #[tauri::command]
 async fn conversation_run(request: ConversationRequest, bridge: tauri::State<'_, conversation_host::ConversationHost>, pool: tauri::State<'_, skill_pool::SkillPool>, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<serde_json::Value, String> {
-  bridge.run(&conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents, skills: request.skills }, &pool, executions.token(&request.execution_id)?).await
+  let cancelled = executions.token(&request.execution_id)?;
+  let input = conversation_host::ConversationRequest { thread_id: request.thread_id, message: request.message, context: request.context, request_id: request.request_id, documents: request.documents, skills: request.skills };
+  if request.task_board { bridge.run_board(&input, cancelled).await }
+  else { bridge.run(&input, &pool, cancelled).await }
 }
 #[tauri::command]
 fn library_capture_sources(id: String, ids: Vec<String>, state: tauri::State<'_, PlatformState>) -> Result<Vec<source_snapshots::SnapshotDocument>, String> {
@@ -511,7 +518,7 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
-      conversation_list, conversation_change, conversation_create, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
+      conversation_list, conversation_change, conversation_create, conversation_create_board_thread, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
       library_management::library_history,

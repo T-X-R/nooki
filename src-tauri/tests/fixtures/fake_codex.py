@@ -72,6 +72,10 @@ def background():
                         persist();event('turn/completed',{'threadId':t['id'],'turn':turn})
 threading.Thread(target=background,daemon=True).start()
 def event(method,params):out({'method':method,'params':params})
+def active_profile(params):
+    if params.get('permissions') and not Path('omit-board-permissions').exists():
+        return {'activePermissionProfile':{'id':params['permissions']},'approvalPolicy':params.get('approvalPolicy')}
+    return {}
 for line in connections():
     request=json.loads(line);method=request.get('method');p=request.get('params',{});rid=request.get('id')
     if rid is None:continue
@@ -84,10 +88,13 @@ for line in connections():
     def reply(value):out({'id':rid,'result':value})
     def error(message):out({'id':rid,'error':{'code':-32600,'message':message}})
     if method=='initialize':reply({'userAgent':'fake-codex'})
+    elif method=='config/read':reply({'config':{},'layers':[{'config':{'mcp_servers':{'fixture':{'command':'unavailable'}}}}]})
+    elif method=='thread/name/set':
+        threads[p['threadId']]['name']=p['name'];persist();reply({})
     elif method=='thread/start':
         tid='session-'+str(len(threads)+1)
         threads[tid]={'id':tid,'cwd':p.get('cwd',os.getcwd()),'preview':'','source':'vscode','updatedAt':1,'status':{'type':'idle'},'turns':[]}
-        reply({'thread':threads[tid]})
+        reply({'thread':threads[tid],**active_profile(p)})
     elif method=='thread/list':reply({'data':[t for t in threads.values() if t['turns'] and bool(t.get('archived')) == bool(p.get('archived')) and (not p.get('cwd') or t['cwd'] in (p['cwd'] if isinstance(p['cwd'],list) else [p['cwd']])) and (not p.get('sourceKinds') or t['source'] in p['sourceKinds'])],'nextCursor':None})
     elif method in ('thread/archive','thread/unarchive','thread/delete'):
         t=threads.get(p['threadId'])
@@ -104,7 +111,7 @@ for line in connections():
             error('Active turn history is unavailable');continue
         if method=='thread/resume' and not t['turns']:error('no rollout found');continue
         if method=='thread/resume' and p.get('cwd'):t['cwd']=p['cwd'];persist()
-        reply({'thread':{**t,'turns':t['turns'] if method=='thread/read' and p.get('includeTurns') else []}})
+        reply({'thread':{**t,'turns':t['turns'] if method=='thread/read' and p.get('includeTurns') else []},**active_profile(p)})
     elif method=='thread/turns/list':
         if Path('list-turns-unsupported').exists():error('list_turns is not supported yet');continue
         t=threads.get(p['threadId'])

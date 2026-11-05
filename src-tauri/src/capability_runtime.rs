@@ -265,10 +265,14 @@ impl PlatformState {
   }
 
   pub fn read_task_board(&self) -> Result<serde_json::Value, String> {
-    load_json(&self.data_dir.join("task-board.json"))
+    let board: serde_json::Value = load_json(&self.data_dir.join("task-board.json"))?;
+    if !board.is_null() { crate::user_data::validate_task_board(&board)?; }
+    Ok(board)
   }
 
   pub fn write_task_board(&self, board: &serde_json::Value) -> Result<(), String> {
+    crate::user_data::validate_task_board(board)?;
+    let _guard = crate::library_management::DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
     persist_json(&self.data_dir.join("task-board.json"), board)
   }
 

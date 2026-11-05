@@ -34,9 +34,11 @@ export const conversationClient = {
     emit()
     window.dispatchEvent(new Event('workbench:conversations-changed'))
   },
-  async create(): Promise<Conversation> {
+  async create(taskTitle?: string): Promise<Conversation> {
     await this.connect()
-    const thread = await invoke<Conversation>('conversation_create')
+    const thread = taskTitle === undefined
+      ? await invoke<Conversation>('conversation_create')
+      : await invoke<Conversation>('conversation_create_board_thread', { title: taskTitle })
     cache = { ...cache, [thread.id]: thread }; emit(); return thread
   },
   async read(id: string, cursor?: string | null) {

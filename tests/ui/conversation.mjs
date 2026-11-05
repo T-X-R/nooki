@@ -98,10 +98,10 @@ assert.equal(await page.locator('.sidebar').getByRole('button', {name:'能力中
 assert.equal(await page.locator('.capability-card').count(), 2, 'Separately installed packages stay available');
 await capabilitiesToggle.focus(); await page.keyboard.press('Enter');
 assert.equal(await capabilitiesToggle.getAttribute('aria-expanded'), 'true');
-await page.getByRole('button', {name:'今日',exact:true}).click();
+await page.getByRole('button', {name:'任务板',exact:true}).click();
 await page.getByRole('heading', {level:1}).waitFor();
 await page.getByRole('button', {name:'会话',exact:true}).click();
-assert.equal(await page.locator('.conversation-page').count(), 0, 'Collapsing history does not navigate away from Today');
+assert.equal(await page.locator('.conversation-page').count(), 0, 'Collapsing history does not navigate away from the task board');
 await page.getByRole('button', {name:'会话',exact:true}).click();
 await page.getByRole('button', {name:'创建会话',exact:true}).click();
 await page.locator('.conversation-page').waitFor();

@@ -13,6 +13,8 @@ use tokio_util::sync::CancellationToken;
 #[serde(rename_all = "lowercase")]
 pub enum ConversationAction { Archive, Restore, Delete }
 
+const BOARD_PERMISSIONS: &str = "nooki-task-board";
+
 // Codex owns session persistence. This adapter owns only transport and execution receipts.
 pub struct CodexConversations {
   binary: String,
@@ -207,15 +209,58 @@ impl CodexConversations {
     client.fresh.lock().map_err(|_| "Codex session state unavailable")?.remove(id);
     Ok(())
   }
-  pub async fn create(&self) -> Result<Value, String> {
+  pub async fn create(&self) -> Result<Value, String> { self.create_thread(None).await }
+
+  pub async fn create_board_thread(&self, title: &str) -> Result<Value, String> {
+    let title = title.trim();
+    if title.is_empty() || title.chars().count() > 120 { return Err("Invalid task title".into()); }
+    self.create_thread(Some(title)).await
+  }
+
+  async fn board_config(client: &Client, cwd: &Path) -> Result<Value, String> {
+    let effective = client.request("config/read", json!({"cwd":cwd,"includeLayers":true})).await?;
+    let mut disabled = serde_json::Map::new();
+    let layers = effective["layers"].as_array().into_iter().flatten().map(|layer| &layer["config"]);
+    for config in std::iter::once(&effective["config"]).chain(layers) {
+      if let Some(servers) = config["mcp_servers"].as_object() {
+        for name in servers.keys() { disabled.insert(name.clone(), json!({"enabled":false})); }
+      }
+    }
+    Ok(json!({
+      "mcp_servers":disabled,"web_search":"disabled",
+      "features":{"apps":false,"plugins":false,"multi_agent":false,"multi_agent_v2":false},
+      "permissions":{(BOARD_PERMISSIONS):{
+        "filesystem":{":root":"deny",":minimal":"read",":slash_tmp":"deny",":tmpdir":"deny",":workspace_roots":{".":"write"}},
+        "network":{"enabled":false}
+      }}
+    }))
+  }
+
+  fn verify_board_permissions(result: &Value) -> Result<(), String> {
+    if result["activePermissionProfile"]["id"] != BOARD_PERMISSIONS || result["approvalPolicy"] != "never" {
+      return Err("任务板需要支持专用权限配置的 Codex CLI / Task board requires Codex CLI support for named permission profiles".into());
+    }
+    Ok(())
+  }
+
+  async fn create_thread(&self, title: Option<&str>) -> Result<Value, String> {
     let client = self.connect().await?;
     let mut params = json!({"cwd":self.workspace(),"ephemeral":false,"approvalPolicy":"never","sandbox":"read-only","developerInstructions":CONVERSATION_INSTRUCTIONS});
-    if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool(&self.root)]); }
+    if title.is_some() {
+      params.as_object_mut().unwrap().remove("sandbox");
+      params["permissions"] = json!(BOARD_PERMISSIONS);
+      params["config"] = Self::board_config(&client, &self.workspace()).await?;
+    } else if self.capability_bridge.is_some() { params["dynamicTools"] = json!([capability_dynamic_tool(&self.root)]); }
     let result = client.request("thread/start", params).await?;
-    let thread = result["thread"].clone();
+    if title.is_some() { Self::verify_board_permissions(&result)?; }
+    let mut thread = result["thread"].clone();
     let thread_id = thread["id"].as_str().ok_or("Codex did not return a session ID")?;
     client.fresh.lock().map_err(|_| "Codex session state unavailable")?.insert(thread_id.into());
-    if self.capability_bridge.is_some() {
+    if let Some(title) = title {
+      // The task title is also retained by the runner if an older app server cannot name fresh threads.
+      let _ = client.request("thread/name/set", json!({"threadId":thread_id,"name":title})).await;
+      thread["name"] = json!(title);
+    } else if self.capability_bridge.is_some() {
       if let Err(error) = self.remember_capability_tools(thread_id) {
         log::warn!("Could not persist Codex capability-tool session {thread_id}: {error}");
       }
@@ -281,6 +326,15 @@ impl CodexConversations {
     self.watch_turn(client, thread_id, request_id, turn, events, cancelled).await
   }
   pub async fn run_with_documents(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken) -> Result<Value, String> {
+    self.run_turn(thread_id, message, context, request_id, inputs, skills, cancelled, false).await
+  }
+  pub async fn run_board(&self, request: &crate::conversation_host::ConversationRequest, cancelled: CancellationToken) -> Result<Value, String> {
+    if self.capability_tools_enabled(&request.thread_id) || !request.skills.is_empty() {
+      return Err("Task board requires a dedicated Codex session without capability tools".into());
+    }
+    self.run_turn(&request.thread_id, &request.message, &request.context, &request.request_id, &request.documents, &[], cancelled, true).await
+  }
+  async fn run_turn(&self, thread_id: &str, message: &str, context: &str, request_id: &str, inputs: &DocumentInputs, skills: &[SkillReference], cancelled: CancellationToken, board: bool) -> Result<Value, String> {
     if message.trim().is_empty() || message.len() + context.len() > 100_000 { return Err("Message and references must contain between 1 and 100000 UTF-8 bytes".into()); }
     if request_id.is_empty() || !request_id.bytes().all(|b|b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid conversation request ID".into()); }
     let client = self.connect().await?;
@@ -297,7 +351,20 @@ impl CodexConversations {
     if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
     let document_context = conversation_documents::prepare(&self.root, thread_id, request_id, inputs)?;
     let document_workspace = conversation_documents::workspace(&self.root, thread_id).canonicalize().map_err(|e| e.to_string())?;
-    if !fresh { client.request("thread/resume", json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never","sandbox":"workspace-write","developerInstructions":self.developer_instructions(thread_id),"config":{"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true}})).await?; }
+    if !fresh {
+      let mut params = json!({"threadId":thread_id,"excludeTurns":true,"cwd":document_workspace,"approvalPolicy":"never"});
+      if board {
+        params["permissions"] = json!(BOARD_PERMISSIONS);
+        params["config"] = Self::board_config(&client, &document_workspace).await?;
+        params["developerInstructions"] = json!(CONVERSATION_INSTRUCTIONS);
+      } else {
+        params["sandbox"] = json!("workspace-write");
+        params["developerInstructions"] = json!(self.developer_instructions(thread_id));
+        params["config"] = json!({"sandbox_workspace_write.writable_roots":[],"sandbox_workspace_write.network_access":false,"sandbox_workspace_write.exclude_tmpdir_env_var":true,"sandbox_workspace_write.exclude_slash_tmp":true});
+      }
+      let resumed = client.request("thread/resume", params).await?;
+      if board { Self::verify_board_permissions(&resumed)?; }
+    }
     let turn = {
       if cancelled.is_cancelled() { return Err("Task cancelled".into()); }
       // An uncertain start must reconcile history before it can be retried.
@@ -306,7 +373,10 @@ impl CodexConversations {
       // composer sends for `$skill`. Codex loads it; Nooki neither reads nor repeats it.
       let mut input: Vec<Value> = skills.iter().map(|skill| json!({"type":"skill","name":skill.invocation,"path":skill.path})).collect();
       input.push(json!({"type":"text","text":message}));
-      let result = client.request("turn/start", json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","sandboxPolicy":{"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true},"input":input,"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"})).await?;
+      let mut params = json!({"threadId":thread_id,"clientUserMessageId":request_id,"cwd":document_workspace,"approvalPolicy":"never","input":input,"additionalContext":{"workbench-library":{"kind":"untrusted","value":context},"workbench-documents":{"kind":"untrusted","value":document_context}},"summary":"auto"});
+      if board { params["permissions"] = json!(BOARD_PERMISSIONS); }
+      else { params["sandboxPolicy"] = json!({"type":"workspaceWrite","writableRoots":[document_workspace],"networkAccess":false,"excludeTmpdirEnvVar":true,"excludeSlashTmp":true}); }
+      let result = client.request("turn/start", params).await?;
       let turn = result["turn"].clone();
       if let Err(error) = write_receipt(&receipt, &json!({"threadId":thread_id,"turnId":turn["id"]})) {
         let _ = client.request("turn/interrupt",json!({"threadId":thread_id,"turnId":turn["id"]})).await;
