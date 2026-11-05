@@ -47,7 +47,12 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   const queued = state.cards.filter(item => item.status === 'queued').length
   const running = state.cards.some(item => item.status === 'running')
   const agentStatus = running ? (zh ? '正在处理 1 项' : 'Working on 1 task')
-    : agentAvailable ? (zh ? '空闲' : 'Idle') : (zh ? 'Codex 不可用' : 'Codex unavailable')
+    : !agentAvailable ? (zh ? 'Codex 不可用' : 'Codex unavailable')
+    : state.paused ? (zh ? '接取已暂停' : 'Pickup paused')
+    : queued > 0 ? (zh ? '正在启动任务' : 'Starting task') : (zh ? '空闲' : 'Idle')
+  const queueStatus = queued > 0
+    ? state.paused ? (zh ? ` · ${queued} 项待执行` : ` · ${queued} waiting to run`) : (zh ? ` · ${queued} 项排队` : ` · ${queued} queued`)
+    : ''
   const locale = zh ? 'zh-CN' : 'en-US'
   const dateLabel = new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(today)
   const shortDate = new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(today)
@@ -159,7 +164,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
           <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
         </header>
         <div className="task-board-agent">
-          <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={agentCat} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queued > 0 ? (zh ? ` · ${queued} 项排队` : ` · ${queued} queued`) : ''}</span></span>
+          <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={agentCat} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queueStatus}</span></span>
           <button className="text-button" disabled={!ready || busy} aria-pressed={!state.paused} onClick={() => void act(() => taskBoard.setPaused(!state.paused))}>{state.paused ? (zh ? '自动接取 · 暂停' : 'Auto-pickup paused') : (zh ? '自动接取 · 开启' : 'Auto-pickup on')}</button>
         </div>
         {!open && error && <p className="task-board-error" role="alert">{error} {!ready && <button className="secondary-button" onClick={load}>{zh ? '重试' : 'Retry'}</button>}</p>}
