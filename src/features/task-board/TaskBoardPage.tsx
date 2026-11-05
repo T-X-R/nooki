@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ArrowTopRightIcon, Cross2Icon, Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons'
+import { ArrowRightIcon, ArrowTopRightIcon, CheckCircledIcon, CircleIcon, Cross2Icon, FileTextIcon, Pencil2Icon, PersonIcon, PlusIcon, TrashIcon, UpdateIcon } from '@radix-ui/react-icons'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -8,14 +8,14 @@ import { taskBoardAgent } from './task-board-agent.ts'
 import type { Language } from '../../shared/i18n.ts'
 import { taskBoard } from './task-board.ts'
 import type { BoardStatus } from './task-board-store.ts'
-import nookiIcon from '../../assets/nooki-icon.png'
+import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
 
-const columns: { key: string; zh: string; en: string; statuses: BoardStatus[] }[] = [
-  { key: 'todo', zh: '待办', en: 'To do', statuses: ['todo', 'queued'] },
-  { key: 'running', zh: '执行中', en: 'In progress', statuses: ['running'] },
-  { key: 'review', zh: '待我处理', en: 'Needs attention', statuses: ['question', 'review', 'stopped'] },
-  { key: 'done', zh: '已完成', en: 'Done', statuses: ['done'] },
+const columns: { key: string; zh: string; en: string; hint: [string, string]; icon: ReactNode; statuses: BoardStatus[] }[] = [
+  { key: 'todo', zh: '待办', en: 'To do', hint: ['想法与下一步', 'Ideas and next steps'], icon: <CircleIcon />, statuses: ['todo', 'queued'] },
+  { key: 'running', zh: '执行中', en: 'In progress', hint: ['Agent 正在推进', 'Agent is working'], icon: <UpdateIcon />, statuses: ['running'] },
+  { key: 'review', zh: '待我处理', en: 'Needs attention', hint: ['补充信息或验收成果', 'Input or delivery review'], icon: <PersonIcon />, statuses: ['question', 'review', 'stopped'] },
+  { key: 'done', zh: '已完成', en: 'Done', hint: ['已完成与验收的任务', 'Finished and accepted'], icon: <CheckCircledIcon />, statuses: ['done'] },
 ]
 
 export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void }) {
@@ -51,7 +51,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     : agentAvailable ? (zh ? '空闲' : 'Idle') : (zh ? 'Codex 不可用' : 'Codex unavailable')
   const locale = zh ? 'zh-CN' : 'en-US'
   const dateLabel = new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(today)
-  const month = new Intl.DateTimeFormat(locale, { month: 'short' }).format(today)
+  const shortDate = new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(today)
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(today)
   const dateStamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -162,31 +162,29 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
       <div className="content-column">
         <header className="task-board-heading">
           <div className="task-board-title-group">
-            <time className="task-board-date" dateTime={dateStamp} aria-label={dateLabel}>
-              <span aria-hidden="true">{month}</span><strong aria-hidden="true">{String(today.getDate()).padStart(2, '0')}</strong>
-            </time>
-            <div><div className="task-board-date-caption"><span>{weekday}</span><span>{today.getFullYear()}</span></div><h1>{zh ? '任务板' : 'Task board'}</h1></div>
+            <time className="task-board-date" dateTime={dateStamp} aria-label={dateLabel}><span>{shortDate}</span><span>{weekday}</span></time>
+            <h1>{zh ? '任务板' : 'Task board'}</h1>
           </div>
           <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
         </header>
         <div className="task-board-agent">
-          <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={nookiIcon} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queued > 0 ? (zh ? ` · ${queued} 项排队` : ` · ${queued} queued`) : ''}</span></span>
+          <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={agentCat} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queued > 0 ? (zh ? ` · ${queued} 项排队` : ` · ${queued} queued`) : ''}</span></span>
           <button className="text-button" disabled={!ready || busy} aria-pressed={!state.paused} onClick={() => void act(() => taskBoard.setPaused(!state.paused))}>{state.paused ? (zh ? '自动接取 · 暂停' : 'Auto-pickup paused') : (zh ? '自动接取 · 开启' : 'Auto-pickup on')}</button>
         </div>
         {!open && error && <p className="task-board-error" role="alert">{error} {!ready && <button className="secondary-button" onClick={load}>{zh ? '重试' : 'Retry'}</button>}</p>}
         <div className="task-board-columns">
           {columns.map(column => {
             const cards = state.cards.filter(item => column.statuses.includes(item.status))
-            return <section className="task-board-lane" key={column.key} aria-label={zh ? column.zh : column.en}>
-              <h2><span className={`task-board-dot ${column.key}`} />{zh ? column.zh : column.en}<span className="task-board-count">{cards.length}</span></h2>
-              {cards.map(item => <button key={item.id} className="task-board-card" aria-controls={open ? 'task-board-detail' : undefined} aria-pressed={item.id === selected} onClick={event => {
+            return <section className={`task-board-lane ${column.key}`} key={column.key} aria-label={zh ? column.zh : column.en}>
+              <header className="task-board-lane-heading"><h2><span className="task-board-stage-icon" aria-hidden="true">{column.icon}</span>{zh ? column.zh : column.en}<span className="task-board-count">{cards.length}</span></h2><p>{column.hint[zh ? 0 : 1]}</p></header>
+              <div className="task-board-lane-cards">{cards.map(item => <button key={item.id} className="task-board-card" aria-controls={open ? 'task-board-detail' : undefined} aria-pressed={item.id === selected} onClick={event => {
                 if (selected === item.id && !creating) { close(); return }
                 trigger.current = event.currentTarget
                 setCreating(false)
                 setSelected(item.id)
                 setError('')
-              }}><strong>{item.title}</strong><span className="task-board-card-meta">{agentName(!!item.authorization)}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span></button>)}
-              {!cards.length && <p className="task-board-empty">{zh ? '暂无任务' : 'No tasks'}</p>}
+              }}><strong>{item.title}</strong>{item.description && <span className="task-board-card-preview">{item.description}</span>}<span className="task-board-card-meta">{agentName(!!item.authorization)}{['queued', 'question', 'review', 'stopped'].includes(item.status) && statusBadge(item.status)}</span></button>)}
+              {!cards.length && <div className="task-board-empty"><span aria-hidden="true">{column.icon}</span><p>{zh ? '暂无任务' : 'No tasks'}</p></div>}</div>
             </section>
           })}
         </div>
@@ -194,9 +192,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
     </div>
     {open && <aside ref={panel} className={`task-board-panel ${creating ? 'task-board-panel-create' : ''}`} id="task-board-detail" aria-labelledby="task-board-detail-title">
       <header>
-        <div className={creating ? 'task-board-create-heading' : undefined}>{creating && <span className="task-board-compose-icon"><Pencil2Icon /></span>}<div>{!creating && <div className="eyebrow">TASK</div>}<h2 id="task-board-detail-title">{creating ? (zh ? '新建任务' : 'New task') : card?.title}</h2>
-          {!creating && card && <div className="task-board-card-meta">{statusBadge(card.status)}<span>{agentName(!!card.authorization)}</span></div>}
-        </div></div>
+        <div className="task-board-create-heading"><span className="task-board-compose-icon">{creating ? <Pencil2Icon /> : <FileTextIcon />}</span><h2 id={creating ? 'task-board-detail-title' : undefined}>{creating ? (zh ? '新建任务' : 'New task') : (zh ? '任务详情' : 'Task details')}</h2></div>
         <div className="task-board-panel-tools">
           {!creating && card && <button className="icon-button task-board-delete" disabled={busy} aria-label={zh ? '删除任务' : 'Delete task'} title={zh ? '删除任务' : 'Delete task'} onClick={() => void act(async () => {
             await taskBoardAgent.remove(card.id)
@@ -210,20 +206,24 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
       </header>
       {creating ? <form className="task-board-form" onSubmit={event => {
         event.preventDefault()
-        void act(async () => { const id = await taskBoard.add(title, description); setTitle(''); setDescription(''); setCreating(false); setSelected(id) })
+        void act(async () => { await taskBoard.add(title, description); setTitle(''); setDescription(''); close() })
       }}>
         <div className="task-board-panel-body">
-          <div className="task-board-compose-meta"><span className="task-board-compose-status"><span />{zh ? '待办' : 'To do'}</span><span>{zh ? '自己处理' : 'Personal'}</span></div>
           <div className="task-board-composer">
             <label><span className="visually-hidden">{zh ? '任务名称' : 'Title'}</span><input ref={titleInput} className="task-board-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder={zh ? '你想完成什么？' : 'What would you like to do?'} required maxLength={120} /></label>
             <label className="task-board-description-label"><span>{zh ? '任务要求或备注' : 'Task requirements or notes'}</span><textarea value={description} onChange={event => setDescription(event.target.value)} placeholder={zh ? '补充背景、需要的结果，或一条完成标准…' : 'Add context, the result you need, or what success looks like…'} rows={7} maxLength={20_000} /></label>
           </div>
           {error && <p className="task-board-error" role="alert">{error}</p>}
         </div>
-        <footer><p className="task-board-compose-note">{zh ? '创建后，可交给 Nooki Agent 处理。' : 'After creating, you can delegate to Nooki Agent.'}</p><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
+        <footer><div><button type="button" className="task-board-compose-cancel" onClick={() => { setTitle(''); setDescription(''); close() }}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={busy || !title.trim()}>{zh ? '创建任务' : 'Create task'}<ArrowRightIcon /></button></div></footer>
       </form> : card && <>
         <div className="task-board-panel-body">
-          <section><h3>{zh ? '任务要求' : 'Task requirements'}</h3><p className="task-board-text">{card.description || (zh ? '暂无补充说明' : 'No additional notes')}</p></section>
+          <div className="task-board-detail-intro">
+            <div className="task-board-detail-meta">{statusBadge(card.status)}<span>{card.authorization ? <img src={agentCat} alt="" /> : <PersonIcon />}{agentName(!!card.authorization)}</span></div>
+            <h2 id="task-board-detail-title">{card.title}</h2>
+            <ol className="task-board-progress" aria-label={zh ? '任务阶段' : 'Task stages'}>{columns.map(column => <li key={column.key} aria-current={column.statuses.includes(card.status) ? 'step' : undefined}><span /><span>{zh ? column.zh : column.en}</span></li>)}</ol>
+          </div>
+          <section className="task-board-requirements"><h3><FileTextIcon />{zh ? '任务要求' : 'Task requirements'}</h3><p className={`task-board-text ${!card.description ? 'task-board-muted' : ''}`}>{card.description || (zh ? '暂无补充说明' : 'No additional notes')}</p></section>
           {card.status === 'todo' && agentAvailable && <details className="task-board-sources" onToggle={event => { if (event.currentTarget.open) void loadDocuments() }}>
             <summary>{zh ? '关联资料（可选）' : 'Attach Library documents (optional)'}{sources.length > 0 && ` · ${sources.length}`}</summary>
             <p>{zh ? '委托时会将所选资料的当前版本提供给 Codex。' : 'Delegating shares a snapshot of the selected documents with Codex.'}</p>

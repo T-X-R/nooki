@@ -81,6 +81,8 @@ try {
       const createButton = panel.getByRole('button', { name: '创建任务', exact: true })
       const buttonBounds = await createButton.boundingBox()
       assert.ok(buttonBounds && buttonBounds.y >= 0 && buttonBounds.y + buttonBounds.height <= 820)
+      assert.ok(buttonBounds.width < 180, 'Create action stays compact')
+      assert.equal(await panel.locator('.task-board-compose-meta, .task-board-compose-note').count(), 0)
       if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) {
         await mkdir(process.env.NOOKI_TASK_BOARD_SCREENSHOTS, { recursive: true })
         await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/create-${theme}-${width}.png`, animations: 'disabled' })
@@ -95,12 +97,20 @@ try {
   await page.getByRole('button', { name: '新建任务' }).click()
   assert.equal(await panel.getByLabel('任务名称').inputValue(), '整理试用反馈', 'Dismissing a new task preserves its draft')
   await panel.getByRole('button', { name: '创建任务' }).click()
-  await panel.getByRole('heading', { name: '整理试用反馈' }).waitFor()
-  await panel.getByRole('button', { name: '关闭任务详情' }).click()
+  await panel.waitFor({ state: 'hidden' })
+  await card.waitFor()
+  if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/board-light.png`, animations: 'disabled' })
   const before = await columns.boundingBox()
   await card.click()
   await panel.getByRole('button', { name: '交给 Agent' }).waitFor()
   assert.deepEqual(await columns.boundingBox(), before)
+  if (process.env.NOOKI_TASK_BOARD_SCREENSHOTS) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(theme => { document.documentElement.dataset.theme = theme }, theme)
+      await page.screenshot({ path: `${process.env.NOOKI_TASK_BOARD_SCREENSHOTS}/detail-${theme}.png`, animations: 'disabled' })
+    }
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'light' })
+  }
   await card.click()
   await panel.waitFor({ state: 'hidden' })
   await card.click()
