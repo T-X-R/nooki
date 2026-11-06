@@ -2,7 +2,7 @@
 
 Settings includes a **Wake desktop pet** switch within **Appearance**, with no preview card or separate section. The switch is off by default. Enabling it shows the Nooki cat above ordinary desktop windows. The task-board avatar remains static.
 
-The pet uses the approved focused-eye working animation when the highest-priority activity is running. It has solid white eyes without pupils and two small nods per loop. The approved 16-frame GIF is bundled unchanged (about two seconds per loop). Other states retain the original idle animation until their artwork is designed. Read errors also fall back to the idle artwork rather than implying that stale work is still running. Reduced motion shows the first working frame during execution and the existing still cat otherwise.
+The pet's eyes reflect its highest-priority activity. When Codex needs a reply or approval, the cat tilts its head with one tall white eye and one round eye. A blocker, usage limit, or budget limit gives it slowly turning spiral eyes. An unread delivery gives it star eyes and a small hop. During execution it nods with focused eyes. Other states and snapshot read errors show the idle cat. With reduced motion enabled, each expression uses its matching still image.
 
 The idle animation remains transparent lossless WebP (3.2 seconds per loop). Questions, blockers, and unread deliveries take precedence over running tasks. A review task stays in the list until accepted, but stops selecting the pet's animation once its result is visible in the foreground execution conversation. The main and pet windows share a local read receipt for each task and delivery turn. A revised delivery has its own receipt. Older review tasks without a delivery turn ID appear in the list only.
 

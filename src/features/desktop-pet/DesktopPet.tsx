@@ -6,12 +6,29 @@ import petAnimation from '../../assets/nooki-pet-idle.webp'
 import petStill from '../../assets/nooki-agent-cat.png'
 import workingAnimation from '../../assets/nooki-pet-working.gif'
 import workingStill from '../../assets/nooki-pet-working-still.png'
-import { petActivity, petStatusLabels, type PetBoard } from './pet-activity.ts'
+import replyAnimation from '../../assets/nooki-pet-awaiting-reply.gif'
+import replyStill from '../../assets/nooki-pet-awaiting-reply-still.png'
+import blockedAnimation from '../../assets/nooki-pet-blocked.gif'
+import blockedStill from '../../assets/nooki-pet-blocked-still.png'
+import reviewAnimation from '../../assets/nooki-pet-ready-for-review.gif'
+import reviewStill from '../../assets/nooki-pet-ready-for-review-still.png'
+import { petActivity, petStatusLabels, type PetBoard, type PetStatus } from './pet-activity.ts'
 import { isDeliveryRead } from './delivery-receipts.ts'
 import './desktop-pet.css'
 
 type Snapshot = { board: PetBoard; preferences: { language: 'zh' | 'en'; theme: 'light' | 'dark' } }
 type PetView = { right: number; bottom: number; below: boolean }
+
+const idleArt = { animated: petAnimation, still: petStill }
+const blockedArt = { animated: blockedAnimation, still: blockedStill }
+const statusArt: Partial<Record<PetStatus, typeof idleArt>> = {
+  running: { animated: workingAnimation, still: workingStill },
+  question: { animated: replyAnimation, still: replyStill },
+  blocked: blockedArt,
+  usageLimited: blockedArt,
+  budgetLimited: blockedArt,
+  review: { animated: reviewAnimation, still: reviewStill },
+}
 
 export function DesktopPet() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
@@ -24,7 +41,7 @@ export function DesktopPet() {
   const dragging = useRef(false)
   const zh = snapshot?.preferences.language !== 'en'
   const activity = petActivity(snapshot?.board ?? { cards: [] }, isDeliveryRead)
-  const working = !error && activity.status === 'running'
+  const art = error ? idleArt : statusArt[activity.status] ?? idleArt
   const label = error ? (zh ? '状态暂不可用' : 'Status unavailable') : !snapshot ? (zh ? '读取状态…' : 'Loading…') : petStatusLabels[activity.status][zh ? 0 : 1]
 
   useEffect(() => {
@@ -93,7 +110,7 @@ export function DesktopPet() {
       <button type="button" className="pet-avatar pet-art" aria-label={zh ? `查看任务状态：${label}；拖动可移动桌宠` : `View task activity: ${label}; drag to move pet`} aria-expanded={expanded}
         onPointerDown={event => { if (event.button === 0) gesture.current = { x: event.clientX, y: event.clientY, dragged: false } }} onPointerMove={drag}
         onPointerCancel={() => { gesture.current = null }} onClick={() => { if (!gesture.current?.dragged) void expand(!expanded); gesture.current = null }}>
-        <img className="pet-animated" src={working ? workingAnimation : petAnimation} alt="" draggable={false} /><img className="pet-still" src={working ? workingStill : petStill} alt="" draggable={false} />
+        <img className="pet-animated" src={art.animated} alt="" draggable={false} /><img className="pet-still" src={art.still} alt="" draggable={false} />
       </button>
     </div>
   </div>

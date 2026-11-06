@@ -43,8 +43,10 @@ try {
   await page.getByRole('button', { name: /查看任务状态：需要你处理/ }).waitFor()
   assert.equal(await page.locator('.app-shell').count(), 0)
   assert.equal(await page.locator('.pet-status').count(), 0)
-  assert.match(await page.locator('.pet-animated').getAttribute('src'), /nooki-pet-idle/)
-  assert.equal(await page.locator('.pet-animated').evaluate(img => img.complete && img.naturalWidth > 0), true)
+  await page.waitForFunction(() => {
+    const img = document.querySelector('.pet-animated')
+    return img?.src.includes('nooki-pet-awaiting-reply.gif') && img.complete && img.naturalWidth > 0
+  })
   assert.ok(await page.evaluate(() => document.body.scrollWidth <= innerWidth))
   await mkdir('/tmp/nooki-pet-ui', { recursive: true })
   await page.screenshot({ path: '/tmp/nooki-pet-ui/collapsed.png', omitBackground: true })
@@ -102,9 +104,19 @@ try {
   }
   await expectArtwork([running], 'nooki-pet-working.gif')
   await page.screenshot({ path: '/tmp/nooki-pet-ui/working.png', omitBackground: true })
-  // Higher-priority attention states must not look like ongoing autonomous work.
-  for (const status of ['question', 'blocked', 'review']) {
-    await expectArtwork([running, { id: status, title: status, status, deliveryTurnId: 't1' }], 'nooki-pet-idle')
+  for (const [status, asset] of [
+    ['question', 'awaiting-reply'], ['blocked', 'blocked'], ['usageLimited', 'blocked'],
+    ['budgetLimited', 'blocked'], ['review', 'ready-for-review'],
+  ]) {
+    await expectArtwork([running, { id: status, title: status, status, deliveryTurnId: 't1' }], `nooki-pet-${asset}.gif`)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    assert.equal(await page.locator('.pet-animated').isVisible(), false)
+    await page.locator('.pet-still').waitFor({ state: 'visible' })
+    await page.waitForFunction(asset => {
+      const img = document.querySelector('.pet-still')
+      return img?.src.includes(`nooki-pet-${asset}-still.png`) && img.complete && img.naturalWidth > 0
+    }, asset)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     await expectArtwork([running], 'nooki-pet-working.gif')
   }
   await expectArtwork([{ ...running, status: 'paused' }], 'nooki-pet-idle')
@@ -207,7 +219,7 @@ try {
   await expectArtwork([running, review], 'nooki-pet-working.gif')
   // A revised delivery has its own unread reminder.
   await main.evaluate(() => { window.qaPetMain.foreground = false; window.qaPetMain.deliveryTurn = 't2' })
-  await expectArtwork([running, { ...review, deliveryTurnId: 't2' }], 'nooki-pet-idle')
+  await expectArtwork([running, { ...review, deliveryTurnId: 't2' }], 'nooki-pet-ready-for-review.gif')
   await main.getByText('交付结果 t2', { exact: true }).waitFor()
   await main.evaluate(() => { window.qaPetMain.foreground = true; window.dispatchEvent(new Event('focus')) })
   await busy.waitFor()
