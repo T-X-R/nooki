@@ -24,11 +24,11 @@ export function PetSettings() {
     } catch (reason) { setError(String(reason)) }
     finally { setBusy(false) }
   }
-  return <div>
-    <div className="pet-setting">
-      <label htmlFor="desktop-pet-switch">{t('showDesktopPet')}</label>
-      <button id="desktop-pet-switch" type="button" className="pet-switch" role="switch" aria-checked={enabled} aria-label={t('showDesktopPet')} disabled={busy || !ready} onClick={() => void toggle()}><span /></button>
-    </div>
+  return <div className="pet-setting">
+    <button id="desktop-pet-switch" type="button" className="pet-switch" role="switch" aria-checked={enabled} disabled={busy || !ready} onClick={() => void toggle()}>
+      <span className="pet-switch-track" aria-hidden="true" />
+      {t('showDesktopPet')}
+    </button>
     {error && <p role="alert" className="pet-error">{error}</p>}
   </div>
 }

@@ -1,6 +1,6 @@
 # Desktop pet
 
-Settings includes a **Wake desktop pet** switch within **Appearance**, with no preview card or separate section. The switch is off by default. Enabling it shows the Nooki cat above ordinary desktop windows. The task-board avatar remains static.
+Settings includes a **Wake Nooki** switch within **Appearance**, with no preview card or separate section. The switch is off by default. Enabling it shows the Nooki cat above ordinary desktop windows. The task-board avatar remains static.
 
 The pet's eyes reflect its highest-priority activity. When Codex needs a reply or approval, the cat tilts its head with one tall white eye and one round eye. A blocker, usage limit, or budget limit gives it slowly turning spiral eyes. An unread delivery gives it star eyes and a small hop. During execution it nods with focused eyes. Other states and snapshot read errors show the idle cat. With reduced motion enabled, each expression uses its matching still image.
 

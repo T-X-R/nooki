@@ -178,7 +178,7 @@ try {
     }
   })
   await main.goto(url)
-  const toggle = main.getByRole('switch', { name: '唤醒桌宠' })
+  const toggle = main.getByRole('switch', { name: '唤醒 Nooki' })
   await toggle.waitFor(); await main.waitForFunction(() => !document.querySelector('#desktop-pet-switch').disabled)
   assert.equal(await toggle.evaluate(el => el.closest('.settings-section').querySelector('h2').textContent), '外观')
   assert.equal(await main.locator('.pet-setting img').count(), 0)
