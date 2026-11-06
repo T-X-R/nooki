@@ -28,6 +28,8 @@ import { Topbar } from './Topbar.tsx'
 import { WindowTitlebar } from './WindowTitlebar.tsx'
 import { takeSubstrateNotice, useWorkbench, type View } from '../platform/preferences.ts'
 import { capabilityBrokerClient } from '../platform/capability-broker-client.ts'
+import { invoke } from '@tauri-apps/api/core'
+import { connectPetNavigation } from '../features/desktop-pet/desktop-pet-navigation.ts'
 
 function App() {
   const { t } = useTranslation()
@@ -51,6 +53,15 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [installedCapabilities, setInstalledCapabilities] = useState<InstalledCapability[]>([])
   const [activeCapabilityId, setActiveCapabilityId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return
+    return connectPetNavigation(id => { setConversationTarget(id); setView('conversations') })
+  }, [setView])
+
+  useEffect(() => {
+    if (window.__TAURI_INTERNALS__) void invoke('desktop_pet_appearance', { theme, language }).catch(error => console.error('Pet appearance synchronization failed', error))
+  }, [theme, language])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme

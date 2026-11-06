@@ -29,8 +29,11 @@ await page.addInitScript((installed)=>{
  let tasks=[], nextId=1; let current=null; const callbacks=new Map(),events=new Map();
  window.qa={old,docs,organization,uninstalled:[],readDelay:1500,emitEvent:(event,payload)=>{for(const [registered,handler] of events)if(registered===event) callbacks.get(handler)({event,id:handler,payload})}};
  window.qa.emit=(method,params)=>window.qa.emitEvent('workbench:conversation-event',{method,params});
+ window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
  window.__TAURI_INTERNALS__={metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},transformCallback:fn=>{let id=nextId++;callbacks.set(id,fn);return id},unregisterCallback:id=>callbacks.delete(id),invoke:async(command,args={})=>{
   if(command==='plugin:event|listen'){events.set(args.event,args.handler);return args.handler}
+  if (command === "desktop_pet_preferences") return { enabled: false };
+  if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
   if(command.startsWith('plugin:'))return null;
   if(command==='capability_broker_ready')return null;
   if(command==='capability_broker_respond'){window.qa.capabilityResponse=args;return null}
