@@ -1,6 +1,7 @@
 import { taskBoard, goalCommand } from '../task-board/task-board.ts'
 import { ConversationGoalRequests } from './ConversationGoalRequests.tsx'
 import { ConversationTaskCard } from './ConversationTaskCard.tsx'
+import { observeDelivery } from '../desktop-pet/delivery-receipts.ts'
 import { attachmentDocumentIds, type FolderAttachment, type LibrarySelection } from './library-folder-attachments.ts'
 import { FolderIcon } from '../library/LibraryDirectory.tsx'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
@@ -82,9 +83,16 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const [saving, setSaving] = useState<SaveAnswerInput | null>(null)
   const [showLegacy, setShowLegacy] = useState(false)
   const scroll = useRef<HTMLDivElement>(null)
+  const deliveredTurn = useRef<HTMLDivElement>(null)
   const follow = useRef(true)
   const composer = useRef<HTMLTextAreaElement>(null)
   const thread = selected ? cache[selected] : undefined
+  const deliveryTurnId = thread?.task?.status === 'review' ? thread.task.deliveryTurnId : undefined
+  useEffect(() => {
+    if (thread?.task && deliveryTurnId && deliveredTurn.current && (!targetId || targetId === selected)) {
+      return observeDelivery(thread.task.id, deliveryTurnId, deliveredTurn.current)
+    }
+  }, [thread, deliveryTurnId, selected, targetId, showLegacy])
   const boardTask = thread?.task ?? board.cards.find(card => card.threadId === selected)
   const goalTask = boardTask?.engine === 'goals' ? boardTask : undefined
   const taskInputDisabled = goalTask ? !!goalTask.archived || !!goalTask.restored : !!boardTask && !['question', 'review'].includes(boardTask.status)
@@ -260,7 +268,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
           {!showLegacy && goalTask && <ConversationTaskCard task={goalTask} zh={zh} onOpen={onTask} />}
           {showLegacy ? <div className="conversation-legacy">{legacy.map((task) => { const draft = task.result as { id: string; title: string; content: string }; return <article key={task.id}><h3>{draft.title}</h3><div className="conversation-markdown"><ConversationMarkdown text={draft.content} onDocument={onDocument} zh={zh} /></div><button className="quiet-button" onClick={() => save(draft.id, draft.content, draft.title)}>{zh ? '保存到资料库' : 'Save to Library'}</button></article> })}</div> : loading ? <div className="conversation-state" role="status"><ReloadIcon className="spin" />{zh ? '正在读取对话…' : 'Loading conversation…'}</div> : empty ? <div className="conversation-empty"><h2>{greeting?.[language]}</h2><p>{zh ? '带上一个问题，或几份资料，慢慢理出头绪。' : 'Bring a question or a few documents, and work through them at your own pace.'}</p></div> : <>
             {thread?.nextCursor && <button className="quiet-button" disabled={busy} onClick={() => void act(() => conversationClient.read(selected!, thread.nextCursor))}>{zh ? '加载更早消息' : 'Load earlier messages'}</button>}
-            {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id}>{turn.items.filter((item) => item.type === 'userMessage' && !questionReplyIds.has(item.id)).map((item) => renderItem(turn, item))}
+            {thread?.turns.map((turn) => <div className="conversation-turn" key={turn.id} ref={turn.id === deliveryTurnId && turn.status === 'completed' ? deliveredTurn : undefined}>{turn.items.filter((item) => item.type === 'userMessage' && !questionReplyIds.has(item.id)).map((item) => renderItem(turn, item))}
               {turn.items.some(isProcessHistory) && <TurnProcess turn={turn} zh={zh}>{turn.items.filter(isProcessHistory).map((item) => isProcessMessage(item) ? renderQuestion(turn, item) : renderItem(turn, item))}</TurnProcess>}
               {capabilityInvocations.filter((invocation) => invocation.context?.threadId === thread.id && invocation.context.turnId === turn.id).map((invocation) => <CapabilityInvocationCard key={invocation.invocationId} invocation={invocation} zh={zh} />)}
               {turn.items.filter(isConversationAnswer).map((item) => renderItem(turn, item))}{turn.error && <p className="conversation-error" role="alert">{turn.error.message}</p>}<ConversationArtifacts files={turnArtifacts(turn.id)} zh={zh} onDocument={onDocument} onSave={(file) => save(artifactSource(turn), file.content, artifactTitle(file.name), file.id)} saveAction={(file) => saveAction({ id: artifactSource(turn), type: 'agentMessage', text: file.content }, artifactTitle(file.name), file.id)} /></div>)}

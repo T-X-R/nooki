@@ -4,7 +4,8 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 const url = process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/'
 try {
-  const page = await browser.newPage({ viewport: { width: 160, height: 108 } })
+  const context = await browser.newContext({ viewport: { width: 160, height: 108 } })
+  const page = await context.newPage()
   await page.route('**/favicon.ico', route => route.fulfill({ status: 204 }))
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
@@ -96,14 +97,14 @@ try {
     await page.evaluate(cards => { window.qaPet.board = { cards } }, cards)
     await page.waitForFunction(artwork => {
       const img = document.querySelector('.pet-animated')
-      return img.src.includes(artwork) && img.complete && img.naturalWidth > 0
+      return img?.src.includes(artwork) && img.complete && img.naturalWidth > 0
     }, artwork)
   }
   await expectArtwork([running], 'nooki-pet-working.gif')
   await page.screenshot({ path: '/tmp/nooki-pet-ui/working.png', omitBackground: true })
   // Higher-priority attention states must not look like ongoing autonomous work.
   for (const status of ['question', 'blocked', 'review']) {
-    await expectArtwork([running, { id: status, title: status, status }], 'nooki-pet-idle')
+    await expectArtwork([running, { id: status, title: status, status, deliveryTurnId: 't1' }], 'nooki-pet-idle')
     await expectArtwork([running], 'nooki-pet-working.gif')
   }
   await expectArtwork([{ ...running, status: 'paused' }], 'nooki-pet-idle')
@@ -123,7 +124,8 @@ try {
   assert.deepEqual(errors, [])
   console.log('Pet rendering, priority, navigation, collapse, themes, reduced motion and read recovery passed')
 
-  const main = await browser.newPage({ viewport: { width: 1240, height: 820 } })
+  const main = await page.context().newPage()
+  await main.setViewportSize({ width: 1240, height: 820 })
   await main.route('**/favicon.ico', route => route.fulfill({ status: 204 }))
   const mainErrors = []
   main.on('pageerror', e => mainErrors.push(e.message))
@@ -132,6 +134,9 @@ try {
     localStorage.setItem('personal-workbench-preferences', JSON.stringify({ version: 4, state: { view: 'settings', theme: 'light', language: 'zh' } }))
     const callbacks = new Map(), listeners = new Map(); let next = 1, enabled = false, target = null
     window.qaPetMain = { jump() { target = 'existing-thread'; for (const [id, event] of listeners) if (event === 'desktop-pet:navigate') callbacks.get(id)?.({ event, id, payload: null }) }, pending() { return target } }
+    window.qaPetMain.foreground = false
+    window.qaPetMain.deliveryTurn = 't1'
+    document.hasFocus = () => window.qaPetMain.foreground
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener(_event, id) { listeners.delete(id) } }
     window.__TAURI_INTERNALS__ = {
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
@@ -150,7 +155,12 @@ try {
         if (command === 'capability_agent') return 'codex'
         if (command === 'library_organization') return { topics: [], folders: [], origins: {}, trash: {} }
         if (command === 'conversation_list') return { data: [], nextCursor: null }
-        if (command === 'conversation_read') return { id: args.id, name: '原来的执行会话', turns: [{ id: 't', status: 'completed', items: [{ id: 'answer', type: 'agentMessage', text: '同一个线程的执行结果', phase: 'final_answer' }] }] }
+        if (command === 'conversation_read') {
+          const turn = window.qaPetMain.deliveryTurn
+          return { id: args.id, name: '原来的执行会话', taskId: 'review-b',
+            task: { id: 'review-b', title: '交付 B', engine: 'goals', status: 'review', threadId: args.id, deliveryTurnId: turn },
+            turns: [{ id: turn, status: 'completed', items: [{ id: 'answer', type: 'agentMessage', text: '交付结果 ' + turn, phase: 'final_answer' }] }] }
+        }
         throw new Error('Unexpected main command ' + command)
       },
     }
@@ -165,9 +175,42 @@ try {
   await toggle.click(); await main.waitForFunction(() => document.querySelector('#desktop-pet-switch').getAttribute('aria-checked') === 'true')
   await main.screenshot({ path: '/tmp/nooki-pet-ui/settings.png' })
   await toggle.click(); await main.waitForFunction(() => document.querySelector('#desktop-pet-switch').getAttribute('aria-checked') === 'false')
+  const review = { id: 'review-b', title: '交付 B', status: 'review', threadId: 'existing-thread', deliveryTurnId: 't1' }
+  await page.evaluate(board => { window.qaPet.preferences.language = 'zh'; window.qaPet.board = board }, { cards: [running, review] })
+  const unread = page.getByRole('button', { name: /查看任务状态：待验收/ })
+  const busy = page.getByRole('button', { name: /查看任务状态：执行中/ })
+  await page.setViewportSize({ width: 320, height: 386 })
+  await unread.click()
+  await page.getByRole('button', { name: /交付 B.*待验收/ }).waitFor()
+  await unread.click()
   await main.evaluate(() => window.qaPetMain.jump())
-  await main.getByText('同一个线程的执行结果', { exact: true }).waitFor()
+  await main.getByText('交付结果 t1', { exact: true }).waitFor()
   assert.equal(await main.evaluate(() => window.qaPetMain.pending()), null)
+  // Wait through a pet snapshot while the visible conversation lacks focus.
+  const samples = () => window.qaPet.calls.filter(([name]) => name === 'desktop_pet_snapshot').length
+  const tick = async () => {
+    const n = await page.evaluate(samples)
+    await page.waitForFunction(n => window.qaPet.calls.filter(([name]) => name === 'desktop_pet_snapshot').length > n, n)
+  }
+  await tick()
+  assert.equal(await unread.count(), 1)
+  const offscreen = await main.addStyleTag({ content: '.conversation-answer { transform: translateX(200vw) }' })
+  await main.evaluate(() => { window.qaPetMain.foreground = true; window.dispatchEvent(new Event('focus')) })
+  await tick()
+  assert.equal(await unread.count(), 1)
+  await offscreen.evaluate(el => el.remove())
+  await busy.waitFor()
+  await busy.click()
+  await page.getByRole('button', { name: /交付 B.*待验收/ }).waitFor()
+  await busy.click()
+  await page.reload()
+  await expectArtwork([running, review], 'nooki-pet-working.gif')
+  // A revised delivery has its own unread reminder.
+  await main.evaluate(() => { window.qaPetMain.foreground = false; window.qaPetMain.deliveryTurn = 't2' })
+  await expectArtwork([running, { ...review, deliveryTurnId: 't2' }], 'nooki-pet-idle')
+  await main.getByText('交付结果 t2', { exact: true }).waitFor()
+  await main.evaluate(() => { window.qaPetMain.foreground = true; window.dispatchEvent(new Event('focus')) })
+  await busy.waitFor()
   assert.deepEqual(mainErrors, [])
-  console.log('Settings placement, toggle and pending conversation navigation passed')
+  console.log('Settings, navigation, foreground delivery receipts, persistence and revised delivery passed')
 } finally { await browser.close() }

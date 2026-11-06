@@ -9,21 +9,23 @@ export type PetTask = {
   activeTurn?: boolean
   needsInput?: boolean
   goalActive?: boolean
+  deliveryTurnId?: string | null
 }
 export type PetStatus = BoardStatus | 'idle' | 'queuePaused'
 export type PetBoard = { cards: PetTask[]; paused?: boolean }
 
 const priority: Record<BoardStatus, number> = { question: 0, blocked: 1, usageLimited: 1, budgetLimited: 1, review: 2, running: 3, pausing: 3, stopping: 3, queued: 4, paused: 5, stopped: 5, todo: 6, done: 6 }
 
-export function petActivity(board: PetBoard): { status: PetStatus; tasks: PetTask[] } {
+export function petActivity(board: PetBoard, isDeliveryRead: (taskId: string, turnId: string) => boolean = () => false): { status: PetStatus; tasks: PetTask[] } {
   const tasks = board.cards.filter(task => !task.archived).map(task => {
     let status = task.status
     if (task.needsInput) status = 'question'
-    else if ((task.activeTurn || task.goalActive) && !['pausing', 'stopping', 'question'].includes(status)) status = 'running'
+    else if ((task.activeTurn || task.goalActive) && priority[status] > priority.review && !['pausing', 'stopping'].includes(status)) status = 'running'
     return { ...task, status }
   }).filter(task => task.status !== 'todo' && task.status !== 'done')
     .sort((a, b) => priority[a.status] - priority[b.status])
-  const status: PetStatus = tasks.length ? tasks[0].status : 'idle'
+  const next = tasks.find(task => task.status !== 'review' || (task.deliveryTurnId && !isDeliveryRead(task.id, task.deliveryTurnId)))
+  const status: PetStatus = next?.status ?? 'idle'
   return { tasks, status: board.paused && (status === 'queued' || status === 'idle') ? 'queuePaused' : status }
 }
 

@@ -189,7 +189,7 @@ fn snapshot(state: &DesktopPet) -> Result<Value, String> {
     let board = crate::task_goals::load(&state.root)?;
     let cards: Vec<Value> = board["cards"].as_array().unwrap().iter().map(|card| json!({
         "id":card["id"], "title":card["title"], "status":card["status"], "threadId":card["threadId"],
-        "archived":card["archived"] == true, "activeTurn":card["activeTurn"] == true,
+        "archived":card["archived"] == true, "activeTurn":card["activeTurn"] == true, "deliveryTurnId":card["deliveryTurnId"],
         "needsInput":card["requests"].as_array().is_some_and(|r| !r.is_empty()), "goalActive":card["goal"]["status"] == "active"
     })).collect();
     Ok(json!({"preferences":state.preferences(), "board":{"cards":cards, "paused":board["paused"] == true}}))

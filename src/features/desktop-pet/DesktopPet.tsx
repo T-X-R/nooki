@@ -7,6 +7,7 @@ import petStill from '../../assets/nooki-agent-cat.png'
 import workingAnimation from '../../assets/nooki-pet-working.gif'
 import workingStill from '../../assets/nooki-pet-working-still.png'
 import { petActivity, petStatusLabels, type PetBoard } from './pet-activity.ts'
+import { isDeliveryRead } from './delivery-receipts.ts'
 import './desktop-pet.css'
 
 type Snapshot = { board: PetBoard; preferences: { language: 'zh' | 'en'; theme: 'light' | 'dark' } }
@@ -22,7 +23,7 @@ export function DesktopPet() {
   const gesture = useRef<{ x: number; y: number; dragged: boolean } | null>(null)
   const dragging = useRef(false)
   const zh = snapshot?.preferences.language !== 'en'
-  const activity = petActivity(snapshot?.board ?? { cards: [] })
+  const activity = petActivity(snapshot?.board ?? { cards: [] }, isDeliveryRead)
   const working = !error && activity.status === 'running'
   const label = error ? (zh ? '状态暂不可用' : 'Status unavailable') : !snapshot ? (zh ? '读取状态…' : 'Loading…') : petStatusLabels[activity.status][zh ? 0 : 1]
 

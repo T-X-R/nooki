@@ -16,6 +16,20 @@ test('actual requests and active turns override a previously accepted status', (
   assert.equal(petActivity({ cards: [task('done', 'done', { goalActive: true })] }).status, 'running')
 })
 
+test('viewing one delivery releases the working animation without accepting the task', () => {
+  const running = task('a', 'running')
+  const review = task('b', 'review', { deliveryTurnId: 'first' })
+  const read = (id: string, turn: string) => id === 'b' && turn === 'first'
+  const board = { cards: [running, review] }
+  assert.equal(petActivity(board).status, 'review')
+  const seen = petActivity(board, read)
+  assert.equal(seen.status, 'running')
+  assert.deepEqual(seen.tasks.map(t => t.status), ['review', 'running'])
+  assert.equal(petActivity({ cards: [review] }, read).status, 'idle')
+  assert.equal(petActivity({ cards: [running, { ...review, deliveryTurnId: 'revision' }] }, read).status, 'review')
+  assert.equal(petActivity({ cards: [running, task('old', 'review')] }, read).status, 'running')
+})
+
 test('queue pause is distinct from running work and per-task pause/stop transitions', () => {
   assert.equal(petActivity({ paused: true, cards: [task('run', 'running')] }).status, 'running')
   assert.equal(petActivity({ paused: true, cards: [task('queue', 'queued')] }).status, 'queuePaused')
