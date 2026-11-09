@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CheckIcon, MoonIcon, SunIcon } from '@radix-ui/react-icons'
+import { version as appVersion } from '../../../src-tauri/tauri.conf.json'
 import type { InstalledCapability } from '../../platform/capability-host.ts'
 import { isDesktopHost, testCapabilityAgent, type AgentTool } from '../../platform/agent-tools.ts'
 import { ConversationArchives } from '../conversation/ConversationArchives.tsx'
@@ -94,16 +95,21 @@ export function SettingsPage({ onOpenConversation, installed, onNotice, agents, 
     'local-data': <DataManagement language={language} installed={installed} />,
     'updates': (
       <div className="settings-update">
-        <div className="settings-update-actions">
-          <button type="button" className="secondary-button" disabled={updates.checking || updates.installing || updates.result?.status === 'unavailable'} onClick={() => void updates.check()}>
-            {t(updates.checking ? 'updateChecking' : 'updateCheck')}
-          </button>
-          {updates.result?.status === 'available' && <button type="button" className="primary-button" disabled={updates.checking || updates.installing} onClick={() => void updates.install()}>{t('updateInstall')}</button>}
-        </div>
-        <div role="status">
-          {updates.result?.status === 'available' && <p>{t('updateAvailable', { version: updates.result.version })}</p>}
-          {updates.result?.status === 'upToDate' && <p>{t('updateUpToDate')}</p>}
-          {updates.result?.status === 'unavailable' && <p>{t('updateUnavailable')}</p>}
+        <div className="settings-update-row">
+          <div>
+            <strong>{t('updateCurrentVersion', { version: appVersion })}</strong>
+            <div role="status">
+              {updates.result?.status === 'available' && <p>{t('updateAvailable', { version: updates.result.version })}</p>}
+              {updates.result?.status === 'upToDate' && <p>{t('updateUpToDate')}</p>}
+              {updates.result?.status === 'unavailable' && <p>{t('updateUnavailable')}</p>}
+            </div>
+          </div>
+          {updates.result?.status !== 'unavailable' && <div className="settings-update-actions">
+            <button type="button" className="secondary-button" disabled={updates.checking || updates.installing} onClick={() => void updates.check()}>
+              {t(updates.checking ? 'updateChecking' : 'updateCheck')}
+            </button>
+            {updates.result?.status === 'available' && <button type="button" className="primary-button" disabled={updates.checking || updates.installing} onClick={() => void updates.install()}>{t('updateInstall')}</button>}
+          </div>}
         </div>
         {updates.result?.status === 'available' && updates.result.notes && <p className="settings-update-notes">{updates.result.notes}</p>}
         {updates.message && <p role="alert">{t(updates.message)}</p>}

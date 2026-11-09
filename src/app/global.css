@@ -278,16 +278,18 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
 .library-reader-content th, .library-reader-content td { padding: 7px 9px; border: 1px solid var(--line); text-align: left; }
 .library-reader-content th { background: var(--surface-muted); font-weight: 650; }
 
-.settings-page { max-width: var(--workbench-page-width); }
+.settings-page { --settings-number-width: 35px; max-width: var(--workbench-page-width); }
 .settings-section { padding: 22px 0 25px; border-bottom: 1px solid var(--line); }
-.settings-section-heading { display: grid; grid-template-columns: 35px 1fr; gap: 12px; }
+.settings-section-heading { display: grid; grid-template-columns: var(--settings-number-width) 1fr; gap: 12px; }
 .settings-number { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-weight: 650; }
 .settings-section h2, .settings-section h3 { margin: -2px 0 7px; font-size: 17px; font-weight: 650; letter-spacing: -.035em; }
 /* A measure, not a page width. An intro running the full 950px reads as a different document from
    the cards below it. */
 .settings-section p { margin: 0; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 .settings-empty { margin: 16px 0 0 47px; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
-.settings-update { display: grid; gap: 8px; margin-top: 12px; }
+.settings-update { display: grid; gap: 8px; margin: 14px 0 0 calc(var(--settings-number-width) + 12px); padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.settings-update-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.settings-update-row strong { color: var(--ink); font-size: 12px; font-weight: 650; }
 .settings-update-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .settings-update-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 
@@ -434,7 +436,7 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
   .theme-options { grid-template-columns: 1fr; margin-left: 0; }
   .agent-panel { margin-left: 0; }
   .settings-empty { margin-left: 0; }
-  .settings-section-heading { grid-template-columns: 28px 1fr; }
+  .settings-page { --settings-number-width: 28px; }
   .settings-number { font-size: 9px; }
   .content-column.library-page { height: auto; min-height: 100%; }
   .library-workspace { flex: none; grid-template-columns: 1fr; height: auto; min-height: 0; }
