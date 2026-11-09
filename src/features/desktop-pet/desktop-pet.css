@@ -16,6 +16,8 @@ html[data-pet-window] #root { background: transparent; }
 .pet-companion { position: absolute; right: var(--pet-right, 0px); bottom: var(--pet-bottom, 0px); width: 160px; height: 108px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; }
 .pet-avatar { width: 100px; height: 100px; padding: 0; border: 0; background: transparent; cursor: grab; touch-action: none; }
 .pet-avatar:active { cursor: grabbing; }
+.pet-avatar:focus-visible { box-shadow: none; }
+.pet-avatar:focus-visible img { filter: drop-shadow(0 0 3px var(--accent)); }
 .pet-activity { position: absolute; top: 8px; left: 8px; right: 8px; bottom: calc(var(--pet-bottom, 0px) + 118px); display: flex; flex-direction: column; background: var(--surface-strong); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 3px 12px #00000015; overflow: hidden; }
 .desktop-pet[data-panel-below=true] .pet-activity { top: calc(100% - var(--pet-bottom) + 10px); bottom: 8px; }
 .pet-activity header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 12px; }
