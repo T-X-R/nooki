@@ -2,6 +2,7 @@
 // Set PLAYWRIGHT_MODULE for an external Playwright installation.
 // Native IPC is mocked; this suite never mutates real conversations or Library data.
 import assert from 'node:assert/strict';
+import tauriConfig from '../../src-tauri/tauri.conf.json' with { type: 'json' };
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { chromium } = playwright.chromium ? playwright : playwright.default;
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
@@ -72,6 +73,7 @@ try {
   await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
   const directory = page.getByRole('navigation', { name: '资料目录', exact: true });
   await directory.getByRole('button', { name: '阅读与思考', exact: true }).waitFor();
+  assert.equal(await page.locator('.version-label').textContent(), `v${tauriConfig.version} · 本地`);
   assert.equal(await page.getByRole('button', { name: '资料库', exact: true }).getAttribute('aria-expanded'), null);
   assert.equal(await page.locator('#sidebar-library-topics').count(), 0);
   await directory.getByRole('button', { name: '旅行灵感', exact: true }).click();

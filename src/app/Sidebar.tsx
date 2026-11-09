@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DashboardIcon, ChevronRightIcon, CubeIcon, GearIcon, LayersIcon, MoonIcon, Pencil2Icon, SunIcon } from '@radix-ui/react-icons'
+import { version as appVersion } from '../../src-tauri/tauri.conf.json'
 import type { InstalledCapability } from '../platform/capability-host.ts'
 import { LibraryNavigation } from '../features/library/LibraryNavigation.tsx'
 import { ConversationNavigation } from '../features/conversation/ConversationNavigation.tsx'
@@ -73,7 +74,7 @@ export function Sidebar({ activeConversationId, onOpenConversation, activeView, 
         <button className="icon-button" aria-label={theme === 'light' ? t('switchDark') : t('switchLight')} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
           {theme === 'light' ? <MoonIcon /> : <SunIcon />}
         </button>
-        <span className="version-label">v0.3.0 · {t('localVersion')}</span>
+        <span className="version-label">v{appVersion} · {t('localVersion')}</span>
       </div>
     </aside>
   )
