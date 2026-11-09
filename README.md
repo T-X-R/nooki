@@ -47,6 +47,8 @@ npm run desktop:install
 
 This builds `src-tauri/target/release/bundle/macos/Nooki.app` and installs it in `/Applications`. Run `npm run desktop:build:dmg` to create a DMG.
 
+See [macOS releases and updates](docs/macos-releases.md) for the signed distribution workflow.
+
 ## Capability development
 
 Open **Capability Center → Developer center** to install the development skill into the skill pool, from where it reaches Codex, Claude Code, and any other tool you registered. You can also download the kit and place it yourself. Build a capability with the kit, then import its `.capability.zip` in Nooki.

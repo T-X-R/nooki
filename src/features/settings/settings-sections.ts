@@ -8,7 +8,7 @@
 // line, which is where a person reads it anyway, and a rule that exists in one sentence does not
 // need a registry to hold it.
 
-export type SettingsSectionId = 'agent-access' | 'appearance' | 'language' | 'local-data'
+export type SettingsSectionId = 'agent-access' | 'appearance' | 'language' | 'local-data' | 'updates'
 
 export type SettingsSection = {
   id: SettingsSectionId
@@ -21,6 +21,7 @@ export const settingsSections: readonly SettingsSection[] = [
   { id: 'agent-access', desktopOnly: true },
   { id: 'appearance' },
   { id: 'language' },
+  { id: 'updates', desktopOnly: true },
   { id: 'local-data' },
 ]
 

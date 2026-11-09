@@ -20,6 +20,7 @@ import { CapabilitiesPage } from '../features/capabilities/CapabilitiesPage.tsx'
 import { CapabilityErrorBoundary, CapabilityPage } from '../features/capabilities/CapabilityPage.tsx'
 import { LibraryPage } from '../features/library/LibraryPage.tsx'
 import { SettingsPage } from '../features/settings/SettingsPage.tsx'
+import { useAppUpdate } from '../features/settings/use-app-update.ts'
 import { SkillPoolPage } from '../features/skills/SkillPoolPage.tsx'
 import { TaskPage } from '../features/tasks/TaskPage.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
@@ -53,6 +54,7 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [installedCapabilities, setInstalledCapabilities] = useState<InstalledCapability[]>([])
   const [activeCapabilityId, setActiveCapabilityId] = useState<string | null>(null)
+  const updates = useAppUpdate(version => showNotice(i18n.t('updateAvailableNotice', { version })))
 
   useEffect(() => {
     if (!window.__TAURI_INTERNALS__) return
@@ -107,6 +109,7 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (updates.installing) return
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         setCommandOpen((open) => !open)
@@ -119,7 +122,7 @@ function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setView])
+  }, [setView, updates.installing])
 
   useEffect(() => { if (takeSubstrateNotice()) showNotice(t('agentMigrated')) }, [])
 
@@ -163,7 +166,7 @@ function App() {
   return (
     <div className="app-shell">
       <WindowTitlebar />
-      <div className="app-workspace">
+      <div className="app-workspace" inert={updates.installing}>
         <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
           <AnimatePresence mode="wait">
@@ -184,22 +187,23 @@ function App() {
               {view === 'library' && <LibraryPage onOpenCommand={() => setCommandOpen(true)} organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}
               {view === 'capabilities' && <CapabilitiesPage installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onRefresh={refreshCapabilities} onOpenCapability={openCapability} onNotice={showNotice} />}
               {view === 'capability' && activeCapabilityId && getCapabilityModule(activeCapabilityId) && <CapabilityErrorBoundary key={`${activeCapabilityId}:${getCapabilityModule(activeCapabilityId)!.manifest.version}`} onBack={() => navigate('capabilities')} language={language}><CapabilityPage module={getCapabilityModule(activeCapabilityId)!} /></CapabilityErrorBoundary>}
-              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} />}
+              {view === 'settings' && <SettingsPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} installed={installedCapabilities} onNotice={showNotice} agents={agents} capabilityAgent={capabilityAgent} onChooseAgent={chooseAgent} onRefreshAgents={refreshAgents} updates={updates} />}
               </div>
             </motion.div>
           </AnimatePresence>
         </main>
       </div>
       <AnimatePresence>
-        {notice && (
+        {(updates.installing || notice) && (
           <motion.div
             className="toast"
+            role="status"
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
           >
-            <CheckCircledIcon />
-            {notice}
+            {!updates.installing && <CheckCircledIcon />}
+            {updates.installing ? t('updateInstalling') : notice}
           </motion.div>
         )}
       </AnimatePresence>

@@ -8,7 +8,7 @@ test('no section is declared twice', () => {
 })
 
 test('settings covers only what Nooki itself uses', () => {
-  assert.deepEqual(settingsSections.map((section) => section.id), ['agent-access', 'appearance', 'language', 'local-data'])
+  assert.deepEqual(settingsSections.map((section) => section.id), ['agent-access', 'appearance', 'language', 'updates', 'local-data'])
 })
 
 test('a browser preview hides what it cannot look at', () => {

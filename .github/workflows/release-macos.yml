@@ -1,0 +1,88 @@
+name: Prepare macOS release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nooki-macos-release
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/master'
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify release version
+        id: version
+        run: |
+          version=$(jq -er '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' src-tauri/tauri.conf.json)
+          tag="v$version"
+          [ "$(git rev-parse "refs/tags/$tag^{commit}")" = "$GITHUB_SHA" ]
+          [ "$(node -p 'require("./package.json").version')" = "$version" ]
+          [ "$(cargo metadata --locked --no-deps --format-version 1 --manifest-path src-tauri/Cargo.toml | jq -er '.packages[] | select(.name == "app") | .version')" = "$version" ]
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Test
+        run: |
+          npm ci
+          npm test
+          cargo test --locked --manifest-path src-tauri/Cargo.toml -- --test-threads=1
+      - name: Build and sign macOS artifacts
+        env:
+          NOOKI_UPDATE_PUBLIC_KEY: ${{ vars.NOOKI_UPDATE_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          : "${NOOKI_UPDATE_PUBLIC_KEY:?}" "${TAURI_SIGNING_PRIVATE_KEY:?}" "${APPLE_CERTIFICATE:?}" \
+            "${APPLE_CERTIFICATE_PASSWORD:?}" "${APPLE_SIGNING_IDENTITY:?}" "${APPLE_API_ISSUER:?}" \
+            "${APPLE_API_KEY:?}" "${APPLE_API_KEY_P8:?}"
+          umask 077
+          export APPLE_API_KEY_PATH="$RUNNER_TEMP/nooki-notarization.p8"
+          trap 'rm -f "$APPLE_API_KEY_PATH"' EXIT
+          printf '%s\n' "$APPLE_API_KEY_P8" > "$APPLE_API_KEY_PATH"
+          unset APPLE_API_KEY_P8
+          config="$RUNNER_TEMP/nooki-release.json"
+          jq -n --arg pubkey "$NOOKI_UPDATE_PUBLIC_KEY" \
+            --arg endpoint "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/latest/download/latest.json" \
+            '{bundle:{createUpdaterArtifacts:true},plugins:{updater:{pubkey:$pubkey,endpoints:[$endpoint],requireSignedVersion:true}}}' > "$config"
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          npm exec -- tauri build --ci --target universal-apple-darwin --bundles app,dmg --config "$config"
+          git diff --exit-code -- src-tauri/Cargo.lock
+          app=src-tauri/target/universal-apple-darwin/release/bundle/macos/Nooki.app
+          codesign --verify --deep --strict "$app"
+          xcrun stapler validate "$app"
+      - name: Create release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          bundle=src-tauri/target/universal-apple-darwin/release/bundle
+          archive="$bundle/macos/Nooki.app.tar.gz"
+          notes="$RUNNER_TEMP/nooki-release-notes.md"
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" \
+            -f target_commitish="$GITHUB_SHA" --jq .body > "$notes"
+          jq -n --arg version "${TAG#v}" --rawfile notes "$notes" --rawfile signature "$archive.sig" \
+            --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TAG/Nooki.app.tar.gz" \
+            '{version:$version,notes:$notes,platforms:{"darwin-aarch64":{url:$url,signature:$signature},"darwin-x86_64":{url:$url,signature:$signature}}}' \
+            > "$RUNNER_TEMP/latest.json"
+          gh release create "$TAG" --verify-tag --draft --title "Nooki $TAG" --notes-file "$notes" \
+            "$bundle"/dmg/*.dmg "$archive" "$archive.sig" "$RUNNER_TEMP/latest.json"

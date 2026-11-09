@@ -13,8 +13,8 @@ try {
     if (!localStorage.getItem('personal-workbench-preferences')) localStorage.setItem('personal-workbench-preferences', JSON.stringify({ state: { view: 'library', language: 'zh', theme: 'light' }, version: 4 }));
     if (!localStorage.getItem('personal-workbench-library-v2')) {
       const doc = { id: 'com.personal.notes/notes/2026/10/entry', key: 'entry', capabilityId: 'com.personal.notes', capabilityName: '笔记', collectionKey: 'notes', collectionName: 'Notes', title: '项目观察', content: '# 观察\n\n保留这份文档。keyword', documentDate: '2026-10-16', createdAt: '2026-10-16T00:00:00Z', updatedAt: '2026-10-16T00:00:00Z', revision: 'original', format: 'markdown', sizeBytes: 64 };
-      const section = { id: 'custom-reading', name: '阅读笔记', topicId: 'meta' };
-      localStorage.setItem('personal-workbench-library-v2', JSON.stringify({ documents: [doc, { ...doc, id: 'com.personal.notes/notes/2026/10/deleted', key: 'deleted', title: '回收站资料' }], history: {}, organization: { topics: [{ id: 'meta', name: 'MetaDrive', documentIds: [doc.id] }, { id: 'test', name: '测试', documentIds: [doc.id] }], trash: { 'com.personal.notes/notes/2026/10/deleted': '2026-10-16' }, origins: {}, sections: { [doc.id]: section }, customSections: [section, { id: 'custom-other', name: '其他文件夹' }] } }));
+      const section = { id: 'custom-reading', name: '阅读笔记', topicId: 'sample-project' };
+      localStorage.setItem('personal-workbench-library-v2', JSON.stringify({ documents: [doc, { ...doc, id: 'com.personal.notes/notes/2026/10/deleted', key: 'deleted', title: '回收站资料' }], history: {}, organization: { topics: [{ id: 'sample-project', name: '示例项目', documentIds: [doc.id] }, { id: 'test', name: '测试', documentIds: [doc.id] }], trash: { 'com.personal.notes/notes/2026/10/deleted': '2026-10-16' }, origins: {}, sections: { [doc.id]: section }, customSections: [section, { id: 'custom-other', name: '其他文件夹' }] } }));
     }
     const setItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) { if (key === 'personal-workbench-library-v2' && window.failSave) throw new Error('Disk full'); return setItem.call(this, key, value); };
@@ -39,11 +39,11 @@ try {
   await page.reload(); await directory.getByRole('button', { name: '长期阅读', exact: true }).waitFor();
   await actions('长期阅读', '重命名'); await field.fill('不保存'); await page.keyboard.press('Escape');
   await directory.getByRole('button', { name: '长期阅读', exact: true }).waitFor();
-  await actions('MetaDrive', '移动到…');
+  await actions('示例项目', '移动到…');
   const folderMove = page.getByRole('dialog', { name: '移动文件夹', exact: true });
   await folderMove.getByRole('button', { name: /^移动到 / }).click();
   const choices = await folderMove.getByRole('option').allTextContents();
-  assert.ok(choices.every(name => !name.includes('MetaDrive') && !name.includes('长期阅读')), 'Cannot move a folder inside itself or descendants');
+  assert.ok(choices.every(name => !name.includes('示例项目') && !name.includes('长期阅读')), 'Cannot move a folder inside itself or descendants');
   await page.keyboard.press('Escape'); await folderMove.getByRole('button', { name: '取消', exact: true }).click();
   await actions('长期阅读', '移动到…');
   await folderMove.getByRole('button', { name: /^移动到 / }).click();
@@ -92,7 +92,7 @@ try {
   // Deleting a nonempty tree removes all descendant folders and documents atomically.
   await page.evaluate(async () => {
     const { createLibraryStore } = await import('/src/platform/library-store.ts'); const store = createLibraryStore(localStorage);
-    for (const folder of [{ id: 'delete-tree', name: '待删除项目', parentId: 'topic-meta' }, { id: 'delete-child', name: '待删除子目录', parentId: 'delete-tree' }, { id: 'delete-empty', name: '待删除空目录', parentId: 'delete-child' }]) store.change({ kind: 'save-folder', folder: { ...folder, documentIds: [] } });
+    for (const folder of [{ id: 'delete-tree', name: '待删除项目', parentId: 'topic-sample-project' }, { id: 'delete-child', name: '待删除子目录', parentId: 'delete-tree' }, { id: 'delete-empty', name: '待删除空目录', parentId: 'delete-child' }]) store.change({ kind: 'save-folder', folder: { ...folder, documentIds: [] } });
     for (const [key, title, folderId] of [['direct', '待删除直接文档', 'delete-tree'], ['deep', '待删除深层文档', 'delete-child']]) store.change({ kind: 'create', folderId, document: { key, title, content: 'Delete with folder', documentDate: '2026-10-16', collectionKey: 'documents', collectionName: 'Documents' } });
     window.dispatchEvent(new Event('workbench:library-changed'));
   });

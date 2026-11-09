@@ -2,6 +2,7 @@
 // Set PLAYWRIGHT_MODULE for an external Playwright installation.
 // Native IPC is mocked; this suite never mutates real conversations or Library data.
 import assert from 'node:assert/strict';
+import tauriConfig from '../../src-tauri/tauri.conf.json' with { type: 'json' };
 const playwright = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const { chromium } = playwright.chromium ? playwright : playwright.default;
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
@@ -18,10 +19,18 @@ try {
       sessions: [{ id: 'current', name: '整理本周的想法', preview: '整理本周的想法', updatedAt: 1788948000, turns: [] }, ...Array.from({ length: 43 }, (_, i) => ({ id: `archived-${i}`, name: `往期对话 ${i + 1}`, preview: '', updatedAt: 1788948000 - i * 86400, archived: true, turns: [] }))],
     };
     const persist = () => localStorage.setItem('qa-organization', JSON.stringify(data));
-    window.qa = { data, failDelete: '', loseDeleteResponse: '', failArchive: false, failList: false, deleted: [], pages: [] };
+    window.qa = { data, failDelete: '', loseDeleteResponse: '', failArchive: false, failList: false, deleted: [], pages: [], updateChecks: 0, updateInstalls: [], updateAvailable: true };
     let callbackId = 0;
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, transformCallback: () => ++callbackId, unregisterCallback: () => {}, invoke: async (command, args = {}) => {
+      if (command === 'app_update_check') {
+        window.qa.updateChecks++;
+        return window.qa.updateAvailable ? { status: 'available', version: '0.4.0', notes: 'Update test notes' } : { status: 'unavailable' };
+      }
+      if (command === 'app_update_install') {
+        window.qa.updateInstalls.push(args.version);
+        return 'busy';
+      }
       if (command === "desktop_pet_preferences") return { enabled: false };
       if (command === "desktop_pet_navigation" || command === "desktop_pet_appearance") return null;
       if (command.startsWith('plugin:')) return null;
@@ -72,6 +81,7 @@ try {
   await page.goto(process.env.CONVERSATION_TEST_URL || 'http://127.0.0.1:5193/');
   const directory = page.getByRole('navigation', { name: '资料目录', exact: true });
   await directory.getByRole('button', { name: '阅读与思考', exact: true }).waitFor();
+  assert.equal(await page.locator('.version-label').textContent(), `v${tauriConfig.version} · 本地`);
   assert.equal(await page.getByRole('button', { name: '资料库', exact: true }).getAttribute('aria-expanded'), null);
   assert.equal(await page.locator('#sidebar-library-topics').count(), 0);
   await directory.getByRole('button', { name: '旅行灵感', exact: true }).click();
@@ -111,7 +121,7 @@ try {
     await archiveToggle.waitFor();
     // Last section of Settings, after local data, and folded until it is asked for.
     assert.equal(await page.locator('.settings-archive-section').evaluate(el => el.previousElementSibling.querySelector('h2').textContent), '本地数据');
-    assert.equal(await page.locator('.settings-archive-section .settings-number').textContent(), '05');
+    assert.equal(await page.locator('.settings-archive-section .settings-number').textContent(), '06');
     assert.equal(await archiveToggle.getAttribute('aria-expanded'), 'false');
     assert.equal(await archive.count(), 0);
     await page.waitForFunction(() => document.querySelector('.conversation-archive-count')?.textContent === String(window.qa.data.sessions.filter(session => session.archived).length));
@@ -120,6 +130,25 @@ try {
     await archive.waitFor();
   };
   await openArchive();
+  const updateSection = page.locator('.settings-section').filter({ has: page.getByRole('heading', { name: '应用更新' }) });
+  await updateSection.getByText('Update test notes').waitFor();
+  await updateSection.getByText(`当前版本 v${tauriConfig.version}`, { exact: true }).waitFor();
+  for (const width of [1240, 640]) {
+    await page.setViewportSize({ width, height: 820 });
+    assert.equal(await updateSection.locator('.settings-update').evaluate(el => el.getBoundingClientRect().left),
+      await updateSection.getByRole('heading', { name: '应用更新' }).evaluate(el => el.getBoundingClientRect().left));
+  }
+  await page.setViewportSize({ width: 1240, height: 820 });
+  assert.deepEqual(await page.evaluate(() => [window.qa.updateChecks, window.qa.updateInstalls]), [1, []]);
+  await updateSection.getByRole('button', { name: '检查更新' }).click();
+  await page.waitForFunction(() => window.qa.updateChecks === 2);
+  await updateSection.getByRole('button', { name: '更新并重启' }).click();
+  await updateSection.getByRole('alert').filter({ hasText: '有任务正在运行或排队' }).waitFor();
+  assert.deepEqual(await page.evaluate(() => window.qa.updateInstalls), ['0.4.0']);
+  await page.evaluate(() => window.qa.updateAvailable = false);
+  await updateSection.getByRole('button', { name: '检查更新' }).click();
+  await updateSection.getByText('此构建未配置应用内更新。').waitFor();
+  assert.equal(await updateSection.getByRole('button').count(), 0);
   // Local data keeps one folded line per block, so the page reads as a list of headings.
   const capabilityData = page.locator('details.data-retained');
   assert.equal(await capabilityData.evaluate(el => el.open), false);

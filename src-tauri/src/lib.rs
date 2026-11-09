@@ -1,4 +1,5 @@
 pub mod task_goals;
+mod app_update;
 mod desktop_pet;
 pub mod task_worker;
 pub mod codex_conversations;
@@ -520,6 +521,7 @@ fn capability_package_rollback(id: String, expected_version: String, state: taur
 pub fn run() {
   tauri::Builder::default()
     .setup(|app| {
+      app_update::setup(app)?;
       app.handle().plugin(
         tauri_plugin_log::Builder::default()
           .level(log::LevelFilter::Info)
@@ -561,6 +563,7 @@ pub fn run() {
       }
     })
     .invoke_handler(tauri::generate_handler![
+      app_update::app_update_check, app_update::app_update_install,
       desktop_pet::desktop_pet_preferences, desktop_pet::desktop_pet_set_enabled, desktop_pet::desktop_pet_appearance,
       desktop_pet::desktop_pet_ready, desktop_pet::desktop_pet_snapshot, desktop_pet::desktop_pet_expand, desktop_pet::desktop_pet_save_position,
       desktop_pet::desktop_pet_open_conversation, desktop_pet::desktop_pet_navigation, desktop_pet::desktop_pet_navigation_ack,
