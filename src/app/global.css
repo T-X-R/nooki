@@ -287,6 +287,9 @@ kbd { display: inline-flex; align-items: center; justify-content: center; paddin
    the cards below it. */
 .settings-section p { margin: 0; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 .settings-empty { margin: 16px 0 0 47px; max-width: 500px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+.settings-update { display: grid; gap: 8px; margin-top: 12px; }
+.settings-update-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-update-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Two choices, two columns, each filling half the row. Every block in Settings runs to the same
    right edge, so the page has one content width rather than a panel column and an empty margin. */

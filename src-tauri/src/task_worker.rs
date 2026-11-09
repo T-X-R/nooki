@@ -18,6 +18,33 @@ pub(crate) fn data_lock(root: &Path) -> Result<Option<File>, String> {
     fs::create_dir_all(root).map_err(|e| e.to_string())?;
     file_lock(&root.join("task-data.lock"))
 }
+
+#[cfg(unix)]
+fn board_busy(root: &Path) -> Result<bool, String> {
+    let board = crate::task_goals::load(root)?;
+    Ok(board["cards"].as_array().unwrap().iter().any(|card| {
+        card["activeTurn"] == true || card["goal"]["status"] == "active"
+            || matches!(card["status"].as_str(), Some("queued" | "running" | "question" | "pausing" | "stopping"))
+    }))
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) async fn update_guard(root: &Path) -> Result<Option<File>, String> {
+    let owner = root.join("task-worker.lock");
+    if let Some(guard) = file_lock(&owner)? {
+        return Ok((!board_busy(root)?).then_some(guard));
+    }
+    if request(root, json!({"op":"update_handoff"})).await? != true {
+        return Ok(None);
+    }
+    for _ in 0..100 {
+        if let Some(guard) = file_lock(&owner)? {
+            return Ok((!board_busy(root)?).then_some(guard));
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    Err("Task worker did not release ownership".into())
+}
 #[cfg(unix)]
 pub async fn request(root: &Path, value: Value) -> Result<Value, String> {
     use std::os::unix::{fs::PermissionsExt, process::CommandExt};
@@ -71,13 +98,18 @@ pub async fn worker(root: &Path) -> Result<(), String> {
                 let (reader, mut writer) = stream.into_split();
                 let mut line = String::new();
                 if !matches!(tokio::time::timeout(Duration::from_secs(5), BufReader::new(reader).read_line(&mut line)).await, Ok(Ok(n)) if n > 0) { continue; }
-                if serde_json::from_str::<Value>(&line).ok().is_some_and(|r| r["op"] == "handoff") {
-                    writer.write_all(b"{\"result\":true}\n").await.map_err(|e| e.to_string())?;
-                    return Ok(()); // Release ownership; native Goals and turns stay in Codex.
-                }
-                let result = match serde_json::from_str(&line) { Ok(value) => controller.command(value).await, Err(error) => Err(error.to_string()) };
+                let request = serde_json::from_str::<Value>(&line);
+                let handoff = request.as_ref().is_ok_and(|value| matches!(value["op"].as_str(), Some("handoff" | "update_handoff")));
+                let result = match request {
+                    Ok(value) if value["op"] == "handoff" => Ok(json!(true)),
+                    Ok(value) if value["op"] == "update_handoff" => board_busy(root).map(|busy| json!(!busy)),
+                    Ok(value) => controller.command(value).await,
+                    Err(error) => Err(error.to_string()),
+                };
+                let relinquish = handoff && result.as_ref().is_ok_and(|value| value == true);
                 let response = match result { Ok(value) => json!({"result":value}), Err(error) => json!({"error":error}) };
-                let _ = writer.write_all(format!("{response}\n").as_bytes()).await;
+                let reply = writer.write_all(format!("{response}\n").as_bytes()).await;
+                if relinquish { return reply.map_err(|error| error.to_string()); }
             }
             _ = interval.tick() => { if let Err(error) = controller.tick().await { eprintln!("Task reconciliation: {error}"); } }
         }
@@ -85,3 +117,36 @@ pub async fn worker(root: &Path) -> Result<(), String> {
 }
 #[cfg(not(unix))]
 pub async fn worker(_: &Path) -> Result<(), String> { Err("Background tasks require Unix support".into()) }
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn update_waits_for_queued_work_and_takes_ownership_from_an_idle_worker() {
+        let root = std::env::temp_dir().join(format!("nooki-updater-worker-{}", std::process::id()));
+        fs::create_dir(&root).unwrap();
+        let path = root.join("task-board.json");
+        fs::write(&path, r#"{"paused":true,"cards":[{"id":"test","title":"Test","description":"","status":"queued","engine":"goals"}]}"#).unwrap();
+        let worker_root = root.clone();
+        let worker = tokio::spawn(async move { super::worker(&worker_root).await });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !root.join("task-worker.sock").exists() {
+                assert!(!worker.is_finished(), "worker failed to start");
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }).await.expect("worker startup timed out");
+
+        assert!(update_guard(&root).await.unwrap().is_none());
+        assert!(!worker.is_finished());
+
+        let pending = path.with_extension("pending");
+        fs::write(&pending, r#"{"cards":[]}"#).unwrap();
+        fs::rename(pending, path).unwrap();
+        let guard = update_guard(&root).await.unwrap().expect("idle worker should release ownership");
+        worker.await.unwrap().unwrap();
+        assert!(file_lock(&root.join("task-worker.lock")).unwrap().is_none());
+        drop(guard);
+        fs::remove_dir_all(root).unwrap();
+    }
+}

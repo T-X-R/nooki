@@ -9,6 +9,7 @@ import { DataManagement } from './DataManagement.tsx'
 import { PetSettings } from '../desktop-pet/PetSettings.tsx'
 import { agentNote, agentStanding, canChoose, listedAgents } from './agent-standing.ts'
 import { visibleSections, type SettingsSectionId } from './settings-sections.ts'
+import type { useAppUpdate } from './use-app-update.ts'
 
 type SettingsPageProps = {
   onOpenConversation: (id: string) => void
@@ -18,9 +19,10 @@ type SettingsPageProps = {
   capabilityAgent: string
   onChooseAgent: (id: string) => Promise<void>
   onRefreshAgents: () => void
+  updates: ReturnType<typeof useAppUpdate>
 }
 
-export function SettingsPage({ onOpenConversation, installed, onNotice, agents, capabilityAgent, onChooseAgent, onRefreshAgents }: SettingsPageProps) {
+export function SettingsPage({ onOpenConversation, installed, onNotice, agents, capabilityAgent, onChooseAgent, onRefreshAgents, updates }: SettingsPageProps) {
   const { t } = useTranslation()
   const { theme, setTheme, language, setLanguage } = useWorkbench()
   const [testing, setTesting] = useState(false)
@@ -90,6 +92,23 @@ export function SettingsPage({ onOpenConversation, installed, onNotice, agents, 
       </div>
     ),
     'local-data': <DataManagement language={language} installed={installed} />,
+    'updates': (
+      <div className="settings-update">
+        <div className="settings-update-actions">
+          <button type="button" className="secondary-button" disabled={updates.checking || updates.installing || updates.result?.status === 'unavailable'} onClick={() => void updates.check()}>
+            {t(updates.checking ? 'updateChecking' : 'updateCheck')}
+          </button>
+          {updates.result?.status === 'available' && <button type="button" className="primary-button" disabled={updates.checking || updates.installing} onClick={() => void updates.install()}>{t('updateInstall')}</button>}
+        </div>
+        <div role="status">
+          {updates.result?.status === 'available' && <p>{t('updateAvailable', { version: updates.result.version })}</p>}
+          {updates.result?.status === 'upToDate' && <p>{t('updateUpToDate')}</p>}
+          {updates.result?.status === 'unavailable' && <p>{t('updateUnavailable')}</p>}
+        </div>
+        {updates.result?.status === 'available' && updates.result.notes && <p className="settings-update-notes">{updates.result.notes}</p>}
+        {updates.message && <p role="alert">{t(updates.message)}</p>}
+      </div>
+    ),
   }
 
   return (
@@ -121,6 +140,7 @@ const SECTION_TITLE: Record<SettingsSectionId, string> = {
   'appearance': 'appearance',
   'language': 'language',
   'local-data': 'localData',
+  'updates': 'updates',
 }
 
 const SECTION_INTRO: Partial<Record<SettingsSectionId, string>> = {
