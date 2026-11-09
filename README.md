@@ -1,53 +1,36 @@
 # Nooki
 
-Nooki is a local-first desktop app for your notes, documents, and AI conversations. Keep your work in one place and add tools through installable capabilities.
+Nooki is a local-first macOS workspace for documents and AI agents. Use Codex, Claude Code, or pi to work on documents in your Library, and manage the skills your agents share from one place.
+
+## Build for macOS
+
+Get the source from [GitHub Releases](https://github.com/T-X-R/nooki/releases) or clone this repository. If a release includes a DMG, you can install it by opening the DMG and dragging Nooki to Applications.
+
+To build from source, install Node.js 22 or later, npm, Rust, and the Xcode Command Line Tools (`xcode-select --install`). Run these commands from the repository root. Quit Nooki before running the install command if it is already open.
+
+```sh
+npm ci
+npm run desktop:build
+npm run desktop:install
+```
+
+Open Nooki from Applications. The build also leaves a copy at `src-tauri/target/release/bundle/macos/Nooki.app`. Run `npm run desktop:build:dmg` to create a local DMG. See [macOS releases and updates](docs/macos-releases.md) for the signed distribution workflow.
 
 ## Features
 
 - **Document Library** — import, search, organize, and edit documents, with version history and Markdown export.
 - **Conversations** — discuss and revise Library documents or Markdown/text attachments with the selected agent, preview document changes, and save selected results to the Library.
-- **Skill pool** — keep every agent skill in `~/.agents/skills`, resolve duplicates by hand, and distribute them to the coding tools installed on your machine.
-- **Capabilities** — add tools such as Diary and Codex Daily Review from the Capability Center.
-- **Local workspace** — manage tasks, back up your data, and choose between English and Simplified Chinese or light and dark themes.
-
-## Getting started
-
-For local development, install Node.js, npm, Rust, and the native build tools required by Tauri.
-
-```sh
-npm install
-npm run desktop:dev
-```
-
-To preview the interface in a browser:
-
-```sh
-npm run dev
-```
-
-Conversations and the agents installed on this machine are only reachable from the desktop app.
+- **Skill Pool** — manage shared skills in `~/.agents/skills` and distribute them to your coding tools.
+- **Task board** — organize to-dos, goals, and follow-ups.
+- **Capability Center** — extend the workspace by importing `.capability.zip` packages.
 
 ## AI setup
 
-Nooki has no model credentials of its own and never calls a model service. Install a coding agent —
-Codex, Claude Code, or pi — and sign into it in that tool. Nooki detects what is here.
+1. Install Codex, Claude Code, or pi and configure authentication in that tool.
+2. Open **Settings → Agent access** to see which agents Nooki detects and choose which one handles capability requests through `ai.invoke`.
+3. Start a Conversation and choose an agent. Each conversation stays with the agent that started it.
 
-Open **Settings → Agent access** to see which agents were detected and pick the one that runs
-`ai.invoke` for Capability Packages. Being installed is enough — pi has no login of its own, and that
-is fine. Those invocations spend the selected agent's quota.
-
-New Conversations use the selected local agent and its native session. Existing Conversations stay bound to the agent that created them.
-
-## Build for macOS
-
-```sh
-npm run desktop:build
-npm run desktop:install
-```
-
-This builds `src-tauri/target/release/bundle/macos/Nooki.app` and installs it in `/Applications`. Run `npm run desktop:build:dmg` to create a DMG.
-
-See [macOS releases and updates](docs/macos-releases.md) for the signed distribution workflow.
+AI requests use the selected agent's credentials and quota. The Library and task board work without an agent.
 
 ## Capability development
 
@@ -81,6 +64,8 @@ Relative imports inside `src` carry an explicit `.ts`/`.tsx` extension, because
 `node --test` resolves the same modules without a bundler.
 
 ## Development
+
+After `npm ci`, run `npm run desktop:dev` to start the desktop app in development mode. Use `npm run dev` for a browser preview. Conversations with installed agents require the desktop app.
 
 ```sh
 npm run build
