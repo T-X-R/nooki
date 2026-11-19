@@ -90,7 +90,7 @@ The proposed APIs below must not be added to the released developer kit as if al
 | Chat | Conversation identity, navigation, captured context, user interaction | Which context or result to offer to a conversation | Explicit handoff and authorized conversation handles |
 | Agents | Provider adapters, run routing, progress, approvals, cancellation | Task instructions and domain interpretation of results | Host-owned agent runs; no vendor protocol imports |
 | Task board | User intent, assignment, acceptance, and durable item state | Proposals and authorized updates related to its work | Board API; never direct board-store mutation |
-| Execution | Job state, retries, checkpoints, cancellation, observability | Finite job definitions and idempotent business steps | Jobs API and execution context |
+| Execution | Invocation authority, execution parentage, job state, cancellation, and explicit handoff to user-owned work | Immediate command handlers, finite jobs, and idempotent business steps | Command broker, Jobs API, and host-issued execution context |
 | Data | Durable artifacts, stable references, access grants, export | Private settings, drafts, cache, and schema migrations | Artifact/document APIs and private storage |
 | System access | File selection, allowed network/media access, notifications, scheduling | When its domain needs those services | Narrow, scoped service operations |
 | Lifecycle | Installation state, compatibility, activation, resource termination | Optional preparation and cleanup within a bounded execution | Host remains able to stop a broken package |
@@ -108,6 +108,12 @@ The initial composition mechanism is a stable artifact reference or a conversati
 Packages must not load one another's modules. Direct capability-to-capability invocation is deferred;
 if later needed, it must use explicit public commands and the same authorization and result rules
 as conversation invocation, without creating a private dependency on another package's jobs.
+
+Provenance records which package produced an item; it does not determine who controls its lifetime.
+Documents and board items become host-held user records when saved. Executions remain dependent on
+their initiating package unless the host explicitly starts independent user-owned work as described
+in section 7. Merely creating an item, attaching a result, or opening a conversation does not transfer
+execution authority or imply that the user accepted a delivery.
 
 ## 4. Target architecture
 
@@ -134,8 +140,9 @@ cannot choose the identity under which it is authorized. Authoritative operation
 installed version, activation generation, grants, and execution state before applying effects.
 
 UI and execution lifetimes are independent. Leaving a page disposes its view but does not implicitly
-cancel a submitted job or an explicitly started media service. Disabling the package stops all of
-them. A service is not a hidden infinite job; it has its own visible running state and stop control.
+cancel a submitted job or an explicitly started media service. Disabling the package stops its
+dependent executions and services, but not work explicitly handed over to independent host ownership.
+A service is not a hidden infinite job; it has its own visible running state and stop control.
 
 Isolation is a required outcome for the new runtime, not a claim about today's loader. A technical
 spike must choose an enforceable arrangement of separate web content, workers, or processes based on
@@ -164,12 +171,20 @@ Keep an immutable installed payload and a digest for integrity/conflict checks. 
 of publisher authenticity. Trusted publisher verification and public catalog distribution are later
 work; until then, installation must accurately explain the package's source and trust model.
 
+Apply the approved-source continuity check to updates as well as reinstalls, before replacement
+code or migration code receives existing private data. A matching package ID, higher version, or
+unchanged permission list does not establish continuity. Record the reviewed source and the exact
+accepted payload. If continuity is changed or unverifiable, show an explicit replacement decision
+covering access to retained data and requested grants; do not silently inherit the old authority.
+Declining leaves the old installation and data unchanged. Manual source approval must be labeled as
+such, not presented as cryptographic verification. Publisher signing infrastructure is still deferred.
+
 ### Entry points
 
 | Kind | Contract | Lifetime and visibility |
 |---|---|---|
 | Page | Optional interactive UI, own layout and state, host language/theme | Mounted while visible; may submit work with a separate lifetime |
-| Command | Named public operation with input/output schemas, effect, and confirmation policy | Discoverable only when enabled and compatible; backed by a finite job |
+| Command | Named public operation with input/output schemas, effect, and confirmation policy | Returns an immediate result or a reference to explicitly started long work; a Job is optional |
 | Job | Private finite execution with cancellation, progress, and checkpoints | Continues across navigation; durable status and explicit retry |
 | Service | Explicitly started long-lived in-app activity, such as playback | User-visible running state; host can stop it independently of any page |
 
@@ -177,17 +192,32 @@ A page-only game and a command-only summarizer must both be valid. Do not create
 for headless packages. Widget and additional surface contributions remain deferred until a concrete
 consumer establishes their rendering and lifecycle contract.
 
+A command such as pause playback or open an editor should not manufacture a background Job.
+The command broker still validates inputs/results, enforces authority, and records the necessary
+invocation outcome. Use a Job when the operation needs background progress, cancellation, checkpoints,
+or retry. Immediate handlers are bounded and cancellable; work that exceeds their execution budget
+must use an explicit long-work contract rather than being silently replayed or converted to a Job.
+Command result schemas distinguish an immediate value from an execution reference. An immediate
+result may contain a separately authorized service handle; completing the command does not stop
+that service or transfer it out of package ownership. Existing job-backed commands remain supported.
+
 Package assets should be immutable, addressed relative to the package, and served with validated
 types and paths. Support binary assets without embedding them in JavaScript. Preserve traversal,
 symlink, duplicate-entry, archive expansion, and size checks; establish resource budgets with the
 PPT and game acceptance packages. Do not bundle native executables or executable install scripts.
 Generated artifacts and user data never live in the immutable package directory.
+Publication must also remove dependencies on that directory: required passive assets must be embedded
+or copied into host-held durable storage before the output can be considered independently retained.
+The complete retention rule appears in section 6.4.
 
 ## 6. Host service interfaces
 
 The operation names in this section are proposed API names, not shipped SDK calls. Before each
 service ships, publish its exact TypeScript and wire schemas, errors, required grants, and tests
 together. Do not expose an unbounded generic `invoke(method, any)` API to package authors.
+The catalog is a target service map, not an instruction to ship every listed method in phase 1.
+Implement only operations exercised by the current phase's acceptance package, with the matching
+SDK, Skill guidance, and verification fixtures in the same slice.
 
 ### 6.1 Common request and resource rules
 
@@ -216,12 +246,14 @@ together. Do not expose an unbounded generic `invoke(method, any)` API to packag
 | Service | Proposed public operations | Scope and result |
 |---|---|---|
 | `environment` | `getSnapshot`, `subscribe` | Locale, language, theme, and supported Host services; no shell store access |
+| `navigation` | `openCapability` | Open a declared page with validated parameters and recipient-authorized resource context; never invoke a business command implicitly |
 | `conversations` | `create`, `open`, `handoff`, `continue`, `observe` | Scoped conversation references; handoff opens a draft with explicit selected context; sending a turn is a separate authorized action |
 | `agents` | `listAvailable`, `start`, `get`, `subscribe`, `cancel` | Host-owned agent run; capability-supplied instructions, authorized inputs, requested result schema, progress and artifact references |
-| `board` | `create`, `list`, `get`, `update`, `attachDelivery`, `requestDelegation` | Scoped task items and revisions; creation does not imply delegation or acceptance |
+| `board` | `requestSelection`, `create`, `list`, `get`, `update`, `attachDelivery`, `requestDelegation` | Host-selected or package-created items and scoped grants; creation does not imply delegation or acceptance |
 | `jobs` | `start`, `get`, `list`, `subscribe`, `cancel`, `retry` | Package-owned finite execution; retain existing checkpoint semantics |
 | `services` | `start`, `get`, `list`, `subscribe`, `stop` | Package-declared persistent in-app activity with a host-owned handle and visible stop control |
-| `documents` | `requestSelection`, `readSelected`, `publish`, `open` | Host selection UI and authorized snapshots; stable document references |
+| `library` | `requestSelection` | Shared Library picker returns typed document snapshots or committed file artifacts with scoped read grants |
+| `documents` | `readSelected`, `publish`, `open` | Authorized document snapshots and stable document references |
 | `artifacts` | `create`, `write`, `commit`, `read`, `open`, `export` | Validated file metadata and transfer handles; only committed artifacts are durable user output |
 | `storage` | `get`, `set`, `remove` | Package-private structured data; optional revision checks for concurrent writes |
 | `activity` | `write`, scoped `list` | User-visible facts with provenance; read scope requires separate authorization |
@@ -238,13 +270,16 @@ package cannot manufacture authority by sending fields such as `approved: true` 
 
 | Operation | Caller supplies | Host returns | Authority required |
 |---|---|---|---|
-| `documents.requestSelection` | Purpose, supported document types, selection limit | Granted snapshot references, or explicit dismissal | Permission to request a picker; the user's selection grants reads |
+| `navigation.openCapability` | Declared page target, schema-valid parameters, optional resource references | Opened, dismissed, or unavailable result with a host fallback | Opening own page or a host-mediated user-selected target; recipient gets only explicitly authorized resource access |
+| `library.requestSelection` | Purpose, supported kinds (`document` / `artifact`), media-type filters, selection limit | Typed snapshot/artifact references and scoped read grants, or explicit dismissal | Permission to request a picker; the user's selection authorizes this recipient and purpose |
 | `documents.readSelected` | Snapshot reference and grant handle | Authorized content, title, revision and citation reference | Read grant for that exact captured selection |
+| `artifacts.read` | Committed artifact revision reference and read grant | Metadata and bounded binary read handle | Read grant for that exact selected artifact revision |
 | `documents.publish` | Stable key, title, collection metadata, content, source references, idempotency key, expected revision when updating | Durable document reference and revision | Publication authority and authorized source references |
 | `conversations.create` | Title and idempotency key | Conversation reference | Authorized creation; no turn is sent |
 | `conversations.handoff` | Optional authorized target, draft text, selected references, idempotency key | Target reference and draft/handoff receipt | Context-sharing grant; opening a draft is distinct from sending |
 | `conversations.continue` | Target, message, input references and idempotency key | Turn/run reference | Authorization to send this turn with this input scope |
 | `agents.start` | Task instructions, authorized sources, available agent selection, optional result schema, idempotency key | Run reference; later progress, questions, result and artifact references | Agent execution authority with an enforceable tool/effect policy |
+| `board.requestSelection` | Purpose, selection limit, requested operations such as read or attach delivery | Selected item references, revisions and operation-scoped grants, or dismissal | Host selection and authorization UI; no full-board access or delegation implied |
 | `board.create` | Title, description, source references and idempotency key | Item reference and revision | Board-write scope; no delegation implied |
 | `board.update` / `attachDelivery` | Item reference, expected revision, permitted patch or delivery references, idempotency key | Updated item reference and revision | Write grant for the item; acceptance and delegation are not writable patch fields |
 | `board.requestDelegation` | Item reference and proposed execution scope | Host decision receipt and, if authorized, execution reference | User or existing explicit delegation authority; package cannot approve itself |
@@ -264,8 +299,26 @@ it must not extend the authority of a finished job implicitly. Repeating an iden
 the existing service handle. Starting another instance requires a distinct intent and the service's
 declared concurrency policy. Finite jobs likewise declare or inherit a bounded concurrency policy;
 the existing one-running-execution-per-job behavior remains the legacy default.
+The host derives execution parentage from the initiating invocation, not a caller-provided owner
+field. A nested agent run normally follows its parent Job's cancellation. Independent service
+lifetimes and user-owned host work are explicit exceptions, governed by section 7.
 
 ### 6.4 Interaction semantics
+
+**Navigation and return to work.** Pages declare stable entry IDs, parameter schemas, and accepted
+resource kinds. A result can carry a reopen target for a host-rendered action such as “Edit this
+presentation”; it contains entry identity and resource references, never a grant token, filesystem
+path, or arbitrary executable URL. The host validates the target against the currently installed
+version and obtains any recipient-specific grant before delivering the resource context. A link
+does not silently install or enable a package, send a chat turn, or invoke a command.
+
+Opening a target focuses the existing matching editor or opens the requested resource without
+silently replacing another unsaved draft. The package persists its document/draft state; the host
+preserves the return target and mediates a save/discard/cancel decision if leaving would lose work.
+This does not require a new tab or window framework. If the package is missing, disabled, or no
+longer supports the entry/resource kind, show a host-owned explanation and offer the retained artifact
+preview/export or an explicit package-management action. Existing work remains intact. Package-to-
+package navigation is only a user-mediated handoff through declared entries, not a callable private API.
 
 **Conversations.** A package can offer a draft and selected references, then open the native chat
 surface. It cannot silently send on the user's behalf, inspect unrelated history, or overwrite a
@@ -285,15 +338,39 @@ An item may link to multiple jobs, conversations, and deliveries. A meeting pack
 authorized draft item and attach a delivery, but it may not grant itself delegation authority or
 mark its own output accepted. User review remains distinct from viewing a delivery. Initially expose
 only package-created items and explicitly selected items; full-board access is not a default grant.
+Use `board.requestSelection` to attach a delivery to an existing user task. The host shows the
+recipient and requested operation; dismissal grants nothing. The returned revision protects against
+concurrent edits. Selecting an item for attachment does not authorize changing its acceptance state,
+delegating it, or reading other board items.
 
 **Documents and artifacts.** The host owns selection and authorization UI. Opening that UI is not
 permission to read the whole Library. Preserve immutable input snapshots and source citations.
+The shared Library picker handles both documents and committed binary artifacts. A document selection
+returns a captured snapshot; an artifact selection returns a retained revision and bounded read grant.
+Package B can therefore use a user-selected output from package A without reading A's private storage,
+including after A is uninstalled. Provenance is retained, and possession of A's reference does not
+transfer A's authority. Writing changes requires separate publication/update authority; read selection
+alone does not authorize overwriting the original.
 Add typed file artifacts alongside Markdown rather than forcing binary data into document content.
 Artifact creation must reserve an upload/transfer handle, validate size and type, then commit the
 complete result atomically; failed partial transfers remain temporary and are cleaned up. An artifact
 reference records identity, provenance, media type, and revision. It does not carry executable package
 code. When a specialized viewer is unavailable, basic metadata, original-file export, and available
 host previews must remain usable after uninstall.
+
+Retaining output includes retaining its required package-owned dependencies. A published report's
+images, or a presentation's required bundled assets, must be embedded or copied to host-held durable
+storage and referenced from the committed result. Publication commits the output and these dependencies
+together; failure leaves no apparently complete output. Retention and deletion must keep dependencies
+while any retained output or revision needs them. Packages declare the dependency set and use the
+publication pipeline to resolve it; raw package-local resource URLs are not valid durable references.
+Do not attempt to infer every dependency by executing arbitrary HTML or package code.
+
+If a dependency cannot be retained, reject independent publication with an actionable reason or offer
+an explicitly labeled export/preview alternative. An interactive view that still needs executable
+package code is not an independently usable artifact; keep an exportable representation and state
+which editing/interactive behavior needs the package. External links may remain links, but external
+content is not promised as offline retained output. Add no silent network copying or new data grants.
 
 **Side effects.** Keep explicit command effect classification and platform-owned confirmation, but
 do not trust classification alone as enforcement. A command labeled `read` must not obtain an
@@ -335,16 +412,44 @@ management and rollback reachable.
 | Transition | Host behavior | Data and work consequences |
 |---|---|---|
 | Inspect | Validate static metadata, contents, compatibility, budgets, and requested grants; execute no package code | No registration or business effects |
-| Install | Review source/permissions, stage immutable payload, validate in an isolated context, atomically activate registry | Failed activation leaves the prior authoritative state intact |
+| Install | Review source/permissions, stage immutable payload, validate in an isolated context, atomically activate registry | Failed activation leaves the prior authoritative state intact; reinstall data access follows the approved-source check |
 | Enable | Validate requirements, issue a fresh runtime identity, register available entries | No automatic AI calls, playback, or other business work |
 | Open / close page | Create/dispose view and view-owned resources | Explicit jobs/services retain their independent lifetime |
 | Start job / service | Record identity, authorization, owner/version and execution state before side effects | Show progress or running service and a stop control |
-| Disable | Block starts, revoke active handles, stop owned work, remove entries and subscriptions | Retain package, private data, artifacts, and history |
-| Update | Inspect new grants, stage version, quiesce old runtime, migrate private data if needed, validate and switch | Preserve enabled state; no reuse of old checkpoints or grants without a defined compatibility rule |
+| Disable | Block package starts, revoke package handles, stop dependent work, remove entries and subscriptions | Retain data/history and independent user-owned host work |
+| Update | Verify approved-source continuity or obtain a replacement decision before private-data access; review grants, stage version, quiesce old runtime, migrate, validate and switch | Preserve enabled state; rejection leaves old code/data intact; no silent reuse of old authority |
 | Roll back | Stop current runtime, validate old code/data compatibility, activate eligible previous version | Preserve user artifacts; never imply arbitrary data or external effects were undone |
-| Uninstall | Block starts, revoke runtime and grants, cancel/remove schedules, stop resources, unregister and remove code | Retain user artifacts/history and, by default, private data |
+| Uninstall | Block package starts, revoke package authority, remove its schedules, stop dependent work/resources, unregister and remove code | Retain artifacts with their durable dependencies, history, private data by default, and independent user-owned host work |
 | Delete private data | Show package-specific retained data and require a separate destructive decision | Remove only approved private data/cache; no implicit Library or task deletion |
 | Quit / crash | End capability runtime; persist recoverable execution identity where possible | On restart, reconcile known external runs; otherwise mark interrupted, never blindly replay effects |
+
+### Execution parentage and handoff
+
+The host records provenance, execution parentage, and current lifetime ownership separately. A
+package Job or command that starts an agent run creates a dependent child by default. Cancelling
+the parent revokes authority for further effects across that dependent tree and requests cancellation
+of its children. Record local cancellation separately from a still-running or unknown remote outcome;
+do not show a cleanly stopped tree while a child still needs reconciliation. Retrying creates a new
+attempt identity and must first reconcile earlier effects rather than duplicate them.
+
+A service with an explicitly approved continuing lifetime is independent of the short command that
+started it, but remains package-owned and stops on package disable/uninstall. Creating a board item,
+publishing a document, or opening a chat draft saves a host record; none silently detaches a running
+package execution. Merely viewing a result is also not an ownership transfer.
+
+Independent host execution begins through a host-owned user action or an existing explicit user
+delegation covering that work. For example, the user sends the handed-off chat draft or delegates a
+selected board item. The host records the decision, captures durable inputs and required grants, and
+starts a host-owned run that does not need package callbacks or private state. This run survives removal
+of the originating package; its provenance still identifies that package. Grants are issued to the
+new execution scope, not copied from the package's runtime token. A dependent execution that has not
+completed must be stopped/reconciled before its work is restarted independently.
+
+The initial contract does not migrate or reparent a live vendor run or package stack. If continuing
+requires package code, offer keeping the package installed or handing off a durable result for new
+host work; do not label it independent. The host serializes handoff and disable/uninstall decisions:
+either the independent run's receipt and inputs are durably committed first, or handoff fails without
+starting it. This prevents both lost user work and orphaned package execution.
 
 ### Cleanup ownership
 
@@ -362,6 +467,8 @@ Package identity alone is not enough to distinguish uninstall/reinstall. Use a f
 activation generation so old requests and grants cannot gain authority when the same ID returns.
 Retained private data is available to a reinstalled package only after checking its schema and the
 new installation's approved identity; a matching ID must not silently bypass source review.
+The same check applies to updates before migration or replacement code can read that retained data,
+as required by section 5. Source approval and data-schema compatibility are separate checks.
 
 ### Update and private-data migration
 
@@ -405,6 +512,14 @@ runtime validation, preview fixtures, and examples must share it rather than mai
 permission and entrypoint lists. The Skill must describe only released APIs and identify its target
 Host API and package-format compatibility.
 
+The minimal SDK, developer Skill update, test Host fixtures, and a separate desktop test profile are
+part of every phase from phase 1A onward. A profile may initially be a documented isolated-data launch
+procedure; a polished development UI is not required. No phase passes using internal imports, a
+hand-maintained private SDK, or temporary grants unavailable to ordinary packages. Each service slice
+updates the distributable kit before its acceptance package is built outside the Nooki checkout.
+Phase 3 improves tooling and broadens compatibility coverage; it does not introduce independent
+development for the first time.
+
 The supported workflow is:
 
 1. Describe the capability and choose only the required entrypoints and Host services.
@@ -437,11 +552,15 @@ for proving independent package creation.
    their persistence or introduce a second execution engine merely to expose an API.
 4. Keep `ai.invoke`, `tasks`, existing document references, and historical task records readable.
    Map old calls to new services where semantics are equivalent; preserve differences explicitly.
+   Existing commands remain job-backed through the legacy adapter; immediate command results belong
+   to the new contract and do not change legacy retry or checkpoint semantics.
 5. Introduce optional pages and assets with new format validation; do not pretend existing v1 archives
    can accept files their installer currently rejects.
 6. Version every grant and activation identity. Do not transfer newly requested permissions, wider
    scopes, or old runtime tokens across an update silently. Preserve or reissue unchanged grants only
    under a documented compatibility rule; keep historical citation snapshots readable by the user.
+   Update and reinstall source continuity must be checked before granting replacement code access
+   to retained private data. A changed or unverifiable source takes the explicit replacement path.
 7. Migrate bundled business capabilities through the same SDK. Remove legacy package-specific shell
    branches only with data and reference regression tests.
 8. Publish a migration guide and deprecation window before retiring v1. Removal requires an inventory
@@ -459,6 +578,9 @@ conflict and recovery behavior.
 Each slice should be independently reviewable. Dependencies and exit gates determine progression;
 no calendar estimate is asserted here. A later phase cannot waive an earlier failed gate. Reference
 packages are validation fixtures and examples, not commitments to full commercial applications.
+Every slice includes the corresponding public kit update and independent-package verification.
+Use the target service catalog to avoid conflicting designs, but do not implement unused methods
+as prerequisites. M7 is a recurring check in phases 1 and 2 and a broader compatibility gate in phase 3.
 
 ### Phase 1: public shared services and a complete meeting workflow
 
@@ -466,18 +588,21 @@ packages are validation fixtures and examples, not commitments to full commercia
 
 | Slice | Work | Verification / exit evidence |
 |---|---|---|
-| 1A: contract foundation | Canonical service schemas, references, request identity, grants, error and idempotency rules; document compatibility adapters | Schema/contract tests; unsupported services and forged identities fail without effects |
-| 1B: workspace integration | Add bounded document selection, conversation handoff, and task-board APIs over existing owners | Read only selected snapshots; no unsolicited message send; no self-delegation or self-acceptance |
-| 1C: agent integration | Expose host-owned agent runs with progress, cancellation, user-input routing, and result references | Missing agent and rejected approval behave predictably; reconnect does not start a duplicate run |
-| 1D: independent meeting package | Build outside Nooki using the public SDK; publish notes, propose board items, open a related chat | End-to-end desktop recording and retained artifacts; no internal imports or host package-ID branch |
+| 1A: contract and minimal kit | Define only the meeting workflow's schemas, references, identity, grants, errors and idempotency; export SDK/Skill/fixtures and an isolated desktop test-profile procedure | An independent scaffold uses the exported kit; unsupported services and forged identities fail at the public boundary |
+| 1B: workspace integration | Document selection/publication, chat draft handoff, board creation, existing-item selection and delivery attachment over current owners | Read only selected snapshots; attach to a pre-existing task with a scoped grant; no unsolicited send or self-delegation/acceptance |
+| 1C: execution ownership | Add the agent start/observe/cancel operations needed by the meeting Job, cancellation parentage, and explicit host delegation receipts | Cancelling a Job cancels/reconciles its agent child; independently delegated host work survives package removal; reconnect does not duplicate runs |
+| 1D: independent meeting package | Build with the same distributed SDK/Skill outside Nooki; publish notes, create or select a board item, hand context to native chat | M1 and the phase-1 subset of M7 pass on an isolated desktop profile without internal imports, private tools, or host package-ID branches |
 
-**Exit gate:** the meeting workflow passes M1 below, including refusal and retry paths. New Host
+**Exit gate:** the meeting workflow passes M1 and phase-1 independent-development checks from M7,
+including refusal, retry, cancellation, and explicit handoff paths. New Host
 operations enforce authorization in their authoritative owner. Until phase 2 passes, packages still
 have the current trusted-code limitation; phase 1 does not authorize broad untrusted distribution.
 
 **Preserve:** current ZIP installation, command discovery, old document citations, user board semantics,
 checkpoint retry, and developer Skill integration behavior. Update current-contract documentation
-only for implemented services, not all proposed operations at once.
+and the distributed kit only for implemented services, not all proposed operations at once. Rich
+conversation-history APIs, broad board listing, and other unused catalog methods are not required
+to pass this phase.
 
 ### Phase 2: diverse package forms and enforceable lifecycle
 
@@ -487,13 +612,15 @@ new runtime integration must use the same authority model.
 | Slice | Work | Verification / exit evidence |
 |---|---|---|
 | 2A: runtime spike | Compare viable desktop isolation arrangements; decide IPC, native access, media, network, termination, and budgets | Record a runtime ADR with reproducible containment probes; no selection based only on a browser mock |
-| 2B: package format and execution | Optional pages, static command descriptors, assets, finite jobs, visible services | Headless package loads; service survives navigation; stop/disable terminates unresponsive package work |
-| 2C: artifacts and files | Transfer/commit/export contract, stable references, local file selection | Actual PPTX opens in an independent reader; partial transfers do not become published artifacts |
-| 2D: lifecycle transactions | Generation revocation, uninstall cleanup, private-data migrations and compatible rollback | Fault injection before/after activation; stale calls denied; old code/data pair recoverable |
-| 2E: representative packages | Local music player, small game, PPT generator, headless command | M2–M5 and cross-package isolation checks pass in desktop Nooki |
+| 2B: package format and execution | Optional pages, declared reopen targets, immediate/long-work command results, assets, finite jobs, visible services | Headless and immediate commands need no fake page/Job; reopening preserves other drafts; service survives navigation; failed runtime is stoppable |
+| 2C: artifacts and files | Transfer/commit/export, retained dependency sets, typed Library selection and grants, local file selection | Actual PPTX opens independently; partial publication leaves no complete result; another package reads a selected retained artifact after producer uninstall |
+| 2D: lifecycle transactions | Source continuity before data access, explicit replacement path, generation revocation, uninstall cleanup, private-data migration and rollback | Changed-source update cannot read data before approval; handoff/removal race has one outcome; activation failure preserves a recoverable code/data pair |
+| 2E: representative packages and kit | Build local music, game, PPT and headless packages with the phase's exported SDK/Skill and fixtures | M2–M5, M8 and phase-2 M7 checks pass in desktop Nooki; package resources and APIs have no private host dependencies |
 
 **Exit gate:** the user can stop/remove a faulty package while the shell and unrelated work remain
-usable; all owned runtime resources are reclaimed; uninstall preserves artifacts and references.
+usable; all package-owned runtime resources are reclaimed; uninstall preserves artifacts and references.
+The retained artifacts include required passive dependencies, and remain selectable by another
+authorized package. Reopen actions have tested missing/disabled/incompatible-target fallbacks.
 Document the actual isolation guarantees and remaining OS limitations. Do not claim arbitrary native
 package support, unlimited resources, or execution after application exit.
 
@@ -503,8 +630,8 @@ package support, unlimited resources, or execution after application exit.
 
 | Slice | Work | Verification / exit evidence |
 |---|---|---|
-| 3A: developer kit | Generate SDK, validators, service fixtures, and examples from the canonical contract | Exported kit works without Nooki source and cannot advertise unsupported services |
-| 3B: desktop development profile | Trial installation, package-specific reload, permissions preview, diagnostics | Rejected/failed development installs do not affect ordinary user data or another installed package |
+| 3A: developer kit hardening | Expand the SDK/Skill, validators, fixtures and examples delivered in earlier phases; enforce canonical-contract consistency | Multiple independent packages pass using the exported kit; it cannot advertise unsupported services |
+| 3B: desktop development experience | Add convenient trial installation, package-specific reload, permissions preview and diagnostics to the existing isolated-profile workflow | Rejected/failed development installs do not affect ordinary user data or another installed package |
 | 3C: conformance suite | Versioned package fixtures for positive/negative cases and legacy compatibility | Repeatable checks on each supported desktop platform and Host release |
 | 3D: scheduled weekly report | Minimal user-authorized schedule and missed-run policy; notification only if required | M6 passes; disabled/uninstalled package cannot fire; no duplicate catch-up or silent publication |
 | 3E: migration and release readiness | Migrate first-party examples, publish compatibility matrix and troubleshooting guide | Fresh-user install plus upgrade-from-v1 evidence; known limits stated; no obsolete kit instructions |
@@ -522,14 +649,33 @@ If an external dependency is unavailable, record that scenario as unverified, no
 
 | ID / scenario | Required behavior | Negative and lifecycle checks |
 |---|---|---|
-| M1: meeting notes | Select meeting text, run an agent, publish cited notes, create reviewed board items, hand context to native chat | Denied material sharing reads nothing; repeated submit creates no duplicate item; user must authorize delegation; uninstall retains notes/items |
-| M2: presentations | Select authorized sources and a bundled template, generate a valid PPTX, publish a file reference, export/open it independently | Interrupted transfer publishes nothing; export cancellation leaves no false success; uninstall retains exportable original and provenance |
-| M3: music | Select a local audio file, play/pause, navigate to chat while playback continues, observe the active service | No AI dependency; disable/uninstall stops playback and releases handles; restart does not autoplay |
+| M1: meeting notes | Select text, run an agent, publish notes, create or select a pre-existing board item, attach a delivery, hand context to chat | Dismissed selection grants nothing; existing-item grant permits only requested operations; Job cancellation reaches its agent child; explicit host delegation survives package removal |
+| M2: presentations and retained output | Generate/export a valid PPTX, reopen its editor from a chat result, then select it in a second package after removing the producer | Partial publication commits nothing; bundled passive assets remain available; read-only selection cannot overwrite output; missing/disabled/incompatible editor falls back to retained artifact access without losing another draft |
+| M3: music | Select local audio, play/pause through immediate commands, navigate to chat while playback continues, observe the service | No AI dependency or Job for pause; the completed start command does not stop its authorized service; disable/uninstall does stop it; restart does not autoplay |
 | M4: game | Install an independent interactive game with packaged assets and private saved state | No agent needed; DOM/CSS cannot alter shell; deliberate infinite-loop fixture is terminable; other capabilities remain usable |
-| M5: headless command | Install without a Page and invoke an explicit command through chat | No empty sidebar page; schema mismatch rejected before execution; disabled command disappears; unauthorized writes denied even if labeled read |
+| M5: headless command | Install without a Page; invoke one immediate operation and one operation returning a long-work reference | Immediate result creates no Job; long work stays observable/cancellable; schema mismatch and unauthorized writes fail; disabled commands disappear |
 | M6: weekly report | User authorizes a schedule, sources and draft generation; a visible run produces a reviewable result | Missed-trigger behavior is explicit; restarting does not duplicate a run; permission revocation, disablement or uninstall prevents future triggers |
-| M7: independent developer | Scaffold, check, pack and install using only the exported Skill on a clean profile | No source checkout, author paths, copied credentials, or implicit grants; unsupported Host requirements fail before code runs |
-| M8: compatibility and failure | Update and roll back representative legacy/new packages with compatible private state | Denied new permissions leave old version intact; migration failure and activation crash preserve a recoverable code/data pair; old-generation writes fail |
+| M7: independent developer, every phase | Scaffold, check, pack and install each phase's reference package using only its exported SDK/Skill on a separate desktop profile | No source checkout, private tooling, author paths or implicit grants; unsupported requirements fail; phase 3 extends the same checks to a second clean profile and supported compatibility combinations |
+| M8: compatibility and failure | Update/replace and roll back representative legacy/new packages with compatible private state | Same ID/version progression does not prove source continuity; unapproved replacement/migration cannot read old data; declined changes preserve old installation; crash recovery and stale-generation rejection hold |
+
+Required focused checks within these scenarios:
+
+- **M1:** distinguish a package-owned agent child from a newly user-delegated host run. Cancel the
+  first while active, uninstall the originating package during the second, and verify both outcomes.
+  Opening the chat draft alone must not create an independent run. Repeat a submission to confirm
+  it creates no duplicate task; viewing a delivery must not accept it. Missing agents and declined
+  approvals must fail without side effects; reconnecting to a known run must not start it again.
+- **M2:** publish a report containing a bundled image, remove the package and its assets, and render
+  the retained report. Inject a dependency-copy failure and verify atomic publication. Reopen deck A
+  while deck B has unsaved edits; verify preserve/save/discard/cancel behavior and fallback after
+  package removal. In package B, select the retained PPTX using the host picker and read its binary
+  content without export/re-import; deny a write attempted with only that read grant. Open the exported
+  PPTX in an independent reader, and verify that cancelling export never reports success.
+- **M8:** submit a higher-version archive with the same ID and permissions but changed or unverifiable
+  source. Confirm that no migration or replacement code receives old private data before the explicit
+  replacement decision. Declining replacement or expanded permissions must leave the original
+  installation usable. Race host handoff
+  against uninstall and verify a durable independent receipt or no started run, never an orphan.
 
 Cross-cutting evidence must additionally cover malformed archives, caller spoofing, direct native
 bridge attempts, cross-package storage reads, unapproved egress, subscription/handle cleanup,
@@ -551,6 +697,10 @@ and explicitly unverified items. Do not retain credentials or private source con
 - Page, command, job, and service are separate optional contributions with distinct lifetimes.
 - Stable public interfaces and host-owned authorization are required; internal imports are forbidden.
 - Published artifacts survive uninstall; destructive private-data cleanup is separate.
+- Provenance does not imply execution ownership; independent host work requires an explicit handoff.
+- Retained output includes required passive dependencies and can be selected by another authorized package.
+- Commands may complete immediately; only work needing a separate execution lifetime creates a Job.
+- Each implementation slice ships its usable public kit and independent verification path.
 - Keep the existing foundation and migrate incrementally, rather than rebuild the whole application.
 
 ### Choices to resolve before their dependent slice ships
@@ -574,6 +724,10 @@ boundaries. They must be resolved with narrow experiments before dependent APIs 
 - **Require every capability to be a chat skill:** excludes direct-manipulation tools, music and games,
   and confuses instructions for creating/using a package with the installed runtime itself.
 - **Keep a mandatory page:** creates artificial UI for headless operations and does not solve service lifetime.
+- **Require a Job for every command:** adds execution lifecycle overhead to immediate controls such as
+  pause playback or open a page; validation, authorization and invocation receipts remain in the broker.
+- **Build the whole service catalog before a consumer:** expands the first release without proving
+  independent package development; deliver only the operations used by each phase's reference packages.
 - **Trust static checks as isolation:** useful developer feedback, but cannot enforce runtime authority
   or stop a package that blocks the shell.
 - **Replace all built-in features at once:** expands migration risk without being required to prove

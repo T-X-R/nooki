@@ -30,11 +30,11 @@ extension mechanism; agent access is one of the host's shared services.**
 2. Packages integrate through a versioned public Host contract. They do not import shell features,
    call internal native commands, inspect another package's data, or implement vendor agent adapters.
 3. Pages are optional. Explicit commands, finite jobs, and persistent in-app services have distinct
-   lifetimes; none requires AI merely to qualify as a capability.
+   lifetimes; commands may return immediate results without a Job. None requires AI to qualify.
 4. The target runtime must provide enforceable identity, scoped authority, fault containment, and
    resource termination. The mechanism requires a separate evidence-backed runtime decision.
-5. Published artifacts and stable references survive package removal. Private data is retained by
-   default and can be deleted separately with a clear user decision.
+5. Published artifacts, their required passive dependencies, and stable references survive package
+   removal. Private data is retained by default and can be deleted separately with a clear user decision.
 6. Evolve the current implementation in phases, preserving legacy contracts during migration.
    Do not rewrite every built-in feature or build a marketplace as a prerequisite.
 
@@ -48,9 +48,15 @@ authentication internals, its reusable agent adapters, and its shared-asset prin
 
 - Expose existing conversation, task-board, agent, and Library owners through scoped public services.
 - Treat task-board intent, job attempts, agent runs, and conversation turns as related but distinct.
+- Separate provenance from execution ownership: nested work follows cancellation parentage, while
+  explicitly handed-off user work has an independent host lifetime.
+- Provide host-mediated resource selection and reopen navigation so retained results remain usable
+  across capabilities without private data access or implicit grants.
+- Check approved-source continuity on updates and reinstalls before exposing retained private data.
 - Extend packaging for optional pages and immutable assets, then validate music, games, and file output.
 - Keep the existing loader explicitly trusted-only until a replacement meets the isolation gates.
-- Generate the developer kit from the canonical released contract and verify on real desktop profiles.
+- Deliver the minimal SDK, Skill and isolated verification workflow with every phase; phase 3 hardens
+  that tooling rather than introducing it. Implement catalog operations only as consumers need them.
 - A new domain should normally require a new package, not a new hard-coded branch in Nooki.
 
 ## Not decided here
