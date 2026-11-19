@@ -2,7 +2,7 @@
 
 - Date: 2026-11-19
 - Planning baseline: design revision `c631006`; application baseline remains Nooki 0.3.2
-- Status: plan prepared; implementation has not started
+- Status: implementation underway; current status is recorded in the task checklist
 - Design authority: [Capability platform design](capability-platform-design.md) and [ADR 0006](adr/0006-capabilities-as-the-product-core.md)
 - Task state and detailed acceptance: [implementation checklist](capability-platform-implementation-tasks.md), the single task-status record
 - Current review: [PR #38](https://github.com/T-X-R/nooki/pull/38)
@@ -14,9 +14,9 @@ opening shared Host services, introducing independently stoppable package runtim
 developer Skill sufficient for independent development. This plan creates no implementation, API,
 package format, release, or claim that future acceptance tests already pass.
 
-The next task is **P00**. There are 35 implementation tasks and 12 verification checkpoints. Task IDs
-remain stable across chats. The checklist starts entirely unchecked: earlier design review and the
-baseline's passing tests do not count as implementation completion.
+There are 35 parent implementation tasks and 12 verification checkpoints; suffixed subtasks refine
+those deliveries without changing the scope. Use the checklist for the next eligible task. Earlier
+design review and the baseline's passing tests do not count as implementation completion.
 
 The design specifies behavior; this document specifies sequencing and delivery. Keep product scope
 unchanged. Exact schema spelling, isolation topology, and budgets are resolved by the designated

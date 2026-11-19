@@ -3,8 +3,8 @@
 Execution rules, verification codes and code-owner map: [implementation plan](capability-platform-implementation-plan.md).
 Behavior and M1–M8 acceptance definitions: [approved design](capability-platform-design.md).
 
-All tasks are pending. No implementation or future acceptance run has been completed by writing
-this checklist. Default order is top to bottom; explicit dependencies and intervening checkpoints
+Implementation is underway. Checked entries require linked evidence; writing a plan does not
+complete a task. Default order is top to bottom; explicit dependencies and intervening checkpoints
 must pass. S/M are target slice sizes, not duration estimates. File lists identify the initial
 footprint; apply the plan's splitting rule if inspection reveals more work. Each public change also
 updates the canonical contract, exported kit/Skill and its receipt as part of the same delivery.
@@ -12,6 +12,11 @@ updates the canonical contract, exported kit/Skill and its receipt as part of th
 ## Preparation: reproducible inputs and early feasibility
 
 ### [ ] P00 — Establish baseline fixtures and an isolated desktop profile
+
+**State:** in-progress on `codex/capability-platform-design`, [PR #38](https://github.com/T-X-R/nooki/pull/38).
+Split into P00a and P00b below because isolation spans native and webview storage plus agent configuration.
+Evidence: [P00 verification receipt](capability-platform-evidence/P00.md). Native lifecycle verification
+is waiting for manual desktop unlock; automated checks and the initial native launch passed.
 
 **Depends on:** None. **Size:** M.
 **Deliver:** A repeatable test-profile launch procedure and a recorded baseline inventory of package,
@@ -22,6 +27,27 @@ reach ordinary app or agent configuration; current tests and any pre-existing fa
 needs support, profile-isolation test, baseline receipt, fixture manifest.
 **Verification:** V-P, V-K, existing relevant V-B/V-A, V-N profile separation. Report real-agent setup
 separately; never copy credentials into the fixture.
+
+### [ ] P00a — Establish an isolated desktop launch environment
+
+**Depends on:** None. **Size:** M.
+**State:** in-progress; automated checks passed, native cross-profile/restart proof pending.
+**Deliver:** A launcher that creates an empty profile, launches with isolated agent configuration,
+and configures native data/log paths and a separate persistent webview store before startup.
+**Acceptance:** Normal startup is unchanged; malformed profiles fail closed; profiles survive restart
+without sharing native state or browser storage; no ordinary credentials/settings are copied.
+**Likely files:** Profile launcher/test, native profile module/test, lib startup and pet webview wiring.
+**Verification:** Launcher tests, native configuration tests, V-APP and V-N profile separation.
+
+### [ ] P00b — Record baseline owners and the real archive lifecycle
+
+**Depends on:** P00a. **Size:** S.
+**State:** baseline inventory and fixture prepared; native acceptance pending P00a and desktop unlock.
+**Deliver:** Synthetic legacy archive fixture, owner inventory and reproducible desktop procedure.
+**Acceptance:** Import/restart/uninstall preserves expected output inside the isolated profile;
+focused baseline results and limitations are recorded; no mock is presented as native evidence.
+**Likely files:** Fixture manifest/entry, baseline receipt and verification instructions.
+**Verification:** V-P/V-K/V-B/V-A and V-N using the archive in two isolated desktop profiles.
 
 ### [ ] P01 — Export the minimal public contract and development harness
 

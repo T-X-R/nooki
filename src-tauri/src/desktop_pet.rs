@@ -93,12 +93,15 @@ fn place(window: &WebviewWindow, expanded: bool, anchor: Option<Anchor>) -> Resu
 }
 fn create(app: &AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(PET) { return window.show().map_err(|e| e.to_string()); }
-    let window = WebviewWindowBuilder::new(app, PET, WebviewUrl::App("index.html?desktop-pet".into()))
+    let mut builder = WebviewWindowBuilder::new(app, PET, WebviewUrl::App("index.html?desktop-pet".into()))
         .title("Nooki Pet").inner_size(160.0, 108.0).decorations(false).transparent(true)
         .resizable(false).maximizable(false).minimizable(false).shadow(false)
         .always_on_top(true).skip_taskbar(true).visible_on_all_workspaces(true)
-        .focused(false).visible(false).accept_first_mouse(true).disable_drag_drop_handler()
-        .build().map_err(|e| e.to_string())?;
+        .focused(false).visible(false).accept_first_mouse(true).disable_drag_drop_handler();
+    if let Some(store) = app.config().app.windows.first().and_then(|window| window.data_store_identifier) {
+        builder = builder.data_store_identifier(store);
+    }
+    let window = builder.build().map_err(|e| e.to_string())?;
     match place(&window, false, app.state::<DesktopPet>().preferences().anchor) {
         Ok(p) => *app.state::<DesktopPet>().layout.lock().unwrap() = PetLayout { anchor: Some(p.anchor), expanded: false, offset: p.offset },
         Err(error) => { let _ = window.destroy(); return Err(error); }

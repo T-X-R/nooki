@@ -311,6 +311,9 @@ impl AgentTools {
 /// An agent installed through a Node launcher needs its own directory on PATH to find that runtime.
 /// A Finder-launched app inherits a PATH that usually does not have it.
 pub fn with_launcher_path(binary: &str) -> std::io::Result<std::process::Command> {
+  if std::env::var_os("NOOKI_TEST_PROFILE").is_some() {
+    return Err(std::io::Error::other("Agent execution is disabled in baseline test profiles; no personal credentials are used"));
+  }
   let mut command = std::process::Command::new(binary);
   if let Some(parent) = Path::new(binary).parent().filter(|path| !path.as_os_str().is_empty()) {
     let inherited = std::env::var_os("PATH").unwrap_or_else(|| "/usr/bin:/bin:/usr/sbin:/sbin".into());

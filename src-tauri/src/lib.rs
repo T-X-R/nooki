@@ -1,4 +1,5 @@
 pub mod task_goals;
+pub mod app_profile;
 mod app_update;
 mod desktop_pet;
 pub mod task_worker;
@@ -519,6 +520,9 @@ fn capability_package_rollback(id: String, expected_version: String, state: taur
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  let mut context = tauri::generate_context!();
+  app_profile::configure(context.config_mut(), |key| std::env::var_os(key))
+    .expect("invalid desktop test profile");
   tauri::Builder::default()
     .setup(|app| {
       app_update::setup(app)?;
@@ -614,7 +618,7 @@ pub fn run() {
       library_list_documents,
       library_read_document,
     ])
-    .build(tauri::generate_context!())
+    .build(context)
     .expect("error while building tauri application")
     .run(|app, event| {
       #[cfg(target_os = "macos")]
