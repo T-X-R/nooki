@@ -1,0 +1,468 @@
+# Capability platform task checklist
+
+Execution rules, verification codes and code-owner map: [implementation plan](capability-platform-implementation-plan.md).
+Behavior and M1–M8 acceptance definitions: [approved design](capability-platform-design.md).
+
+All tasks are pending. No implementation or future acceptance run has been completed by writing
+this checklist. Default order is top to bottom; explicit dependencies and intervening checkpoints
+must pass. S/M are target slice sizes, not duration estimates. File lists identify the initial
+footprint; apply the plan's splitting rule if inspection reveals more work. Each public change also
+updates the canonical contract, exported kit/Skill and its receipt as part of the same delivery.
+
+## Preparation: reproducible inputs and early feasibility
+
+### [ ] P00 — Establish baseline fixtures and an isolated desktop profile
+
+**Depends on:** None. **Size:** M.
+**Deliver:** A repeatable test-profile launch procedure and a recorded baseline inventory of package,
+board/Goals, agent, grant and data owners. Use synthetic data, not the user's ordinary Library.
+**Acceptance:** Legacy ZIP import/restart/uninstall has a reproducible fixture; profile writes do not
+reach ordinary app or agent configuration; current tests and any pre-existing failures are recorded.
+**Likely files:** New profile helper under `scripts/`, `src-tauri/src/lib.rs` only if profile routing
+needs support, profile-isolation test, baseline receipt, fixture manifest.
+**Verification:** V-P, V-K, existing relevant V-B/V-A, V-N profile separation. Report real-agent setup
+separately; never copy credentials into the fixture.
+
+### [ ] P01 — Export the minimal public contract and development harness
+
+**Depends on:** P00. **Size:** M.
+**Deliver:** Canonical definitions for the first workflow and a kit that exposes only implemented
+operations, with a deterministic test Host. Reuse the existing generator and starter.
+**Acceptance:** An outside-checkout project checks and packs with the exported kit; unsupported methods
+are unavailable rather than successful stubs; simulated data/services are visibly labeled.
+**Likely files:** `packages/capability-contract/src/index.ts`, `scripts/build-capability-kit.mjs`, starter
+preview Host, starter check script, `tests/developer-kit.test.ts`.
+**Verification:** V-K and independent scaffold/check/pack; document exact Host/API version in receipt.
+
+### [ ] P02 — Prove the runtime isolation approach before committing to transport
+
+**Depends on:** P00, P01. **Size:** M, bounded experiment.
+**Deliver:** A disposable desktop probe and runtime ADR comparing viable isolation arrangements;
+select a supported approach or record why none meets the design. Do not replace the loader yet.
+**Acceptance:** Probe shell/DOM/storage/native-bridge access, spoofed caller, unapproved egress and
+infinite-loop termination; measure asset/media/IPC constraints and initial budgets; record actual OS
+coverage and remaining integration risks rather than claim production isolation.
+**Likely files:** New isolated probe, hostile fixture, media fixture, probe test, runtime ADR.
+**Verification:** V-N on the actual desktop engine; retain reproducible probe steps and results.
+
+### [ ] K0 — Preparation gate
+
+**Depends on:** P00, P01, P02.
+**Verify:** Baseline is reproducible, the minimal external-project path works, and a feasible runtime
+approach is recorded. No source/credential leakage between profiles. Unresolved feasibility failures
+block production runtime promises; reconcile them before freezing transport-dependent contracts.
+
+## Phase 1: one complete meeting workflow through public services
+
+### [ ] C01 — Bind a Host mutation to invocation identity and scoped authority
+
+**Depends on:** P01, P02. **Size:** M.
+**Deliver:** The authority context and durable idempotency receipt used by the first board mutation,
+including activation identity and operation/resource scope. Do not build unrelated policy engines.
+**Acceptance:** A forged owner/scope fails at the authoritative operation; repeated key/payload returns
+the same result while changed payload conflicts; revoked or old-generation calls cannot commit.
+**Likely files:** New native capability-authority module and tests, `src/platform/capability-host.ts`,
+`src/platform/capability-broker.ts`, canonical contract.
+**Verification:** New authority/receipt tests plus V-P. Record that the legacy runtime remains trusted-only;
+protocol-level checks here do not prove isolation from arbitrary same-realm code.
+
+### [ ] C02 — Let a capability select and read authorized document snapshots
+
+**Depends on:** C01. **Size:** M.
+**Deliver:** The document branch of the host Library picker, returning recipient-scoped snapshot grants.
+**Acceptance:** Picker shows recipient/purpose; dismissal reads nothing; only chosen snapshots are
+readable and revocation prevents later reads. Existing citations continue to resolve for the user.
+**Likely files:** `src/platform/document-grants.ts`, `src/features/library/LibraryDialogs.tsx`,
+`src-tauri/src/document_grants.rs`, contract, focused grant/picker test.
+**Verification:** V-D, focused picker V-UI and V-N; exercise two package identities and denied sharing.
+
+### [ ] C03 — Create a task-board item without implicitly delegating it
+
+**Depends on:** C01. **Size:** M.
+**Deliver:** Public item creation over the native board owner, with stable result and provenance.
+**Acceptance:** Authorized creation survives restart; duplicate requests create one item; creation
+cannot self-authorize execution or mark a delivery accepted.
+**Likely files:** `src-tauri/src/task_goals.rs`, native Host board adapter (new), contract,
+`src/features/task-board/task-board.ts`, board API tests (new).
+**Verification:** V-B plus receipt-failure/retry tests and V-N; verify current Goals behavior is preserved.
+
+### [ ] K1 — Selected inputs and durable board creation
+
+**Depends on:** C01, C02, C03.
+**Verify:** Grant and idempotency failure cases pass through the real Host; current ZIP, document and
+board regressions pass. The outside-checkout fixture uses the updated kit without private imports.
+
+### [ ] C04 — Select an existing task and attach a delivery with a scoped grant
+
+**Depends on:** C02, C03. **Size:** M.
+**Deliver:** Host-owned task picker and delivery attachment to an existing item.
+**Acceptance:** User sees the requested operation; attachment checks item grant and expected revision;
+denial/conflict preserves the item and the grant cannot accept, delegate or mutate other items.
+**Likely files:** Task selection component (new), native Host board adapter, contract,
+`src/features/task-board/TaskReferences.tsx`, focused selection/attachment tests.
+**Verification:** V-B, focused V-UI and V-N including another user's edit between selection and write.
+
+### [ ] C05 — Hand selected context to a native conversation draft
+
+**Depends on:** C02. **Size:** M.
+**Deliver:** Idempotent handoff returning a conversation/draft receipt with authorized input references.
+**Acceptance:** Opening a draft sends no turn; existing unsent user text is not overwritten; target
+and source scope cannot be chosen by an ungranted ID or replayed into another conversation.
+**Likely files:** `src/features/conversation/conversation-client.ts`, conversation handoff module (new),
+`src-tauri/src/conversation_host.rs`, contract, handoff tests.
+**Verification:** V-A, focused V-UI and V-N; cover dismissal and repeated handoff.
+
+### [ ] C06 — Expose one observable agent-run path
+
+**Depends on:** C01, C02. **Size:** M.
+**Deliver:** Start/get/subscribe/cancel semantics for one supported existing agent adapter, using host
+approval/question surfaces and durable run identity. No new model client or credential store.
+**Acceptance:** Inputs and permitted effects are bounded; missing agent or rejected approval starts
+no work; reconnect observes the same run and preserves structured result/artifact references.
+**Likely files:** Native agent-run adapter (new), `src-tauri/src/conversation_host.rs`, public agent
+client (new), contract, adapter/run tests.
+**Verification:** V-A and deterministic transport/approval failures; V-N with one recorded real-agent run.
+
+### [ ] K2 — Chat and agent service gate
+
+**Depends on:** C04, C05, C06.
+**Verify:** Existing-item grants, chat drafts and observable runs work from the exported kit.
+No unsolicited sends, duplicate agent runs, synthetic user approvals or private credential access.
+
+### [ ] C07 — Propagate cancellation through package-owned execution
+
+**Depends on:** C06. **Size:** M.
+**Deliver:** Host-derived parentage between a package Job and its agent child, with revocation and
+remote-cancellation reconciliation. Do not infer ownership solely from provenance.
+**Acceptance:** Parent cancellation blocks late child writes; unknown remote outcome stays visible;
+retry cannot reuse an obsolete attempt or duplicate an unreconciled external effect.
+**Likely files:** `src/platform/task-runner.ts`, `src/platform/tasks.ts`, `src-tauri/src/task_execution.rs`,
+native agent-run adapter, cancellation tests.
+**Verification:** V-P/V-A and V-N cancellation while the agent is active, including restart/late results.
+
+### [ ] C08 — Commit explicit handoff to independent user-owned host work
+
+**Depends on:** C04, C05, C07.
+**Size:** M; split board and chat wiring if they cannot share a small verifiable delivery.
+**Deliver:** A host decision receipt and durable inputs for user-authorized board delegation/native
+chat send. Start independent work through existing owners; do not migrate a live vendor run.
+**Acceptance:** Opening a draft/viewing a delivery transfers nothing; explicit delegation survives
+package removal without callbacks/private state; handoff versus uninstall has one durable outcome.
+**Likely files:** Native Host board adapter, `src-tauri/src/conversation_host.rs`, capability authority,
+`src-tauri/src/task_goals.rs`, handoff/removal race tests.
+**Verification:** V-B/V-A and V-N: compare package child cancellation against independent host continuation.
+
+### [ ] C09 — Build and verify the independent meeting-notes package
+
+**Depends on:** C02, C03, C04, C05, C07, C08. **Size:** M.
+**Deliver:** A minimal reference package using only the exported SDK/Skill: selected text to notes,
+existing/new board item attachment, and conversation handoff. Persist sources as an example only
+after independently building the real archive outside Nooki.
+**Acceptance:** M1 and phase-1 M7 pass; denied input, repeated submission and cancelled child work are
+covered; uninstall retains notes/items and independently delegated work.
+**Likely files:** Reference package manifest, entry, job module, package tests, desktop acceptance fixture.
+**Verification:** V-K, package check/pack, V-N with a real agent and deterministic failure cases.
+
+### [ ] K3 — Phase 1 acceptance
+
+**Depends on:** C07, C08, C09.
+**Verify:** V-F and M1/M7 evidence on the assembled revision; no private SDK, renderer-only authority
+or extra package-ID branch. Native board, old document references and legacy retry remain compatible.
+Keep the trusted-only limitation explicit. Record the next eligible task, R01.
+
+## Phase 2: varied forms, retained artifacts and enforceable removal
+
+### [ ] R01 — Introduce the versioned archive with optional pages and passive assets
+
+**Depends on:** C09, P02. **Size:** M.
+**Deliver:** Separate archive/API/data versions, static entry descriptions and validated asset paths,
+while retaining the v1 installer. New-format activation stays unavailable until runtime validation passes.
+**Acceptance:** Inspect executes no code; a headless manifest and binary asset archive validate;
+traversal, symlinks, duplicate entries, expansion limits and unsupported requirements fail early.
+**Likely files:** `src-tauri/src/package_installer.rs`, `scripts/package-capability.mjs`, canonical schema,
+starter checker, `src-tauri/tests/package_installer_test.rs`.
+**Verification:** V-P/V-K plus malformed-archive cases and v1/new-format fixture comparisons.
+
+### [ ] R02 — Bind the isolated runtime bridge to a real caller
+
+**Depends on:** R01, C01, P02. **Size:** M.
+**Deliver:** The selected transport with host-issued caller/generation identity and a typed SDK adapter.
+**Acceptance:** A runtime cannot impersonate another package or call native internals; revoked/old
+handles fail at effects; unauthorized outbound channels are blocked by the selected runtime policy.
+**Likely files:** Runtime transport and native boundary (new), SDK transport adapter (new),
+capability-authority module, transport containment tests.
+**Verification:** P02 probes repeated through the actual app, V-N and protocol-negative tests.
+
+### [ ] R03 — Mount and terminate an isolated capability page
+
+**Depends on:** R02. **Size:** M.
+**Deliver:** New-format page loading, environment propagation, fault reporting and runtime destruction;
+keep legacy loading separately labeled.
+**Acceptance:** DOM/CSS/storage cannot affect host/another package; an infinite-loop fixture can be
+stopped while host management remains usable; unmount removes view resources without cancelling Jobs.
+**Likely files:** `src/platform/package-loader.ts`, `src/platform/capability-runtime.ts`,
+`src/features/capabilities/CapabilityPage.tsx`, chosen runtime adapter, containment fixture/tests.
+**Verification:** V-P and V-N with two packages, navigation, runtime crash and forced-stop probes.
+
+### [ ] K4 — Runtime boundary gate
+
+**Depends on:** R01, R02, R03.
+**Verify:** Actual desktop identity, native-bridge, DOM/style/storage, egress and forced-stop evidence
+matches P02. A browser error boundary or mocked IPC cannot pass this checkpoint. Legacy paths work.
+
+### [ ] R04 — Support immediate command results without background Jobs
+
+**Depends on:** R03. **Size:** M.
+**Deliver:** Discriminated immediate-result/long-work responses in the broker and new-format contract.
+**Acceptance:** A quick operation creates no Job but retains authorization and necessary invocation
+receipt; long work returns an observable handle; legacy job commands preserve retry/checkpoint behavior.
+**Likely files:** `src/platform/capability-broker.ts`, broker runtime adapter, contract,
+`src/features/conversation/CapabilityInvocationCard.tsx`, broker/result tests.
+**Verification:** V-P/V-A, bounded-handler failure tests, V-N for immediate and long-work commands.
+
+### [ ] R05 — Start and stop a visible continuing service
+
+**Depends on:** R03, R04. **Size:** M.
+**Deliver:** Package-owned service handles and host stop controls, exercised with a packaged audio
+fixture as the first consumer rather than an unused generic service framework.
+**Acceptance:** Service outlives its starting command/page; repeated start is deduplicated; disable,
+uninstall or forced termination releases resources and restart never autoplays.
+**Likely files:** Service owner/native adapter (new), public service client (new), host running-service
+control, contract, audio service fixture/tests.
+**Verification:** V-N navigation/stop/restart and resource-release checks with the measured P02 budgets.
+
+### [ ] R06 — Require source continuity before an update accesses retained data
+
+**Depends on:** R02, R03. **Size:** M.
+**Deliver:** Approved-source/payload records and explicit replacement review in the existing installer.
+**Acceptance:** Same ID plus higher version is insufficient; changed/unverifiable source cannot read
+private data before approval; declining replacement or new grants preserves the old installation.
+**Likely files:** `src-tauri/src/capability_runtime.rs`, `src-tauri/src/package_installer.rs`,
+`src/features/capabilities/PackageImportModal.tsx`, registry schema, source-continuity tests.
+**Verification:** V-P and V-N update/reinstall cases; distinguish manual source approval from signatures.
+
+### [ ] K5 — Commands, services and replacement authority
+
+**Depends on:** R04, R05, R06.
+**Verify:** Immediate commands produce no fake Jobs; service lifetime is explicit; update data access
+is gated before executable/migration inspection. No unrelated package is stopped by these operations.
+
+### [ ] R07 — Commit and export a binary artifact
+
+**Depends on:** R02, C02. **Size:** M.
+**Deliver:** Host-held transfer handles, bounded writes, atomic artifact commit, revision references
+and export through host destination selection.
+**Acceptance:** Partial/cancelled transfers never appear published; repeated commit returns the same
+artifact; export can be cancelled without false success and original bytes survive producer uninstall.
+**Likely files:** Native artifact store (new), artifact Host adapter (new), contract,
+Library artifact presentation, artifact storage/export tests.
+**Verification:** V-D plus new binary/partial-transfer tests and V-N with independent file-byte checks.
+
+### [ ] R08 — Retain a published output's passive dependencies
+
+**Depends on:** R07. **Size:** M.
+**Deliver:** Publication dependency declarations with embed/copy resolution and atomic retention.
+**Acceptance:** A report referencing a bundled image still renders after package removal; failed
+dependency copy publishes nothing; retained revisions protect dependencies from premature cleanup.
+**Likely files:** Native artifact store, `src-tauri/src/document_library.rs`, publication contract,
+document presentation resolver, retained-dependency tests.
+**Verification:** V-D/V-N including package removal, copy failure and retained-old-revision access.
+
+### [ ] R09 — Select a retained artifact for another capability
+
+**Depends on:** R07, R08, C02. **Size:** M.
+**Deliver:** The artifact branch of the shared Library picker with recipient/revision-scoped read grants.
+**Acceptance:** Package B reads A's selected output after A is removed; a reference alone grants no
+access; read-only selection cannot overwrite the original or expose unrelated files.
+**Likely files:** Library picker, artifact grant/store adapter, public artifact client, contract,
+cross-package selection tests.
+**Verification:** V-D, focused V-UI and V-N using two independent archives without export/re-import.
+
+### [ ] K6 — Retained output and reuse
+
+**Depends on:** R07, R08, R09.
+**Verify:** Original bytes, citations and required passive assets survive producer removal; dependent
+publication is atomic; a second package receives only selected read scope. Update the exported kit.
+
+### [ ] R10 — Reopen the correct editor without losing a draft
+
+**Depends on:** R03, R09, C05. **Size:** M.
+**Deliver:** Declared page targets and host-mediated navigation with authorized resource context.
+**Acceptance:** Reopen result A while B has unsaved changes without silent loss; missing/disabled/
+incompatible package offers retained preview/export; links carry no grants and execute no command.
+**Likely files:** `src/app/App.tsx`, `src/features/capabilities/CapabilityPage.tsx`, navigation adapter
+(new), public page contract, reopen/draft tests.
+**Verification:** Focused V-UI and V-N for save/discard/cancel, return navigation and removed targets.
+
+### [ ] R11 — Activate compatible code and private data transactionally
+
+**Depends on:** R06, R08, C08. **Size:** M; split transaction and recovery slices if necessary.
+**Deliver:** Staged private-data migration and a compatible rollback pair with explicit loss review.
+**Acceptance:** Migration has no agent/network/board/publication effects; crashes before/after activation
+leave a recoverable code/data pair; rollback never rewinds user artifacts or silently discards private edits.
+**Likely files:** `src-tauri/src/capability_runtime.rs`, migration state/store (new), installer UI,
+registry schema, crash/rollback tests.
+**Verification:** V-P, ordered fault injection, V-N rollback/reinstall and handoff-versus-removal race.
+
+### [ ] R12 — Play a user-selected local file through the music package
+
+**Depends on:** R05, R09, R10. **Size:** M.
+**Deliver:** Host local-file selection with a scoped media handle, plus the minimal music reference
+package using the existing continuing service. No online music backend or account system.
+**Acceptance:** M3 passes without an agent; pause is immediate; navigation preserves playback while
+disable/uninstall releases media and file handles.
+**Likely files:** Native file-selection adapter (new), media Host client, music manifest/entry,
+local-file/playback tests.
+**Verification:** V-K and V-N with local synthetic audio, picker dismissal and revoked handles.
+
+### [ ] K7 — User-facing lifecycle gate
+
+**Depends on:** R10, R11, R12.
+**Verify:** Reopen paths preserve drafts, migration/rollback is recoverable, and playback stops at the
+correct boundary. Independent host work still survives removal. No private SDK is needed by music.
+
+### [ ] R13 — Build the presentation and retained-output reference workflow
+
+**Depends on:** R08, R09, R10, R11. **Size:** M.
+**Deliver:** Minimal fixed-layout PPT generation/edit-and-export example with editable text fields, a packaged
+template and a second
+consumer fixture. Use an existing suitable package library only after checking its contract/license.
+**Acceptance:** M2 passes with an independently readable PPTX; user can reopen the selected result;
+producer uninstall leaves export, required assets and recipient-authorized reuse intact.
+**Likely files:** Presentation manifest, entry/job module, template asset, package tests,
+second-consumer desktop fixture.
+**Verification:** V-K/V-N, independent PPTX reader, failure during commit/export and bundled-image retention.
+
+### [ ] R14 — Verify a small non-AI game and hostile-runtime fixture
+
+**Depends on:** R03, R06, R11. **Size:** S.
+**Deliver:** Small interactive game with assets and private save state, plus the existing P02/R03 hostile
+fixture packaged through the public kit. Do not turn it into a full game product.
+**Acceptance:** M4 passes without an agent; saved state follows declared schema/update rules;
+unresponsive package code is stoppable without breaking shell management or another package.
+**Likely files:** Game manifest/entry, small asset, game test, packaged containment fixture.
+**Verification:** V-K and V-N with two packages, infinite loop, DOM/style attempts, disable and reinstall.
+
+### [ ] R15 — Verify headless invocation through the real conversation broker
+
+**Depends on:** R04, R07, C07. **Size:** S.
+**Deliver:** Page-free package with one immediate operation and one long-work command.
+**Acceptance:** M5 passes without a placeholder page; the immediate path creates no Job; invalid inputs,
+disabled commands and writes mislabeled as reads cannot bypass checks.
+**Likely files:** Headless manifest/entry, command tests, broker desktop fixture.
+**Verification:** V-P/V-A/V-K and V-N through chat discovery/invocation, not only direct function calls.
+
+### [ ] K8 — Phase 2 acceptance
+
+**Depends on:** R13, R14, R15, R12.
+**Verify:** V-F; M2–M5/M8 and phase-2 M7; rerun M1 through the isolated runtime. All runtime and
+resource budgets have measured limits. Legacy packages remain accurately labeled and usable.
+Retain failures as blockers; no claim of untrusted-package support based only on a mock or static check.
+
+## Phase 3: repeatability, scheduling and compatibility
+
+### [ ] T01 — Harden kit consistency and failure fixtures
+
+**Depends on:** R13, R14, R15. **Size:** M.
+**Deliver:** Automated consistency checks among canonical schema, runtime validation, generated SDK,
+Skill instructions and fixtures. Expand the already-working kit rather than create another SDK.
+**Acceptance:** Unsupported API/permission drift fails a check; examples build from the exported kit;
+local user edits to installed Skills remain preserved through upgrade/recovery.
+**Likely files:** `scripts/build-capability-kit.mjs`, starter checker, developer Skill,
+`tests/developer-kit.test.ts`, `src-tauri/tests/developer_integration_test.rs`.
+**Verification:** V-K, all reference package checks and existing integration conflict/recovery tests.
+
+### [ ] T02 — Improve trial installation and package-specific reload
+
+**Depends on:** T01. **Size:** M.
+**Deliver:** Developer controls over the existing isolated-profile workflow: inspect/trial install,
+permission preview, selected-package reload and useful diagnostics.
+**Acceptance:** Reload does not disturb another package or ordinary user data; failed trial leaves the
+last valid package available; diagnostics distinguish simulated, desktop and real-service results.
+**Likely files:** `DeveloperCenterModal.tsx`, `PackageImportModal.tsx` in capabilities,
+`src-tauri/src/developer_integration.rs`, profile/reload helper, trial-install tests.
+**Verification:** V-K, focused V-UI and V-N using failing and locally modified packages.
+
+### [ ] T03 — Establish the supported-version and platform compatibility matrix
+
+**Depends on:** T01, T02. **Size:** M.
+**Deliver:** Versioned legacy/new-format fixtures and a runnable conformance matrix with explicit
+agent/OS support claims. Begin with the actual tested desktop platform, not assumed parity.
+**Acceptance:** Compatible pairs pass and incompatible requirements fail before execution; a second
+clean profile uses different paths/settings; missing real-adapter/platform evidence remains unverified.
+**Likely files:** Conformance runner (new), compatibility fixture index, representative legacy/new
+manifests, compatibility report.
+**Verification:** V-P/V-K/V-N across the declared matrix; record exact versions and meaningful exclusions.
+
+### [ ] K9 — Independent development gate
+
+**Depends on:** T01, T02, T03.
+**Verify:** M7 is repeatable with only the distributed kit on a clean profile; developer reload is
+isolated and compatibility claims match evidence. No broad platform support claim without a test run.
+
+### [ ] T04 — Create an authorized in-app job schedule
+
+**Depends on:** T03, C07. **Size:** M.
+**Deliver:** Host review UI and persisted schedule binding job/version, source policy, timezone,
+approved effects and stable occurrence identity. Reuse Jobs rather than add another execution engine.
+**Acceptance:** No schedule exists after dismissal; repeated creation/occurrence starts one run;
+trigger only executes while the host is available and under the approved scope.
+**Likely files:** Native schedule store/dispatcher (new), schedule review UI (new), public schedule
+contract/client, schedule persistence tests.
+**Verification:** Deterministic clock/restart tests and V-N; do not use real-time waiting as the only proof.
+
+### [ ] T05 — Apply missed-run and revocation policy to schedules
+
+**Depends on:** T04, R11. **Size:** M.
+**Deliver:** Pause/resume/remove, missed-occurrence handling and lifecycle integration.
+**Acceptance:** Downtime/timezone changes follow the displayed policy without duplicate catch-up;
+revocation/disable/uninstall prevents further triggers; changed scope/version requires the defined review.
+**Likely files:** Schedule store/dispatcher, `src/platform/capability-runtime.ts`, native lifecycle owner,
+schedule status UI, lifecycle/schedule tests.
+**Verification:** Fault/clock tests and V-N restart, disable/re-enable, update and uninstall.
+
+### [ ] T06 — Build the scheduled weekly-report reference package
+
+**Depends on:** T05, R08, T01. **Size:** S.
+**Deliver:** A small report package using selected inputs, approved scheduling and reviewable drafts.
+Only add a notification primitive if the demonstrated completion flow requires it; split that addition.
+**Acceptance:** M6 passes; sources and effects match the approved schedule; no automatic publication
+or background execution is claimed after Nooki exits.
+**Likely files:** Weekly-report reference manifest, entry/job module, package tests, acceptance fixture.
+**Verification:** V-K/V-N plus deterministic missed-run checks and one recorded real-agent generation.
+
+### [ ] K10 — Scheduling gate
+
+**Depends on:** T04, T05, T06.
+**Verify:** M6, schedule failure tests and updated public kit pass. Restart catches up only as approved;
+package removal leaves no executable trigger. Scheduling does not widen existing input grants.
+
+### [ ] T07 — Migrate the supported first-party example without deleting legacy data
+
+**Depends on:** T03, T06. **Size:** M.
+**Deliver:** Move one supported first-party example (start with `examples/checkpoint-demo`) to the
+released public path and publish the legacy package inventory/migration guide. Inventory the hidden
+weekly-review package explicitly; do not resurrect or delete it merely to satisfy a sample checklist.
+**Acceptance:** Migrated example needs no internal imports or special privileges; historical references
+and v1 fixtures remain usable; any further supported bundled packages get separate suffixed tasks.
+**Likely files:** Example manifest/entry/tests, migration guide, legacy inventory fixture.
+**Verification:** V-P/V-K/V-N with an upgrade fixture; defer v1 removal until the design's retirement criteria pass.
+
+### [ ] T08 — Record final clean-install and upgrade acceptance
+
+**Depends on:** T07, T06. **Size:** M, acceptance delivery.
+**Deliver:** M1–M8 evidence on the supported matrix, including fresh install, upgrade, uninstall and
+retained output, plus user/developer troubleshooting and remaining limitations.
+**Acceptance:** A second user profile can build/install/share without author settings; every required
+case has real evidence or an explicit blocker; compatibility/deprecation guidance matches shipped behavior.
+**Likely files:** Final acceptance runner, evidence index, compatibility guide, troubleshooting guide,
+release-readiness note. No automatic release/tag/publication is part of this task.
+**Verification:** V-F/V-K/V-N on the exact assembled revision and V-APP; reuse unchanged recorded evidence
+where appropriate and rerun affected scenarios after new fixes.
+
+### [ ] K11 — Phase 3 and implementation completion
+
+**Depends on:** T07, T08.
+**Verify:** All task receipts and M1–M8 gates pass; updated kit and actual application agree; PRs are
+delivered for human review, with merge/release status stated separately. Keep unresolved external
+verification as a blocker. Do not mark implementation complete merely because documentation is finished.

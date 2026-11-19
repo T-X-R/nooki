@@ -575,6 +575,10 @@ conflict and recovery behavior.
 
 ## 11. Phased implementation plan
 
+The executable task sequence, dependencies, delivery rules and evidence requirements live in the
+[implementation plan](capability-platform-implementation-plan.md). Track progress only in its [task checklist](capability-platform-implementation-tasks.md).
+The phase definitions below remain the design-level acceptance contract.
+
 Each slice should be independently reviewable. Dependencies and exit gates determine progression;
 no calendar estimate is asserted here. A later phase cannot waive an earlier failed gate. Reference
 packages are validation fixtures and examples, not commitments to full commercial applications.
