@@ -2,6 +2,11 @@
 
 Nooki is a local-first host for independently installed capabilities. Nooki remains useful as a shell even when no business capability is installed.
 
+The approved capability-first product direction and planned Host boundaries are recorded in
+[ADR 0006](docs/adr/0006-capabilities-as-the-product-core.md) and the
+[capability platform design](docs/capability-platform-design.md). Proposed APIs there are not shipped
+interfaces; the glossary below includes historical agent-substrate terminology retained during migration.
+
 ## Language
 
 **Nooki**:
