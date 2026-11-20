@@ -94,6 +94,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
 }
 pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), String> {
   crate::capability_board::validate(board)?;
+  crate::task_delegation::validate(board)?;
   let cards = board["cards"].as_array().ok_or("Invalid task board")?;
   let mut ids = std::collections::HashSet::new();
   if let Some(paused) = board.get("paused") {

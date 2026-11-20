@@ -284,6 +284,8 @@ impl GoalWorker {
             // Freeze selected references when the user creates the task, not when it is picked up.
             crate::source_snapshots::capture_task(&self.root, task_id, &card["sources"])?;
             board["cards"].as_array_mut().unwrap().push(card);
+        } else if op == "delegate" {
+            return crate::task_delegation::delegate(&self.root, &mut board, request);
         } else {
             let index = board["cards"].as_array().unwrap().iter().position(|c| c["id"] == request["id"] && c["engine"] == "goals").ok_or("Goal task not found")?;
             let mut card = board["cards"][index].clone();

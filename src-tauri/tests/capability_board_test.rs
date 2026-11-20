@@ -508,3 +508,83 @@ async fn array_shaped_task_sources_are_not_deserialized_as_valid_reference_objec
     assert!(!root.join("task-board.json").exists());assert!(!root.join("source-snapshots/bad.json").exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+fn delegate(card:&Value,snapshot:&str)->Value {
+    json!({"op":"delegate","id":card["id"],"snapshotId":snapshot,"expected":{"title":card["title"],"description":card["description"],"sources":card.get("sources").cloned().unwrap_or(json!([]))}})
+}
+
+#[tokio::test]
+async fn explicit_todo_delegation_captures_retained_sources_and_queues_once() {
+    let (root,state,mut worker,handle,reference)=source_fixture();
+    command(&mut worker,sourced(&handle,"todo",reference.clone())).await.unwrap();let before=disk(&root);
+    let request=delegate(&before["cards"][0],"user-delegation");
+    state.publish_document("example.notes",app_lib::document_library::DocumentPublication {key:"minutes".into(),title:"Changed".into(),collection_key:"notes".into(),collection_name:"Notes".into(),document_date:"2026-11-20".into(),content:"Changed body".into()}).unwrap();
+    state.revoke_document_grant("selected").unwrap();
+    let board=command(&mut worker,request.clone()).await.unwrap();let card=&board["cards"][0];
+    assert_eq!(card["status"],"queued");assert_eq!(card["authorization"],json!({"snapshotId":"user-delegation","documentIds":[reference["documentId"]]}));
+    assert!(card.get("threadId").is_none());assert!(card.get("delivery").is_none());assert!(card.get("engine").is_none());
+    assert_eq!(board["capabilityReceipts"],before["capabilityReceipts"]);assert_ne!(board["writeToken"],before["writeToken"]);
+    assert_eq!(app_lib::source_snapshots::source(&root,"user-delegation",reference["documentId"].as_str().unwrap()).unwrap().content,"Original selected input");
+    drop(worker);let mut worker=GoalWorker::new(root.clone(),"/missing-agent".into());
+    assert_eq!(command(&mut worker,request).await.unwrap(),board);
+    assert!(command(&mut worker,delegate(&before["cards"][0],"different-click")).await.is_err());
+    assert_eq!(disk(&root),board);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn delegation_conflicts_or_capture_failures_leave_todo_unauthed() {
+    let (root,_state,mut worker,handle,reference)=source_fixture();
+    command(&mut worker,sourced(&handle,"todo",reference.clone())).await.unwrap();let before=disk(&root);
+    for key in ["title","description","sources"] {
+        let mut stale=delegate(&before["cards"][0],"stale");stale["expected"][key]=if key=="sources" {json!([])} else {json!("stale")};
+        assert!(command(&mut worker,stale).await.is_err());assert_eq!(disk(&root),before);
+        assert!(!root.join("source-snapshots/stale.json").exists());
+    }
+    fs::remove_file(root.join("document-grants/selected.json")).unwrap();
+    assert!(command(&mut worker,delegate(&before["cards"][0],"missing")).await.is_err());
+    assert_eq!(disk(&root)["cards"],before["cards"]);assert_eq!(disk(&root)["delegationReceipts"]["missing"]["committed"],false);
+    assert!(!root.join("source-snapshots/missing.json").exists());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn delegation_replay_cannot_undo_withdrawal_or_rebind_its_content() {
+    let (root,_state,mut worker,handle,reference)=source_fixture();
+    command(&mut worker,sourced(&handle,"todo",reference)).await.unwrap();let request=delegate(&disk(&root)["cards"][0],"once");
+    let mut withdrawn=command(&mut worker,request.clone()).await.unwrap();
+    withdrawn["cards"][0]["status"]=json!("todo");withdrawn["cards"][0].as_object_mut().unwrap().remove("authorization");
+    command(&mut worker,json!({"op":"legacy","board":withdrawn})).await.unwrap();let before=disk(&root);
+    assert_eq!(command(&mut worker,request.clone()).await.unwrap(),before);
+    assert_eq!(disk(&root)["cards"][0]["status"],"todo");
+    let mut changed=before.clone();changed["cards"][0]["title"]=json!("Edited after withdrawal");
+    command(&mut worker,json!({"op":"legacy","board":changed})).await.unwrap();let changed=disk(&root);
+    assert!(command(&mut worker,delegate(&changed["cards"][0],"once")).await.is_err());
+    assert_eq!(disk(&root),changed);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn delegation_establishes_a_write_fence_on_legacy_only_boards() {
+    let (root,_state,mut worker,_)=fixture();
+    let stale=command(&mut worker,json!({"op":"legacy","board":{"cards":[{"id":"legacy","title":"Old todo","description":"","status":"todo","sources":[]}]}})).await.unwrap();
+    let delegated=command(&mut worker,delegate(&stale["cards"][0],"legacy-user")).await.unwrap();
+    assert!(command(&mut worker,json!({"op":"legacy","board":stale})).await.is_err());
+    assert_eq!(disk(&root),delegated);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn delegation_snapshot_surviving_failed_commit_cannot_bind_to_changed_content() {
+    let (root,_state,mut worker,handle,reference)=source_fixture();
+    command(&mut worker,sourced(&handle,"todo",reference)).await.unwrap();let before=disk(&root);
+    let request=delegate(&before["cards"][0],"interrupted-delegation");
+    let grant=root.join("document-grants/selected.json");let saved=fs::read(&grant).unwrap();fs::remove_file(&grant).unwrap();
+    assert!(command(&mut worker,request.clone()).await.is_err());
+    assert_eq!(disk(&root)["cards"],before["cards"]);
+    fs::write(&grant,saved).unwrap();fs::create_dir(root.join("task-board.pending")).unwrap();
+    assert!(command(&mut worker,request.clone()).await.is_err());
+    assert!(root.join("source-snapshots/interrupted-delegation.json").exists());
+    fs::remove_dir(root.join("task-board.pending")).unwrap();
+    let mut changed=disk(&root);changed["cards"][0]["description"]=json!("Changed reviewed request");
+    command(&mut worker,json!({"op":"legacy","board":changed})).await.unwrap();let changed=disk(&root);
+    assert!(command(&mut worker,delegate(&changed["cards"][0],"interrupted-delegation")).await.is_err());
+    assert_eq!(disk(&root),changed);fs::remove_dir_all(root).unwrap();
+}

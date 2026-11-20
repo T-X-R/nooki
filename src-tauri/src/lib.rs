@@ -1,4 +1,5 @@
 pub mod task_goals;
+pub(crate) mod task_delegation;
 pub(crate) mod capability_board;
 pub mod capability_host;
 pub mod app_profile;

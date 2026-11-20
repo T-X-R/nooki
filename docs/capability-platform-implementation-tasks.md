@@ -75,6 +75,9 @@ Scoped macOS feasibility is accepted; production integration and native requalif
 The [latest resumed native check](capability-platform-evidence/P02-resume.md) passes channel ownership,
 both receive boundaries, removal during pressure, hidden playback/release and infinite-loop removal.
 It preserves the prototype/production distinction and does not advance later gates.
+The [latest continuation attempt](capability-platform-evidence/P02-attempt.md) could not acquire
+native desktop control and ended at the probe watchdog. It adds no interactive pass and does not
+change the earlier feasibility result.
 
 **Depends on:** P00, P01. **Size:** M, bounded experiment.
 **Deliver:** A disposable desktop probe and runtime ADR comparing viable isolation arrangements;
@@ -670,6 +673,12 @@ the selected reference with the same document ID conflicts. Missing/malformed sn
 **Verification:** Native Goals/board, source snapshot and backup/restore tests, full regression.
 
 ### [ ] C03b2 — Connect user citation opening and explicit renderer delegation
+
+**State:** implementation, 31 native board tests, full regression and component browser checks pass;
+[C03b2 evidence and remaining native checks](capability-platform-evidence/C03b2.md). Three bounded
+review cycles resolved replay, stale-write and failed-commit binding findings. Desktop build/install
+pass. Native citation/delegation and restart acceptance remain pending because desktop control
+was unavailable; this task and parent C03b/C03/K1 remain unchecked.
 
 **Depends on:** C03b1. **Size:** M.
 **Deliver:** Typed selected references on task cards, retained-citation opening, and native capture
