@@ -1,5 +1,5 @@
 //! Native adapter: transport identity is supplied by Tauri, never by the request body.
-//! Issuance stays in the trusted controller; this adapter cannot grant itself authority.
+//! Legacy issuance is main-view only; packages share that trusted realm until R02/R03.
 use crate::capability_runtime::PlatformState;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -12,7 +12,7 @@ impl HostError {
         let (code, message) = match error.split_once(':').map(|(code, _)| code) {
             Some("INVALID_INPUT") => ("INVALID_INPUT", "Invalid board create request"),
             Some("PERMISSION_DENIED") => ("PERMISSION_DENIED", "Board create authority is missing or no longer valid"),
-            Some("CONFLICT") => ("CONFLICT", "The idempotency key was used with different input"),
+            Some("CONFLICT") => ("CONFLICT", "State changed or the idempotency key was used with different input"),
             Some("RESOURCE_LIMIT" | "INVOCATION_LIMIT") => ("RESOURCE_LIMIT", "Board create capacity is exhausted"),
             Some("RESOURCE_BUSY") => ("RESOURCE_BUSY", "The native owner is busy; retry with the same key and input"),
             Some("UNSUPPORTED_SERVICE") => ("UNSUPPORTED_SERVICE", "This board operation is not supported"),
@@ -28,6 +28,34 @@ impl HostError {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BoardCreateRequest { handle: String, key: String, input: Value }
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BoardBeginRequest { capability_id: String, version: String }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BoardReleaseRequest { handle: String }
+
+fn controller_request<T: serde::de::DeserializeOwned>(caller: &str, value: Value) -> Result<T, HostError> {
+    if caller != "main" { return Err(HostError::from_native("PERMISSION_DENIED:", false)); }
+    if serde_json::to_vec(&value).map_err(|_| HostError::from_native("INVALID_INPUT:", false))?.len() > 1024 {
+        return Err(HostError::from_native("INVALID_INPUT:", false));
+    }
+    serde_json::from_value(value).map_err(|_| HostError::from_native("INVALID_INPUT:", false))
+}
+
+// Host-selected installation plus the permission consent shown during installation. This is a
+// trusted shared-renderer controller, not proof of which legacy package script called Tauri.
+pub fn board_begin(state: &PlatformState, caller: &str, value: Value) -> Result<String, HostError> {
+    let request: BoardBeginRequest = controller_request(caller, value)?;
+    state.grant_board_creation(caller, &request.capability_id, &request.version)
+        .map_err(|e| HostError::from_native(&e, false))
+}
+
+pub fn board_release(state: &PlatformState, caller: &str, value: Value) -> Result<(), HostError> {
+    let request: BoardReleaseRequest = controller_request(caller, value)?;
+    state.revoke_board_invocation(caller, &request.handle).map_err(|e| HostError::from_native(&e, false))
+}
 
 pub async fn board_create(state: &PlatformState, native_caller: &str, value: Value) -> Result<Value, HostError> {
     let invalid = || HostError::from_native("INVALID_INPUT:", false);

@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.3.2's existing Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.4.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -16,7 +16,8 @@ added with their implementations. `ai.invoke` is the existing model gateway, not
 | Environment snapshot/subscription | Host language/theme | Controlled in-memory simulation |
 | `storage` | Package-private persistent JSON, permission checked | Empty per instance; JSON copies and permission checks; resets on reload |
 | Jobs, document grants/publication/open, activity writes, AI and Codex sources | Existing scoped Host operations | Explicit unavailable error; no empty-success responses |
-| Board, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
+| `board.create` | Permission-checked durable draft creation with an idempotency key | `UNSUPPORTED_SERVICE`; no simulated success |
+| Board selection/update/delegation, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
 
 Legacy packages require a Page; jobs and job-backed commands are optional. `widget` has never had a
 supported package loader and is no longer advertised by the public type. The legacy `activity.read`
@@ -53,6 +54,67 @@ From the scaffolded project, run `npm install`, `npm run check`, and `npm run pa
 requires Python 3 for ZIP creation. The resulting archive contains the manifest, bundled entry and
 scoped styles; preview tools stay in the source project. Preview data no longer persists in browser
 storage: copy any useful test text before upgrading an older starter. Desktop package data is unaffected.
+
+## Create a task-board draft
+
+Declare `board.create` in `permissions` and require `minPlatformVersion: "0.4.0"` or newer.
+Installation shows this permission and requires the user's consent. Call only the public Host:
+
+```ts
+const item = await host.board.create(
+  { title: 'Review meeting actions', description: 'Check the next steps with the team.' },
+  { idempotencyKey: 'meeting-2026-11-20-review' },
+)
+// item: { id: string, revision: number }
+```
+
+Choose a stable key for one user intent and retain the key/input before submitting. Reuse them after
+an uncertain reply or an explicit retry; generating a new key may create a second item. A successful
+request creates a `todo` card with native package/version provenance and revision 1. It does not start
+an agent, delegate a Goal or accept a delivery. The user controls those later actions in Nooki.
+
+Same package/operation/key and normalized input return the original reference, including after
+restart with fresh authorization or after the user deletes the card. Reusing a key with different
+input returns `CONFLICT`. Omitted description and sources normalize to `""` and `[]`; text whitespace
+is preserved. The receipt's original revision does not change when the user later edits the card.
+Receipts have no automatic expiry; at capacity, new intents fail while existing receipts remain
+replayable. User-requested restoration of an older backup rolls back board state and receipts.
+
+| Input or retention boundary | Limit |
+|---|---|
+| Title | Nonblank, at most 120 Unicode scalar values |
+| Description | At most 20,000 Unicode scalar values |
+| Key | Nonempty, at most 128 UTF-8 bytes, no control characters |
+| Public input/key envelope | At most 63 KiB serialized UTF-8; native envelope at most 64 KiB |
+| Sources | Omit or supply `[]`; nonempty references return `UNSUPPORTED_SERVICE` until authorized snapshot integration |
+| Receipts | At most 256 per package, 1,024 per profile and 1 MiB serialized ledger |
+
+Requests reject unknown fields, including owner, capability ID, authorization and execution state.
+`IdempotencyOptions`, `BoardCreateInput`, `BoardItemReference`, `HostErrorCode` and `HostServiceError`
+are exported canonical types. Board failures are `Error` objects with a stable `.code`:
+
+| Code | Package behavior |
+|---|---|
+| `INVALID_INPUT` | Correct the input before resubmission |
+| `PERMISSION_DENIED` | Stop; installation, permission or invocation is no longer authorized |
+| `UNSUPPORTED_SERVICE` | Explain the unavailable operation; preview cannot create real items |
+| `CONFLICT` | Refresh/reconcile state; do not silently change the key to bypass a conflicting intent |
+| `RESOURCE_LIMIT` | Explain the capacity limit; existing receipts remain available |
+| `RESOURCE_BUSY` / `RESOURCE_UNAVAILABLE` | Allow an explicit retry using the same key and input |
+| `OUTCOME_UNKNOWN` | The item may exist; retry only with the same key and input |
+| `CANCELLED` | This Host's page/job lifetime has ended; stop using it |
+
+The host acquires one native invocation lazily per page/job, shares it across concurrent creates,
+and releases it when the page unmounts or the job ends/cancels. Late grant completion after disposal
+is released without submitting a create. Cancellation cannot undo a mutation already admitted at
+the native commit boundary; reconcile that outcome with the same key. A package must not cache a
+Host across page lifetimes or inspect native handles. Declaring permission does not expose board
+listing or grant execution authority. Preview always refuses `board.create` and touches no board.
+
+The legacy controller runs in the trusted main WebView. Native effects recheck caller label,
+installation generation and permission, but legacy packages share the main JavaScript realm and
+can bypass its module boundaries if malicious. This API is not hostile-package isolation; isolated
+runtime enforcement remains separate work. Do not import Tauri or host controller modules.
 
 ## Follow the platform language and theme
 

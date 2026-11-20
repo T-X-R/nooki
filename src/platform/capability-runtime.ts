@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { taskRunner } from './tasks.ts'
+import { invalidateBoardClients } from './capability-board-host.ts'
 import { applyPackageStyles, loadPackageModule, removePackageStyles, type PackagePayload } from './package-loader.ts'
 import {
   installCapability as installNativeCapability,
@@ -96,6 +97,7 @@ export async function installCapabilityPackage(id: string): Promise<InstalledCap
 export async function setCapabilityPackageEnabled(id: string, enabled: boolean): Promise<void> {
   await taskRunner.withCapabilityStopped(id, async () => {
     await changeCapabilityEnabled(id, enabled)
+    await invalidateBoardClients(id)
     const installed = runtimeInstalled.get(id)
     if (installed) runtimeInstalled.set(id, { ...installed, enabled })
   })
@@ -138,6 +140,7 @@ export async function getInstalledCapabilityPackagesWithState(): Promise<Install
     for (const capability of installed) {
       if (!capability.packageVersion && !bundledIds.has(capability.manifest.id)) {
         await taskRunner.withCapabilityStopped(capability.manifest.id, () => uninstallNativeCapability(capability.manifest.id))
+        await invalidateBoardClients(capability.manifest.id)
       }
     }
     installed = installed.filter((capability) => capability.packageVersion || bundledIds.has(capability.manifest.id))
@@ -147,6 +150,7 @@ export async function getInstalledCapabilityPackagesWithState(): Promise<Install
       if (!capability.packageVersion && available && isNewerVersion(available.manifest.version, capability.manifest.version)
         && available.manifest.permissions.every((permission) => capability.manifest.permissions.includes(permission))) {
         await taskRunner.withCapabilityStopped(capability.manifest.id, () => updateNativeCapability(available.manifest))
+        await invalidateBoardClients(capability.manifest.id)
       }
     }
     installed = await listNativeCapabilities()
@@ -187,6 +191,7 @@ export async function installCapabilityArchive(candidate: Awaited<ReturnType<typ
     // Validate executable exports before changing the durable registry pointer.
     const module = await loadPackageModule(payload)
     const installed = await invoke<InstalledCapability>('capability_package_install', { bytes, expectedVersion })
+    await invalidateBoardClients(payload.manifest.id)
     externalModules.set(payload.manifest.id, module)
     runtimeInstalled.set(payload.manifest.id, installed)
     applyPackageStyles(payload.manifest.id, payload.styles)
@@ -199,6 +204,7 @@ export async function rollbackCapabilityPackage(id: string): Promise<void> {
     const payload = await invoke<PackagePayload>('capability_package_read', { id, previous: true })
     const module = await loadPackageModule(payload)
     const installed = await invoke<InstalledCapability>('capability_package_rollback', { id, expectedVersion: runtimeInstalled.get(id)?.manifest.version })
+    await invalidateBoardClients(id)
     externalModules.set(id, module)
     runtimeInstalled.set(id, installed)
     applyPackageStyles(id, payload.styles)
@@ -223,6 +229,7 @@ function isNewerVersion(candidate: string, current: string): boolean {
 export async function uninstallCapabilityPackage(id: string): Promise<void> {
   await taskRunner.withCapabilityStopped(id, async () => {
     await removeCapabilityPackage(id)
+    await invalidateBoardClients(id)
     runtimeInstalled.delete(id)
     externalModules.delete(id)
     loadErrors.delete(id)

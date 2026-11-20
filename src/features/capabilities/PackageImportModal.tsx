@@ -41,6 +41,7 @@ export function PackageImportModal({ language, onClose, onInstalled }: { languag
     'codex.sessions.read': zh ? '读取 Codex 会话' : 'Read Codex sessions',
     'documents.publish': zh ? '发布文档' : 'Publish documents',
     'documents.read-selected': zh ? '读取你授权的文档' : 'Read documents you authorize',
+    'board.create': zh ? '创建任务板草稿（不会自动执行）' : 'Create task-board drafts (without starting work)',
   }
   const fileSize = fileInfo && (fileInfo.size < 1024 * 1024
     ? `${(fileInfo.size / 1024).toLocaleString(language, { maximumFractionDigits: 1 })} KB`

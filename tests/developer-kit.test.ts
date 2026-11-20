@@ -33,8 +33,11 @@ test('released kit scaffolds an independent project with canonical Host types an
 // @ts-expect-error Widgets have no implemented loader.
 const widget: CapabilityEntrypoint = 'widget'
 declare const host: CapabilityHost
-// @ts-expect-error Board services are not shipped yet.
+host.board.create({ title: 'Test' }, { idempotencyKey: 'one' })
+// @ts-expect-error Mutations require a stable idempotency key.
 host.board.create({ title: 'Test' })
+// @ts-expect-error Packages cannot select the owner of the mutation.
+host.board.create({ title: 'Test', capabilityId: 'foreign' }, { idempotencyKey: 'one' })
 // @ts-expect-error Agent runs are not the legacy AI invocation API.
 host.agents.start({})
 `)
@@ -55,6 +58,8 @@ test('kit check rejects unsupported entrypoints, permissions and global CSS', as
   assert.throws(() => validateManifest({ ...manifest, entrypoints: ['widget'] }))
   validateManifest({ ...manifest, entrypoints: ['page', 'job', 'command'] })
   assert.throws(() => validateManifest({ ...manifest, permissions: ['filesystem.all'] }))
+  assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.3.2', permissions: ['board.create'] }))
+  validateManifest({ ...manifest, minPlatformVersion: '0.4.0', permissions: ['board.create'] })
   assert.throws(() => validateStyle('body { color: red }', 'style.css'))
   assert.throws(() => validateStyle('.notes, :root { color: red }', 'style.css'))
   validateStyle('.wb-cap-page.notes textarea { color: var(--ink) }', 'style.css')

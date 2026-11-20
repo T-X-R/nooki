@@ -18,6 +18,14 @@ import { publicationReference } from '../../packages/capability-contract/src/ref
 import { publishCapabilityDocument } from './document-library.ts'
 import { capabilityTasks } from './tasks.ts'
 import { getRuntimeInstalledCapability } from './capability-runtime.ts'
+import { createBoardClient } from './capability-board-host.ts'
+
+const hostDisposers = new WeakMap<CapabilityHost, () => Promise<void>>()
+export async function releaseCapabilityHost(host: CapabilityHost): Promise<void> {
+  // Cleanup has its own retained retry owner; it must not replace the job's business result/error.
+  try { await hostDisposers.get(host)?.() }
+  catch { console.warn('Capability board release pending; will retry before the next grant') }
+}
 
 export type {
   ActivityEventInput,
@@ -106,12 +114,18 @@ function createStorage(capabilityId: string, permissions: CapabilityPermission[]
 
 export function createCapabilityHost(capabilityId: string, permissions?: CapabilityPermission[], capabilityName = capabilityId, execution?: { id: string; signal: AbortSignal }): CapabilityHost {
   if (!capabilityId.trim()) throw new Error('Capability ID is required')
+  const version = getRuntimeInstalledCapability(capabilityId)?.manifest.version
   const assertActive = () => {
     execution?.signal.throwIfAborted()
-    if (!getRuntimeInstalledCapability(capabilityId)?.enabled) throw new Error('Capability is not installed or enabled')
+    const installed = getRuntimeInstalledCapability(capabilityId)
+    if (!installed?.enabled || installed.manifest.version !== version) throw new Error('Capability is not installed or enabled at this version')
   }
-
-  return Object.freeze({
+  const client = createBoardClient({ id: capabilityId, version: version ?? '', permission: permissions?.includes('board.create') === true,
+    desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke })
+  const cancel = () => { void client.dispose().catch(() => console.warn('Capability board invocation release failed')) }
+  execution?.signal.addEventListener('abort', cancel, { once: true })
+  const host: CapabilityHost = Object.freeze({
+    board: client.board,
     environment: capabilityEnvironment,
     tasks: capabilityTasks(capabilityId),
     storage: createStorage(capabilityId, permissions, assertActive),
@@ -175,6 +189,8 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
       },
     }),
   })
+  hostDisposers.set(host, async () => { execution?.signal.removeEventListener('abort', cancel); await client.dispose() })
+  return host
 }
 
 export async function installCapability(manifest: CapabilityManifest): Promise<InstalledCapability> {

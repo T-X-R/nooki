@@ -481,6 +481,16 @@ async fn capability_board_create(webview: tauri::Webview, request: serde_json::V
 }
 
 #[tauri::command]
+fn capability_board_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<String, capability_host::HostError> {
+  capability_host::board_begin(&state, webview.label(), request)
+}
+
+#[tauri::command]
+fn capability_board_release(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  capability_host::board_release(&state, webview.label(), request)
+}
+
+#[tauri::command]
 async fn task_board_read(state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
   task_worker::request(state.data_dir(), serde_json::json!({"op":"read"})).await
 }
@@ -605,6 +615,7 @@ pub fn run() {
       tasks_write,
       task_board_read, task_board_write, task_board_command, task_board_choose_directory,
       capability_board_create,
+      capability_board_begin, capability_board_release,
       task_cancel_invocation,
       capability_broker_ready,
       capability_broker_respond,

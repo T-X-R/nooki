@@ -1,0 +1,3 @@
+.wb-cap-page.board-acceptance { padding: 24px; color: var(--ink); background: var(--surface); }
+.wb-cap-page.board-acceptance button { margin: 4px; padding: 10px 14px; }
+.wb-cap-page.board-acceptance pre { white-space: pre-wrap; overflow-wrap: anywhere; }

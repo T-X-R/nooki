@@ -1,5 +1,5 @@
-import { Component, useMemo, type ReactNode } from 'react'
-import { createCapabilityHost } from '../../platform/capability-host.ts'
+import { Component, useEffect, useState, type ReactNode } from 'react'
+import { createCapabilityHost, releaseCapabilityHost, type CapabilityHost } from '../../platform/capability-host.ts'
 import type { CapabilityModule } from '../../platform/capability-runtime.ts'
 import type { Language } from '../../shared/i18n.ts'
 
@@ -13,6 +13,11 @@ export class CapabilityErrorBoundary extends Component<{ children: ReactNode; on
 
 export function CapabilityPage({ module }: { module: CapabilityModule }) {
   const Page = module.Page
-  const host = useMemo(() => createCapabilityHost(module.manifest.id, module.manifest.permissions, module.manifest.name), [module.manifest.id, module.manifest.name, module.manifest.permissions])
-  return <Page host={host} />
+  const [scope, setScope] = useState<{ module: CapabilityModule; host: CapabilityHost }>()
+  useEffect(() => {
+    const host = createCapabilityHost(module.manifest.id, module.manifest.permissions, module.manifest.name)
+    setScope({ module, host })
+    return () => { void releaseCapabilityHost(host).catch(() => console.warn('Capability board invocation release failed')) }
+  }, [module])
+  return scope?.module === module ? <Page host={scope.host} /> : null
 }

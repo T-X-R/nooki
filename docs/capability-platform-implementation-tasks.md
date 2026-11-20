@@ -402,7 +402,7 @@ plus bounded serialized envelope fits the receive limit; preserve historical fai
 ### [x] K0 — Preparation gate
 
 **State:** verified on 2026-11-20; [requirement-by-requirement preparation audit](capability-platform-evidence/P02.md).
-P00/P01/P02 evidence reconciled; C01 is next. No production runtime or later gate is marked complete.
+P00/P01/P02 evidence reconciled. C01 is now verified below; C02 is next. No production runtime or later gate is marked complete.
 
 **Depends on:** P00, P01, P02.
 **Verify:** Baseline is reproducible, the minimal external-project path works, and a feasible runtime
@@ -411,10 +411,12 @@ block production runtime promises; reconcile them before freezing transport-depe
 
 ## Phase 1: one complete meeting workflow through public services
 
-### [ ] C01 — Bind a Host mutation to invocation identity and scoped authority
+### [x] C01 — Bind a Host mutation to invocation identity and scoped authority
 
-**State:** in-progress; split into C01a–C01c before implementation because authority lifecycle,
-worker persistence and public Host delivery have separate verification boundaries.
+**State:** verified on 2026-11-20 through C01a–C01c; [public delivery and combined acceptance](capability-platform-evidence/C01c2.md).
+Native authority/receipt tests and real exported archives cover creation/replay/conflict, denied
+permission, lifecycle closure and restart. Legacy packages remain trusted-only. Same branch and
+PR #38, pending human merge; C02/C03 and K1 remain pending.
 
 **Depends on:** P01, P02. **Size:** M.
 **Deliver:** The authority context and durable idempotency receipt used by the first board mutation,
@@ -429,8 +431,8 @@ protocol-level checks here do not prove isolation from arbitrary same-realm code
 ### [x] C01a — Bind native invocation handles to installation generations
 
 **State:** verified on 2026-11-20; [native implementation and regression receipt](capability-platform-evidence/C01a.md).
-Generation-bound handles and lifecycle invalidation are integrated. No new package-callable endpoint;
-C01b/C01c and the C01 parent remain pending. Same branch and PR #38, pending human merge.
+Generation-bound handles and lifecycle invalidation are integrated. C01a added no package-callable
+endpoint; C01b/C01c below now complete the public path. Same branch and PR #38, pending human merge.
 
 **Depends on:** P02. **Size:** M.
 **Deliver:** A bounded native authority store and installation-generation tracking, integrated with
@@ -446,7 +448,7 @@ No production isolated-transport claim; C01b/C01c remain required for the public
 **State:** verified on 2026-11-20 through C01b1 and C01b2;
 [atomic worker transaction and failure/retry receipt](capability-platform-evidence/C01b2.md).
 Real worker IPC, queued revocation, retained idempotency and filesystem failure cases pass.
-Public Host delivery remains C01c; the C01 parent is still incomplete.
+Public Host delivery is verified through C01c below; the C01 parent is complete at trusted-legacy scope.
 
 **Depends on:** C01a. **Size:** M.
 **Deliver:** Worker-side create-item transaction with canonical payload hash and durable result,
@@ -460,8 +462,8 @@ native owner; keep existing task-worker behavior intact.
 ### [x] C01b1 — Share the authorization fence with the native worker
 
 **State:** verified on 2026-11-20; [cross-process fence and regression receipt](capability-platform-evidence/C01b1.md).
-Native live-record/registry fencing and actual process-boundary tests pass. The task-board transaction
-is not connected yet; C01b2/C01c and the C01 parent remain pending. Same branch and PR #38.
+Native live-record/registry fencing and actual process-boundary tests pass. C01b2 below connects the
+task-board transaction and C01c completes public delivery. Same branch and PR #38.
 
 **Depends on:** C01a. **Size:** M.
 **Deliver:** A private, bounded live-authorization record keyed by handle digest, a stable native
@@ -488,10 +490,10 @@ A create operation only adds a todo item, with no execution authorization or age
 **Verification:** Real file contents, concurrent retries, injected pre/post-commit failure and
 revoke/worker races, plus existing board regressions. Public Host/UI delivery remains C01c/C03.
 
-### [ ] C01c — Connect authorized Host mutation requests and document the contract
+### [x] C01c — Connect authorized Host mutation requests and document the contract
 
-**State:** in-progress, split into C01c1/C01c2 to verify the native admission boundary before
-shipping the controller, public SDK and independently exported package together.
+**State:** verified on 2026-11-20 through C01c1/C01c2; [public Host and desktop evidence](capability-platform-evidence/C01c2.md).
+Controller, SDK, kit 0.3.0 and independently built archives ship together for Nooki 0.4.0.
 
 **Depends on:** C01b. **Size:** M; split if public delivery requires it.
 **Deliver:** Trusted-controller issuance, bounded Host adapter, canonical error/idempotency types,
@@ -505,8 +507,8 @@ board workflow/UI; do not mark C01 complete from C01a alone.
 
 **State:** verified on 2026-11-20; [native adapter and policy evidence](capability-platform-evidence/C01c1.md).
 Real worker creation/replay/denial and complete regressions pass; desktop build/install verified.
-Tauri injection is source-inspected here; actual public package/desktop dispatch remains C01c2.
-Same branch and PR #38, pending human merge. C01c/C01 remain incomplete.
+Tauri injection was source-inspected in this slice; C01c2 below adds actual public desktop dispatch.
+Same branch and PR #38, pending human merge; C01c/C01 are now verified through C01c2.
 
 **Depends on:** C01b. **Size:** M.
 **Deliver:** Native `board.create` permission checks at issuance and commit, a strict native adapter
@@ -517,7 +519,13 @@ Transport uncertainty remains distinct from rejection and native details do not 
 **Verification:** Native policy/adapter/worker tests, existing regressions and desktop build/install.
 This increment exposes no issuance endpoint or public Host method; desktop package acceptance stays C01c2.
 
-### [ ] C01c2 — Deliver the controller, public Host and exported development kit
+### [x] C01c2 — Deliver the controller, public Host and exported development kit
+
+**State:** verified on 2026-11-20; [receipt](capability-platform-evidence/C01c2.md) and
+[native synthetic state/archive hashes](capability-platform-evidence/C01c2-desktop-state.json).
+Real UI import/consent, page/job create, replay/conflict/forged input, missing permission,
+disable/stale Host, re-enable and restart pass. Board output remains two todo drafts, with zero
+live handles after page exit. Cleanup review findings were fixed and regression-tested.
 
 **Depends on:** C01c1. **Size:** M; split only if the concrete integration requires it.
 **Deliver:** Host-controlled grant issuance and release, public board adapter and canonical

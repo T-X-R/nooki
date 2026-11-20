@@ -60,6 +60,7 @@ test('desktop-only preview operations fail instead of reporting empty or success
   ] as const) {
     await assert.rejects(operation(), (error: Error) => error.message.includes(name) && error.message.includes('desktop Nooki'))
   }
+  await assert.rejects(host.board.create({ title: 'Preview' }, { idempotencyKey: 'preview' }), { code: 'UNSUPPORTED_SERVICE' })
   assert.throws(() => host.documents.open({ kind: 'library-document', documentId: 'test', title: 'Test' }), /documents.open.*desktop Nooki/)
   assert.throws(() => host.tasks.getSnapshot(), /tasks.getSnapshot.*desktop Nooki/)
   assert.throws(() => host.tasks.subscribe(() => {}), /tasks.subscribe.*desktop Nooki/)

@@ -14,6 +14,27 @@ fn manifest() -> CapabilityManifest {
 fn issue(state: &PlatformState) -> String { state.grant_board_creation("native-a", "example.notes", "0.1.0").unwrap() }
 
 #[test]
+fn legacy_host_controller_is_main_only_strict_and_releases_native_authority() {
+    use app_lib::capability_host::{board_begin,board_release};
+    use serde_json::json;
+    let (root,state)=fixture();
+    let request=json!({"capabilityId":"example.notes","version":"0.1.0"});
+    assert!(board_begin(&state,"package-view",request.clone()).is_err());
+    for field in ["caller","permissions","generation","handle"] {
+        let mut forged=request.clone();forged[field]=json!("forged");
+        assert!(board_begin(&state,"main",forged).is_err());
+    }
+    let handle=board_begin(&state,"main",request.clone()).unwrap();
+    state.with_board_authority("main",&handle,"board.create","board",|_|Ok(())).unwrap();
+    assert!(board_release(&state,"foreign",json!({"handle":handle})).is_err());
+    board_release(&state,"main",json!({"handle":handle})).unwrap();
+    assert!(state.with_board_authority("main",&handle,"board.create","board",|_|Ok(())).is_err());
+    state.set_capability_enabled("example.notes",false).unwrap();
+    assert!(board_begin(&state,"main",request).is_err());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn controller_cannot_grant_board_creation_without_manifest_permission() {
     let (root, state) = fixture();
     let mut package = manifest(); package.permissions.clear();
