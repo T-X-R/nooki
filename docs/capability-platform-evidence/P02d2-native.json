@@ -1,0 +1,140 @@
+{
+  "data": {
+    "archive": {
+      "compressedBoundaryBytes": 33554432,
+      "compressedBytesFor64MiB": 65662,
+      "expandedBytes": 67108864,
+      "maxEntries": 256,
+      "maxEntryBytes": 16777216
+    },
+    "elapsedMs": 5154,
+    "private": {
+      "itemBytes": 262144,
+      "maxItems": 256,
+      "rejectionPreservedBytes": true,
+      "stagingCountsOldBytes": true,
+      "totalBytes": 16777216
+    },
+    "transfer": {
+      "audioBytes": 960044,
+      "cancelledStagingRemoved": true,
+      "chunkBytes": 65536,
+      "finalUsage": [
+        4,
+        76457516
+      ],
+      "itemBytes": 67108864,
+      "maxItems": 4,
+      "totalBytes": 134217728
+    }
+  },
+  "retained": {
+    "disk": {
+      "declaredStagingReserved": true,
+      "droppedStorePreservesCharge": true,
+      "privateCountFull": {
+        "bytes": 0,
+        "files": 1024,
+        "stores": 16,
+        "writers": 0
+      },
+      "privateFull": {
+        "bytes": 67108864,
+        "files": 256,
+        "stores": 5,
+        "writers": 0
+      },
+      "transferCountFull": {
+        "bytes": 268435456,
+        "files": 16,
+        "stores": 8,
+        "writers": 0
+      },
+      "transferFull": {
+        "bytes": 268435456,
+        "files": 4,
+        "stores": 5,
+        "writers": 0
+      },
+      "writerLimit": 4
+    },
+    "live": {
+      "deliveredBytesChargedUntilDrop": true,
+      "eventBytePeak": {
+        "bytes": 524288,
+        "count": 32,
+        "owners": {
+          "a": [
+            16,
+            262144
+          ],
+          "b": [
+            16,
+            262144
+          ]
+        }
+      },
+      "eventCountPeak": {
+        "bytes": 0,
+        "count": 128,
+        "owners": {
+          "a": [
+            64,
+            0
+          ],
+          "b": [
+            64,
+            0
+          ]
+        }
+      },
+      "eventItemBytes": 16384,
+      "finalEvents": {
+        "bytes": 0,
+        "count": 0,
+        "owners": {}
+      },
+      "finalRuns": {
+        "bytes": 0,
+        "count": 0,
+        "owners": {}
+      },
+      "finalServices": {
+        "bytes": 0,
+        "count": 0,
+        "owners": {}
+      },
+      "peerEchoAfterStop": true,
+      "runPayloadBytes": 65536,
+      "runPeak": {
+        "bytes": 0,
+        "count": 4,
+        "owners": {
+          "a": [
+            2,
+            0
+          ],
+          "b": [
+            2,
+            0
+          ]
+        }
+      },
+      "servicePeak": {
+        "bytes": 0,
+        "count": 2,
+        "owners": {
+          "a": [
+            1,
+            0
+          ],
+          "b": [
+            1,
+            0
+          ]
+        }
+      },
+      "stoppedServicesObservedEof": 3
+    }
+  }
+}

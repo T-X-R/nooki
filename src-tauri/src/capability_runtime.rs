@@ -63,6 +63,8 @@ pub enum CapabilityPermission {
   DocumentsPublish,
   #[serde(rename = "documents.read-selected")]
   DocumentsReadSelected,
+  #[serde(rename = "board.create")]
+  BoardCreate,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -76,9 +78,11 @@ pub struct InstalledCapability {
   pub previous_package_version: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct CapabilityRegistry {
   capabilities: Vec<InstalledCapability>,
+  #[serde(default)]
+  generations: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,28 +106,94 @@ pub struct PlatformState {
   data_dir: PathBuf,
   settings: RwLock<PlatformSettings>,
   registry: RwLock<CapabilityRegistry>,
+  pub(crate) document_selections: std::sync::Mutex<BTreeMap<String, crate::document_selection::Selection>>,
 }
 
 impl PlatformState {
   pub fn load(data_dir: PathBuf) -> Result<Self, String> {
     let settings = load_json(&data_dir.join(SETTINGS_FILE))?;
-    let installed_registry_path = data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE);
-    let registry_path = if installed_registry_path.is_file() {
-      installed_registry_path
-    } else {
-      // Keep existing installations visible while moving the registry into
-      // the isolated installed-capabilities directory.
-      data_dir.join(REGISTRY_FILE)
-    };
-    let registry = load_json(&registry_path)?;
+    // Startup serializes with an already admitted worker effect, then invalidates all old handles.
+    #[cfg(unix)]
+    let _fence = crate::capability_authority::fence(&data_dir)?;
+    let registry = load_registry(&data_dir)?;
+    #[cfg(unix)]
+    crate::capability_authority::Authority::default().save(&data_dir)?;
     Ok(Self {
       data_dir,
       settings: RwLock::new(settings),
       registry: RwLock::new(registry),
+      document_selections: std::sync::Mutex::new(BTreeMap::new()),
     })
   }
 
   pub fn data_dir(&self) -> &Path { &self.data_dir }
+
+  /// Trusted native controller only: calling this method is the board-create grant decision.
+  /// Manifest permission is necessary, not user approval. Do not expose this method to packages.
+  pub fn grant_board_creation(&self, caller: &str, id: &str, expected_version: &str) -> Result<String, String> {
+    let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
+    let installed = registry.capabilities.iter().find(|item| item.manifest.id == id && item.enabled && item.manifest.version == expected_version)
+      .ok_or("PERMISSION_DENIED: installation is not active at the expected version")?;
+    if !installed.manifest.permissions.contains(&CapabilityPermission::BoardCreate) {
+      return Err("PERMISSION_DENIED: capability requires board.create".into());
+    }
+    let version = installed.manifest.version.clone();
+    if !registry.generations.contains_key(id) {
+      let next = registry.clone();
+      self.commit_registry(&mut registry, next, id)?;
+    }
+    let context = crate::capability_authority::InvocationContext { capability_id:id.into(), capability_version:version, generation:registry.generations[id].clone() };
+    let _fence = crate::capability_authority::fence(&self.data_dir)?;
+    let current = load_registry(&self.data_dir)?;
+    if current != *registry { return Err("CONFLICT: installation changed; reload the host state".into()); }
+    let mut authority = crate::capability_authority::Authority::load(&self.data_dir)?;
+    authority.retain_current(|context| current.accepts(context));
+    let handle = authority.issue(caller, context)?;
+    authority.save(&self.data_dir)?;
+    Ok(handle)
+  }
+
+  pub fn revoke_board_invocation(&self, caller: &str, handle: &str) -> Result<(), String> {
+    let _fence = crate::capability_authority::fence(&self.data_dir)?;
+    let mut authority = crate::capability_authority::Authority::load(&self.data_dir)?;
+    authority.revoke(caller, handle)?;
+    authority.save(&self.data_dir)
+  }
+
+  /// Linearizes a short synchronous local effect with revocation and registry transitions.
+  /// The effect must not re-enter PlatformState or await another process. Uses the same worker fence.
+  pub fn with_board_authority<T>(&self, caller: &str, handle: &str, operation: &str, resource: &str,
+      effect: impl FnOnce(&crate::capability_authority::InvocationContext) -> Result<T, String>) -> Result<T, String> {
+    with_worker_board_authority(&self.data_dir, caller, handle, operation, resource, effect)
+  }
+
+  fn commit_registry(&self, registry: &mut CapabilityRegistry, mut next: CapabilityRegistry, changed_id: &str) -> Result<(), String> {
+    use std::io::Write;
+    // Legacy registry changes remain available on non-Unix targets; new worker authority requires Unix.
+    #[cfg(unix)]
+    let _fence = crate::capability_authority::fence(&self.data_dir)?;
+    if load_registry(&self.data_dir)? != *registry {
+      return Err("CONFLICT: installation changed; reload the host state".into());
+    }
+    if next.capabilities.iter().any(|item| item.manifest.id == changed_id) {
+      next.generations.insert(changed_id.into(), crate::capability_authority::nonce()?);
+    } else { next.generations.remove(changed_id); }
+    let parent = self.data_dir.join(INSTALLED_CAPABILITIES_DIR);
+    fs::create_dir_all(&parent).map_err(|e| e.to_string())?;
+    let path = parent.join(REGISTRY_FILE);
+    let mut file = fs::File::create(path.with_extension("json.tmp")).map_err(|e| e.to_string())?;
+    file.write_all(&serde_json::to_vec_pretty(&next).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    file.sync_all().map_err(|e| e.to_string())?;
+    fs::rename(path.with_extension("json.tmp"), &path).map_err(|e| e.to_string())?;
+    // After rename the new state is visible even if the final durability acknowledgement fails.
+    *registry = next;
+    // The registry generation is the revocation authority. Grant-file cleanup is lazy so an
+    // unavailable staging file cannot prevent disabling a package or leave its grants effective.
+    #[cfg(unix)]
+    fs::File::open(parent).and_then(|directory| directory.sync_all())
+      .map_err(|_| "OUTCOME_UNKNOWN: registry changed but durability acknowledgement failed".to_string())?;
+    Ok(())
+  }
 
   pub fn capability_agent(&self) -> Result<String, String> {
     self.settings
@@ -171,11 +241,7 @@ impl PlatformState {
     };
     let mut next = registry.clone();
     next.capabilities.push(installed.clone());
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, &installed.manifest.id)?;
     Ok(installed)
   }
 
@@ -206,11 +272,7 @@ impl PlatformState {
     }
     capability.manifest = manifest;
     let updated = capability.clone();
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, &updated.manifest.id)?;
     Ok(updated)
   }
 
@@ -226,11 +288,7 @@ impl PlatformState {
       .find(|capability| capability.manifest.id == id)
       .ok_or_else(|| "能力尚未安装".to_string())?;
     capability.enabled = enabled;
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, id)?;
     Ok(())
   }
 
@@ -245,11 +303,7 @@ impl PlatformState {
     if next.capabilities.len() == before {
       return Err("能力尚未安装".into());
     }
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, id)?;
     // Only package executables are removed; namespaced data and documents stay.
     let packages = self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(id);
     if packages.is_dir() { let _ = fs::remove_dir_all(packages); }
@@ -323,8 +377,7 @@ impl PlatformState {
     let mut next = registry.clone();
     next.capabilities.retain(|item| item.manifest.id != package.manifest.id);
     next.capabilities.push(installed.clone());
-    persist_json(&self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE), &next)?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, &installed.manifest.id)?;
     Ok(installed)
   }
 
@@ -345,6 +398,37 @@ impl PlatformState {
 
   pub fn grant_documents(&self, capability_id: &str, ids: Vec<String>, id: &str) -> Result<crate::document_grants::DocumentGrant, String> {
     crate::document_grants::grant(self, &self.data_dir, capability_id, ids, id)
+  }
+  pub fn revoke_document_grant(&self, id: &str) -> Result<(), String> {
+    crate::document_grants::revoke(&self.data_dir, id)
+  }
+
+  pub(crate) fn prepare_document_grant(&self, id: &str) -> Result<(), String> {
+    let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
+    if !registry.capabilities.iter().any(|item| item.manifest.id == id && item.enabled
+      && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected)) {
+      return Err("PERMISSION_DENIED: selected document access is not authorized".into());
+    }
+    if !registry.generations.contains_key(id) {
+      let next = registry.clone();
+      self.commit_registry(&mut registry, next, id)?;
+    }
+    Ok(())
+  }
+
+  // A short synchronous read/capture shares the lifecycle/revocation fence. Never await or re-enter.
+  pub(crate) fn with_document_authority<T>(&self, id: &str,
+      effect: impl FnOnce(&crate::capability_authority::InvocationContext) -> Result<T, String>) -> Result<T, String> {
+    // Match the board worker's data -> authority order; restore uses the same cross-process data lock.
+    let _data = crate::task_worker::data_lock(&self.data_dir)?.ok_or("RESOURCE_BUSY: user data is changing; retry later")?;
+    crate::user_data::ensure_restore_complete(&self.data_dir)?;
+    let _fence = crate::capability_authority::fence(&self.data_dir)?;
+    let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+    effect(&self.document_context(id)?)
+  }
+  // Callers hold the native authority fence while using this current-registry snapshot.
+  pub(crate) fn document_context(&self, id: &str) -> Result<crate::capability_authority::InvocationContext, String> {
+    document_context(&self.data_dir, id)
   }
   pub fn document_grants(&self, capability_id: &str) -> Result<Vec<crate::document_grants::DocumentGrant>, String> {
     crate::document_grants::list(self, &self.data_dir, capability_id)
@@ -426,6 +510,7 @@ impl CapabilityPermission {
       Self::CodexSessionsRead => "codex.sessions.read",
       Self::DocumentsPublish => "documents.publish",
       Self::DocumentsReadSelected => "documents.read-selected",
+      Self::BoardCreate => "board.create",
     }
   }
 }
@@ -498,4 +583,41 @@ fn persist_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
   let temporary = path.with_extension("json.tmp");
   fs::write(&temporary, source).map_err(|_| "无法写入平台数据".to_string())?;
   fs::rename(&temporary, path).map_err(|_| "无法保存平台数据".to_string())
+}
+
+fn load_registry(root: &Path) -> Result<CapabilityRegistry, String> {
+  let installed = root.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE);
+  let path = if installed.try_exists().map_err(|e| e.to_string())? { installed } else { root.join(REGISTRY_FILE) };
+  load_json(&path)
+}
+
+impl CapabilityRegistry {
+  fn accepts(&self, context: &crate::capability_authority::InvocationContext) -> bool {
+    self.generations.get(&context.capability_id) == Some(&context.generation)
+      && self.capabilities.iter().any(|item| item.manifest.id == context.capability_id
+        && item.manifest.version == context.capability_version && item.enabled
+        && item.manifest.permissions.contains(&CapabilityPermission::BoardCreate))
+  }
+}
+
+// Caller holds the authority fence; this also serves worker-side document effects without re-locking.
+pub(crate) fn document_context(root: &Path, id: &str) -> Result<crate::capability_authority::InvocationContext, String> {
+  let current = load_registry(root)?;
+  let installed = current.capabilities.iter().find(|item| item.manifest.id == id && item.enabled
+    && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected))
+    .ok_or("PERMISSION_DENIED: selected document access is not authorized")?;
+  let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select documents again for this installation")?;
+  Ok(crate::capability_authority::InvocationContext { capability_id: id.into(),
+    capability_version: installed.manifest.version.clone(), generation: generation.clone() })
+}
+
+/// Native worker effect boundary; never a renderer issuance endpoint. The caller must be supplied
+/// by the trusted host controller, not a package body. Do not await IPC or re-enter authority here.
+pub fn with_worker_board_authority<T>(root: &Path, caller: &str, handle: &str, operation: &str, resource: &str,
+    effect: impl FnOnce(&crate::capability_authority::InvocationContext) -> Result<T, String>) -> Result<T, String> {
+  let _fence = crate::capability_authority::fence(root)?;
+  let authority = crate::capability_authority::Authority::load(root)?;
+  let context = authority.context(caller, handle, operation, resource)?;
+  if !load_registry(root)?.accepts(context) { return Err("PERMISSION_DENIED: stale installation generation".into()); }
+  effect(context)
 }

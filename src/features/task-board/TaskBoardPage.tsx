@@ -238,7 +238,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
               <div className="task-board-detail-meta">{card.createdAt !== undefined && <time dateTime={new Date(card.createdAt).toISOString()}>{zh ? `${fullDate.format(card.createdAt)}创建` : `Created ${fullDate.format(card.createdAt)}`}</time>}{statusBadge(card.status)}</div>
             </div>
             {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
-            <TaskReferences zh={zh} sources={card.sources ?? []} />
+            <TaskReferences zh={zh} sources={card.sources ?? []} snapshotId={card.authorization?.snapshotId ?? (card.engine === 'goals' ? card.id : undefined)} />
             {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
@@ -248,7 +248,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
           {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
           {card.status === 'todo' && <>
             <button className="text-button task-board-complete" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
-            <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id, card.sources?.map(source => source.id) ?? []))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
+            <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
           </>}
           {card.engine === 'goals' && ['running', 'queued', 'question'].includes(card.status) && <button className="secondary-button" disabled={busy} title={zh ? '本轮完成后暂停，不中断当前工作' : 'Pause after the current turn'} onClick={() => void act(() => goalCommand({ op: 'pause', id: card.id }))}>{zh ? '暂停续跑' : 'Pause continuation'}</button>}
           {['running', 'question', 'pausing', 'stopping'].includes(card.status) && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoardAgent.stop(card.id))}>{zh ? '停止执行' : 'Stop execution'}</button>}

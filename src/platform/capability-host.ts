@@ -18,6 +18,16 @@ import { publicationReference } from '../../packages/capability-contract/src/ref
 import { publishCapabilityDocument } from './document-library.ts'
 import { capabilityTasks } from './tasks.ts'
 import { getRuntimeInstalledCapability } from './capability-runtime.ts'
+import { createBoardClient } from './capability-board-host.ts'
+import { createLibraryClient } from './capability-library-host.ts'
+import { libraryPicker } from './library-picker.ts'
+
+const hostDisposers = new WeakMap<CapabilityHost, () => Promise<void>>()
+export async function releaseCapabilityHost(host: CapabilityHost): Promise<void> {
+  // Cleanup has its own retained retry owner; it must not replace the job's business result/error.
+  try { await hostDisposers.get(host)?.() }
+  catch { console.warn('Capability board release pending; will retry before the next grant') }
+}
 
 export type {
   ActivityEventInput,
@@ -106,18 +116,30 @@ function createStorage(capabilityId: string, permissions: CapabilityPermission[]
 
 export function createCapabilityHost(capabilityId: string, permissions?: CapabilityPermission[], capabilityName = capabilityId, execution?: { id: string; signal: AbortSignal }): CapabilityHost {
   if (!capabilityId.trim()) throw new Error('Capability ID is required')
+  const version = getRuntimeInstalledCapability(capabilityId)?.manifest.version
+  let closed = false
   const assertActive = () => {
+    if (closed) throw Object.assign(new Error('This Host invocation has ended'), { code: 'CANCELLED' })
     execution?.signal.throwIfAborted()
-    if (!getRuntimeInstalledCapability(capabilityId)?.enabled) throw new Error('Capability is not installed or enabled')
+    const installed = getRuntimeInstalledCapability(capabilityId)
+    if (!installed?.enabled || installed.manifest.version !== version) throw new Error('Capability is not installed or enabled at this version')
   }
-
-  return Object.freeze({
+  const client = createBoardClient({ id: capabilityId, version: version ?? '', permission: permissions?.includes('board.create') === true,
+    desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke })
+  const library = createLibraryClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('documents.read-selected') === true,
+    desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: libraryPicker.open, onDispose: () => { closed = true } })
+  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose()]) }
+  const cancel = () => { void dispose().catch(() => console.warn('Capability invocation release failed')) }
+  execution?.signal.addEventListener('abort', cancel, { once: true })
+  const host: CapabilityHost = Object.freeze({
+    library: library.library,
+    board: client.board,
     environment: capabilityEnvironment,
     tasks: capabilityTasks(capabilityId),
     storage: createStorage(capabilityId, permissions, assertActive),
     documents: Object.freeze({
-      async listGrants() { assertActive(); return listDocumentGrants(capabilityId) },
-      async readSelected(grantId: string, documentId: string) { assertActive(); return readSelectedDocument(capabilityId, grantId, documentId) },
+      async listGrants() { assertActive(); const grants = await listDocumentGrants(capabilityId); assertActive(); return grants },
+      async readSelected(grantId: string, documentId: string) { assertActive(); const selected = await readSelectedDocument(capabilityId, grantId, documentId); assertActive(); return selected },
       open(reference: import('../../packages/capability-contract/src/index.ts').DocumentReference) {
         assertActive()
         window.dispatchEvent(new CustomEvent('workbench:open-document', { detail: reference }))
@@ -175,6 +197,8 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
       },
     }),
   })
+  hostDisposers.set(host, async () => { execution?.signal.removeEventListener('abort', cancel); await dispose() })
+  return host
 }
 
 export async function installCapability(manifest: CapabilityManifest): Promise<InstalledCapability> {

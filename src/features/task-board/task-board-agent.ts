@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core'
 import { taskRunner } from '../../platform/tasks.ts'
 import { conversationClient } from '../conversation/conversation-client.ts'
 import { CONVERSATION_OWNER, isAsyncQuestion, isConversationAnswer, type ConversationInput, type ConversationResult } from '../conversation/conversation-model.ts'
@@ -96,11 +95,9 @@ export const taskBoardAgent = {
     available = next
     wake()
   },
-  async delegate(id: string, documentIds: string[]) {
+  async delegate(id: string) {
     if (!available) throw new Error('Codex is unavailable')
-    const snapshotId = crypto.randomUUID()
-    if (documentIds.length) await invoke('library_capture_sources', { id: snapshotId, ids: documentIds })
-    await taskBoard.delegate(id, { snapshotId, documentIds })
+    await taskBoard.delegateDraft(id)
   },
   stop: (id: string) => taskBoard.snapshot().cards.find(card => card.id === id)?.engine === 'goals'
     ? goalCommand({ op: 'stop', id }).then(() => {}) : dispatcher.stop(id),

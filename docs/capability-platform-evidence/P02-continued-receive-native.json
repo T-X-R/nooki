@@ -1,0 +1,3250 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 338,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 339,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 339,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 369,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 466,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 466,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 466,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 466,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 475,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 475,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 475,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 476,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 481,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": null,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": true,
+        "peerConnectionEnabled": true,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 481,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 482,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 483,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 503,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 503,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 503,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 503,
+    "value": {
+      "enginePolicy": {
+        "available": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 1021,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 1021,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 1022,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1065,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1074,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1326,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1830,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 2833,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 25012,
+    "value": {
+      "action": "channel-seed",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 95,
+        "probe-b": 16,
+        "probe-control": 95,
+        "probe-shell": 95
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell",
+        "probe-a"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 25013,
+    "value": {
+      "bodyBytes": 4,
+      "command": "plugin:__TAURI_CHANNEL__|fetch",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25014,
+    "value": {
+      "bodyBytes": 4,
+      "command": "plugin:__TAURI_CHANNEL__|fetch",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 25015,
+    "value": {
+      "dataId": 0,
+      "foreignChannel": {
+        "error": "host operation refused",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 25015,
+    "value": {
+      "dataId": 0,
+      "foreignChannel": {
+        "error": "data not found",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25016,
+    "value": {
+      "dataId": 0,
+      "foreignChannel": {
+        "error": "host operation refused",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 27513,
+    "value": {
+      "ownedChannel": {
+        "bytes": 9027,
+        "dataId": 0,
+        "exact": true
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 30186,
+    "value": {
+      "action": "receive",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 116,
+        "probe-b": 20,
+        "probe-control": 116,
+        "probe-shell": 106
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell",
+        "probe-a"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30187,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30188,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30189,
+    "value": {
+      "bodyBytes": 32800,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30191,
+    "value": {
+      "bodyBytes": 32800,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30193,
+    "value": {
+      "bodyBytes": 36,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30193,
+    "value": {
+      "bodyBytes": 36,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30194,
+    "value": {
+      "bodyBytes": 58,
+      "command": "plugin:window|set_title",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30194,
+    "value": {
+      "bodyBytes": 58,
+      "command": "plugin:window|set_title",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30195,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_host_secret",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30195,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_host_secret",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30202,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 1
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30204,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 2
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30206,
+    "value": {
+      "reason": "resource method not allowed",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 3
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30207,
+    "value": {
+      "reason": "resource method not allowed",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 4
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30209,
+    "value": {
+      "reason": "resource method not allowed",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 5
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30210,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 6
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30211,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 7
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30211,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 8
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30212,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 9
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30213,
+    "value": {
+      "reason": "invalid JSON request",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 10
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30214,
+    "value": {
+      "reason": "invalid JSON request",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 11
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30214,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30215,
+    "value": {
+      "receiveBoundary": "abandoned-response"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30216,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30216,
+    "value": {
+      "receiveBoundary": "abandoned-response"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30272,
+    "value": {
+      "receiveBoundary": "cancelled"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 30273,
+    "value": {
+      "receiveBoundary": "cancelled"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 32219,
+    "value": {
+      "receiveBoundary": "late-response-discarded"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 32220,
+    "value": {
+      "receiveBoundary": "late-response-discarded"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 33676,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 12
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 33678,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 13
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 33678,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 14
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 33679,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 15
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 33680,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 16
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 34786,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 34788,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 34790,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 34792,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 38790,
+    "value": {
+      "bodyBytes": 41,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 38795,
+    "value": {
+      "abandoned": {
+        "fulfilled": true,
+        "value": {
+          "body": "request abandoned by dispatcher",
+          "status": 400
+        }
+      },
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+          "status": 200
+        }
+      },
+      "assetPost": {
+        "fulfilled": true,
+        "value": {
+          "body": "resource method not allowed",
+          "status": 413
+        }
+      },
+      "burst": [
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        }
+      ],
+      "cancelled": {
+        "error": "AbortError: Fetch is aborted",
+        "fulfilled": false
+      },
+      "coreWindow": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "echo": {
+        "fulfilled": true,
+        "value": true
+      },
+      "hostCommand": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "identity": {
+        "view": "probe-b",
+        "window": "probe-workspace"
+      },
+      "largeHeader": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "load": [
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        }
+      ],
+      "longUrl": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "malformed": {
+        "fulfilled": true,
+        "value": {
+          "body": "invalid JSON request",
+          "status": 413
+        }
+      },
+      "nativeHandler": "undefined",
+      "otherProtocol": {
+        "fulfilled": true,
+        "value": {
+          "body": "resource method not allowed",
+          "status": 413
+        }
+      },
+      "oversized": {
+        "error": "request body too large",
+        "fulfilled": false
+      },
+      "receiveProbe": true,
+      "recovery": {
+        "fulfilled": true,
+        "value": "recovered"
+      },
+      "spoof": {
+        "error": "host operation refused",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 39398,
+    "value": {
+      "bodyBytes": 41,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 39403,
+    "value": {
+      "abandoned": {
+        "fulfilled": true,
+        "value": {
+          "body": "request abandoned by dispatcher",
+          "status": 400
+        }
+      },
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+          "status": 200
+        }
+      },
+      "assetPost": {
+        "fulfilled": true,
+        "value": {
+          "body": "resource method not allowed",
+          "status": 413
+        }
+      },
+      "burst": [
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        }
+      ],
+      "cancelled": {
+        "error": "AbortError: Fetch is aborted",
+        "fulfilled": false
+      },
+      "coreWindow": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "echo": {
+        "fulfilled": true,
+        "value": true
+      },
+      "hostCommand": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "identity": {
+        "view": "probe-a",
+        "window": "probe-workspace"
+      },
+      "largeHeader": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "load": [
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "error": "caller busy",
+          "fulfilled": false
+        },
+        {
+          "error": "caller busy",
+          "fulfilled": false
+        }
+      ],
+      "longUrl": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "malformed": {
+        "fulfilled": true,
+        "value": {
+          "body": "invalid JSON request",
+          "status": 413
+        }
+      },
+      "nativeHandler": "undefined",
+      "otherProtocol": {
+        "error": "TypeError: Load failed",
+        "fulfilled": false
+      },
+      "oversized": {
+        "error": "request body too large",
+        "fulfilled": false
+      },
+      "receiveProbe": true,
+      "recovery": {
+        "fulfilled": true,
+        "value": "recovered"
+      },
+      "spoof": {
+        "error": "host operation refused",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 56406,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 49,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 17
+      },
+      "ticks": {
+        "probe-a": 153,
+        "probe-b": 28,
+        "probe-control": 156,
+        "probe-shell": 150
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell",
+        "probe-a"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 63823,
+    "value": {
+      "action": "pressure",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 49,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 17
+      },
+      "ticks": {
+        "probe-a": 161,
+        "probe-b": 33,
+        "probe-control": 164,
+        "probe-shell": 158
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell",
+        "probe-a"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 63828,
+    "value": {
+      "maxConcurrent": 8,
+      "maxDurationMs": 60000,
+      "maxRequests": 4096,
+      "oversizedBodyBytes": 131072,
+      "pressureStart": true
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 63830,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 64093,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 64175,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 64
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 64346,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 64599,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 64601,
+    "value": {
+      "attempts": 4,
+      "pressurePeer": true,
+      "succeeded": 4
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 64854,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 65107,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 65200,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 128
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 65497,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 65846,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 65849,
+    "value": {
+      "attempts": 8,
+      "pressurePeer": true,
+      "succeeded": 8
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 66202,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 66523,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 66845,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 67198,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 67224,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 192
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 67268,
+    "value": {
+      "attempts": 12,
+      "pressurePeer": true,
+      "succeeded": 12
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 67619,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 68520,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 230,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 17
+      },
+      "ticks": {
+        "probe-a": 161,
+        "probe-b": 37,
+        "probe-control": 168,
+        "probe-shell": 162
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell",
+        "probe-a"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 68523,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 68775,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 68951,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 256
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69029,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69032,
+    "value": {
+      "attempts": 16,
+      "pressurePeer": true,
+      "succeeded": 16
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69285,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69540,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69891,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 70097,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 320
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 70246,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 70248,
+    "value": {
+      "attempts": 20,
+      "pressurePeer": true,
+      "succeeded": 20
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 70598,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 70936,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 71271,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 71624,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 71626,
+    "value": {
+      "attempts": 24,
+      "pressurePeer": true,
+      "succeeded": 24
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 71977,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 72047,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 384
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 72328,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 72968,
+    "value": {
+      "action": "stop",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 407,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 17
+      },
+      "ticks": {
+        "probe-a": 162,
+        "probe-b": 41,
+        "probe-control": 173,
+        "probe-shell": 167
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 76290,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 407,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 17
+      },
+      "ticks": {
+        "probe-a": 162,
+        "probe-b": 41,
+        "probe-control": 176,
+        "probe-shell": 170
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 76598,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 76900,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 76903,
+    "value": {
+      "attempts": 28,
+      "pressurePeer": true,
+      "succeeded": 28
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 77197,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 77497,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 77846,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 78197,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 78200,
+    "value": {
+      "attempts": 32,
+      "pressurePeer": true,
+      "succeeded": 32
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 78499,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 78800,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 79097,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 79378,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 407,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 17
+      },
+      "ticks": {
+        "probe-a": 162,
+        "probe-b": 44,
+        "probe-control": 179,
+        "probe-shell": 173
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 79398,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 79400,
+    "value": {
+      "attempts": 36,
+      "pressurePeer": true,
+      "succeeded": 36
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 79654,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 79908,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 80162,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 80415,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 80418,
+    "value": {
+      "attempts": 40,
+      "pressurePeer": true,
+      "succeeded": 40
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 80768,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 81118,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 81418,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 81718,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 81721,
+    "value": {
+      "attempts": 44,
+      "pressurePeer": true,
+      "succeeded": 44
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 82021,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 82325,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 82624,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 82984,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 82991,
+    "value": {
+      "attempts": 48,
+      "pressurePeer": true,
+      "succeeded": 48
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 83359,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 83738,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 84099,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 84362,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 84370,
+    "value": {
+      "attempts": 52,
+      "pressurePeer": true,
+      "succeeded": 52
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 84626,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 84882,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 85140,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 85399,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 85403,
+    "value": {
+      "attempts": 56,
+      "pressurePeer": true,
+      "succeeded": 56
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 85660,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 85921,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 86196,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 86452,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 86464,
+    "value": {
+      "attempts": 60,
+      "pressurePeer": true,
+      "succeeded": 60
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 86724,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 86977,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 87234,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 87493,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 87503,
+    "value": {
+      "attempts": 64,
+      "pressurePeer": true,
+      "succeeded": 64
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 87759,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 88017,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 88272,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 88527,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 88530,
+    "value": {
+      "attempts": 68,
+      "pressurePeer": true,
+      "succeeded": 68
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 88783,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 89039,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 89297,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 89551,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 89553,
+    "value": {
+      "attempts": 72,
+      "pressurePeer": true,
+      "succeeded": 72
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 89808,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 90063,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 90320,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 90573,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 90575,
+    "value": {
+      "attempts": 76,
+      "pressurePeer": true,
+      "succeeded": 76
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 90828,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 91081,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 91335,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 91588,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 91590,
+    "value": {
+      "attempts": 80,
+      "pressurePeer": true,
+      "succeeded": 80
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 91843,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 92097,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 92350,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 92604,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 92606,
+    "value": {
+      "attempts": 84,
+      "pressurePeer": true,
+      "succeeded": 84
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 92859,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 93113,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 93367,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 93620,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 93622,
+    "value": {
+      "attempts": 88,
+      "pressurePeer": true,
+      "succeeded": 88
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 93876,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 94129,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 94383,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 94639,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 94648,
+    "value": {
+      "attempts": 92,
+      "pressurePeer": true,
+      "succeeded": 92
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 94902,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 95157,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 95414,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 95673,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 95675,
+    "value": {
+      "attempts": 96,
+      "pressurePeer": true,
+      "succeeded": 96
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 95930,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 96192,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 96446,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 96700,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 96702,
+    "value": {
+      "attempts": 100,
+      "pressurePeer": true,
+      "succeeded": 100
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 96958,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 97213,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 97467,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 97721,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 97724,
+    "value": {
+      "attempts": 104,
+      "pressurePeer": true,
+      "succeeded": 104
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 97977,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 98236,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 98491,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 98750,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 98756,
+    "value": {
+      "attempts": 108,
+      "pressurePeer": true,
+      "succeeded": 108
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 99010,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 99267,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 99535,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 99807,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 99811,
+    "value": {
+      "attempts": 112,
+      "pressurePeer": true,
+      "succeeded": 112
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 100067,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 100321,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 100577,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 100831,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 100836,
+    "value": {
+      "attempts": 116,
+      "pressurePeer": true,
+      "succeeded": 116
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 101093,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 101347,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 101601,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 101854,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 101858,
+    "value": {
+      "attempts": 120,
+      "pressurePeer": true,
+      "succeeded": 120
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 102112,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 102368,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 102622,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 102876,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 102879,
+    "value": {
+      "attempts": 124,
+      "pressurePeer": true,
+      "succeeded": 124
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 103134,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 103387,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 103641,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 103895,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 103898,
+    "value": {
+      "attempts": 128,
+      "pressurePeer": true,
+      "succeeded": 128
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 104152,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 104405,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 104659,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 104913,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 104916,
+    "value": {
+      "attempts": 132,
+      "pressurePeer": true,
+      "succeeded": 132
+    }
+  }
+]

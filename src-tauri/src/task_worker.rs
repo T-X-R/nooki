@@ -45,6 +45,14 @@ pub(crate) async fn update_guard(root: &Path) -> Result<Option<File>, String> {
     }
     Err("Task worker did not release ownership".into())
 }
+/// Renderer callers can use only established board controls. Private Host mutations enter natively.
+pub async fn renderer_request(root: &Path, value: Value) -> Result<Value, String> {
+    if !matches!(value["op"].as_str(), Some("read" | "legacy" | "queue-pause" | "add" | "delegate" | "history" | "pause" | "stop" | "archive" | "unarchive" | "message" | "resume" | "feedback" | "accept" | "remove" | "reply")) {
+        return Err("PERMISSION_DENIED: task operation is not available to the renderer".into());
+    }
+    request(root, value).await
+}
+
 #[cfg(unix)]
 pub async fn request(root: &Path, value: Value) -> Result<Value, String> {
     use std::os::unix::{fs::PermissionsExt, process::CommandExt};

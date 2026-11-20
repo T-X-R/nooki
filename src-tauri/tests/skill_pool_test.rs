@@ -1,12 +1,13 @@
 use app_lib::skill_pool::{SkillPool, RECEIPT};
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{collections::BTreeMap, fs, path::PathBuf, sync::atomic::{AtomicUsize, Ordering}};
 
 struct Fixture(PathBuf);
 
 impl Fixture {
   fn new() -> Self {
-    let root = std::env::temp_dir().join(format!("nooki-skill-pool-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap()));
-    fs::create_dir_all(&root).unwrap();
+    static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+    let root = std::env::temp_dir().join(format!("nooki-skill-pool-{}-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap(), NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)));
+    fs::create_dir(&root).expect("fixture directory must be unique");
     Self(root)
   }
   fn pool(&self) -> SkillPool { SkillPool::new(self.0.clone(), self.0.join("data")) }

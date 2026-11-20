@@ -13,8 +13,10 @@ export function validateManifest(manifest) {
   fail(/^\d+\.\d+\.\d+$/.test(manifest.minPlatformVersion), 'Set minPlatformVersion')
   fail(typeof manifest.name === 'string' && manifest.name.trim(), 'Set a capability name')
   fail(Array.isArray(manifest.entrypoints) && manifest.entrypoints.includes('page') && manifest.entrypoints.every((entry) => ['page', 'job', 'command'].includes(entry)), 'Capability packages support page and optional job or command entrypoints')
-  const permissions = ['storage', 'activity.read', 'activity.write', 'ai.invoke', 'codex.sessions.read', 'documents.publish', 'documents.read-selected']
+  const permissions = ['storage', 'activity.read', 'activity.write', 'ai.invoke', 'codex.sessions.read', 'documents.publish', 'documents.read-selected', 'board.create']
   fail(Array.isArray(manifest.permissions) && manifest.permissions.every((p) => permissions.includes(p)), 'Unknown capability permission')
+  const [major, minor] = manifest.minPlatformVersion.split('.').map(Number)
+  fail(!manifest.permissions.includes('board.create') || major > 0 || minor >= 4, 'board.create requires minPlatformVersion 0.4.0 or newer')
   for (const language of ['zh', 'en']) fail(manifest.locales?.[language]?.name?.trim(), `Set locales.${language}.name`)
 }
 

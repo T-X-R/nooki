@@ -40,14 +40,18 @@ fn now() -> u64 { std::time::SystemTime::now().duration_since(std::time::UNIX_EP
 fn id(value: &Value) -> Result<&str, String> {
     value.as_str().filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')).ok_or("Invalid task identity".into())
 }
-fn save(root: &Path, board: &Value) -> Result<(), String> {
+pub(crate) fn save(root: &Path, board: &Value) -> Result<(), String> {
     use std::io::Write;
     let temporary = root.join("task-board.pending");
     let mut file = fs::File::create(&temporary).map_err(|e| e.to_string())?;
     file.write_all(&serde_json::to_vec(board).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
     fs::rename(temporary, root.join("task-board.json")).map_err(|e| e.to_string())?;
-    fs::File::open(root).and_then(|directory| directory.sync_all()).map_err(|e| e.to_string())
+    confirm_save(root)
+}
+pub(crate) fn confirm_save(root: &Path) -> Result<(), String> {
+    fs::File::open(root).and_then(|directory| directory.sync_all())
+        .map_err(|_| "OUTCOME_UNKNOWN: task board changed but durability acknowledgement failed".to_string())
 }
 pub(crate) fn load(root: &Path) -> Result<Value, String> {
     let path = root.join("task-board.json");
@@ -130,8 +134,7 @@ impl GoalWorker {
         };
         let inputs = self.root.join("task-inputs"); fs::create_dir_all(&inputs).map_err(|e| e.to_string())?;
         let brief = inputs.join(format!("{task_id}.md"));
-        let docs: Vec<String> = card["sources"].as_array().into_iter().flatten().filter_map(|s| s["id"].as_str().map(str::to_string)).collect();
-        crate::source_snapshots::capture(&self.root, task_id, &docs)?;
+        crate::source_snapshots::capture_task(&self.root, task_id, card.get("sources").unwrap_or(&json!([])))?;
         let outputs = self.root.join("task-outputs").join(task_id); fs::create_dir_all(&outputs).map_err(|e| e.to_string())?;
         card["execution"] = json!({"cwd":workspace,"approvalPolicy":"on-request","sandbox":"workspace-write","config":{"features.goals":true,"sandbox_workspace_write.network_access":true,"sandbox_workspace_write.writable_roots":[outputs]},"brief":brief,"outputs":outputs});
         write_brief(&self.root, card)?;
@@ -253,26 +256,36 @@ impl GoalWorker {
         let mut board = load(&self.root)?;
         let op = request["op"].as_str().ok_or("Task operation missing")?;
         if op == "read" { return Ok(board); }
+        if op == crate::capability_board::CREATE { return crate::capability_board::create(&self.root, &mut board, request); }
         if op == "legacy" {
-            crate::user_data::validate_task_board(&request["board"])?;
+            let mut incoming = request["board"].clone();
+            crate::capability_board::prepare_legacy(&board, &mut incoming)?;
+            crate::user_data::validate_task_board(&incoming)?;
             let busy = board["cards"].as_array().unwrap().iter().any(|c| c["engine"] == "goals" && (c["activeTurn"] == true || matches!(c["status"].as_str(), Some("running" | "question" | "pausing" | "stopping"))));
-            if busy && request["board"]["cards"].as_array().unwrap().iter().any(|c| c["engine"] != "goals" && c["status"] == "running" && !board["cards"].as_array().unwrap().iter().any(|old| old["id"] == c["id"] && old["status"] == "running")) {
+            if busy && incoming["cards"].as_array().unwrap().iter().any(|c| c["engine"] != "goals" && c["status"] == "running" && !board["cards"].as_array().unwrap().iter().any(|old| old["id"] == c["id"] && old["status"] == "running")) {
                 return Err("A background Goal already owns the queue slot. Refresh the task board.".into());
             }
             let goals: Vec<_> = board["cards"].as_array().unwrap().iter().filter(|c| c["engine"] == "goals").cloned().collect();
-            board["cards"] = json!(request["board"]["cards"].as_array().unwrap().iter().filter(|c| c["engine"] != "goals").cloned().chain(goals).collect::<Vec<_>>());
+            board["cards"] = json!(incoming["cards"].as_array().unwrap().iter().filter(|c| c["engine"] != "goals").cloned().chain(goals).collect::<Vec<_>>());
+            if board.get("writeToken").is_some() { board["writeToken"] = json!(crate::capability_authority::nonce()?); }
 
         } else if op == "queue-pause" { board["paused"] = json!(request["paused"] == true); }
         else if op == "add" {
             let task_id = id(&request["id"])?;
-            if board["cards"].as_array().unwrap().iter().any(|c| c["id"] == task_id) { return Ok(board); }
+            if let Some(existing) = board["cards"].as_array().unwrap().iter().find(|c| c["id"] == task_id) {
+                let empty = json!([]);
+                crate::source_snapshots::check_task_source_selection(existing.get("sources").unwrap_or(&empty),
+                    if request["sources"].is_null() { &empty } else { &request["sources"] })?;
+                return Ok(board);
+            }
             let mut card = json!({"id":task_id,"title":request["title"],"description":request["description"],"sources":request["sources"],"cwd":request["cwd"],"engine":"goals","status":"queued","createdAt":now(),"queuedAt":now()});
             if card["sources"].is_null() { card["sources"] = json!([]); }
             crate::user_data::validate_task_board(&json!({"cards":[card]}))?;
             // Freeze selected references when the user creates the task, not when it is picked up.
-            let docs: Vec<String> = card["sources"].as_array().unwrap().iter().map(|s| s["id"].as_str().unwrap().into()).collect();
-            crate::source_snapshots::capture(&self.root, task_id, &docs)?;
+            crate::source_snapshots::capture_task(&self.root, task_id, &card["sources"])?;
             board["cards"].as_array_mut().unwrap().push(card);
+        } else if op == "delegate" {
+            return crate::task_delegation::delegate(&self.root, &mut board, request);
         } else {
             let index = board["cards"].as_array().unwrap().iter().position(|c| c["id"] == request["id"] && c["engine"] == "goals").ok_or("Goal task not found")?;
             let mut card = board["cards"][index].clone();
@@ -434,8 +447,7 @@ fn native_response(pending: &Value, request: &Value) -> Result<Value, String> {
 }
 fn write_brief(root: &Path, card: &Value) -> Result<(), String> {
     let task_id = id(&card["id"])?;
-    let docs: Vec<String> = card["sources"].as_array().into_iter().flatten().filter_map(|s| s["id"].as_str().map(str::to_string)).collect();
-    let sources = crate::source_snapshots::capture(root, task_id, &docs)?;
+    let sources = crate::source_snapshots::capture_task(root, task_id, card.get("sources").unwrap_or(&json!([])))?;
     let feedback = card["feedback"].as_array().into_iter().flatten().filter_map(Value::as_str).collect::<Vec<_>>().join("\n\n");
     let brief = root.join("task-inputs").join(format!("{task_id}.md"));
     fs::create_dir_all(brief.parent().unwrap()).map_err(|e| e.to_string())?;

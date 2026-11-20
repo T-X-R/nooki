@@ -38,6 +38,12 @@ try {
         if (command === 'task_board_command') {
           const r = args.request
           if (r.op === 'add') board.cards.push({ ...r, engine: 'goals', status: 'queued', createdAt: Date.now() })
+          else if (r.op === 'delegate') {
+            const card = board.cards.find(card => card.id === r.id)
+            if (!card || card.status !== 'todo' || JSON.stringify({ title: card.title, description: card.description, sources: card.sources ?? [] }) !== JSON.stringify(r.expected)) throw new Error('Task changed')
+            capturedIds = card.sources.map(source => source.id)
+            Object.assign(card, { status: 'queued', queuedAt: Date.now(), authorization: { snapshotId: r.snapshotId, documentIds: capturedIds } })
+          }
           else if (r.op === 'queue-pause') board.paused = r.paused
           else throw new Error('Unexpected goal operation ' + r.op)
           sessionStorage.setItem('board', JSON.stringify(board))

@@ -93,6 +93,8 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
   Ok(())
 }
 pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), String> {
+  crate::capability_board::validate(board)?;
+  crate::task_delegation::validate(board)?;
   let cards = board["cards"].as_array().ok_or("Invalid task board")?;
   let mut ids = std::collections::HashSet::new();
   if let Some(paused) = board.get("paused") {
@@ -121,11 +123,7 @@ pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), Strin
     if card.get("queuedAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task queue position".into()); }
     if card.get("createdAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task creation date".into()); }
     if let Some(sources) = card.get("sources") {
-      let sources = sources.as_array().filter(|sources| sources.len() <= 50).ok_or("Invalid task references")?;
-      for source in sources {
-        document_library::validate_id(source["id"].as_str().ok_or("Invalid task reference")?)?;
-        if !source["title"].is_string() { return Err("Invalid task reference title".into()); }
-      }
+      crate::source_snapshots::validate_task_sources(sources)?;
     }
     if let Some(delivery) = card.get("delivery") {
       let artifacts = delivery["artifacts"].as_array().ok_or("Invalid task delivery")?;
@@ -158,6 +156,12 @@ fn write_files(root: &Path, files: &BTreeMap<String, String>) -> Result<(), Stri
 }
 // A durable rollback copy makes an interrupted multi-directory replacement recoverable at startup.
 pub fn recover(root: &Path) -> Result<(), String> {
+  if !root.join(".data-restore").try_exists().map_err(|e| e.to_string())? { return Ok(()); }
+  let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; retry data recovery")?;
+  let _guard = DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
+  recover_unlocked(root)
+}
+fn recover_unlocked(root: &Path) -> Result<(), String> {
   let directory = root.join(".data-restore");
   let marker = directory.join("prepared.json");
   if marker.exists() {
@@ -165,6 +169,7 @@ pub fn recover(root: &Path) -> Result<(), String> {
     if restored_id(root)? != Some(id) {
       let mut previous = BTreeMap::new();
       collect(&directory.join("previous"), &directory.join("previous"), &mut previous)?;
+      crate::document_grants::invalidate_replaced(root, &previous)?;
       for name in ROOTS { remove(&root.join(name))?; }
       write_files(root, &previous)?;
     }
@@ -175,6 +180,18 @@ pub fn restored_id(root: &Path) -> Result<Option<String>, String> {
   let path = root.join("data-restore-committed.json");
   if !path.exists() { return Ok(None); }
   serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map(Some).map_err(|e| e.to_string())
+}
+// Caller holds task-data.lock. Another live process may outlast a crashed restore owner.
+pub(crate) fn ensure_restore_complete(root: &Path) -> Result<(), String> {
+  let marker = root.join(".data-restore/prepared.json");
+  if marker.try_exists().map_err(|e| e.to_string())? {
+    let id: String = serde_json::from_slice(&fs::read(marker).map_err(|e| e.to_string())?)
+      .map_err(|_| "RESOURCE_UNAVAILABLE: invalid restore transaction")?;
+    if restored_id(root)? != Some(id) {
+      return Err("RESOURCE_BUSY: interrupted data restore requires recovery".into());
+    }
+  }
+  Ok(())
 }
 pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), String> {
   let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; stop tasks before restoring")?;
@@ -187,7 +204,9 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   let _guard = DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
   validate(backup)?;
   if transaction.is_empty() || transaction.len() > 100 || !transaction.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') { return Err("Invalid restore transaction".into()); }
-  recover(root)?;
+  recover_unlocked(root)?;
+  // A previous commit marker cannot certify a second attempt that crashes during replacement.
+  if restored_id(root)?.as_deref() == Some(transaction) { return Err("CONFLICT: restore transaction already committed; use a new transaction ID".into()); }
   let directory = root.join(".data-restore");
   let next = directory.join("next");
   write_files(&next, &backup.files)?;
@@ -225,13 +244,14 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   write_files(&directory.join("previous"), &previous)?;
   library_management::write_json(&directory.join("prepared.json"), &transaction)?;
   let result = (|| {
+    crate::document_grants::invalidate_replaced(root, &backup.files)?;
     for name in ROOTS {
       remove(&root.join(name))?;
       if next.join(name).exists() { fs::rename(next.join(name), root.join(name)).map_err(|e| e.to_string())?; }
     }
     library_management::write_json(&root.join("data-restore-committed.json"), &transaction)
   })();
-  if let Err(error) = result { recover(root)?; return Err(error); }
+  if let Err(error) = result { recover_unlocked(root)?; return Err(error); }
   // A leftover committed staging directory is harmless and cleaned on the next launch.
   let _ = remove(&directory);
   Ok(())

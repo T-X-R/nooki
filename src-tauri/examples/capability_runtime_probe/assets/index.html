@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><meta charset="UTF-8"><title>Nooki runtime probe</title>
+<style>body{font:15px system-ui;margin:24px;background:#f5f5f5;color:#222}button{padding:10px;margin:5px}pre{white-space:pre-wrap;overflow-wrap:anywhere}img{width:40px}</style>
+<h1 id="title">Disposable runtime probe</h1>
+<p>Synthetic data only. Results are measurements, not a sandbox certification.</p>
+<button id="run">Run boundary probes</button><button id="busy">Start infinite loop in A</button>
+<button id="stop">Destroy A</button><button id="status">Native status</button>
+<button id="extended">Run additional network probes</button>
+<button id="channel">Run channel scope probe</button>
+<button id="load">Run IPC load probe</button>
+<button id="ingress">Run finite ingress probe</button>
+<button id="receive">Run receive boundary probe</button>
+<button id="pressure">Run finite receive pressure</button>
+<button id="show-a">Show package A</button><button id="show-b">Show package B</button>
+<button id="play">Play test audio</button><button id="release">Pause and release audio</button>
+<pre id="result">Ready</pre><script src="nookiprobe://localhost/probe.js"></script>
+<script src="nookiprobe://localhost/extended-probe.js"></script>
+<script src="nookiprobe://localhost/load-probe.js"></script>
+<script src="nookiprobe://localhost/ingress-probe.js"></script>
+<script src="nookiprobe://localhost/receive-probe.js"></script></html>

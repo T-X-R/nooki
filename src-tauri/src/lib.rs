@@ -1,4 +1,8 @@
 pub mod task_goals;
+pub(crate) mod task_delegation;
+pub(crate) mod capability_board;
+pub mod capability_host;
+pub mod app_profile;
 mod app_update;
 mod desktop_pet;
 pub mod task_worker;
@@ -10,7 +14,9 @@ pub mod conversation_instructions;
 pub mod conversation_skills;
 pub mod source_snapshots;
 pub mod document_grants;
+pub mod document_selection;
 pub mod capability_runtime;
+pub mod capability_authority;
 pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
@@ -286,6 +292,26 @@ fn library_grant_documents(capability_id: String, ids: Vec<String>, id: String, 
   state.grant_documents(&capability_id, ids, &id)
 }
 #[tauri::command]
+fn library_selection_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, document_selection::SelectionError> {
+  document_selection::begin(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_selection_commit(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<document_grants::DocumentGrant, document_selection::SelectionError> {
+  document_selection::commit(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_selection_cancel(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
+  document_selection::cancel(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentAccess>, document_selection::SelectionError> {
+  document_selection::accesses(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_revoke_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
+  document_selection::revoke(&state, webview.label(), request)
+}
+#[tauri::command]
 fn capability_document_grants(capability_id: String, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentGrant>, String> {
   state.document_grants(&capability_id)
 }
@@ -468,7 +494,22 @@ async fn task_board_choose_directory(window: tauri::WebviewWindow) -> Result<Opt
 
 #[tauri::command]
 async fn task_board_command(request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
-  task_worker::request(state.data_dir(), request).await
+  task_worker::renderer_request(state.data_dir(), request).await
+}
+
+#[tauri::command]
+async fn capability_board_create(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  capability_host::board_create(&state, webview.label(), request).await
+}
+
+#[tauri::command]
+fn capability_board_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<String, capability_host::HostError> {
+  capability_host::board_begin(&state, webview.label(), request)
+}
+
+#[tauri::command]
+fn capability_board_release(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  capability_host::board_release(&state, webview.label(), request)
 }
 
 #[tauri::command]
@@ -519,6 +560,9 @@ fn capability_package_rollback(id: String, expected_version: String, state: taur
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  let mut context = tauri::generate_context!();
+  app_profile::configure(context.config_mut(), |key| std::env::var_os(key))
+    .expect("invalid desktop test profile");
   tauri::Builder::default()
     .setup(|app| {
       app_update::setup(app)?;
@@ -551,6 +595,11 @@ pub fn run() {
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);
       desktop_pet::initialize(app.handle(), app.path().app_data_dir()?).map_err(std::io::Error::other)?;
+      for window in &app.config().app.windows {
+        if !window.create && window.data_store_identifier.is_some() {
+          app_profile::create_window(app.handle(), window)?;
+        }
+      }
       Ok(())
     })
     .on_window_event(|window, event| {
@@ -587,6 +636,8 @@ pub fn run() {
       tasks_read,
       tasks_write,
       task_board_read, task_board_write, task_board_command, task_board_choose_directory,
+      capability_board_create,
+      capability_board_begin, capability_board_release,
       task_cancel_invocation,
       capability_broker_ready,
       capability_broker_respond,
@@ -607,6 +658,11 @@ pub fn run() {
       capability_codex_sessions_read_daily_files,
       capability_documents_publish,
       library_grant_documents,
+      library_selection_begin,
+      library_selection_commit,
+      library_selection_cancel,
+      library_document_access,
+      library_revoke_document_access,
       capability_document_grants,
       capability_read_selected_document,
       library_read_source,
@@ -614,7 +670,7 @@ pub fn run() {
       library_list_documents,
       library_read_document,
     ])
-    .build(tauri::generate_context!())
+    .build(context)
     .expect("error while building tauri application")
     .run(|app, event| {
       #[cfg(target_os = "macos")]

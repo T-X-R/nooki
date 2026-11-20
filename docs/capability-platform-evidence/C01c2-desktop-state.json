@@ -1,0 +1,71 @@
+{
+  "profile": "/private/tmp/nooki-profile-exXbw2",
+  "platformVersion": "0.4.0",
+  "kitVersion": "0.3.0",
+  "cards": [
+    {
+      "createdAt": 1795161113829,
+      "description": "Synthetic C01c2 acceptance; no agent execution.",
+      "id": "3ecbf784056ffca64f3e60b9ac434e0ec3bc433e5c3ea1e3b828a8a5c9ae981c",
+      "provenance": {
+        "capabilityId": "org.example.board-acceptance",
+        "capabilityVersion": "1.0.0",
+        "type": "capability"
+      },
+      "revision": 1,
+      "sources": [],
+      "status": "todo",
+      "title": "Public Host Board draft"
+    },
+    {
+      "createdAt": 1795161130506,
+      "description": "",
+      "id": "20f439f494436b6534bb625189b329163c2cd91cfce9c74b243e6404ff470fd9",
+      "provenance": {
+        "capabilityId": "org.example.board-acceptance",
+        "capabilityVersion": "1.0.0",
+        "type": "capability"
+      },
+      "revision": 1,
+      "sources": [],
+      "status": "todo",
+      "title": "Job-created draft"
+    }
+  ],
+  "receiptCount": 2,
+  "finalLiveInvocationCount": 0,
+  "jobs": [
+    {
+      "attempt": 1,
+      "capabilityId": "org.example.board-acceptance",
+      "capabilityVersion": "1.0.0",
+      "checkpoints": {},
+      "createdAt": "2026-11-20T07:52:10.484Z",
+      "error": null,
+      "id": "c985f6fe-f3e2-416f-836a-78925a09290d",
+      "input": {},
+      "job": "createDraft",
+      "result": {
+        "id": "20f439f494436b6534bb625189b329163c2cd91cfce9c74b243e6404ff470fd9",
+        "revision": 1
+      },
+      "stage": null,
+      "status": "completed",
+      "updatedAt": "2026-11-20T07:52:10.530Z"
+    }
+  ],
+  "artifacts": {
+    "nooki-c01c2-kit.zip": {
+      "sha256": "225768aec65f0f4047690659e44f82a09386d0b7ae9d02c9fe181fc97b5cfdd4",
+      "bytes": 37710
+    },
+    "org.example.board-acceptance-1.0.0.capability.zip": {
+      "sha256": "d3699414d1c06806c42d5049c597f88b3a27de196c78a0da5d59a38a47812015",
+      "bytes": 1738
+    },
+    "org.example.board-denied-1.0.0.capability.zip": {
+      "sha256": "9c57d97d74121fa1703fae2b1c73ad95663c68544df8afc3b8efebb40de707aa",
+      "bytes": 1759
+    }
+  }
+}
