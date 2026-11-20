@@ -123,6 +123,9 @@ prevent package loading. Record private-API and remaining network-coverage limit
 
 ### [ ] P02b2 — Resolve the remaining runtime arrangement and resource budgets
 
+**State:** in-progress; split into P02b2a/P02b2b before extending the probe. Retain the
+parent's full acceptance; a passing network or media sample alone does not clear K0.
+
 **Depends on:** P02b1. **Size:** M, split further if needed.
 **Deliver:** Measured embedding/navigation, playback/cleanup, extended network probes and limits;
 an evidence-backed topology decision with support/failure policy.
@@ -130,6 +133,32 @@ an evidence-backed topology decision with support/failure policy.
 the next experiment; private API availability alone is not a supported-platform guarantee.
 **Likely files:** Probe fixtures/adapters, focused tests, P02 receipt and runtime ADR.
 **Verification:** V-N including actual playback and forced termination; K0 remains pending on failure.
+
+### [x] P02b2a — Measure additional browser channels and actual media lifecycle
+
+**State:** measurements verified on 2026-11-20; [receipt and raw events](capability-platform-evidence/P02b2a.md),
+same branch and PR #38, pending human merge. Preconnect escapes the current settings; the failed
+invariant remains open for P02b2b. Playback/pause and pending-channel scope have real desktop evidence.
+
+**Depends on:** P02b1. **Size:** M, bounded experiment.
+**Deliver:** Receiver-attributed frame/worker/form/navigation/preconnect probes and user-gesture
+audio playback/pause/release controls; inspect framework-internal IPC scope and DNS-prefetch policy.
+**Acceptance:** Distinguish positive controls, denied attempts and unavailable coverage; playback
+advances and pause/release are observable; any newly discovered escape remains a failed invariant.
+**Likely files:** Native probe, existing fixture HTML/script, extended fixture script and native tests.
+**Verification:** V-N with synthetic local receivers and audio, plus focused probe tests; record exact
+scope rather than claiming all network APIs from a small sample.
+
+### [ ] P02b2b — Select the supported arrangement and bounded operating limits
+
+**Depends on:** P02b2a. **Size:** M, split experiments further only if necessary.
+**Deliver:** Resolve remaining measured escapes, validate page integration and representative resource
+limits, and update the runtime ADR with the selected topology and fail-closed compatibility policy.
+**Acceptance:** A feasible path covers every P02 invariant, with measured limits for resource types,
+explicit SPI/platform trade-offs and production-integration work assigned to R01–R03.
+**Likely files:** Probe adapters/fixtures, limit tests, P02 receipt and runtime ADR.
+**Verification:** V-N and representative boundary/failure loads; no unlimited defaults or unsupported
+platform claims. P02 and K0 stay pending until their complete acceptance is evidenced.
 
 ### [ ] K0 — Preparation gate
 

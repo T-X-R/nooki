@@ -55,7 +55,7 @@ fn probe_tick(window: WebviewWindow, state: State<Probe>) {
 }
 
 #[tauri::command]
-async fn probe_control(window: WebviewWindow, action: String, state: State<'_, Probe>) -> Result<Value, String> {
+async fn probe_control(window: WebviewWindow, action: String, channel: Option<tauri::ipc::JavaScriptChannelId>, state: State<'_, Probe>) -> Result<Value, String> {
     if window.label() != "probe-shell" { return Err("host-only operation".into()); }
     let started = Instant::now();
     let app = window.app_handle();
@@ -64,12 +64,31 @@ async fn probe_control(window: WebviewWindow, action: String, state: State<'_, P
             record_process_id(target);
             target.eval("void window.runProbe()").map_err(|e| e.to_string())?;
         },
+        "extended" => for target in app.webview_windows().values() {
+            target.eval("void window.runExtendedProbe()").map_err(|e| e.to_string())?;
+        },
+        "channel-seed" => {
+            if state.events.lock().unwrap().iter().any(|event| matches!(event["value"]["action"].as_str(), Some("run" | "channel-seed"))) {
+                return Err("Run the channel probe once, before boundary probes, on a fresh profile".into());
+            }
+            // The first large channel message has data ID 0 in this fresh webview's queue.
+            // The shell fixture temporarily holds its event loop so auto-fetch cannot drain it.
+            channel.ok_or("missing synthetic channel")?.channel_on::<_, String>(window.as_ref().clone())
+                .send("synthetic-channel-sentinel:".to_owned() + &"x".repeat(9000)).map_err(|e| e.to_string())?;
+            for label in ["probe-a", "probe-b", "probe-control"] {
+                if let Some(target) = app.get_webview_window(label) {
+                    target.eval("void window.tryForeignChannel(0)").map_err(|e| e.to_string())?;
+                }
+            }
+        },
         "busy" => app.get_webview_window("probe-a").ok_or("A already destroyed")?
             .eval("void window.startBusy()").map_err(|e| e.to_string())?,
         "stop" => if let Some(target) = app.get_webview_window("probe-a") {
             target.destroy().map_err(|e| e.to_string())?;
         },
-        "status" => (),
+        "status" => for target in app.webview_windows().values() {
+            target.eval("void window.reportMediaState?.()").map_err(|e| e.to_string())?;
+        },
         _ => return Err("unknown probe action".into()),
     }
     let result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "windows": app.webview_windows().keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap()});
@@ -122,8 +141,10 @@ fn configure_before_navigation(window: &WebviewWindow) -> tauri::Result<()> {
         let control = target.label() == "probe-control";
         if available && !control { write_bool(preferences, setter, false); }
         let enabled = available.then(|| read_bool(preferences, getter));
+        let dns_getter = sel_registerName(c"_dnsPrefetchingEnabled".as_ptr());
+        let dns_prefetch = responds(preferences, query, dns_getter).then(|| read_bool(preferences, dns_getter));
         let ready = available && enabled == Some(control);
-        target.state::<Probe>().record(target.label(), json!({"enginePolicy": {"available": available, "peerConnectionEnabled": enabled, "readyForPackageNavigation": ready}}));
+        target.state::<Probe>().record(target.label(), json!({"enginePolicy": {"available": available, "peerConnectionEnabled": enabled, "dnsPrefetchEnabled": dns_prefetch, "readyForPackageNavigation": ready}}));
         if ready {
             // Dispatch after leaving Wry's native-view callback. Reentrant navigation
             // from this callback stalls the runtime while it holds its view access.
@@ -139,22 +160,29 @@ fn configure_before_navigation(window: &WebviewWindow) -> tauri::Result<()> {
 #[cfg(not(target_os = "macos"))]
 fn configure_before_navigation(_: &WebviewWindow) -> tauri::Result<()> { unreachable!("macOS-only experiment") }
 
-fn receivers(app: &tauri::AppHandle, label: &str) -> (u16, u16) {
+fn receivers(app: &tauri::AppHandle, label: &str) -> (u16, u16, u16) {
     let tcp = TcpListener::bind("127.0.0.1:0").unwrap();
+    let preconnect = TcpListener::bind("127.0.0.1:0").unwrap();
     let udp = UdpSocket::bind("127.0.0.1:0").unwrap();
     let http_port = tcp.local_addr().unwrap().port();
     let udp_port = udp.local_addr().unwrap().port();
+    let preconnect_port = preconnect.local_addr().unwrap().port();
+    for (kind, listener) in [("tcp", tcp), ("preconnect", preconnect)] {
     let handle = app.clone(); let owner = label.to_owned();
     std::thread::spawn(move || {
-        for stream in tcp.incoming() {
+        for stream in listener.incoming() {
             let Ok(mut stream) = stream else { break; };
             stream.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
             let mut bytes = [0; 2048];
             let count = stream.read(&mut bytes).unwrap_or(0);
-            handle.state::<Probe>().record(&owner, json!({"received": "tcp", "bytes": count, "positiveControl": bytes[..count].starts_with(b"GET /receiver-control ")}));
+            let request = std::str::from_utf8(&bytes[..count]).unwrap_or("");
+            let path = request.split_ascii_whitespace().nth(1).unwrap_or("");
+            let route = ["/receiver-control", "/fetch", "/beacon", "/socket", "/image", "/frame", "/form", "/style", "/preload", "/prefetch", "/media", "/worker", "/navigation"].into_iter().find(|candidate| *candidate == path).unwrap_or("unclassified");
+            handle.state::<Probe>().record(&owner, json!({"received": kind, "route": route, "bytes": count, "positiveControl": bytes[..count].starts_with(b"GET /receiver-control ")}));
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         }
     });
+    }
     let handle = app.clone(); let owner = label.to_owned();
     std::thread::spawn(move || {
         let mut bytes = [0; 2048];
@@ -164,16 +192,18 @@ fn receivers(app: &tauri::AppHandle, label: &str) -> (u16, u16) {
     });
     // Positive controls ensure that an empty receiver log is not mistaken for network denial.
     TcpStream::connect(("127.0.0.1", http_port)).unwrap().write_all(b"GET /receiver-control HTTP/1.0\r\n\r\n").unwrap();
+    TcpStream::connect(("127.0.0.1", preconnect_port)).unwrap().write_all(b"GET /receiver-control HTTP/1.0\r\n\r\n").unwrap();
     UdpSocket::bind("127.0.0.1:0").unwrap().send_to(b"receiver-control", ("127.0.0.1", udp_port)).unwrap();
-    (http_port, udp_port)
+    (http_port, udp_port, preconnect_port)
 }
 
 fn silent_wav() -> Vec<u8> {
+    let sample_bytes = 60u32 * 16_000; // One minute avoids end/loop timing ambiguity during UI checks.
     let mut data = b"RIFF".to_vec();
-    data.extend(2036u32.to_le_bytes()); data.extend(b"WAVEfmt "); data.extend(16u32.to_le_bytes());
+    data.extend((sample_bytes + 36).to_le_bytes()); data.extend(b"WAVEfmt "); data.extend(16u32.to_le_bytes());
     data.extend(1u16.to_le_bytes()); data.extend(1u16.to_le_bytes()); data.extend(8000u32.to_le_bytes());
     data.extend(16000u32.to_le_bytes()); data.extend(2u16.to_le_bytes()); data.extend(16u16.to_le_bytes());
-    data.extend(b"data"); data.extend(2000u32.to_le_bytes()); data.resize(2044, 0); data
+    data.extend(b"data"); data.extend(sample_bytes.to_le_bytes()); data.resize(sample_bytes as usize + 44, 0); data
 }
 
 fn main() {
@@ -195,6 +225,8 @@ fn main() {
             let (status, mime, data) = match request.uri().path() {
                 "/index.html" => (200, "text/html", include_bytes!("capability_runtime_probe/assets/index.html").to_vec()),
                 "/probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/probe.js").to_vec()),
+                "/extended-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/extended-probe.js").to_vec()),
+                "/service-worker.js" => (200, "text/javascript", b"/* Synthetic registration-only fixture; no persistent work. */".to_vec()),
                 "/pixel.svg" => (200, "image/svg+xml", br##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#479"/></svg>"##.to_vec()),
                 "/tone.wav" => (200, "audio/wav", silent_wav()),
                 _ => (403, "text/plain", b"No package-private route".to_vec()),
@@ -207,16 +239,17 @@ fn main() {
         })
         .setup(|app| {
             for (index, label) in ["probe-shell", "probe-a", "probe-b", "probe-control", "probe-unavailable"].iter().enumerate() {
-                let (http_port, udp_port) = receivers(app.handle(), label);
+                let (http_port, udp_port, preconnect_port) = receivers(app.handle(), label);
                 let navigation_app = app.handle().clone(); let owner = label.to_string();
                 let popup_app = app.handle().clone(); let popup_owner = label.to_string();
                 let window = tauri::WebviewWindowBuilder::new(app, *label, tauri::WebviewUrl::External("about:blank".parse()?))
                     .title(format!("Nooki Runtime Probe — {label}"))
                     .inner_size(640.0, 700.0).position(80.0 + index as f64 * 80.0, 80.0 + index as f64 * 35.0)
                     .incognito(true)
-                    .initialization_script(format!("window.PROBE = {};", json!({"label": label, "httpPort": http_port, "udpPort": udp_port})))
+                    .initialization_script(format!("window.PROBE = {};", json!({"label": label, "httpPort": http_port, "udpPort": udp_port, "preconnectPort": preconnect_port})))
                     .on_navigation(move |url| {
-                        let allowed = matches!(url.as_str(), "about:blank" | "nookiprobe://localhost/index.html");
+                        let allowed = matches!(url.as_str(), "about:blank" | "nookiprobe://localhost/index.html")
+                            || (owner == "probe-control" && url.scheme() == "http" && url.host_str() == Some("127.0.0.1") && url.port() == Some(http_port));
                         if !allowed { navigation_app.state::<Probe>().record(&owner, json!({"navigationDenied": true})); }
                         allowed
                     })

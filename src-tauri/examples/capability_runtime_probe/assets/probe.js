@@ -69,7 +69,7 @@ window.startBusy = async () => {
   setTimeout(() => { while (true) { /* Deliberately hostile fixture, never shipped in Nooki. */ } }, 100)
 }
 
-for (const [id, action] of [['run', 'run'], ['busy', 'busy'], ['stop', 'stop'], ['status', 'status']]) {
+for (const [id, action] of [['run', 'run'], ['extended', 'extended'], ['busy', 'busy'], ['stop', 'stop'], ['status', 'status']]) {
   const button = document.getElementById(id)
   button.disabled = label !== 'probe-shell'
   button.onclick = async () => display(await outcome(() => invoke('probe_control', { action })))
