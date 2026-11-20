@@ -1,5 +1,5 @@
 use app_lib::{capability_runtime::PlatformState, package_installer::{inspect_archive, PackagePayload}};
-use std::{fs, io::{Cursor, Write}};
+use std::{fs, io::{Cursor, Write}, sync::atomic::{AtomicUsize, Ordering}};
 use zip::{write::SimpleFileOptions, ZipWriter};
 
 fn manifest(version: &str) -> String {
@@ -18,7 +18,17 @@ fn package(version: &str) -> PackagePayload {
   inspect_archive(&archive(&[("manifest.json", &manifest(version)), ("entry.js", "var WorkbenchCapability = {};")])).unwrap()
 }
 fn data_dir() -> std::path::PathBuf {
-  std::env::temp_dir().join(format!("workbench-package-test-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()))
+  static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+  std::env::temp_dir().join(format!("workbench-package-test-{}-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(), NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)))
+}
+
+#[test]
+fn parallel_test_paths_do_not_collide_within_a_clock_tick() {
+  let paths: Vec<_> = (0..4).map(|_| std::thread::spawn(|| {
+    (0..2048).map(|_| data_dir()).collect::<Vec<_>>()
+  })).collect::<Vec<_>>().into_iter().flat_map(|thread| thread.join().unwrap()).collect();
+  let unique: std::collections::HashSet<_> = paths.iter().collect();
+  assert_eq!(unique.len(), paths.len(), "parallel installer fixtures must never share registry paths");
 }
 
 #[test]
