@@ -6,6 +6,7 @@
 - Evidence: [P02a desktop experiment](../capability-platform-evidence/P02a.md)
   and [P02b1 native controls](../capability-platform-evidence/P02b1.md),
   extended by [P02b2a channels and playback](../capability-platform-evidence/P02b2a.md)
+  and [P02b2b1 pre-creation controls](../capability-platform-evidence/P02b2b1.md)
 
 ## Context
 
@@ -40,6 +41,17 @@ The pinned Tauri internal channel fetch also refused three foreign views while t
 message was still pending, then delivered the exact message to its owner. This specific exception
 has native scope evidence; it is not a statement that every framework-internal operation is audited.
 
+P02b2b1 closes the reproduced preconnect route on the tested engine by applying native restrictions
+before creating the WebView: an empty allowed-network-host set, disabled network subresources,
+disabled peer connections and disabled DNS prefetch. The supplied configuration explicitly owns a
+new nonpersistent store; Wry's separate incognito option does not override a supplied configuration.
+Getter checks must pass before package navigation; unavailable controls leave the view blank.
+Restricted shell/A/B recorded no HTTP, UDP or preconnect traffic, including B with CSP deliberately
+omitted as a native-only negative control. The permissive control recorded thirteen HTTP routes,
+eight UDP packets and one preconnect. Local assets, IPC, independent storage, advancing playback,
+pause/release and independent destruction still worked. This is scoped desktop evidence, not a
+complete egress audit or a production topology decision. P02b2b2 remains required.
+
 The extended fixture demonstrated actual silent-audio playback advancing while its window lost
 focus, followed by pause and empty media state. It did not prove audible output, arbitrary codec
 support, seamless looping/seek, service lifetime across page destruction, or native descriptor cleanup.
@@ -51,17 +63,19 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
 | Existing shared renderer | Package code shares shell authority, DOM and execution environment | Remains explicitly trusted-only; cannot satisfy target containment |
 | Sandboxed iframe in shell | May separate DOM/origin, but iframe sandboxing alone does not prove independent CPU termination, native caller identity or egress denial | Not selected; no desktop containment claim without probes |
 | Separate nonpersistent WKWebViews + native broker checks + CSP | P02a proved process separation/stop and storage boundaries on macOS 15.6.1; UDP escape and broad app-command defaults were reproduced | Insufficient as tested |
-| Separate views with native engine controls and native command restrictions | P02b1 closes WebRTC/application-command routes; P02b2a demonstrates scoped internal channel fetch and playback, but preconnect still escapes | Current settings rejected; test pre-creation network restrictions, then embedding, budgets and SPI/platform support before selecting the topology |
+| Separate views with native engine controls and native command restrictions | P02b2b1 closes the measured preconnect route with pre-creation restrictions; native-only and CSP-plus-native views preserve IPC/assets/playback and stop behavior | Candidate only; embedding, budgets and SPI/platform support remain decision gates |
 | Bundled sandboxed helper process | Can offer an additional OS-level boundary, but media, UI embedding, inherited IPC and WebKit network-process behavior need validation | Alternative if view-level enforcement cannot meet the design; not arbitrary package-supplied native execution |
 | Restricted JS worker/runtime with host-rendered UI | Worker termination is useful, but unrestricted React/DOM pages would need a different UI protocol and permissions model | Additional complexity; not a drop-in substitute for the accepted package experience |
 
 ## Decisions still required
 
-- Close P02b2a's preconnect escape at a native enforcement point and repeat its HTTP, frame, worker,
-  form, navigation and connection controls. DNS-prefetch's native getter is false on this engine;
+- Preserve P02b2b1's native enforcement and repeat its HTTP, frame, worker, form, navigation and
+  connection controls in the integrated arrangement. DNS-prefetch's native getter is false on this engine;
   the localhost element is not a DNS packet test. Prefetch had no positive control traffic, and
   service-worker registration is unsupported for the custom scheme even in the permissive view.
   Keep these distinctions visible rather than labeling unavailable paths as policy passes.
+  WebTransport and WebSocketStream are unavailable in every tested view, including the permissive
+  control; their containment is unverified. Revalidate new engine features before adding support.
 - Deny package calls to all application/core/plugin commands except the narrow broker. Native caller
   identity must come from the receiving runtime, never a supplied package ID.
   P02b1's application dispatcher does not intercept core/plugin commands. Those use Tauri ACLs;

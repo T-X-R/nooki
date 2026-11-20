@@ -40,3 +40,8 @@ png = "0.17.16"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-plugin-updater = "2.14.1"
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# Existing transitive dependencies, exposed only to the disposable native runtime probe.
+objc2 = "=0.6.4"
+objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "WKPreferences", "WKWebViewConfiguration", "WKWebsiteDataStore"] }

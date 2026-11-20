@@ -18,6 +18,7 @@ setInterval(() => void invoke('probe_tick'), 250)
 
 window.runProbe = async () => {
   const results = { userAgent: navigator.userAgent, parentIsSelf: parent === window, openerAbsent: opener === null, hostStorage: localStorage.getItem('host-secret'), initialMarker: localStorage.getItem('marker') }
+  results.networkFeatures = { webTransport: typeof window.WebTransport, webSocketStream: typeof window.WebSocketStream, prefixedPeerConnection: typeof window.webkitRTCPeerConnection }
   localStorage.setItem('marker', label)
   results.spoofedCaller = await outcome(() => invoke('probe_rpc', { owner: label === 'probe-shell' ? 'probe-a' : 'probe-shell', payload: '' }))
   results.protectedHostCommand = await outcome(() => invoke('probe_host_secret'))

@@ -43,6 +43,9 @@ window.runExtendedProbe = async () => {
   append(Object.assign(document.createElement('link'), { rel: 'dns-prefetch', href: '//localhost' }))
   results.dnsPrefetch = 'element exercised; native policy and separate DNS evidence required'
   const remoteAudio = new Audio(`${base}/media`); remoteAudio.load()
+  let eventSource
+  results.eventSource = await outcome(() => { eventSource = new EventSource(`${base}/eventsource`); return 'created; inspect receiver' })
+  append(Object.assign(document.createElement('script'), { src: `${base}/script` }))
   let worker
   const workerURL = URL.createObjectURL(new Blob([`fetch(${JSON.stringify(`${base}/worker`)}, {mode:'no-cors'}).then(() => postMessage('worker fetch sent'), () => postMessage('worker fetch denied'));`], { type: 'text/javascript' }))
   results.worker = await outcome(() => new Promise((resolve, reject) => {
@@ -57,7 +60,7 @@ window.runExtendedProbe = async () => {
     return 'registered then unregistered'
   })
   await wait(2500)
-  worker?.terminate(); URL.revokeObjectURL(workerURL); remoteAudio.removeAttribute('src'); remoteAudio.load()
+  eventSource?.close(); worker?.terminate(); URL.revokeObjectURL(workerURL); remoteAudio.removeAttribute('src'); remoteAudio.load()
   nodes.forEach(node => node.remove())
   display(results)
   await invoke('probe_report', { value: results })

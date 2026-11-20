@@ -137,8 +137,9 @@ the next experiment; private API availability alone is not a supported-platform 
 ### [x] P02b2a — Measure additional browser channels and actual media lifecycle
 
 **State:** measurements verified on 2026-11-20; [receipt and raw events](capability-platform-evidence/P02b2a.md),
-same branch and PR #38, pending human merge. Preconnect escapes the current settings; the failed
-invariant remains open for P02b2b. Playback/pause and pending-channel scope have real desktop evidence.
+same branch and PR #38, pending human merge. Preconnect escaped the settings measured here;
+P02b2b1 closes that reproduced route while retaining this failed baseline. Playback/pause and
+pending-channel scope have real desktop evidence.
 
 **Depends on:** P02b1. **Size:** M, bounded experiment.
 **Deliver:** Receiver-attributed frame/worker/form/navigation/preconnect probes and user-gesture
@@ -151,6 +152,10 @@ scope rather than claiming all network APIs from a small sample.
 
 ### [ ] P02b2b — Select the supported arrangement and bounded operating limits
 
+**State:** in-progress; native network closure is P02b2b1; integrated-view/budget/decision work is
+P02b2b2. Split before changing native configuration and its test dependencies; neither child clears
+the parent or K0 alone.
+
 **Depends on:** P02b2a. **Size:** M, split experiments further only if necessary.
 **Deliver:** Resolve remaining measured escapes, validate page integration and representative resource
 limits, and update the runtime ADR with the selected topology and fail-closed compatibility policy.
@@ -159,6 +164,32 @@ explicit SPI/platform trade-offs and production-integration work assigned to R01
 **Likely files:** Probe adapters/fixtures, limit tests, P02 receipt and runtime ADR.
 **Verification:** V-N and representative boundary/failure loads; no unlimited defaults or unsupported
 platform claims. P02 and K0 stay pending until their complete acceptance is evidenced.
+
+### [x] P02b2b1 — Close preconnect before WebView creation
+
+**State:** verified on 2026-11-20; [receipt and raw events](capability-platform-evidence/P02b2b1.md),
+same branch and PR #38, pending human merge. Pre-creation controls close measured preconnect/HTTP/UDP
+routes with and without CSP; local resources, playback, IPC and independent stop remain functional.
+Private SPI support, integrated-page behavior and full resource budgets remain P02b2b2 work.
+
+**Depends on:** P02b2a. **Size:** M, bounded experiment.
+**Deliver:** Explicit per-view native configuration with isolated stores and checked network controls;
+repeat the previously failing receiver probes and media/IPC/storage checks.
+**Acceptance:** The restricted view has no observed preconnect escape with a working permissive
+control; unavailable controls refuse package loading; record behavior with and without CSP separately.
+**Likely files:** Probe native configuration module, probe executable/fixture, Cargo test dependencies
+and lockfile. These dependencies are already transitive and stay outside the production dependency set.
+**Verification:** Focused tests and V-N, preserving P02b2a's failed evidence; update the ADR without
+claiming untested engine compatibility or a completed runtime decision.
+
+### [ ] P02b2b2 — Validate integration and resource bounds, then decide topology
+
+**Depends on:** P02b2b1. **Size:** M, split further if actual footprint requires it.
+**Deliver:** Integrated-page experiment, measured bounded resource policies and final P02 decision.
+**Acceptance:** Host management remains usable with hostile package code; all required resource types
+have bounded initial limits and error behavior; support and SPI failure policies match real evidence.
+**Likely files:** Probe integration adapter, resource-limit fixture/tests, P02 receipt and runtime ADR.
+**Verification:** V-N plus representative boundary loads; reconcile every P02 invariant before K0.
 
 ### [ ] K0 — Preparation gate
 
