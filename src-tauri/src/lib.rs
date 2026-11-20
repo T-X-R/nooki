@@ -1,4 +1,5 @@
 pub mod task_goals;
+pub(crate) mod capability_board;
 pub mod app_profile;
 mod app_update;
 mod desktop_pet;
@@ -470,7 +471,7 @@ async fn task_board_choose_directory(window: tauri::WebviewWindow) -> Result<Opt
 
 #[tauri::command]
 async fn task_board_command(request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
-  task_worker::request(state.data_dir(), request).await
+  task_worker::renderer_request(state.data_dir(), request).await
 }
 
 #[tauri::command]

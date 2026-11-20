@@ -441,11 +441,12 @@ with the synchronous effect check. Restart never restores live invocation handle
 **Verification:** Native lifecycle, wrong-caller/scope, revoke/effect ordering and capacity tests.
 No production isolated-transport claim; C01b/C01c remain required for the public mutation path.
 
-### [ ] C01b — Persist the first board effect and idempotency receipt atomically
+### [x] C01b — Persist the first board effect and idempotency receipt atomically
 
-**State:** in-progress; split into C01b1 (cross-process authorization fence) and C01b2
-(atomic board effect/receipt) before implementation. An in-process mutex cannot reject work queued
-in a separate worker after a timeout and revocation.
+**State:** verified on 2026-11-20 through C01b1 and C01b2;
+[atomic worker transaction and failure/retry receipt](capability-platform-evidence/C01b2.md).
+Real worker IPC, queued revocation, retained idempotency and filesystem failure cases pass.
+Public Host delivery remains C01c; the C01 parent is still incomplete.
 
 **Depends on:** C01a. **Size:** M.
 **Deliver:** Worker-side create-item transaction with canonical payload hash and durable result,
@@ -472,7 +473,11 @@ registry changes remain authoritative if record cleanup cannot occur; no stale c
 **Verification:** Native process-boundary race, restart, digest/non-replay, legacy lifecycle and
 failure tests; keep C01b pending until the real board effect and receipt pass C01b2.
 
-### [ ] C01b2 — Commit board creation and its replay receipt together
+### [x] C01b2 — Commit board creation and its replay receipt together
+
+**State:** verified on 2026-11-20; [implementation and native evidence](capability-platform-evidence/C01b2.md),
+same branch and PR #38, pending human merge. Creation is a todo-only native transaction with current
+authority and retained receipts; stale legacy saves conflict. Nonempty sources await C02/C03.
 
 **Depends on:** C01b1. **Size:** M.
 **Deliver:** Native worker create-item path with a canonical payload hash and result in the same

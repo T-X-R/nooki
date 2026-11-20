@@ -40,14 +40,18 @@ fn now() -> u64 { std::time::SystemTime::now().duration_since(std::time::UNIX_EP
 fn id(value: &Value) -> Result<&str, String> {
     value.as_str().filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')).ok_or("Invalid task identity".into())
 }
-fn save(root: &Path, board: &Value) -> Result<(), String> {
+pub(crate) fn save(root: &Path, board: &Value) -> Result<(), String> {
     use std::io::Write;
     let temporary = root.join("task-board.pending");
     let mut file = fs::File::create(&temporary).map_err(|e| e.to_string())?;
     file.write_all(&serde_json::to_vec(board).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
     fs::rename(temporary, root.join("task-board.json")).map_err(|e| e.to_string())?;
-    fs::File::open(root).and_then(|directory| directory.sync_all()).map_err(|e| e.to_string())
+    confirm_save(root)
+}
+pub(crate) fn confirm_save(root: &Path) -> Result<(), String> {
+    fs::File::open(root).and_then(|directory| directory.sync_all())
+        .map_err(|_| "OUTCOME_UNKNOWN: task board changed but durability acknowledgement failed".to_string())
 }
 pub(crate) fn load(root: &Path) -> Result<Value, String> {
     let path = root.join("task-board.json");
@@ -253,14 +257,18 @@ impl GoalWorker {
         let mut board = load(&self.root)?;
         let op = request["op"].as_str().ok_or("Task operation missing")?;
         if op == "read" { return Ok(board); }
+        if op == crate::capability_board::CREATE { return crate::capability_board::create(&self.root, &mut board, request); }
         if op == "legacy" {
-            crate::user_data::validate_task_board(&request["board"])?;
+            let mut incoming = request["board"].clone();
+            crate::capability_board::prepare_legacy(&board, &mut incoming)?;
+            crate::user_data::validate_task_board(&incoming)?;
             let busy = board["cards"].as_array().unwrap().iter().any(|c| c["engine"] == "goals" && (c["activeTurn"] == true || matches!(c["status"].as_str(), Some("running" | "question" | "pausing" | "stopping"))));
-            if busy && request["board"]["cards"].as_array().unwrap().iter().any(|c| c["engine"] != "goals" && c["status"] == "running" && !board["cards"].as_array().unwrap().iter().any(|old| old["id"] == c["id"] && old["status"] == "running")) {
+            if busy && incoming["cards"].as_array().unwrap().iter().any(|c| c["engine"] != "goals" && c["status"] == "running" && !board["cards"].as_array().unwrap().iter().any(|old| old["id"] == c["id"] && old["status"] == "running")) {
                 return Err("A background Goal already owns the queue slot. Refresh the task board.".into());
             }
             let goals: Vec<_> = board["cards"].as_array().unwrap().iter().filter(|c| c["engine"] == "goals").cloned().collect();
-            board["cards"] = json!(request["board"]["cards"].as_array().unwrap().iter().filter(|c| c["engine"] != "goals").cloned().chain(goals).collect::<Vec<_>>());
+            board["cards"] = json!(incoming["cards"].as_array().unwrap().iter().filter(|c| c["engine"] != "goals").cloned().chain(goals).collect::<Vec<_>>());
+            if board.get("writeToken").is_some() { board["writeToken"] = json!(crate::capability_authority::nonce()?); }
 
         } else if op == "queue-pause" { board["paused"] = json!(request["paused"] == true); }
         else if op == "add" {
