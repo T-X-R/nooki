@@ -4,9 +4,9 @@ use std::{fs::{self, File}, io::{Read, Write}, path::{Path, PathBuf}, sync::atom
 use std::io::{Seek, SeekFrom};
 use serde_json::{json, Value};
 
-struct Fixture(PathBuf);
+pub(super) struct Fixture(pub(super) PathBuf);
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!("nooki-data-budget-{}-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(), NEXT.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir(&root).unwrap();
@@ -34,7 +34,7 @@ fn archive_method(path: &Path, sizes: &[u64], method: zip::CompressionMethod) {
     zip.finish().unwrap();
 }
 
-fn fill(store: &mut Store, key: &str, bytes: u64, value: u8) {
+pub(super) fn fill(store: &mut Store, key: &str, bytes: u64, value: u8) {
     let chunk = vec![value; CHUNK];
     let mut pending = store.begin(key, bytes).unwrap();
     let mut remaining = bytes;
@@ -46,7 +46,7 @@ fn fill(store: &mut Store, key: &str, bytes: u64, value: u8) {
     pending.commit().unwrap();
 }
 
-fn exact(path: &Path, expected: u64, value: u8) {
+pub(super) fn exact(path: &Path, expected: u64, value: u8) {
     let mut file = File::open(path).unwrap();
     let mut chunk = [0; CHUNK];
     let mut total = 0;

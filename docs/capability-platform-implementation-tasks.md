@@ -245,10 +245,12 @@ stay responsive during load. Record transport allocation limits separately from 
 **Likely files:** Probe admission module/tests, native load command, load fixture, probe controls.
 **Verification:** Deterministic saturation/release tests and V-N with two callers and real IPC.
 
-### [ ] P02d — Measure retained-resource budgets with representative fixtures
+### [x] P02d — Measure retained-resource budgets with representative fixtures
 
-**State:** in-progress; split into P02d1 (archive and retained byte storage) and P02d2
-(queued events, runs and service ownership). These are native experiments, not production APIs.
+**State:** verified on 2026-11-20 through P02d1 and P02d2; [combined budget table and evidence](capability-platform-evidence/P02d2.md).
+The scoped native experiments cover archive/byte storage, shared disk reservations, queued/delivered
+events and live task/service ownership. Production adapters and durable recovery remain assigned to
+their owners. P02e must reconcile transport allocation and runtime support before P02/K0 can pass.
 
 **Depends on:** P02c. **Size:** M; split only if actual scope requires it.
 **Deliver:** Boundary-load evidence and proposed limits for archive expansion, private storage,
@@ -276,7 +278,13 @@ IPC or process-memory bound is inferred from a streamed file experiment.
 **Verification:** Real ZIP decompression and temporary-file writes/readback, corruption/failure cases,
 native tests and reproducible machine-readable measurements.
 
-### [ ] P02d2 — Measure retained execution and event ownership
+### [x] P02d2 — Measure retained execution and event ownership
+
+**State:** verified on 2026-11-20; [receipt and raw measurements](capability-platform-evidence/P02d2.md),
+same branch and PR #38, pending human merge. Shared file reservations, cross-thread contention,
+charged delivered payloads, async stop and real native-service EOF/peer operation pass. Eight tests
+pass; no production runtime/configuration change. The receipt records durability, authentication,
+transport-memory and noncooperative-provider limits for P02e and implementation owners.
 
 **Depends on:** P02d1. **Size:** M.
 **Deliver:** Bounded real event payloads, concurrent task ownership and live service handles with

@@ -10,6 +10,7 @@
   plus [P02b2b2a same-window integration](../capability-platform-evidence/P02b2b2a.md)
   and [P02c bounded operation admission](../capability-platform-evidence/P02c.md)
   plus [P02d1 retained byte budgets](../capability-platform-evidence/P02d1.md)
+  and [P02d2 shared and live resource budgets](../capability-platform-evidence/P02d2.md)
 
 ## Context
 
@@ -80,6 +81,16 @@ content limits, not filesystem-allocation or process-memory bounds. P02d2 still 
 reservations across stores, queues, runs and live service resources; production persistence,
 authorization and crash recovery remain assigned to R01–R03/R07/R11.
 
+P02d2 completes the scoped budget experiment with shared retained/staged file reservations, bounded
+event payloads that remain charged after delivery, and real async task/native stream ownership.
+Private stores share 64 MiB; binary stores share 256 MiB; both cap object/store/writer counts.
+Events cap at 16 KiB each, 64/256 KiB per owner and 128/512 KiB globally. Runs cap at two per owner /
+four globally; services at one / two. Real contention, failure and stop checks pass, including native
+stream EOF and an unaffected peer's echo. Counts are tied to actual owned data/handles, but this is
+not a durable production manager, agent cancellation guarantee or total-memory bound. P02e must
+resolve the pre-admission transport boundary and supported runtime policy before K0. File chunks
+also need encoding/envelope-aware sizing before mapping them onto the public IPC contract.
+
 The extended fixture demonstrated actual silent-audio playback advancing while its window lost
 focus, followed by pause and empty media state. It did not prove audible output, arbitrary codec
 support, seamless looping/seek, service lifetime across page destruction, or native descriptor cleanup.
@@ -114,8 +125,9 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
   by webview, not its containing window. Tauri child views require the opt-in unstable feature;
   production resize, modal/focus/IME behavior and service lifetime across page destruction remain
   implementation work. Private process IDs remain diagnostic, never the termination mechanism.
-- Finish transfer, storage, event/run/service and queue limits in P02d, then reconcile them in P02e.
-  P02c supplies measured operation admission, but its 64 KiB payload check excludes the IPC envelope
+- Reconcile P02d's measured byte/object/task limits with the full runtime in P02e and retain their
+  production owners and recovery obligations. P02c supplies measured operation admission, but its
+  64 KiB payload check excludes the IPC envelope
   and runs after deserialization. Neither that guard nor the finite load fixture establishes a
   pre-admission allocation bound, sustained-flood containment or fair scheduling.
 - State the actual supported OS/engine matrix and explicit fail-closed behavior elsewhere. A macOS
