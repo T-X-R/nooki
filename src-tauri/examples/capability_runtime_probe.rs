@@ -11,7 +11,14 @@ mod app_profile;
 
 use std::{collections::BTreeMap, fs, io::{Read, Write}, net::{TcpListener, TcpStream, UdpSocket}, path::PathBuf, sync::Mutex, time::{Duration, Instant}};
 use serde_json::{json, Value};
-use tauri::{Manager, State, WebviewWindow};
+use tauri::{Manager, State, Webview};
+
+fn probe_views(app: &tauri::AppHandle) -> std::collections::HashMap<String, Webview> {
+    #[cfg(feature = "runtime-probe-embedded")]
+    { app.webviews() }
+    #[cfg(not(feature = "runtime-probe-embedded"))]
+    { app.webview_windows().into_iter().map(|(label, window)| (label, window.as_ref().clone())).collect() }
+}
 
 struct Probe {
     root: PathBuf,
@@ -30,9 +37,14 @@ impl Probe {
 }
 
 #[tauri::command]
-fn probe_rpc(window: WebviewWindow, owner: String, payload: String) -> Result<String, String> {
+fn probe_rpc(window: Webview, owner: String, payload: String) -> Result<String, String> {
     policy::authorize(window.label(), &owner, payload.len()).map_err(str::to_owned)?;
     Ok(payload)
+}
+
+#[tauri::command]
+fn probe_identity(window: Webview) -> Value {
+    json!({"view": window.label(), "window": window.window().label()})
 }
 
 // Intentionally unguarded synthetic sentinel: measures Tauri's default app-command exposure.
@@ -40,34 +52,34 @@ fn probe_rpc(window: WebviewWindow, owner: String, payload: String) -> Result<St
 fn probe_unguarded() -> &'static str { "synthetic-unguarded-sentinel" }
 
 #[tauri::command]
-fn probe_host_secret(window: WebviewWindow) -> Result<&'static str, &'static str> {
+fn probe_host_secret(window: Webview) -> Result<&'static str, &'static str> {
     if window.label() != "probe-shell" { return Err("host-only operation"); }
     Ok("synthetic-host-sentinel")
 }
 
 #[tauri::command]
-fn probe_report(window: WebviewWindow, value: Value, state: State<Probe>) -> Result<(), String> {
+fn probe_report(window: Webview, value: Value, state: State<Probe>) -> Result<(), String> {
     policy::authorize(window.label(), window.label(), value.to_string().len()).map_err(str::to_owned)?;
     state.record(window.label(), value);
     Ok(())
 }
 
 #[tauri::command]
-fn probe_tick(window: WebviewWindow, state: State<Probe>) {
+fn probe_tick(window: Webview, state: State<Probe>) {
     *state.ticks.lock().unwrap().entry(window.label().into()).or_default() += 1;
 }
 
 #[tauri::command]
-async fn probe_control(window: WebviewWindow, action: String, channel: Option<tauri::ipc::JavaScriptChannelId>, state: State<'_, Probe>) -> Result<Value, String> {
+async fn probe_control(window: Webview, action: String, channel: Option<tauri::ipc::JavaScriptChannelId>, state: State<'_, Probe>) -> Result<Value, String> {
     if window.label() != "probe-shell" { return Err("host-only operation".into()); }
     let started = Instant::now();
     let app = window.app_handle();
     match action.as_str() {
-        "run" => for target in app.webview_windows().values() {
+        "run" => for target in probe_views(app).values() {
             record_process_id(target);
             target.eval("void window.runProbe()").map_err(|e| e.to_string())?;
         },
-        "extended" => for target in app.webview_windows().values() {
+        "extended" => for target in probe_views(app).values() {
             target.eval("void window.runExtendedProbe()").map_err(|e| e.to_string())?;
         },
         "channel-seed" => {
@@ -76,31 +88,42 @@ async fn probe_control(window: WebviewWindow, action: String, channel: Option<ta
             }
             // The first large channel message has data ID 0 in this fresh webview's queue.
             // The shell fixture temporarily holds its event loop so auto-fetch cannot drain it.
-            channel.ok_or("missing synthetic channel")?.channel_on::<_, String>(window.as_ref().clone())
+            channel.ok_or("missing synthetic channel")?.channel_on::<_, String>(window.clone())
                 .send("synthetic-channel-sentinel:".to_owned() + &"x".repeat(9000)).map_err(|e| e.to_string())?;
             for label in ["probe-a", "probe-b", "probe-control"] {
-                if let Some(target) = app.get_webview_window(label) {
+                if let Some(target) = probe_views(app).get(label).cloned() {
                     target.eval("void window.tryForeignChannel(0)").map_err(|e| e.to_string())?;
                 }
             }
         },
-        "busy" => app.get_webview_window("probe-a").ok_or("A already destroyed")?
+        "busy" => probe_views(app).get("probe-a").cloned().ok_or("A already destroyed")?
             .eval("void window.startBusy()").map_err(|e| e.to_string())?,
-        "stop" => if let Some(target) = app.get_webview_window("probe-a") {
-            target.destroy().map_err(|e| e.to_string())?;
+        "stop" => if let Some(target) = probe_views(app).get("probe-a").cloned() {
+            #[cfg(feature = "runtime-probe-embedded")]
+            target.close().map_err(|e| e.to_string())?;
+            #[cfg(not(feature = "runtime-probe-embedded"))]
+            target.window().destroy().map_err(|e| e.to_string())?;
         },
-        "status" => for target in app.webview_windows().values() {
+        "show-a" | "show-b" => {
+            let selected = if action == "show-a" { "probe-a" } else { "probe-b" };
+            for label in ["probe-a", "probe-b"] {
+                if let Some(target) = probe_views(app).get(label) {
+                    if label == selected { target.show() } else { target.hide() }.map_err(|e| e.to_string())?;
+                }
+            }
+        },
+        "status" => for target in probe_views(app).values() {
             target.eval("void window.reportMediaState?.()").map_err(|e| e.to_string())?;
         },
         _ => return Err("unknown probe action".into()),
     }
-    let result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "windows": app.webview_windows().keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap()});
+    let result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "views": probe_views(app).keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap()});
     state.record("native", result.clone());
     Ok(result)
 }
 
 #[cfg(target_os = "macos")]
-fn record_process_id(window: &WebviewWindow) {
+fn record_process_id(window: &Webview) {
     // Diagnostic only: WebKit's own MiniBrowser uses this private selector. Never use it
     // for production identity or termination; the probe only observes the returned PID.
     use std::ffi::{c_char, c_void};
@@ -118,7 +141,7 @@ fn record_process_id(window: &WebviewWindow) {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn record_process_id(_: &WebviewWindow) {}
+fn record_process_id(_: &Webview) {}
 
 fn receivers(app: &tauri::AppHandle, label: &str) -> (u16, u16, u16) {
     let tcp = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -178,7 +201,7 @@ fn main() {
                 invoke.resolver.reject("command not exposed to this runtime");
                 return true;
             }
-            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![probe_rpc, probe_unguarded, probe_host_secret, probe_report, probe_tick, probe_control];
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![probe_rpc, probe_identity, probe_unguarded, probe_host_secret, probe_report, probe_tick, probe_control];
             handler(invoke)
         })
         .register_uri_scheme_protocol("nookiprobe", |ctx, request| {
@@ -199,7 +222,11 @@ fn main() {
             response.body(data).unwrap()
         })
         .setup(|app| {
-            for (index, label) in ["probe-shell", "probe-a", "probe-b", "probe-control", "probe-unavailable"].iter().enumerate() {
+            #[cfg(feature = "runtime-probe-embedded")]
+            let workspace = tauri::WindowBuilder::new(app, "probe-workspace")
+                .title("Nooki Runtime Probe — embedded workspace").inner_size(1200.0, 800.0)
+                .position(80.0, 80.0).build()?;
+            for (_index, label) in ["probe-shell", "probe-a", "probe-b", "probe-control", "probe-unavailable"].iter().enumerate() {
                 let (http_port, udp_port, preconnect_port) = receivers(app.handle(), label);
                 let navigation_app = app.handle().clone(); let owner = label.to_string();
                 let popup_app = app.handle().clone(); let popup_owner = label.to_string();
@@ -207,11 +234,14 @@ fn main() {
                 let (configuration, ready, policy) = native_configuration::prepare(label);
                 #[cfg(target_os = "macos")]
                 app.state::<Probe>().record(label, json!({"enginePolicy": policy}));
+                #[cfg(not(feature = "runtime-probe-embedded"))]
                 let builder = tauri::WebviewWindowBuilder::new(app, *label, tauri::WebviewUrl::External("about:blank".parse()?))
                     .title(format!("Nooki Runtime Probe — {label}"))
-                    .inner_size(640.0, 700.0).position(80.0 + index as f64 * 80.0, 80.0 + index as f64 * 35.0)
-                    .incognito(true)
-                    .initialization_script(format!("window.PROBE = {};", json!({"label": label, "httpPort": http_port, "udpPort": udp_port, "preconnectPort": preconnect_port})))
+                    .inner_size(640.0, 700.0).position(80.0 + _index as f64 * 80.0, 80.0 + _index as f64 * 35.0);
+                #[cfg(feature = "runtime-probe-embedded")]
+                let builder = tauri::webview::WebviewBuilder::new(*label, tauri::WebviewUrl::External("about:blank".parse()?));
+                let builder = builder.incognito(true)
+                    .initialization_script(format!("window.PROBE = {};", json!({"label": label, "httpPort": http_port, "udpPort": udp_port, "preconnectPort": preconnect_port, "embedded": cfg!(feature = "runtime-probe-embedded"), "hostWindow": if cfg!(feature = "runtime-probe-embedded") { "probe-workspace" } else { "probe-shell" }})))
                     .on_navigation(move |url| {
                         let allowed = matches!(url.as_str(), "about:blank" | "nookiprobe://localhost/index.html")
                             || (owner == "probe-control" && url.scheme() == "http" && url.host_str() == Some("127.0.0.1") && url.port() == Some(http_port));
@@ -224,7 +254,22 @@ fn main() {
                     });
                 #[cfg(target_os = "macos")]
                 let builder = builder.with_webview_configuration(configuration);
+                #[cfg(not(feature = "runtime-probe-embedded"))]
                 let window = builder.build()?;
+                #[cfg(feature = "runtime-probe-embedded")]
+                let window = {
+                    let shared = ["probe-shell", "probe-a", "probe-b"].contains(label);
+                    let parent = if shared { workspace.clone() } else {
+                        tauri::WindowBuilder::new(app, format!("{label}-window"))
+                            .title(format!("Nooki Runtime Probe — {label}"))
+                            .inner_size(640.0, 700.0).position(160.0, 120.0).build()?
+                    };
+                    let (left, width, height) = if *label == "probe-shell" { (0.0, 400.0, 800.0) }
+                        else if shared { (400.0, 800.0, 800.0) } else { (0.0, 640.0, 700.0) };
+                    let view = parent.add_child(builder, tauri::LogicalPosition::new(left, 0.0), tauri::LogicalSize::new(width, height))?;
+                    if *label == "probe-b" { view.hide()?; }
+                    view
+                };
                 #[cfg(target_os = "macos")]
                 if ready { window.navigate("nookiprobe://localhost/index.html".parse()?)?; }
             }

@@ -18,6 +18,7 @@ setInterval(() => void invoke('probe_tick'), 250)
 
 window.runProbe = async () => {
   const results = { userAgent: navigator.userAgent, parentIsSelf: parent === window, openerAbsent: opener === null, hostStorage: localStorage.getItem('host-secret'), initialMarker: localStorage.getItem('marker') }
+  results.nativeIdentity = await invoke('probe_identity')
   results.networkFeatures = { webTransport: typeof window.WebTransport, webSocketStream: typeof window.WebSocketStream, prefixedPeerConnection: typeof window.webkitRTCPeerConnection }
   localStorage.setItem('marker', label)
   results.spoofedCaller = await outcome(() => invoke('probe_rpc', { owner: label === 'probe-shell' ? 'probe-a' : 'probe-shell', payload: '' }))
@@ -25,7 +26,7 @@ window.runProbe = async () => {
   results.unguardedAppCommand = await outcome(() => invoke('probe_unguarded'))
   results.unknownAppCommand = await outcome(() => invoke('future_command'))
   results.hostControlCommand = label === 'probe-shell' ? 'shell control' : await outcome(() => invoke('probe_control', { action: 'status' }))
-  results.coreWindowCommand = await outcome(() => invoke('plugin:window|set_title', { label: 'probe-shell', title: 'Changed by a package' }))
+  results.coreWindowCommand = await outcome(() => invoke('plugin:window|set_title', { label: window.PROBE.hostWindow, value: label === 'probe-shell' ? 'Nooki Runtime Probe — verified shell' : 'Changed by a package' }))
   results.oversizedMessage = await outcome(() => invoke('probe_rpc', { owner: label, payload: 'x'.repeat(65537) }))
   const timings = []
   for (const size of [0, 1024, 65536]) {
@@ -70,8 +71,9 @@ window.startBusy = async () => {
   setTimeout(() => { while (true) { /* Deliberately hostile fixture, never shipped in Nooki. */ } }, 100)
 }
 
-for (const [id, action] of [['run', 'run'], ['extended', 'extended'], ['busy', 'busy'], ['stop', 'stop'], ['status', 'status']]) {
+for (const [id, action] of [['run', 'run'], ['extended', 'extended'], ['busy', 'busy'], ['stop', 'stop'], ['status', 'status'], ['show-a', 'show-a'], ['show-b', 'show-b']]) {
   const button = document.getElementById(id)
+  button.hidden = id.startsWith('show-') && !window.PROBE.embedded
   button.disabled = label !== 'probe-shell'
   button.onclick = async () => display(await outcome(() => invoke('probe_control', { action })))
 }

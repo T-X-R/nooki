@@ -184,12 +184,45 @@ claiming untested engine compatibility or a completed runtime decision.
 
 ### [ ] P02b2b2 — Validate integration and resource bounds, then decide topology
 
+**State:** in-progress; split into P02b2b2a (same-window integration) and P02b2b2b
+(resource bounds and supported-topology decision) before changing the probe. Neither alone clears K0.
+
 **Depends on:** P02b2b1. **Size:** M, split further if actual footprint requires it.
 **Deliver:** Integrated-page experiment, measured bounded resource policies and final P02 decision.
 **Acceptance:** Host management remains usable with hostile package code; all required resource types
 have bounded initial limits and error behavior; support and SPI failure policies match real evidence.
 **Likely files:** Probe integration adapter, resource-limit fixture/tests, P02 receipt and runtime ADR.
 **Verification:** V-N plus representative boundary loads; reconcile every P02 invariant before K0.
+
+### [x] P02b2b2a — Verify isolated child views inside one host window
+
+**State:** verified on 2026-11-20 after desktop-tool access recovered;
+[receipt and raw events](capability-platform-evidence/P02b2b2a.md), same branch and PR #38,
+pending human merge. Native view identity and view-scoped permissions hold inside one window;
+network controls, hidden playback and independent child termination pass their measured cases.
+The failed title-command positive control was corrected and rerun; its trace remains retained.
+P02/K0 stay pending on P02b2b2b's resource bounds and supported-topology decision.
+
+**Depends on:** P02b2b1. **Size:** M, bounded experiment.
+**Deliver:** Opt-in embedded probe using native Webview caller identity, view-scoped core permissions,
+host-controlled page switching and independent child removal. Preserve the separate-window control.
+**Acceptance:** A/B share the host window but cannot use its command grants or storage; network
+controls and pending-channel ownership still hold; hidden-page playback and hostile-child termination
+leave host management and the other page usable. Record actual API/platform limitations.
+**Likely files:** Probe executable, fixture HTML/script, probe configuration/policy, opt-in Cargo feature.
+**Verification:** Focused policy tests, both probe builds, V-N including a positive shell permission
+control, page switching, playback, network receiver controls and child process exit.
+
+### [ ] P02b2b2b — Measure resource bounds and record the supported topology
+
+**Depends on:** P02b2b2a. **Size:** M; split only if the actual scope requires it.
+**Deliver:** Representative boundary-load fixtures, initial limits for required resource classes,
+and a supported-engine/failure policy with explicit production integration work.
+**Acceptance:** Reconcile all P02 invariants with evidence; do not equate message size with memory
+containment or a successful private selector with broad engine support. No unlimited defaults.
+**Likely files:** Probe budget fixture/tests, P02 receipt, runtime ADR and compatibility decisions.
+**Verification:** Boundary/failure loads and desktop responsiveness; complete P02/K0 only if every
+parent acceptance item has a feasible and documented path.
 
 ### [ ] K0 — Preparation gate
 

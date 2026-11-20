@@ -7,6 +7,7 @@
   and [P02b1 native controls](../capability-platform-evidence/P02b1.md),
   extended by [P02b2a channels and playback](../capability-platform-evidence/P02b2a.md)
   and [P02b2b1 pre-creation controls](../capability-platform-evidence/P02b2b1.md)
+  plus [P02b2b2a same-window integration](../capability-platform-evidence/P02b2b2a.md)
 
 ## Context
 
@@ -23,7 +24,7 @@ to clear K0 or the later containment gates.
 ## Current decision
 
 Do **not** adopt separate Tauri webviews plus CSP alone as the production security boundary. Keep the
-existing trusted-only loader unchanged while P02b resolves the two failures. Do not expose new
+existing trusted-only loader unchanged while P02b completes the supported-topology and budget decision. Do not expose new
 production transport-dependent APIs based on the experiment. This ADR records a rejected baseline,
 not approval of a replacement runtime.
 
@@ -52,6 +53,13 @@ eight UDP packets and one preconnect. Local assets, IPC, independent storage, ad
 pause/release and independent destruction still worked. This is scoped desktop evidence, not a
 complete egress audit or a production topology decision. P02b2b2 remains required.
 
+P02b2b2a verifies shell/A/B as child webviews of one native host window. Native caller identity
+remains the individual view; a core title-change grant scoped to the shell view succeeds for shell
+and is refused for A/B in that same window. The network, storage and pending-channel probes retain
+their scoped results. A's audio advances while its view is hidden; after an intentional loop,
+closing A removes its WebContent process while the host and B remain usable. This is a feasible
+fixed-pane integration experiment, not production layout or full resource-budget acceptance.
+
 The extended fixture demonstrated actual silent-audio playback advancing while its window lost
 focus, followed by pause and empty media state. It did not prove audible output, arbitrary codec
 support, seamless looping/seek, service lifetime across page destruction, or native descriptor cleanup.
@@ -63,7 +71,7 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
 | Existing shared renderer | Package code shares shell authority, DOM and execution environment | Remains explicitly trusted-only; cannot satisfy target containment |
 | Sandboxed iframe in shell | May separate DOM/origin, but iframe sandboxing alone does not prove independent CPU termination, native caller identity or egress denial | Not selected; no desktop containment claim without probes |
 | Separate nonpersistent WKWebViews + native broker checks + CSP | P02a proved process separation/stop and storage boundaries on macOS 15.6.1; UDP escape and broad app-command defaults were reproduced | Insufficient as tested |
-| Separate views with native engine controls and native command restrictions | P02b2b1 closes the measured preconnect route with pre-creation restrictions; native-only and CSP-plus-native views preserve IPC/assets/playback and stop behavior | Candidate only; embedding, budgets and SPI/platform support remain decision gates |
+| Separate views with native engine controls and native command restrictions | P02b2b1 closes measured preconnect; P02b2b2a preserves scoped boundaries and independent stop inside one host window | Candidate only; resource budgets and SPI/platform support remain decision gates |
 | Bundled sandboxed helper process | Can offer an additional OS-level boundary, but media, UI embedding, inherited IPC and WebKit network-process behavior need validation | Alternative if view-level enforcement cannot meet the design; not arbitrary package-supplied native execution |
 | Restricted JS worker/runtime with host-rendered UI | Worker termination is useful, but unrestricted React/DOM pages would need a different UI protocol and permissions model | Additional complexity; not a drop-in substitute for the accepted package experience |
 
@@ -82,8 +90,10 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
   P02b2a now covers pending channel fetch across views; recheck queue lifetime/generation behavior
   in the production transport and audit remaining internal exceptions before claiming complete
   native denial in R02. No production application or third-party plugins run in the probe.
-- Prove embedding or navigation arrangements, real media playback/cleanup, and forced stop without
-  relying on private diagnostic process IDs as the production termination mechanism.
+- Carry P02b2b2a's same-window results into production integration: scope native identity and grants
+  by webview, not its containing window. Tauri child views require the opt-in unstable feature;
+  production resize, modal/focus/IME behavior and service lifetime across page destruction remain
+  implementation work. Private process IDs remain diagnostic, never the termination mechanism.
 - Measure message/transfer, storage, concurrency and queue limits. The initial 64 KiB payload check
   excludes the IPC envelope, runs after deserialization and is not a memory-allocation bound. The twelve IPC samples and process
   RSS observations are insufficient for the full resource-budget decision.

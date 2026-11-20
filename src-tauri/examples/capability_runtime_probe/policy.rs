@@ -3,7 +3,7 @@ pub const MAX_MESSAGE_BYTES: usize = 65_536;
 pub fn command_allowed(caller: &str, command: &str) -> bool {
     match caller {
         "probe-shell" | "probe-control" => true,
-        "probe-a" | "probe-b" => matches!(command, "probe_rpc" | "probe_report" | "probe_tick"),
+        "probe-a" | "probe-b" => matches!(command, "probe_rpc" | "probe_identity" | "probe_report" | "probe_tick"),
         _ => false,
     }
 }
@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn packages_cannot_reach_unlisted_application_commands() {
         for caller in ["probe-a", "probe-b"] {
-            for allowed in ["probe_rpc", "probe_report", "probe_tick"] {
+            for allowed in ["probe_rpc", "probe_identity", "probe_report", "probe_tick"] {
                 assert!(command_allowed(caller, allowed));
             }
             for denied in ["probe_unguarded", "probe_host_secret", "probe_control", "future_command"] {
