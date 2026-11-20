@@ -134,8 +134,7 @@ impl GoalWorker {
         };
         let inputs = self.root.join("task-inputs"); fs::create_dir_all(&inputs).map_err(|e| e.to_string())?;
         let brief = inputs.join(format!("{task_id}.md"));
-        let docs: Vec<String> = card["sources"].as_array().into_iter().flatten().filter_map(|s| s["id"].as_str().map(str::to_string)).collect();
-        crate::source_snapshots::capture(&self.root, task_id, &docs)?;
+        crate::source_snapshots::capture_task(&self.root, task_id, card.get("sources").unwrap_or(&json!([])))?;
         let outputs = self.root.join("task-outputs").join(task_id); fs::create_dir_all(&outputs).map_err(|e| e.to_string())?;
         card["execution"] = json!({"cwd":workspace,"approvalPolicy":"on-request","sandbox":"workspace-write","config":{"features.goals":true,"sandbox_workspace_write.network_access":true,"sandbox_workspace_write.writable_roots":[outputs]},"brief":brief,"outputs":outputs});
         write_brief(&self.root, card)?;
@@ -273,13 +272,17 @@ impl GoalWorker {
         } else if op == "queue-pause" { board["paused"] = json!(request["paused"] == true); }
         else if op == "add" {
             let task_id = id(&request["id"])?;
-            if board["cards"].as_array().unwrap().iter().any(|c| c["id"] == task_id) { return Ok(board); }
+            if let Some(existing) = board["cards"].as_array().unwrap().iter().find(|c| c["id"] == task_id) {
+                let empty = json!([]);
+                crate::source_snapshots::check_task_source_selection(existing.get("sources").unwrap_or(&empty),
+                    if request["sources"].is_null() { &empty } else { &request["sources"] })?;
+                return Ok(board);
+            }
             let mut card = json!({"id":task_id,"title":request["title"],"description":request["description"],"sources":request["sources"],"cwd":request["cwd"],"engine":"goals","status":"queued","createdAt":now(),"queuedAt":now()});
             if card["sources"].is_null() { card["sources"] = json!([]); }
             crate::user_data::validate_task_board(&json!({"cards":[card]}))?;
             // Freeze selected references when the user creates the task, not when it is picked up.
-            let docs: Vec<String> = card["sources"].as_array().unwrap().iter().map(|s| s["id"].as_str().unwrap().into()).collect();
-            crate::source_snapshots::capture(&self.root, task_id, &docs)?;
+            crate::source_snapshots::capture_task(&self.root, task_id, &card["sources"])?;
             board["cards"].as_array_mut().unwrap().push(card);
         } else {
             let index = board["cards"].as_array().unwrap().iter().position(|c| c["id"] == request["id"] && c["engine"] == "goals").ok_or("Goal task not found")?;
@@ -442,8 +445,7 @@ fn native_response(pending: &Value, request: &Value) -> Result<Value, String> {
 }
 fn write_brief(root: &Path, card: &Value) -> Result<(), String> {
     let task_id = id(&card["id"])?;
-    let docs: Vec<String> = card["sources"].as_array().into_iter().flatten().filter_map(|s| s["id"].as_str().map(str::to_string)).collect();
-    let sources = crate::source_snapshots::capture(root, task_id, &docs)?;
+    let sources = crate::source_snapshots::capture_task(root, task_id, card.get("sources").unwrap_or(&json!([])))?;
     let feedback = card["feedback"].as_array().into_iter().flatten().filter_map(Value::as_str).collect::<Vec<_>>().join("\n\n");
     let brief = root.join("task-inputs").join(format!("{task_id}.md"));
     fs::create_dir_all(brief.parent().unwrap()).map_err(|e| e.to_string())?;

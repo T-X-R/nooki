@@ -2,7 +2,7 @@ use crate::{capability_runtime::PlatformState, document_library};
 use serde::{Deserialize, Serialize};
 use std::{collections::{BTreeMap, BTreeSet}, fs, path::Path};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentReference {
   pub kind: String,
@@ -210,6 +210,14 @@ pub fn read_source(data_dir: &Path, grant_id: &str, document_id: &str) -> Result
   crate::user_data::ensure_restore_complete(data_dir)?;
   let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   source(read(data_dir, grant_id)?.grant, document_id)
+}
+
+// User task capture already holds task-data.lock. Retained citations do not reactivate package access.
+pub(crate) fn task_source(root: &Path, reference: &DocumentReference) -> Result<SelectedDocument, String> {
+  let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  let selected = source(read(root, &reference.grant_id)?.grant, &reference.document_id)?;
+  if selected.reference != *reference || selected.content.is_none() { return Err("Selected task reference differs from its retained snapshot".into()); }
+  Ok(selected)
 }
 
 // Authority decisions are deliberately outside the data-restore roots. Restoring an older snapshot

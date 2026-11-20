@@ -383,5 +383,128 @@ async fn combined_selected_sources_obey_the_task_input_byte_limit() {
     let mut exact=request(&handle,"exact");exact["input"]["sources"]=json!(&references[..4]);
     command(&mut worker,exact).await.unwrap();assert_eq!(disk(&root)["cards"][0]["sources"].as_array().unwrap().len(),4);
     assert!(fs::metadata(root.join("task-board.json")).unwrap().len()<10_000);
+    let sources:Vec<_>=references.iter().map(|reference|json!({"id":reference["documentId"],"title":reference["title"],"reference":reference})).collect();
+    let before=disk(&root);
+    assert!(command(&mut worker,json!({"op":"add","id":"large-goal","title":"Too large","description":"","sources":sources})).await.is_err());
+    assert_eq!(disk(&root),before);assert!(!root.join("source-snapshots/large-goal.json").exists());
+    command(&mut worker,json!({"op":"add","id":"exact-goal","title":"Exact limit","description":"","sources":&sources[..4]})).await.unwrap();
+    assert_eq!(app_lib::source_snapshots::read(&root,"exact-goal").unwrap().iter().map(|doc|doc.content.len()).sum::<usize>(),8_000_000);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn user_goal_keeps_selected_content_after_edit_revoke_and_uninstall() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root,state,worker,_,reference)=source_fixture();drop(worker);
+    state.publish_document("example.notes",app_lib::document_library::DocumentPublication {key:"minutes".into(),title:"Edited".into(),collection_key:"notes".into(),collection_name:"Notes".into(),document_date:"2026-11-20".into(),content:"Changed original".into()}).unwrap();
+    state.revoke_document_grant("selected").unwrap();state.uninstall_capability("example.notes").unwrap();
+    app_lib::library_management::change(&root,app_lib::library_management::LibraryChange::DeleteDocuments { ids:vec![reference["documentId"].as_str().unwrap().into()] }).unwrap();
+    assert!(app_lib::document_library::read_document(&root,reference["documentId"].as_str().unwrap()).is_err());
+    assert!(state.read_selected_document("example.notes","selected",reference["documentId"].as_str().unwrap()).is_err());
+    let binary=root.join("codex");fs::write(&binary,include_str!("fixtures/fake_codex.py")).unwrap();
+    fs::set_permissions(&binary,fs::Permissions::from_mode(0o755)).unwrap();
+    let mut worker=GoalWorker::new(root.clone(),binary.to_string_lossy().into());
+    let sources=json!([{"id":reference["documentId"],"title":reference["title"],"reference":reference}]);
+    command(&mut worker,json!({"op":"add","id":"selected-goal","title":"User delegated","description":"Use selected text","sources":sources})).await.unwrap();
+    let selected=app_lib::source_snapshots::source(&root,"selected-goal",reference["documentId"].as_str().unwrap()).unwrap();
+    assert_eq!(selected.content,"Original selected input");assert_eq!(selected.reference["grantId"],"selected");
+    let snapshot=fs::read(root.join("source-snapshots/selected-goal.json")).unwrap();
+    // Once captured, retry/startup must not require the old grant file or current document.
+    fs::remove_file(root.join("document-grants/selected.json")).unwrap();
+    worker.tick().await.unwrap();
+    let board=disk(&root);assert_eq!(board["cards"][0]["status"],"running");
+    let brief=fs::read_to_string(root.join("task-inputs/selected-goal.md")).unwrap();
+    assert!(brief.contains("Original selected input"));assert!(!brief.contains("Changed original"));
+    drop(worker);let mut worker=GoalWorker::new(root.clone(),binary.to_string_lossy().into());
+    command(&mut worker,json!({"op":"stop","id":"selected-goal"})).await.unwrap();
+    assert_eq!(fs::read(root.join("source-snapshots/selected-goal.json")).unwrap(),snapshot);
+    drop(worker);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn selected_goal_cannot_reuse_an_id_only_snapshot_or_fall_back_to_current_text() {
+    let (root,state,mut worker,_,reference)=source_fixture();
+    app_lib::source_snapshots::capture(&root,"old-snapshot",&[reference["documentId"].as_str().unwrap().into()]).unwrap();
+    let sources=json!([{"id":reference["documentId"],"title":reference["title"],"reference":reference}]);
+    let add=|id:&str|json!({"op":"add","id":id,"title":"Explicit user task","description":"","sources":sources});
+    assert!(command(&mut worker,add("old-snapshot")).await.is_err());
+    fs::remove_file(root.join("document-grants/selected.json")).unwrap();
+    assert!(command(&mut worker,add("missing-selection")).await.is_err());
+    assert!(!root.join("task-board.json").exists());assert!(!root.join("source-snapshots/missing-selection.json").exists());
+    drop(state);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn task_restore_and_goal_admission_reject_malformed_selected_reference_shapes() {
+    let (root,state,mut worker,handle,reference)=source_fixture();
+    command(&mut worker,sourced(&handle,"canonical",reference.clone())).await.unwrap();
+    let backup=app_lib::user_data::capture(&root,BTreeMap::new(),serde_json::to_value(state.list_capabilities().unwrap()).unwrap()).unwrap();
+    let original=disk(&root);let mut cases=vec![Value::Null,json!({})];
+    for (field,value) in [("documentId",json!("example.notes/notes/2026/11/other")),("kind",json!("artifact")),("title",json!("Forged")),("grantId",json!("../escape")),("revision",json!(4)),("snapshotId",json!("extra"))] {
+        let mut changed=reference.clone();changed[field]=value;cases.push(changed);
+    }
+    for value in cases {
+        let mut board=original.clone();board["cards"][0]["sources"][0]["reference"]=value;
+        let mut invalid=backup.clone();invalid.files.insert("task-board.json".into(),board.to_string());
+        assert!(app_lib::user_data::validate(&invalid).is_err());
+        assert!(command(&mut worker,json!({"op":"add","id":"invalid-goal","title":"Invalid","description":"","sources":board["cards"][0]["sources"]})).await.is_err());
+        assert_eq!(disk(&root),original);assert!(!root.join("source-snapshots/invalid-goal.json").exists());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn changing_a_selected_grant_with_the_same_document_id_blocks_goal_startup() {
+    let (root,state,mut worker,_,reference)=source_fixture();
+    let sources=json!([{"id":reference["documentId"],"title":reference["title"],"reference":reference}]);
+    command(&mut worker,json!({"op":"add","id":"changed-selection","title":"User task","description":"","sources":sources})).await.unwrap();
+    let before=fs::read(root.join("source-snapshots/changed-selection.json")).unwrap();
+    let replacement=state.grant_documents("example.notes",vec![reference["documentId"].as_str().unwrap().into()],"replacement").unwrap();
+    let mut board=disk(&root);board["cards"][0]["sources"][0]["reference"]=serde_json::to_value(&replacement.documents[0].reference).unwrap();
+    fs::write(root.join("task-board.json"),board.to_string()).unwrap();
+    worker.tick().await.unwrap();let card=disk(&root)["cards"][0].clone();
+    assert_eq!(card["error"],"Snapshot selection differs");assert!(card.get("threadId").is_none());
+    assert_eq!(fs::read(root.join("source-snapshots/changed-selection.json")).unwrap(),before);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn plain_goal_references_capture_current_text_once_and_legacy_snapshot_reads_still_work() {
+    let (root,state,mut worker,_,reference)=source_fixture();
+    let publish=|content:&str|app_lib::document_library::DocumentPublication {key:"minutes".into(),title:"Edited".into(),collection_key:"notes".into(),collection_name:"Notes".into(),document_date:"2026-11-20".into(),content:content.into()};
+    state.publish_document("example.notes",publish("Current at user delegation")).unwrap();
+    command(&mut worker,json!({"op":"add","id":"plain-goal","title":"Plain source","description":"","sources":[{"id":reference["documentId"],"title":"Edited"}]})).await.unwrap();
+    state.publish_document("example.notes",publish("Later edit")).unwrap();
+    worker.tick().await.unwrap();
+    let brief=fs::read_to_string(root.join("task-inputs/plain-goal.md")).unwrap();
+    assert!(brief.contains("Current at user delegation"));assert!(!brief.contains("Later edit"));
+    let saved=app_lib::source_snapshots::capture(&root,"plain-goal",&[reference["documentId"].as_str().unwrap().into()]).unwrap();
+    assert_eq!(saved[0].content,"Current at user delegation");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn existing_goal_replay_rejects_changed_selected_identity_without_an_effect() {
+    let (root,state,mut worker,_,reference)=source_fixture();
+    let mut request=json!({"op":"add","id":"replayed-goal","title":"User task","description":"","sources":[{"id":reference["documentId"],"title":reference["title"],"reference":reference}]});
+    let expected=command(&mut worker,request.clone()).await.unwrap();
+    state.revoke_document_grant("selected").unwrap();
+    assert_eq!(command(&mut worker,request.clone()).await.unwrap(),expected);
+    let before=fs::read(root.join("source-snapshots/replayed-goal.json")).unwrap();
+    request["sources"][0]["reference"]["grantId"]=json!("different-selection");
+    assert!(command(&mut worker,request).await.is_err());
+    assert_eq!(disk(&root),expected);assert_eq!(fs::read(root.join("source-snapshots/replayed-goal.json")).unwrap(),before);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn array_shaped_task_sources_are_not_deserialized_as_valid_reference_objects() {
+    let (root,state,mut worker,_,reference)=source_fixture();
+    let sources=json!([[reference["documentId"],"Incorrect title",reference]]);
+    let mut backup=app_lib::user_data::capture(&root,BTreeMap::new(),serde_json::to_value(state.list_capabilities().unwrap()).unwrap()).unwrap();
+    backup.files.insert("task-board.json".into(),json!({"cards":[{"id":"bad","title":"Bad source","description":"","status":"todo","sources":sources}]}).to_string());
+    assert!(app_lib::user_data::validate(&backup).is_err());
+    assert!(command(&mut worker,json!({"op":"add","id":"bad","title":"Bad source","description":"","sources":sources})).await.is_err());
+    assert!(!root.join("task-board.json").exists());assert!(!root.join("source-snapshots/bad.json").exists());
     fs::remove_dir_all(root).unwrap();
 }

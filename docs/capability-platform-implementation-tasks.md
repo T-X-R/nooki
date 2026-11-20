@@ -640,6 +640,9 @@ new keys must pass current source authorization. Source-free behavior and no-del
 
 ### [ ] C03b — Preserve selected snapshots in user-owned task workflows
 
+**State:** split before implementation into C03b1 (native snapshot/restore semantics) and C03b2
+(user citation UI and existing renderer delegation integration). Both are required to close C03b.
+
 **Depends on:** C03a. **Size:** M.
 **Deliver:** Task source representation and user citation opening; explicit user delegation captures
 retained selected snapshots rather than silently reading changed current documents. Existing plain
@@ -648,6 +651,33 @@ Library references retain their current behavior. Restore validation covers the 
 already-created user's task citation. New package reads remain denied. Delegation is still explicit;
 retries/resume keep their captured input. Malformed references fail without selecting a different input.
 **Verification:** Task/Goals/source snapshot tests and focused task-reference UI verification.
+
+### [x] C03b1 — Preserve selected inputs in native task snapshots and restore
+
+**State:** verified on 2026-11-20; [C03b1 evidence](capability-platform-evidence/C03b1.md),
+same branch and PR #38, pending human merge. Selected task inputs retain original grant bodies
+after edit/delete/revoke/uninstall; changed identities and malformed restore data fail closed.
+Two review findings were reproduced and fixed; the second bounded review found no further issues.
+Full regression and desktop build/install pass. C03b2/C03c and parent C03/K1 remain pending.
+
+**Depends on:** C03a. **Size:** M.
+**Deliver:** Native task-source validation and capture for selected grants alongside plain Library
+references; Goals add/prepare/brief paths retain the selected body, and restore rejects malformed
+source references. The user-owned citation path remains independent of package read authority.
+**Acceptance:** Editing/deleting the original, revoking the grant or uninstalling its package does
+not substitute current content for an existing selection. Retry preserves captured inputs; changing
+the selected reference with the same document ID conflicts. Missing/malformed snapshots fail closed.
+**Verification:** Native Goals/board, source snapshot and backup/restore tests, full regression.
+
+### [ ] C03b2 — Connect user citation opening and explicit renderer delegation
+
+**Depends on:** C03b1. **Size:** M.
+**Deliver:** Typed selected references on task cards, retained-citation opening, and native capture
+of full task sources when the user explicitly delegates an existing todo. Keep plain references
+and conversation snapshot consumers compatible; capture alone must not authorize execution.
+**Acceptance:** A real task citation opens the originally selected text after edit/revoke; explicit
+delegation supplies that text rather than a fresh ID-only read. Capture errors leave the todo idle.
+**Verification:** Focused adapter/store tests, task-reference UI and native citation/delegation checks.
 
 ### [ ] C03c — Deliver sourced creation through the public Host and exported kit
 

@@ -122,11 +122,7 @@ pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), Strin
     if card.get("queuedAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task queue position".into()); }
     if card.get("createdAt").is_some_and(|value| !value.is_u64()) { return Err("Invalid task creation date".into()); }
     if let Some(sources) = card.get("sources") {
-      let sources = sources.as_array().filter(|sources| sources.len() <= 50).ok_or("Invalid task references")?;
-      for source in sources {
-        document_library::validate_id(source["id"].as_str().ok_or("Invalid task reference")?)?;
-        if !source["title"].is_string() { return Err("Invalid task reference title".into()); }
-      }
+      crate::source_snapshots::validate_task_sources(sources)?;
     }
     if let Some(delivery) = card.get("delivery") {
       let artifacts = delivery["artifacts"].as_array().ok_or("Invalid task delivery")?;
