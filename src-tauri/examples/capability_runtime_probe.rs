@@ -95,9 +95,10 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         "extended" => for target in probe_views(app).values() {
             target.eval("void window.runExtendedProbe()").map_err(|e| e.to_string())?;
         },
-        "load" => for label in ["probe-a", "probe-b"] {
+        "load" | "ingress" => for label in ["probe-a", "probe-b"] {
             if let Some(target) = probe_views(app).get(label) {
-                target.eval("void window.runLoadProbe()").map_err(|e| e.to_string())?;
+                let script = if action == "load" { "void window.runLoadProbe()" } else { "void window.runIngressProbe()" };
+                target.eval(script).map_err(|e| e.to_string())?;
             }
         },
         "channel-seed" => {
@@ -215,6 +216,13 @@ fn main() {
     tauri::Builder::default()
         .manage(Probe { root, started: Instant::now(), events: Mutex::new(Vec::new()), ticks: Mutex::new(BTreeMap::new()), admission: admission::Admission::default() })
         .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            // Observe the already-decoded synthetic message; do not grant the command.
+            if invoke.message.command() == "probe_ingress" {
+                if let tauri::ipc::InvokeBody::Json(value) = invoke.message.payload() {
+                    let view = invoke.message.webview_ref();
+                    view.state::<Probe>().record(view.label(), json!({"transportIngress":"application-dispatch", "decodedPayloadBytes":value["payload"].as_str().map(str::len)}));
+                }
+            }
             if !policy::command_allowed(invoke.message.webview_ref().label(), invoke.message.command()) {
                 invoke.resolver.reject("command not exposed to this runtime");
                 return true;
@@ -223,11 +231,15 @@ fn main() {
             handler(invoke)
         })
         .register_uri_scheme_protocol("nookiprobe", |ctx, request| {
+            if request.uri().path() == "/budget-ingress" {
+                ctx.app_handle().state::<Probe>().record(ctx.webview_label(), json!({"transportIngress":"custom-protocol", "requestBodyBytes":request.body().len(), "method":request.method().as_str()}));
+            }
             let (status, mime, data) = match request.uri().path() {
                 "/index.html" => (200, "text/html", include_bytes!("capability_runtime_probe/assets/index.html").to_vec()),
                 "/probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/probe.js").to_vec()),
                 "/extended-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/extended-probe.js").to_vec()),
                 "/load-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/load-probe.js").to_vec()),
+                "/ingress-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/ingress-probe.js").to_vec()),
                 "/service-worker.js" => (200, "text/javascript", b"/* Synthetic registration-only fixture; no persistent work. */".to_vec()),
                 "/pixel.svg" => (200, "image/svg+xml", br##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#479"/></svg>"##.to_vec()),
                 "/tone.wav" => (200, "audio/wav", silent_wav()),

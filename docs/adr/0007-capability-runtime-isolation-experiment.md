@@ -11,6 +11,7 @@
   and [P02c bounded operation admission](../capability-platform-evidence/P02c.md)
   plus [P02d1 retained byte budgets](../capability-platform-evidence/P02d1.md)
   and [P02d2 shared and live resource budgets](../capability-platform-evidence/P02d2.md)
+  plus [P02e1 receive-path audit](../capability-platform-evidence/P02e1.md)
 
 ## Context
 
@@ -30,6 +31,13 @@ Do **not** adopt separate Tauri webviews plus CSP alone as the production securi
 existing trusted-only loader unchanged while P02b completes the supported-topology and budget decision. Do not expose new
 production transport-dependent APIs based on the experiment. This ADR records a rejected baseline,
 not approval of a replacement runtime.
+
+The current unchanged Tauri/Wry receive path also remains insufficient for a completed bounded
+runtime decision: P02e1 observes 1 MiB already decoded at application dispatch and 1 MiB already
+materialized in an asset-protocol callback, before command denial/HTTP 403. The operation-admission
+pool is never entered. P02e2 must cover receiving paths before Nooki-controlled unbounded copy/decode,
+with WebKit's own earlier allocations recorded separately. P02e3 then reconciles the full decision.
+This is a finite reproduced gap, not an observed OOM or proof that an alternative is sufficient.
 
 P02b1 closes the two reproduced routes in the disposable macOS probe: a native application-command
 allowlist rejects package calls before their handlers, and a native WebKit preference disables peer
@@ -102,7 +110,7 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
 | Existing shared renderer | Package code shares shell authority, DOM and execution environment | Remains explicitly trusted-only; cannot satisfy target containment |
 | Sandboxed iframe in shell | May separate DOM/origin, but iframe sandboxing alone does not prove independent CPU termination, native caller identity or egress denial | Not selected; no desktop containment claim without probes |
 | Separate nonpersistent WKWebViews + native broker checks + CSP | P02a proved process separation/stop and storage boundaries on macOS 15.6.1; UDP escape and broad app-command defaults were reproduced | Insufficient as tested |
-| Separate views with native engine controls and native command restrictions | P02b2b1 closes measured preconnect; P02b2b2a preserves scoped boundaries and independent stop inside one host window | Candidate only; resource budgets and SPI/platform support remain decision gates |
+| Separate views with native engine controls and native command restrictions | P02b2b1 closes measured preconnect; P02b2b2a preserves same-window boundaries; P02d measures resource policies; P02e1 confirms allocation before handler denial | Candidate requires receive-path work; unchanged transport is not approved, and SPI/platform support remains a gate |
 | Bundled sandboxed helper process | Can offer an additional OS-level boundary, but media, UI embedding, inherited IPC and WebKit network-process behavior need validation | Alternative if view-level enforcement cannot meet the design; not arbitrary package-supplied native execution |
 | Restricted JS worker/runtime with host-rendered UI | Worker termination is useful, but unrestricted React/DOM pages would need a different UI protocol and permissions model | Additional complexity; not a drop-in substitute for the accepted package experience |
 
@@ -130,6 +138,8 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
   64 KiB payload check excludes the IPC envelope
   and runs after deserialization. Neither that guard nor the finite load fixture establishes a
   pre-admission allocation bound, sustained-flood containment or fair scheduling.
+  P02e1 now provides concrete native byte-count evidence for application and asset paths; a broker-only
+  patch cannot close both. Preserve this baseline while P02e2 tests a minimal auditable receive boundary.
 - State the actual supported OS/engine matrix and explicit fail-closed behavior elsewhere. A macOS
   experiment does not establish Windows/Linux parity.
 

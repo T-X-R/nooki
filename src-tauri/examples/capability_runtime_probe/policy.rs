@@ -26,7 +26,7 @@ mod tests {
             for allowed in ["probe_rpc", "probe_identity", "probe_load", "probe_report", "probe_tick"] {
                 assert!(command_allowed(caller, allowed));
             }
-            for denied in ["probe_unguarded", "probe_host_secret", "probe_control", "future_command"] {
+            for denied in ["probe_unguarded", "probe_host_secret", "probe_control", "future_command", "probe_ingress"] {
                 assert!(!command_allowed(caller, denied), "{caller} reached {denied}");
             }
         }

@@ -298,6 +298,10 @@ successful counters alone. Repeat relevant desktop checks when changing the runt
 
 ### [ ] P02e — Reconcile runtime evidence and decide supported topology
 
+**State:** in-progress. P02e1's finite native probe confirms materialization before denial on both
+application and asset routes. Split the remaining work into P02e2 (receive-boundary experiment)
+and P02e3 (final topology audit); do not turn this finding into an accepted invariant violation.
+
 **Depends on:** P02c, P02d. **Size:** S.
 **Deliver:** Final P02 receipt, supported OS/engine and fail-closed policy, updated runtime ADR,
 and explicit production integration/compatibility requirements.
@@ -305,6 +309,44 @@ and explicit production integration/compatibility requirements.
 claim from a payload check, no platform parity inferred, and no silent fallback to a weaker boundary.
 **Likely files:** Runtime ADR, P02 receipt, checklist and support/budget decisions.
 **Verification:** Audit P02 and K0 against all receipts; retain unresolved invariants as pending.
+
+### [x] P02e1 — Audit transport allocation and reproduce pre-admission requests
+
+**State:** verified on 2026-11-20; [audit and native evidence](capability-platform-evidence/P02e1.md).
+Two same-window callers deliver 1 MiB to decoded application dispatch and to the resource-protocol
+handler before command denial/HTTP 403. This is a reproduced receive-boundary gap, not an OOM test
+or a runtime acceptance pass. P02e/P02/K0 remain pending.
+
+**Depends on:** P02c, P02d. **Deliver:** Pinned receive-path audit, finite native reproduction and
+requirement/evidence matrix. **Acceptance:** Distinguish operation admission from prior framework
+allocation; preserve the failed boundary and identify the next owning enforcement layer.
+**Verification:** Native command/asset negative requests with recorded byte counts and final denial,
+responsive host status, focused probe tests and exact engine scope.
+
+### [ ] P02e2 — Bound receiving paths before selecting the production transport
+
+**Depends on:** P02e1. **Size:** M; split if the chosen source-level change requires it.
+**Deliver:** A disposable receive-boundary experiment covering native post-message and all exposed
+custom protocols, or an alternative arrangement that closes their bypasses. Prefer the smallest
+auditable integration; do not introduce runtime method swizzling or silently weaken isolation.
+**Acceptance:** Size/rate/queue policy applies before Nooki-controlled unbounded copy or decoding;
+include asset methods, URLs/headers, streamed bodies, malformed data and cancellation. Account
+separately for WebKit/native allocations already made before callbacks. If that still violates the
+host-availability invariant, retain the failure and evaluate a stronger arrangement.
+**Verification:** Small valid calls/assets still work; oversized/overload routes fail at the intended
+boundary on the desktop with source-backed instrumentation; native identity and independent stop
+remain valid. Preserve P02e1's baseline. No hard RSS bound inferred from a length check.
+
+### [ ] P02e3 — Record the complete feasibility and support decision
+
+**Depends on:** P02e2. **Size:** S.
+**Deliver:** Final P02 receipt and runtime ADR, including encoding-aware wire/chunk budgets,
+tested-engine support, unavailable-control behavior and production owners for each boundary.
+**Acceptance:** Every P02 invariant has evidence and a feasible path. Keep K0 closed when the
+receive-boundary or another required property is unresolved; unsupported engines fail closed for
+the new runtime without making ordinary retained user data inaccessible.
+**Verification:** Reconcile the complete P02 evidence matrix and current source before checking
+P02e, its parents or K0. Production gates still require the actual application implementations.
 
 ### [ ] K0 — Preparation gate
 
