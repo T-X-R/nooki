@@ -8,6 +8,7 @@
   extended by [P02b2a channels and playback](../capability-platform-evidence/P02b2a.md)
   and [P02b2b1 pre-creation controls](../capability-platform-evidence/P02b2b1.md)
   plus [P02b2b2a same-window integration](../capability-platform-evidence/P02b2b2a.md)
+  and [P02c bounded operation admission](../capability-platform-evidence/P02c.md)
 
 ## Context
 
@@ -60,6 +61,15 @@ their scoped results. A's audio advances while its view is hidden; after an inte
 closing A removes its WebContent process while the host and B remain usable. This is a feasible
 fixed-pane integration experiment, not production layout or full resource-budget acceptance.
 
+P02c adds native operation admission in the disposable probe: 64 KiB per request, four operations
+per caller, six globally and 256 KiB of admitted payloads globally, with immediate capacity refusal.
+Two real same-window callers reach both aggregate peaks; accepted responses are exact, errors
+return capacity, subsequent calls succeed and the host remains usable. These are prototype quotas.
+Tauri has already allocated/decoded the payload when admission runs; this does not bound transport
+memory or sustained flooding. Explicit future-abort release has a unit test, but view removal is
+not yet wired to native-operation cancellation. Fairness is unproven. P02d/P02e retain the remaining
+resource policies and topology decision; this slice does not clear P02 or K0.
+
 The extended fixture demonstrated actual silent-audio playback advancing while its window lost
 focus, followed by pause and empty media state. It did not prove audible output, arbitrary codec
 support, seamless looping/seek, service lifetime across page destruction, or native descriptor cleanup.
@@ -94,9 +104,10 @@ support, seamless looping/seek, service lifetime across page destruction, or nat
   by webview, not its containing window. Tauri child views require the opt-in unstable feature;
   production resize, modal/focus/IME behavior and service lifetime across page destruction remain
   implementation work. Private process IDs remain diagnostic, never the termination mechanism.
-- Measure message/transfer, storage, concurrency and queue limits. The initial 64 KiB payload check
-  excludes the IPC envelope, runs after deserialization and is not a memory-allocation bound. The twelve IPC samples and process
-  RSS observations are insufficient for the full resource-budget decision.
+- Finish transfer, storage, event/run/service and queue limits in P02d, then reconcile them in P02e.
+  P02c supplies measured operation admission, but its 64 KiB payload check excludes the IPC envelope
+  and runs after deserialization. Neither that guard nor the finite load fixture establishes a
+  pre-admission allocation bound, sustained-flood containment or fair scheduling.
 - State the actual supported OS/engine matrix and explicit fail-closed behavior elsewhere. A macOS
   experiment does not establish Windows/Linux parity.
 

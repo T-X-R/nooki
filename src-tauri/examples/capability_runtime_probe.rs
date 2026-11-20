@@ -1,6 +1,8 @@
 //! Disposable macOS WKWebView experiment. No Nooki services or user data are loaded.
 #[path = "capability_runtime_probe/policy.rs"]
 mod policy;
+#[path = "capability_runtime_probe/admission.rs"]
+mod admission;
 #[cfg(target_os = "macos")]
 #[path = "capability_runtime_probe/native_configuration.rs"]
 mod native_configuration;
@@ -25,6 +27,7 @@ struct Probe {
     started: Instant,
     events: Mutex<Vec<Value>>,
     ticks: Mutex<BTreeMap<String, u64>>,
+    admission: admission::Admission,
 }
 
 impl Probe {
@@ -45,6 +48,16 @@ fn probe_rpc(window: Webview, owner: String, payload: String) -> Result<String, 
 #[tauri::command]
 fn probe_identity(window: Webview) -> Value {
     json!({"view": window.label(), "window": window.window().label()})
+}
+
+#[tauri::command]
+async fn probe_load(window: Webview, payload: String, state: State<'_, Probe>) -> Result<Value, String> {
+    // Tauri has already decoded this request. This bounds admitted operation payloads,
+    // not browser allocations, transport buffers or the framework's pre-dispatch queue.
+    let _permit = state.admission.acquire(window.label(), payload.len()).map_err(str::to_owned)?;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    if payload == "synthetic-failure" { return Err("synthetic operation failed".into()); }
+    Ok(json!({"bytes": payload.len(), "checksum": payload.bytes().map(u64::from).sum::<u64>()}))
 }
 
 // Intentionally unguarded synthetic sentinel: measures Tauri's default app-command exposure.
@@ -82,6 +95,11 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         "extended" => for target in probe_views(app).values() {
             target.eval("void window.runExtendedProbe()").map_err(|e| e.to_string())?;
         },
+        "load" => for label in ["probe-a", "probe-b"] {
+            if let Some(target) = probe_views(app).get(label) {
+                target.eval("void window.runLoadProbe()").map_err(|e| e.to_string())?;
+            }
+        },
         "channel-seed" => {
             if state.events.lock().unwrap().iter().any(|event| matches!(event["value"]["action"].as_str(), Some("run" | "channel-seed"))) {
                 return Err("Run the channel probe once, before boundary probes, on a fresh profile".into());
@@ -117,7 +135,7 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         },
         _ => return Err("unknown probe action".into()),
     }
-    let result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "views": probe_views(app).keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap()});
+    let result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "views": probe_views(app).keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap(), "admission": state.admission.snapshot()});
     state.record("native", result.clone());
     Ok(result)
 }
@@ -195,13 +213,13 @@ fn main() {
     let mut context = tauri::generate_context!("examples/capability_runtime_probe/tauri.conf.json");
     app_profile::configure(context.config_mut(), |key| std::env::var_os(key)).expect("isolated profile configuration");
     tauri::Builder::default()
-        .manage(Probe { root, started: Instant::now(), events: Mutex::new(Vec::new()), ticks: Mutex::new(BTreeMap::new()) })
+        .manage(Probe { root, started: Instant::now(), events: Mutex::new(Vec::new()), ticks: Mutex::new(BTreeMap::new()), admission: admission::Admission::default() })
         .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
             if !policy::command_allowed(invoke.message.webview_ref().label(), invoke.message.command()) {
                 invoke.resolver.reject("command not exposed to this runtime");
                 return true;
             }
-            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![probe_rpc, probe_identity, probe_unguarded, probe_host_secret, probe_report, probe_tick, probe_control];
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![probe_rpc, probe_identity, probe_load, probe_unguarded, probe_host_secret, probe_report, probe_tick, probe_control];
             handler(invoke)
         })
         .register_uri_scheme_protocol("nookiprobe", |ctx, request| {
@@ -209,6 +227,7 @@ fn main() {
                 "/index.html" => (200, "text/html", include_bytes!("capability_runtime_probe/assets/index.html").to_vec()),
                 "/probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/probe.js").to_vec()),
                 "/extended-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/extended-probe.js").to_vec()),
+                "/load-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/load-probe.js").to_vec()),
                 "/service-worker.js" => (200, "text/javascript", b"/* Synthetic registration-only fixture; no persistent work. */".to_vec()),
                 "/pixel.svg" => (200, "image/svg+xml", br##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#479"/></svg>"##.to_vec()),
                 "/tone.wav" => (200, "audio/wav", silent_wav()),

@@ -215,6 +215,10 @@ control, page switching, playback, network receiver controls and child process e
 
 ### [ ] P02b2b2b — Measure resource bounds and record the supported topology
 
+**State:** in-progress; split into P02c (IPC admission), P02d (retained-resource bounds) and
+P02e (supported-topology decision) before adding load fixtures. Short sibling IDs avoid further
+nesting; all three remain children of this delivery, and no single measurement clears K0.
+
 **Depends on:** P02b2b2a. **Size:** M; split only if the actual scope requires it.
 **Deliver:** Representative boundary-load fixtures, initial limits for required resource classes,
 and a supported-engine/failure policy with explicit production integration work.
@@ -223,6 +227,45 @@ containment or a successful private selector with broad engine support. No unlim
 **Likely files:** Probe budget fixture/tests, P02 receipt, runtime ADR and compatibility decisions.
 **Verification:** Boundary/failure loads and desktop responsiveness; complete P02/K0 only if every
 parent acceptance item has a feasible and documented path.
+
+### [x] P02c — Measure bounded IPC admission under concurrent load
+
+**State:** verified on 2026-11-20; [receipt and raw events](capability-platform-evidence/P02c.md),
+same branch and PR #38, pending human merge. Two same-window callers reach six operations and
+256 KiB admitted payloads; excess work is refused, checksums and post-failure recovery pass,
+and final capacity is zero. Explicit future-abort release is unit-tested, not inferred from view
+closure. Pre-dispatch allocation bounds and fairness remain unproven; P02/K0 stay pending.
+
+**Depends on:** P02b2b2a. **Size:** M, bounded experiment.
+**Deliver:** Native caller-scoped admission with per-request, per-caller and aggregate in-flight
+limits, immediate overload rejection, and a synthetic concurrent desktop fixture.
+**Acceptance:** Boundary-sized work succeeds; oversized/over-capacity work fails without entering
+the measured operation; permits release on success/error/cancellation; peers and host management
+stay responsive during load. Record transport allocation limits separately from admitted work.
+**Likely files:** Probe admission module/tests, native load command, load fixture, probe controls.
+**Verification:** Deterministic saturation/release tests and V-N with two callers and real IPC.
+
+### [ ] P02d — Measure retained-resource budgets with representative fixtures
+
+**Depends on:** P02c. **Size:** M; split only if actual scope requires it.
+**Deliver:** Boundary-load evidence and proposed limits for archive expansion, private storage,
+binary transfer, queued events, concurrent runs and live service handles, with explicit owning
+production tasks. Use actual bounded data and ownership cleanup rather than counters alone.
+**Acceptance:** Rejection preserves previous state; released/cancelled work returns capacity;
+representative assets fit; every resource has a bounded policy and an implementation/verification owner.
+**Likely files:** Resource-load fixture, probe resource owner/tests, budget evidence table.
+**Verification:** Boundary and failure cases with measured data sizes; distinguish prototype
+enforcement from services to be delivered in C01–T08.
+
+### [ ] P02e — Reconcile runtime evidence and decide supported topology
+
+**Depends on:** P02c, P02d. **Size:** S.
+**Deliver:** Final P02 receipt, supported OS/engine and fail-closed policy, updated runtime ADR,
+and explicit production integration/compatibility requirements.
+**Acceptance:** Every parent invariant has evidence and a feasible path; no hard memory-containment
+claim from a payload check, no platform parity inferred, and no silent fallback to a weaker boundary.
+**Likely files:** Runtime ADR, P02 receipt, checklist and support/budget decisions.
+**Verification:** Audit P02 and K0 against all receipts; retain unresolved invariants as pending.
 
 ### [ ] K0 — Preparation gate
 
