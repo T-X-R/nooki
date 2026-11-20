@@ -72,7 +72,7 @@ preview Host, starter check script, `tests/developer-kit.test.ts`.
 **State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
 [ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
 Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
-The [latest unlocked-Mac recheck](capability-platform-evidence/P02-recheck.md) passes channel ownership,
+The [latest resumed native check](capability-platform-evidence/P02-resume.md) passes channel ownership,
 both receive boundaries, removal during pressure, hidden playback/release and infinite-loop removal.
 It preserves the prototype/production distinction and does not advance later gates.
 
@@ -219,6 +219,10 @@ The [subsequent same-window recheck](capability-platform-evidence/P02-recheck.md
 native runs: 124/124 peer calls around pressure removal, zero reserved receive resources afterward,
 and separate uncapped evidence for hidden playback, both media releases and infinite-loop removal.
 The pressure trace reaches its 256-event cap; conclusions are restricted to retained samples.
+The [resumed verification](capability-platform-evidence/P02-resume.md) adds fresh 256/45-event runs:
+removal 21,232 ms into pressure, 112/112 retained peer successes, zero post-removal reservations,
+and uncapped hidden-media/release/loop-removal evidence. Eleven probe tests and the committed-source
+desktop rebuild/reinstall pass. Unfinished C02b changes are excluded; later gates remain pending.
 
 **Depends on:** P02b2b1. **Size:** M, bounded experiment.
 **Deliver:** Opt-in embedded probe using native Webview caller identity, view-scoped core permissions,
