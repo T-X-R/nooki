@@ -1,5 +1,6 @@
 pub mod task_goals;
 pub(crate) mod capability_board;
+pub mod capability_host;
 pub mod app_profile;
 mod app_update;
 mod desktop_pet;
@@ -475,6 +476,11 @@ async fn task_board_command(request: serde_json::Value, state: tauri::State<'_, 
 }
 
 #[tauri::command]
+async fn capability_board_create(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  capability_host::board_create(&state, webview.label(), request).await
+}
+
+#[tauri::command]
 async fn task_board_read(state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
   task_worker::request(state.data_dir(), serde_json::json!({"op":"read"})).await
 }
@@ -598,6 +604,7 @@ pub fn run() {
       tasks_read,
       tasks_write,
       task_board_read, task_board_write, task_board_command, task_board_choose_directory,
+      capability_board_create,
       task_cancel_invocation,
       capability_broker_ready,
       capability_broker_respond,

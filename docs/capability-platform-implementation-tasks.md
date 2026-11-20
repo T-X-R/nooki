@@ -490,6 +490,9 @@ revoke/worker races, plus existing board regressions. Public Host/UI delivery re
 
 ### [ ] C01c — Connect authorized Host mutation requests and document the contract
 
+**State:** in-progress, split into C01c1/C01c2 to verify the native admission boundary before
+shipping the controller, public SDK and independently exported package together.
+
 **Depends on:** C01b. **Size:** M; split if public delivery requires it.
 **Deliver:** Trusted-controller issuance, bounded Host adapter, canonical error/idempotency types,
 kit/Skill updates and actual desktop verification. Package requests cannot choose owner or grants.
@@ -497,6 +500,34 @@ kit/Skill updates and actual desktop verification. Package requests cannot choos
 public preview reports unsupported desktop operations; disabling invalidates the old caller.
 **Verification:** V-P, exported-kit checks and native negative cases. C03 owns the completed public
 board workflow/UI; do not mark C01 complete from C01a alone.
+
+### [x] C01c1 — Enforce manifest policy and bind native board admission to the caller
+
+**State:** verified on 2026-11-20; [native adapter and policy evidence](capability-platform-evidence/C01c1.md).
+Real worker creation/replay/denial and complete regressions pass; desktop build/install verified.
+Tauri injection is source-inspected here; actual public package/desktop dispatch remains C01c2.
+Same branch and PR #38, pending human merge. C01c/C01 remain incomplete.
+
+**Depends on:** C01b. **Size:** M.
+**Deliver:** Native `board.create` permission checks at issuance and commit, a strict native adapter
+using Tauri-injected caller identity, bounded request admission and structured errors.
+**Acceptance:** Missing manifest permission cannot receive authority; request fields cannot choose
+owner/caller/operation/grants; actual worker creation/replay works and foreign/revoked handles fail.
+Transport uncertainty remains distinct from rejection and native details do not leak to packages.
+**Verification:** Native policy/adapter/worker tests, existing regressions and desktop build/install.
+This increment exposes no issuance endpoint or public Host method; desktop package acceptance stays C01c2.
+
+### [ ] C01c2 — Deliver the controller, public Host and exported development kit
+
+**Depends on:** C01c1. **Size:** M; split only if the concrete integration requires it.
+**Deliver:** Host-controlled grant issuance and release, public board adapter and canonical
+permission/error/idempotency types, versioned SDK/kit/Skill and an independent package fixture.
+**Acceptance:** Host-selected installation and permission approval govern issuance; the package
+operation cannot select an owner or grant. Preview reports `UNSUPPORTED_SERVICE`. Actual desktop
+creation/replay/conflict, denied permission, disable and stale caller cases pass through the archive.
+Keep the legacy shared-realm trusted-only limitation explicit; R02 owns isolated caller containment.
+**Verification:** V-P, exported-kit check/pack and V-N. Record native Tauri caller injection and
+the public path, not just direct Rust calls, before closing C01c or C01.
 
 ### [ ] C02 — Let a capability select and read authorized document snapshots
 

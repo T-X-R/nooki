@@ -63,6 +63,8 @@ pub enum CapabilityPermission {
   DocumentsPublish,
   #[serde(rename = "documents.read-selected")]
   DocumentsReadSelected,
+  #[serde(rename = "board.create")]
+  BoardCreate,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -125,11 +127,14 @@ impl PlatformState {
   pub fn data_dir(&self) -> &Path { &self.data_dir }
 
   /// Trusted native controller only: calling this method is the board-create grant decision.
-  /// C01c must bind this controller to host approval/manifest policy; do not expose it to packages.
+  /// Manifest permission is necessary, not user approval. Do not expose this method to packages.
   pub fn grant_board_creation(&self, caller: &str, id: &str, expected_version: &str) -> Result<String, String> {
     let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
     let installed = registry.capabilities.iter().find(|item| item.manifest.id == id && item.enabled && item.manifest.version == expected_version)
       .ok_or("PERMISSION_DENIED: installation is not active at the expected version")?;
+    if !installed.manifest.permissions.contains(&CapabilityPermission::BoardCreate) {
+      return Err("PERMISSION_DENIED: capability requires board.create".into());
+    }
     let version = installed.manifest.version.clone();
     if !registry.generations.contains_key(id) {
       let next = registry.clone();
@@ -472,6 +477,7 @@ impl CapabilityPermission {
       Self::CodexSessionsRead => "codex.sessions.read",
       Self::DocumentsPublish => "documents.publish",
       Self::DocumentsReadSelected => "documents.read-selected",
+      Self::BoardCreate => "board.create",
     }
   }
 }
@@ -556,7 +562,8 @@ impl CapabilityRegistry {
   fn accepts(&self, context: &crate::capability_authority::InvocationContext) -> bool {
     self.generations.get(&context.capability_id) == Some(&context.generation)
       && self.capabilities.iter().any(|item| item.manifest.id == context.capability_id
-        && item.manifest.version == context.capability_version && item.enabled)
+        && item.manifest.version == context.capability_version && item.enabled
+        && item.manifest.permissions.contains(&CapabilityPermission::BoardCreate))
   }
 }
 

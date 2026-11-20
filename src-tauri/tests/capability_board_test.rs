@@ -1,5 +1,5 @@
 #![cfg(unix)]
-use app_lib::{capability_runtime::{CapabilityEntrypoint, CapabilityManifest, PlatformState}, task_goals::GoalWorker};
+use app_lib::{capability_runtime::{CapabilityEntrypoint, CapabilityManifest, CapabilityPermission, PlatformState}, task_goals::GoalWorker};
 use serde_json::{json,Value};
 use std::{collections::BTreeMap, fs, path::{Path,PathBuf}, sync::atomic::{AtomicU64,Ordering}};
 
@@ -7,7 +7,7 @@ fn fixture() -> (PathBuf,PlatformState,GoalWorker,String) {
     static NEXT:AtomicU64=AtomicU64::new(0);
     let root=std::env::temp_dir().join(format!("nooki-board-create-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
     let state=PlatformState::load(root.clone()).unwrap();
-    state.install_capability(CapabilityManifest {id:"example.notes".into(),version:"0.1.0".into(),name:"Notes".into(),description:String::new(),locales:BTreeMap::new(),entrypoints:vec![CapabilityEntrypoint::Page],permissions:vec![],min_platform_version:"0.1.0".into()}).unwrap();
+    state.install_capability(CapabilityManifest {id:"example.notes".into(),version:"0.1.0".into(),name:"Notes".into(),description:String::new(),locales:BTreeMap::new(),entrypoints:vec![CapabilityEntrypoint::Page],permissions:vec![CapabilityPermission::BoardCreate],min_platform_version:"0.1.0".into()}).unwrap();
     let handle=state.grant_board_creation("native-a","example.notes","0.1.0").unwrap();
     let worker=GoalWorker::new(root.clone(),"/missing-agent-must-not-start".into());
     (root,state,worker,handle)
@@ -192,6 +192,44 @@ impl NativeWorker {
     }
 }
 impl Drop for NativeWorker {fn drop(&mut self) {let _=self.0.kill();let _=self.0.wait();}}
+
+#[tokio::test]
+async fn host_adapter_binds_native_caller_and_rejects_package_selected_authority() {
+    use app_lib::capability_host::board_create;
+    let (root,state,worker,handle)=fixture();drop(worker);
+    let native=NativeWorker::start(&root).await;
+    let request=json!({"handle":handle,"key":"host-create","input":{"title":"Host request"}});
+    for field in ["caller","capabilityId","generation","permissions","op","resource"] {
+        let mut forged=request.clone();forged[field]=json!("native-a");
+        let error=board_create(&state,"native-a",forged).await.unwrap_err();
+        assert_eq!(serde_json::to_value(error).unwrap()["code"],"INVALID_INPUT");
+    }
+    let denied=board_create(&state,"native-b",request.clone()).await.unwrap_err();
+    assert_eq!(serde_json::to_value(denied).unwrap()["code"],"PERMISSION_DENIED");
+    assert!(!root.join("task-board.json").exists());
+    let result=board_create(&state,"native-a",request.clone()).await.unwrap();
+    assert_eq!(board_create(&state,"native-a",request.clone()).await.unwrap(),result);
+    assert_eq!(disk(&root)["cards"].as_array().unwrap().len(),1);
+    assert_eq!(disk(&root)["cards"][0]["provenance"]["capabilityId"],"example.notes");
+    let mut changed=request.clone();changed["input"]["title"]=json!("Different");
+    assert_eq!(serde_json::to_value(board_create(&state,"native-a",changed).await.unwrap_err()).unwrap()["code"],"CONFLICT");
+    state.set_capability_enabled("example.notes",false).unwrap();
+    assert_eq!(serde_json::to_value(board_create(&state,"native-a",request).await.unwrap_err()).unwrap()["code"],"PERMISSION_DENIED");
+    drop(native);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn host_adapter_refuses_invalid_payloads_before_contacting_the_worker() {
+    use app_lib::capability_host::board_create;
+    let (root,state,worker,handle)=fixture();drop(worker); // No worker is started for invalid input.
+    for input in [json!({"title":""}),json!({"title":"OK","authorization":{}}),json!({"title":"OK","description":"🎵".repeat(20_000)})] {
+        let request=json!({"handle":handle,"key":"invalid","input":input});
+        let error=board_create(&state,"native-a",request).await.unwrap_err();
+        assert_eq!(serde_json::to_value(error).unwrap()["code"],"INVALID_INPUT");
+    }
+    assert!(!root.join("task-worker.sock").exists());assert!(!root.join("task-board.json").exists());
+    fs::remove_dir_all(root).unwrap();
+}
 
 #[tokio::test]
 async fn actual_worker_replays_concurrent_calls_and_lost_replies_after_worker_restart() {

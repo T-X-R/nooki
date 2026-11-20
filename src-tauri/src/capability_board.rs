@@ -54,8 +54,7 @@ pub(crate) fn validate(board: &Value) -> Result<(), String> {
     Ok(())
 }
 
-// Called with the worker's task-data lock already held. Only the synchronous effect holds authority.
-pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<Value, String> {
+fn parse_request(request: Value) -> Result<Request, String> {
     if serde_json::to_vec(&request).map_err(|e|e.to_string())?.len() > 65_536 { return Err("INVALID_INPUT: board request exceeds 64 KiB".into()); }
     let request: Request = serde_json::from_value(request).map_err(|_| "INVALID_INPUT: invalid board create request")?;
     if request.op != CREATE || request.key.is_empty() || request.key.len() > 128 || request.key.chars().any(char::is_control)
@@ -63,6 +62,16 @@ pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<V
         return Err("INVALID_INPUT: invalid board create content or key".into());
     }
     if !request.input.sources.is_empty() { return Err("UNSUPPORTED_SERVICE: authorized board source snapshots are not available yet".into()); }
+    Ok(request)
+}
+
+pub(crate) fn validate_request(request: &Value) -> Result<(), String> {
+    parse_request(request.clone()).map(|_| ())
+}
+
+// Called with the worker's task-data lock already held. Only the synchronous effect holds authority.
+pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<Value, String> {
+    let request = parse_request(request)?;
     crate::capability_runtime::with_worker_board_authority(root, &request.caller, &request.handle, "board.create", "board", |context| {
         let key = hash(&(&context.capability_id, "board.create", &request.key))?;
         let payload_hash = hash(&request.input)?;

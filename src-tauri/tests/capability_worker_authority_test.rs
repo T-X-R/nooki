@@ -1,12 +1,12 @@
 #![cfg(unix)]
-use app_lib::{capability_runtime::{CapabilityEntrypoint, CapabilityManifest, PlatformState, with_worker_board_authority}, capability_authority::InvocationContext};
+use app_lib::{capability_runtime::{CapabilityEntrypoint, CapabilityManifest, CapabilityPermission, PlatformState, with_worker_board_authority}, capability_authority::InvocationContext};
 use std::{collections::BTreeMap, fs, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{atomic::{AtomicU64, Ordering}, Arc, mpsc}, time::{Duration, Instant}};
 
 fn fixture() -> (PathBuf, PlatformState) {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let root = std::env::temp_dir().join(format!("nooki-worker-authority-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
     let state = PlatformState::load(root.clone()).unwrap();
-    state.install_capability(CapabilityManifest { id:"example.notes".into(), version:"0.1.0".into(), name:"Notes".into(), description:String::new(), locales:BTreeMap::new(), entrypoints:vec![CapabilityEntrypoint::Page], permissions:vec![], min_platform_version:"0.1.0".into() }).unwrap();
+    state.install_capability(CapabilityManifest { id:"example.notes".into(), version:"0.1.0".into(), name:"Notes".into(), description:String::new(), locales:BTreeMap::new(), entrypoints:vec![CapabilityEntrypoint::Page], permissions:vec![CapabilityPermission::BoardCreate], min_platform_version:"0.1.0".into() }).unwrap();
     (root, state)
 }
 fn issue(state: &PlatformState) -> String { state.grant_board_creation("native-a", "example.notes", "0.1.0").unwrap() }
@@ -27,6 +27,18 @@ fn worker_checks_current_authority_without_loading_a_new_host() {
     }
     state.revoke_board_invocation("native-a", &handle).unwrap();
     assert!(read(&root, &handle).is_err());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn worker_requires_current_manifest_permission_even_if_generation_is_unchanged() {
+    let (root,state)=fixture();let handle=issue(&state);
+    let path=root.join("installed-capabilities/capability-registry.json");
+    let mut registry:serde_json::Value=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    registry["capabilities"][0]["manifest"]["permissions"]=serde_json::json!([]);
+    // Simulate a restored registry that retained its generation but not this permission.
+    fs::write(path,serde_json::to_vec(&registry).unwrap()).unwrap();
+    assert!(read(&root,&handle).unwrap_err().starts_with("PERMISSION_DENIED:"));
     fs::remove_dir_all(root).unwrap();
 }
 

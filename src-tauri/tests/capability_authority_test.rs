@@ -1,4 +1,4 @@
-use app_lib::capability_runtime::{CapabilityEntrypoint, CapabilityManifest, PlatformState};
+use app_lib::capability_runtime::{CapabilityEntrypoint, CapabilityManifest, CapabilityPermission, PlatformState};
 use std::{collections::BTreeMap, fs, path::PathBuf, sync::{Arc, atomic::{AtomicU64, Ordering}, mpsc}, time::Duration};
 
 fn fixture() -> (PathBuf, PlatformState) {
@@ -9,9 +9,21 @@ fn fixture() -> (PathBuf, PlatformState) {
     (root, state)
 }
 fn manifest() -> CapabilityManifest {
-    CapabilityManifest { id:"example.notes".into(), version:"0.1.0".into(), name:"Notes".into(), description:String::new(), locales:BTreeMap::new(), entrypoints:vec![CapabilityEntrypoint::Page], permissions:vec![], min_platform_version:"0.1.0".into() }
+    CapabilityManifest { id:"example.notes".into(), version:"0.1.0".into(), name:"Notes".into(), description:String::new(), locales:BTreeMap::new(), entrypoints:vec![CapabilityEntrypoint::Page], permissions:vec![CapabilityPermission::BoardCreate], min_platform_version:"0.1.0".into() }
 }
 fn issue(state: &PlatformState) -> String { state.grant_board_creation("native-a", "example.notes", "0.1.0").unwrap() }
+
+#[test]
+fn controller_cannot_grant_board_creation_without_manifest_permission() {
+    let (root, state) = fixture();
+    let mut package = manifest(); package.permissions.clear();
+    state.update_capability(package).unwrap();
+    let before = fs::read(root.join("capability-invocations.json")).unwrap();
+    assert!(state.grant_board_creation("native-a", "example.notes", "0.1.0")
+        .unwrap_err().starts_with("PERMISSION_DENIED:"));
+    assert_eq!(fs::read(root.join("capability-invocations.json")).unwrap(), before);
+    fs::remove_dir_all(root).unwrap();
+}
 fn read(state: &PlatformState, handle: &str) -> Result<app_lib::capability_authority::InvocationContext, String> {
     state.with_board_authority("native-a", handle, "board.create", "board", |context| Ok(context.clone()))
 }
