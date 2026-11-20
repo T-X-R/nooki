@@ -96,12 +96,40 @@ attempts and host/peer responsiveness while one fixture is unresponsive; failure
 
 ### [ ] P02b — Decide topology and budgets from measured constraints
 
+**State:** in-progress; split into P02b1/P02b2 before refining the probe. The original
+failed P02a evidence remains the baseline; neither child alone clears K0.
+
 **Depends on:** P02a. **Size:** S.
 **Deliver:** Runtime ADR comparing viable alternatives and evidence receipt with initial limits.
 **Acceptance:** Identify a feasible approach or concrete unmet invariants; include media/assets/IPC,
 termination and network results, tested OS scope, remaining production-integration risks and next step.
 **Likely files:** Runtime ADR, P02 receipt, probe refinements only where needed to resolve findings.
 **Verification:** V-N repeatable probes; K0 stays pending if any design invariant lacks a feasible path.
+
+### [x] P02b1 — Reprobe native command denial and engine-level egress controls
+
+**State:** verified on 2026-11-20; [native receipt](capability-platform-evidence/P02b1.md),
+same branch and PR #38, pending human merge. The reproduced app-command and WebRTC routes are
+closed in this probe; private SPI and remaining channels/budgets still require P02b2. K0 is pending.
+
+**Depends on:** P02a. **Size:** M, bounded experiment.
+**Deliver:** Restrict package application commands at native dispatch and configure the engine before
+package navigation; retain an unrestricted synthetic control and receiver positive controls.
+**Acceptance:** Previously reachable app commands fail for package callers while allowed RPC works;
+WebRTC receiver evidence shows whether the engine control closes UDP; unsupported native controls
+prevent package loading. Record private-API and remaining network-coverage limitations explicitly.
+**Likely files:** Native probe, probe policy/test, hostile fixture, evidence receipt and runtime ADR.
+**Verification:** Focused policy tests and V-N on the actual desktop engine, preserving failed traces.
+
+### [ ] P02b2 — Resolve the remaining runtime arrangement and resource budgets
+
+**Depends on:** P02b1. **Size:** M, split further if needed.
+**Deliver:** Measured embedding/navigation, playback/cleanup, extended network probes and limits;
+an evidence-backed topology decision with support/failure policy.
+**Acceptance:** All P02 invariants have a feasible path, or each unresolved invariant is recorded with
+the next experiment; private API availability alone is not a supported-platform guarantee.
+**Likely files:** Probe fixtures/adapters, focused tests, P02 receipt and runtime ADR.
+**Verification:** V-N including actual playback and forced termination; K0 remains pending on failure.
 
 ### [ ] K0 — Preparation gate
 

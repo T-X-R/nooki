@@ -4,6 +4,7 @@
 - Date: 2026-11-20
 - Design authority: [Capability platform, runtime policy](../capability-platform-design.md#8-runtime-policy-and-limits)
 - Evidence: [P02a desktop experiment](../capability-platform-evidence/P02a.md)
+  and [P02b1 native controls](../capability-platform-evidence/P02b1.md)
 
 ## Context
 
@@ -24,6 +25,12 @@ existing trusted-only loader unchanged while P02b resolves the two failures. Do 
 production transport-dependent APIs based on the experiment. This ADR records a rejected baseline,
 not approval of a replacement runtime.
 
+P02b1 closes the two reproduced routes in the disposable macOS probe: a native application-command
+allowlist rejects package calls before their handlers, and a native WebKit preference disables peer
+connections before package navigation. The restricted receivers recorded no TCP/UDP attempts while
+the permissive control recorded four TCP connections and eight UDP packets. This is evidence for a
+candidate, not a complete egress or production-support claim. P02b2 must finish the decision.
+
 ## Alternatives under evaluation
 
 | Arrangement | Evidence or constraint | Current disposition |
@@ -31,16 +38,19 @@ not approval of a replacement runtime.
 | Existing shared renderer | Package code shares shell authority, DOM and execution environment | Remains explicitly trusted-only; cannot satisfy target containment |
 | Sandboxed iframe in shell | May separate DOM/origin, but iframe sandboxing alone does not prove independent CPU termination, native caller identity or egress denial | Not selected; no desktop containment claim without probes |
 | Separate nonpersistent WKWebViews + native broker checks + CSP | P02a proved process separation/stop and storage boundaries on macOS 15.6.1; UDP escape and broad app-command defaults were reproduced | Insufficient as tested |
-| Separate views with native engine-level network restrictions and complete native command denial | Could preserve DOM-based package UI while closing the reproduced routes | Next experiment; must fail closed where the engine cannot enforce policy, and must account for API availability/support |
+| Separate views with native engine controls and native command restrictions | P02b1 closes the reproduced WebRTC route and application-command exposure; missing SPI prevents package navigation; normal RPC/assets and forced stop still work | Candidate only: private SPI support policy, additional network channels, internal IPC exceptions, embedding/playback and resource limits remain to be proven |
 | Bundled sandboxed helper process | Can offer an additional OS-level boundary, but media, UI embedding, inherited IPC and WebKit network-process behavior need validation | Alternative if view-level enforcement cannot meet the design; not arbitrary package-supplied native execution |
 | Restricted JS worker/runtime with host-rendered UI | Worker termination is useful, but unrestricted React/DOM pages would need a different UI protocol and permissions model | Additional complexity; not a drop-in substitute for the accepted package experience |
 
 ## Decisions still required
 
-- Test a native egress boundary against the reproduced WebRTC path and additional HTTP, navigation,
-  frame/worker, DNS-prefetch and connection routes; retain permissive positive controls.
+- Extend P02b1's WebRTC and HTTP receiver coverage to navigation, frame/worker, DNS-prefetch and other
+  connection routes; retain permissive positive controls. A missing constructor alone is not proof.
 - Deny package calls to all application/core/plugin commands except the narrow broker. Native caller
   identity must come from the receiving runtime, never a supplied package ID.
+  P02b1's application dispatcher does not intercept core/plugin commands. Those use Tauri ACLs;
+  inspect and test framework-internal exceptions as well (including channel fetch) before claiming
+  complete native denial in R02. No production application or third-party plugins run in the probe.
 - Prove embedding or navigation arrangements, real media playback/cleanup, and forced stop without
   relying on private diagnostic process IDs as the production termination mechanism.
 - Measure message/transfer, storage, concurrency and queue limits. The initial 64 KiB payload check
@@ -62,6 +72,13 @@ The experiment uses the pinned 2.12.5 implementation. [WebviewWindowBuilder](htt
 WebKit's own MiniBrowser uses `_webProcessIdentifier` for diagnostics. P02a follows that diagnostic
 use only; application correctness must not depend on it.
 [WebKit MiniBrowser source](https://github.com/WebKit/WebKit/blob/main/Tools/MiniBrowser/mac/WK2BrowserWindowController.m)
+
+WebKit declares `_setPeerConnectionEnabled:` in its private preferences header. The P02b1 experiment
+checks selector availability, writes the setting and checks it before loading any package page.
+Its absent-selector control stays blank. This does not make the SPI a stable public contract or
+establish support on another OS release. P02b2 must decide whether to support a narrowly tested
+fail-closed engine path or require another topology; no silent CSP-only fallback is acceptable.
+[WebKit private preferences](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/API/Cocoa/WKPreferencesPrivate.h)
 
 ## Consequences
 

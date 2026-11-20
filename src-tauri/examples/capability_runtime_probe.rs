@@ -98,6 +98,47 @@ fn record_process_id(window: &WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 fn record_process_id(_: &WebviewWindow) {}
 
+#[cfg(target_os = "macos")]
+fn configure_before_navigation(window: &WebviewWindow) -> tauri::Result<()> {
+    // Experimental WebKit SPI, not a supported production contract. Start at about:blank
+    // so no package script runs before native preferences have been applied and checked.
+    use std::ffi::{c_char, c_void};
+    #[link(name = "objc")]
+    extern "C" { fn sel_registerName(name: *const c_char) -> *mut c_void; fn objc_msgSend(); }
+    let target = window.clone();
+    window.with_webview(move |view| unsafe {
+        let read_object: extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void = std::mem::transmute(objc_msgSend as *const ());
+        let responds: extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool = std::mem::transmute(objc_msgSend as *const ());
+        let read_bool: extern "C" fn(*mut c_void, *mut c_void) -> bool = std::mem::transmute(objc_msgSend as *const ());
+        let write_bool: extern "C" fn(*mut c_void, *mut c_void, bool) = std::mem::transmute(objc_msgSend as *const ());
+        let config = read_object(view.inner(), sel_registerName(c"configuration".as_ptr()));
+        let preferences = read_object(config, sel_registerName(c"preferences".as_ptr()));
+        let setter = sel_registerName(if target.label() == "probe-unavailable" {
+            c"_nookiProbeUnavailableControl:".as_ptr()
+        } else { c"_setPeerConnectionEnabled:".as_ptr() });
+        let getter = sel_registerName(c"_peerConnectionEnabled".as_ptr());
+        let query = sel_registerName(c"respondsToSelector:".as_ptr());
+        let available = responds(preferences, query, setter) && responds(preferences, query, getter);
+        let control = target.label() == "probe-control";
+        if available && !control { write_bool(preferences, setter, false); }
+        let enabled = available.then(|| read_bool(preferences, getter));
+        let ready = available && enabled == Some(control);
+        target.state::<Probe>().record(target.label(), json!({"enginePolicy": {"available": available, "peerConnectionEnabled": enabled, "readyForPackageNavigation": ready}}));
+        if ready {
+            // Dispatch after leaving Wry's native-view callback. Reentrant navigation
+            // from this callback stalls the runtime while it holds its view access.
+            std::thread::spawn(move || {
+                if let Err(error) = target.navigate("nookiprobe://localhost/index.html".parse().unwrap()) {
+                    target.state::<Probe>().record(target.label(), json!({"navigationError": error.to_string()}));
+                }
+            });
+        }
+    })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn configure_before_navigation(_: &WebviewWindow) -> tauri::Result<()> { unreachable!("macOS-only experiment") }
+
 fn receivers(app: &tauri::AppHandle, label: &str) -> (u16, u16) {
     let tcp = TcpListener::bind("127.0.0.1:0").unwrap();
     let udp = UdpSocket::bind("127.0.0.1:0").unwrap();
@@ -142,7 +183,14 @@ fn main() {
     app_profile::configure(context.config_mut(), |key| std::env::var_os(key)).expect("isolated profile configuration");
     tauri::Builder::default()
         .manage(Probe { root, started: Instant::now(), events: Mutex::new(Vec::new()), ticks: Mutex::new(BTreeMap::new()) })
-        .invoke_handler(tauri::generate_handler![probe_rpc, probe_unguarded, probe_host_secret, probe_report, probe_tick, probe_control])
+        .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            if !policy::command_allowed(invoke.message.webview_ref().label(), invoke.message.command()) {
+                invoke.resolver.reject("command not exposed to this runtime");
+                return true;
+            }
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![probe_rpc, probe_unguarded, probe_host_secret, probe_report, probe_tick, probe_control];
+            handler(invoke)
+        })
         .register_uri_scheme_protocol("nookiprobe", |ctx, request| {
             let (status, mime, data) = match request.uri().path() {
                 "/index.html" => (200, "text/html", include_bytes!("capability_runtime_probe/assets/index.html").to_vec()),
@@ -158,17 +206,17 @@ fn main() {
             response.body(data).unwrap()
         })
         .setup(|app| {
-            for (index, label) in ["probe-shell", "probe-a", "probe-b", "probe-control"].iter().enumerate() {
+            for (index, label) in ["probe-shell", "probe-a", "probe-b", "probe-control", "probe-unavailable"].iter().enumerate() {
                 let (http_port, udp_port) = receivers(app.handle(), label);
                 let navigation_app = app.handle().clone(); let owner = label.to_string();
                 let popup_app = app.handle().clone(); let popup_owner = label.to_string();
-                tauri::WebviewWindowBuilder::new(app, *label, tauri::WebviewUrl::External("nookiprobe://localhost/index.html".parse()?))
+                let window = tauri::WebviewWindowBuilder::new(app, *label, tauri::WebviewUrl::External("about:blank".parse()?))
                     .title(format!("Nooki Runtime Probe — {label}"))
                     .inner_size(640.0, 700.0).position(80.0 + index as f64 * 80.0, 80.0 + index as f64 * 35.0)
                     .incognito(true)
                     .initialization_script(format!("window.PROBE = {};", json!({"label": label, "httpPort": http_port, "udpPort": udp_port})))
                     .on_navigation(move |url| {
-                        let allowed = url.as_str() == "nookiprobe://localhost/index.html";
+                        let allowed = matches!(url.as_str(), "about:blank" | "nookiprobe://localhost/index.html");
                         if !allowed { navigation_app.state::<Probe>().record(&owner, json!({"navigationDenied": true})); }
                         allowed
                     })
@@ -176,6 +224,7 @@ fn main() {
                         popup_app.state::<Probe>().record(&popup_owner, json!({"popupDenied": true}));
                         tauri::webview::NewWindowResponse::Deny
                     }).build()?;
+                configure_before_navigation(&window)?;
             }
             let handle = app.handle().clone();
             std::thread::spawn(move || {
