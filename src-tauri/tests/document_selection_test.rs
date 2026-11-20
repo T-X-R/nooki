@@ -47,6 +47,24 @@ fn selection_is_host_owned_bound_to_generation_and_metadata_only_until_confirmed
 }
 
 #[test]
+fn replacement_update_and_reinstall_cannot_inherit_a_pending_selection() {
+  for (version, uninstall_first) in [("0.1.0", false), ("0.2.0", false), ("0.1.0", true)] {
+    let f=Fixture::new(); let ticket=f.begin();
+    if uninstall_first { f.state.uninstall_capability("example.reader").unwrap(); }
+    let replacement=CapabilityManifest { id:"example.reader".into(), version:version.into(), name:"Replacement reader".into(), description:String::new(), locales:BTreeMap::new(), entrypoints:vec![CapabilityEntrypoint::Page], permissions:vec![CapabilityPermission::DocumentsReadSelected], min_platform_version:"0.1.0".into() };
+    if uninstall_first { f.state.install_capability(replacement).unwrap(); }
+    else { f.state.update_capability(replacement).unwrap(); }
+    let denied=document_selection::commit(&f.state,"main",json!({"handle":ticket["handle"],"ids":[f.doc]})).unwrap_err();
+    assert_eq!(serde_json::to_value(denied).unwrap()["code"],"PERMISSION_DENIED");
+    assert!(!f.root.join("document-grants").exists());
+    let fresh=document_selection::begin(&f.state,"main",json!({"requestId":"replacement-selection","capabilityId":"example.reader","version":version,"purpose":"Fresh approval","limit":1})).unwrap();
+    let grant=document_selection::commit(&f.state,"main",json!({"handle":fresh["handle"],"ids":[f.doc]})).unwrap();
+    assert_eq!(grant.capability_version,version);
+    assert!(f.state.read_selected_document("example.reader",&grant.id,&f.doc).is_ok());
+  }
+}
+
+#[test]
 fn dismissed_cancelled_forged_and_oversized_requests_do_not_capture_content() {
   let f=Fixture::new();let ticket=f.begin();
   document_selection::cancel(&f.state,"main",json!({"requestId":ticket["requestId"]})).unwrap();

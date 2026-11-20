@@ -39,7 +39,7 @@ function Selection({ request, language }: { request: LibraryPickerRequest; langu
     <p className="modal-copy">{zh ? '只允许此能力读取所选资料的当前快照。它可能将内容用于 AI 生成；你可以随时在资料库中撤销后续读取。' : 'Allow this capability to read snapshots of the selected documents. It may use them for AI generation. You can revoke future reads in the Library.'}</p>
     <label className="library-selection-search library-field">{zh ? '按标题查找' : 'Find by title'}<input type="search" value={query} onChange={event => setQuery(event.target.value)} disabled={busy} /></label>
     {loading ? <p role="status">{zh ? '正在读取资料列表…' : 'Loading documents…'}</p> : <fieldset className="library-selection-list" disabled={busy || approved}><legend>{zh ? `已选 ${selected.length} / ${request.limit}` : `${selected.length} / ${request.limit} selected`}</legend>
-      {!visible.length && <p role="status">{documents.length ? (zh ? '没有匹配的资料' : 'No matching documents') : (zh ? '资料库中还没有文档' : 'No documents in the Library yet')}</p>}
+      {!error && !visible.length && <p role="status">{documents.length ? (zh ? '没有匹配的资料' : 'No matching documents') : (zh ? '资料库中还没有文档' : 'No documents in the Library yet')}</p>}
       {visible.map(doc => <label key={doc.id}><input type="checkbox" checked={selected.includes(doc.id)} disabled={!selected.includes(doc.id) && selected.length >= request.limit}
         onChange={event => setSelected(ids => event.target.checked ? [...ids, doc.id] : ids.filter(id => id !== doc.id))} /><span><strong>{doc.title}</strong><small>{doc.capabilityName} · {doc.documentDate}</small></span></label>)}
     </fieldset>}
