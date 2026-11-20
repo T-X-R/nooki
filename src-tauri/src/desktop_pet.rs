@@ -123,7 +123,7 @@ pub fn keep_main(app: &AppHandle) -> bool { app.state::<DesktopPet>().preference
 pub fn show_main(app: &AppHandle) -> Result<(), String> {
     let window = if let Some(window) = app.get_webview_window("main") { window } else {
         let config = app.config().app.windows.iter().find(|c| c.label == "main").ok_or("Main window configuration missing")?;
-        WebviewWindowBuilder::from_config(app, config).map_err(|e| e.to_string())?.build().map_err(|e| e.to_string())?
+        crate::app_profile::create_window(app, config).map_err(|e| e.to_string())?
     };
     window.show().map_err(|e| e.to_string())?;
     window.unminimize().map_err(|e| e.to_string())?;

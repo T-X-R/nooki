@@ -555,6 +555,11 @@ pub fn run() {
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);
       desktop_pet::initialize(app.handle(), app.path().app_data_dir()?).map_err(std::io::Error::other)?;
+      for window in &app.config().app.windows {
+        if !window.create && window.data_store_identifier.is_some() {
+          app_profile::create_window(app.handle(), window)?;
+        }
+      }
       Ok(())
     })
     .on_window_event(|window, event| {

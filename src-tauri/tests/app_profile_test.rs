@@ -44,6 +44,7 @@ fn profile_routes_native_storage_and_persistent_webviews_and_requires_separate_a
     configure(&mut config, |key| env.get(key).cloned()).unwrap();
     assert_eq!(serde_json::to_value(&config).unwrap()["app"]["appDirectoriesOverride"], root.join("data").to_str().unwrap());
     assert_eq!(config.app.windows[0].data_store_identifier, Some([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]));
+    assert!(!config.app.windows[0].create, "profile windows must use the explicit data-store builder instead of Tauri's automatic config conversion");
     assert!(!config.plugins.0.contains_key("updater"));
     assert_ne!(config.identifier, "com.personal.workbench");
     env.insert("CODEX_HOME", OsString::from("/ordinary/.codex"));

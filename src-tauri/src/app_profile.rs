@@ -1,7 +1,7 @@
 //! Opt-in development profiles. This is storage isolation, not a package sandbox.
 use std::{ffi::OsString, fs, path::PathBuf};
 use serde::Deserialize;
-use tauri::utils::config::{AppDirectoriesOverride, Config};
+use tauri::{AppHandle, WebviewWindow, WebviewWindowBuilder, utils::config::{AppDirectoriesOverride, Config, WindowConfig}};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +28,17 @@ pub fn configure(config: &mut Config, env: impl Fn(&str) -> Option<OsString>) ->
     for window in &mut config.app.windows {
         window.title = "Nooki — Test Profile".into();
         window.data_store_identifier = Some(profile.store_id);
+        // Tauri runtime 2.12.2 drops this field in WindowConfig -> WebviewAttributes.
+        // Create explicitly so test profiles cannot fall back to the default WebKit store.
+        window.create = false;
     }
     Ok(())
+}
+
+pub fn create_window(app: &AppHandle, config: &WindowConfig) -> tauri::Result<WebviewWindow> {
+    let mut builder = WebviewWindowBuilder::from_config(app, config)?;
+    if let Some(store) = config.data_store_identifier {
+        builder = builder.data_store_identifier(store);
+    }
+    builder.build()
 }

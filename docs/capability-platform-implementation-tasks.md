@@ -11,12 +11,13 @@ updates the canonical contract, exported kit/Skill and its receipt as part of th
 
 ## Preparation: reproducible inputs and early feasibility
 
-### [ ] P00 — Establish baseline fixtures and an isolated desktop profile
+### [x] P00 — Establish baseline fixtures and an isolated desktop profile
 
-**State:** in-progress on `codex/capability-platform-design`, [PR #38](https://github.com/T-X-R/nooki/pull/38).
+**State:** complete on 2026-11-20; `codex/capability-platform-design`, [PR #38](https://github.com/T-X-R/nooki/pull/38), pending human merge.
 Split into P00a and P00b below because isolation spans native and webview storage plus agent configuration.
-Evidence: [P00 verification receipt](capability-platform-evidence/P00.md). Native lifecycle verification
-is waiting for manual desktop unlock; automated checks and the initial native launch passed.
+Evidence: [P00 verification receipt](capability-platform-evidence/P00.md). The discovered WebKit
+store-sharing defect was repaired and reverified with two fresh profiles, restart, uninstall/reinstall,
+retained documents, independent counters and isolated Skill installation. Synthetic cleanup completed.
 
 **Depends on:** None. **Size:** M.
 **Deliver:** A repeatable test-profile launch procedure and a recorded baseline inventory of package,
@@ -28,10 +29,10 @@ needs support, profile-isolation test, baseline receipt, fixture manifest.
 **Verification:** V-P, V-K, existing relevant V-B/V-A, V-N profile separation. Report real-agent setup
 separately; never copy credentials into the fixture.
 
-### [ ] P00a — Establish an isolated desktop launch environment
+### [x] P00a — Establish an isolated desktop launch environment
 
 **Depends on:** None. **Size:** M.
-**State:** in-progress; automated checks passed, native cross-profile/restart proof pending.
+**State:** complete; automated and repaired native isolation/restart checks passed. See [P00 evidence](capability-platform-evidence/P00.md).
 **Deliver:** A launcher that creates an empty profile, launches with isolated agent configuration,
 and configures native data/log paths and a separate persistent webview store before startup.
 **Acceptance:** Normal startup is unchanged; malformed profiles fail closed; profiles survive restart
@@ -39,10 +40,10 @@ without sharing native state or browser storage; no ordinary credentials/setting
 **Likely files:** Profile launcher/test, native profile module/test, lib startup and pet webview wiring.
 **Verification:** Launcher tests, native configuration tests, V-APP and V-N profile separation.
 
-### [ ] P00b — Record baseline owners and the real archive lifecycle
+### [x] P00b — Record baseline owners and the real archive lifecycle
 
 **Depends on:** P00a. **Size:** S.
-**State:** baseline inventory and fixture prepared; native acceptance pending P00a and desktop unlock.
+**State:** complete; baseline inventory, fixture, lifecycle and cleanup evidence recorded in [P00](capability-platform-evidence/P00.md).
 **Deliver:** Synthetic legacy archive fixture, owner inventory and reproducible desktop procedure.
 **Acceptance:** Import/restart/uninstall preserves expected output inside the isolated profile;
 focused baseline results and limitations are recorded; no mock is presented as native evidence.
