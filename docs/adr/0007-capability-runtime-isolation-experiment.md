@@ -1,6 +1,6 @@
 # ADR 0007: Capability runtime isolation experiment
 
-- Status: proposed; topology selection pending P02b
+- Status: accepted for the scoped macOS feasibility path; production activation pending R02/R03/K4
 - Date: 2026-11-20
 - Design authority: [Capability platform, runtime policy](../capability-platform-design.md#8-runtime-policy-and-limits)
 - Evidence: [P02a desktop experiment](../capability-platform-evidence/P02a.md)
@@ -11,7 +11,10 @@
   and [P02c bounded operation admission](../capability-platform-evidence/P02c.md)
   plus [P02d1 retained byte budgets](../capability-platform-evidence/P02d1.md)
   and [P02d2 shared and live resource budgets](../capability-platform-evidence/P02d2.md)
-  plus [P02e1 receive-path audit](../capability-platform-evidence/P02e1.md)
+  plus [P02e1 receive-path audit](../capability-platform-evidence/P02e1.md),
+  [P02e2 native receiving](../capability-platform-evidence/P02e2.md),
+  [P02e3a removal under receive pressure](../capability-platform-evidence/P02e3a.md),
+  and the [complete P02 decision and budget audit](../capability-platform-evidence/P02.md)
 
 ## Context
 
@@ -25,19 +28,39 @@ It also demonstrated two gaps: app commands without their own check were reachab
 views, and WebRTC sent UDP despite restrictive CSP. Neither gap may be relabeled an accepted risk
 to clear K0 or the later containment gates.
 
-## Current decision
+## Decision
 
-Do **not** adopt separate Tauri webviews plus CSP alone as the production security boundary. Keep the
-existing trusted-only loader unchanged while P02b completes the supported-topology and budget decision. Do not expose new
-production transport-dependent APIs based on the experiment. This ADR records a rejected baseline,
-not approval of a replacement runtime.
+Use separately owned, nonpersistent WKWebViews embedded in the host window as the implementation
+path, with **all** of these controls: native per-view caller/authority binding, application and
+core/plugin command denial, checked pre-creation WebKit network controls, native request/body/rate
+admission before Nooki-owned copy/decode, removal of the script-message fallback, bounded owned
+resources, and host-controlled independent view termination. Separate views plus CSP alone are
+rejected. The unmodified Tauri/Wry receive path is also rejected.
 
-The current unchanged Tauri/Wry receive path also remains insufficient for a completed bounded
-runtime decision: P02e1 observes 1 MiB already decoded at application dispatch and 1 MiB already
-materialized in an asset-protocol callback, before command denial/HTTP 403. The operation-admission
-pool is never entered. P02e2 must cover receiving paths before Nooki-controlled unbounded copy/decode,
-with WebKit's own earlier allocations recorded separately. P02e3 then reconciles the full decision.
-This is a finite reproduced gap, not an observed OOM or proof that an alternative is sufficient.
+This selection applies only to the measured macOS 15.6.1 (24G90), arm64, WebKit 20621.3.11.11.3,
+Tauri 2.12.5 / Wry 0.57.1 combination. Private WebKit controls and unstable child-view/InvokeRequest
+integration are explicit maintenance costs. R02/R03 must requalify changed combinations and fail
+closed before package execution if support, setters/getters, the isolated store or receiver setup
+cannot be verified. Retained Library data remains available. There is no legacy-loader fallback for
+an unsupported new-format package.
+
+Adopt a 64 KiB complete serialized wire limit, 32 KiB raw transfer chunks and at most 8 KiB of
+already-serialized envelope overhead, alongside the composed resource policies in the
+[P02 decision](../capability-platform-evidence/P02.md). Metadata, response creation and diagnostic
+logging need their own bounded production owners; a body reservation is not an RSS number.
+
+The finite evidence covers loop removal, removal during repeated receive refusals, valid peer work,
+media, native authority, storage and measured egress. It does not guarantee universal flooding or
+OS-wide memory-exhaustion survival. P02 establishes an implementation path, not production isolation:
+the existing loader stays trusted-only, and R02/R03/K4 repeat the boundary in actual Nooki.
+
+## Evidence history
+
+The following paragraphs preserve the findings and open work **at each earlier experiment**.
+Their historical pending-task statements are superseded by the decision above and the final P02
+audit, not reinterpreted as successful baseline runs. In particular, P02e1's 1 MiB bodies reached
+application/resource dispatch after allocation; P02e2's replacement receiver refuses them before
+owned copying/decoding, while keeping earlier WebKit objects outside that claim.
 
 P02b1 closes the two reproduced routes in the disposable macOS probe: a native application-command
 allowlist rejects package calls before their handlers, and a native WebKit preference disables peer
@@ -103,45 +126,38 @@ The extended fixture demonstrated actual silent-audio playback advancing while i
 focus, followed by pause and empty media state. It did not prove audible output, arbitrary codec
 support, seamless looping/seek, service lifetime across page destruction, or native descriptor cleanup.
 
-## Alternatives under evaluation
+## Alternatives considered
 
 | Arrangement | Evidence or constraint | Current disposition |
 |---|---|---|
 | Existing shared renderer | Package code shares shell authority, DOM and execution environment | Remains explicitly trusted-only; cannot satisfy target containment |
 | Sandboxed iframe in shell | May separate DOM/origin, but iframe sandboxing alone does not prove independent CPU termination, native caller identity or egress denial | Not selected; no desktop containment claim without probes |
 | Separate nonpersistent WKWebViews + native broker checks + CSP | P02a proved process separation/stop and storage boundaries on macOS 15.6.1; UDP escape and broad app-command defaults were reproduced | Insufficient as tested |
-| Separate views with native engine controls and native command restrictions | P02b2b1 closes measured preconnect; P02b2b2a preserves same-window boundaries; P02d measures resource policies; P02e1 confirms allocation before handler denial | Candidate requires receive-path work; unchanged transport is not approved, and SPI/platform support remains a gate |
+| Separate views with native engine controls, command restrictions and replacement receiving | P02b2b1/P02b2b2a preserve network and same-window boundaries; P02d measures resource policies; P02e2/P02e3a add bounded receiving and stop during refusals | Selected for the exact measured combination; production integration and requalification remain required |
 | Bundled sandboxed helper process | Can offer an additional OS-level boundary, but media, UI embedding, inherited IPC and WebKit network-process behavior need validation | Alternative if view-level enforcement cannot meet the design; not arbitrary package-supplied native execution |
 | Restricted JS worker/runtime with host-rendered UI | Worker termination is useful, but unrestricted React/DOM pages would need a different UI protocol and permissions model | Additional complexity; not a drop-in substitute for the accepted package experience |
 
-## Decisions still required
+## Production obligations
 
-- Preserve P02b2b1's native enforcement and repeat its HTTP, frame, worker, form, navigation and
-  connection controls in the integrated arrangement. DNS-prefetch's native getter is false on this engine;
-  the localhost element is not a DNS packet test. Prefetch had no positive control traffic, and
-  service-worker registration is unsupported for the custom scheme even in the permissive view.
-  Keep these distinctions visible rather than labeling unavailable paths as policy passes.
-  WebTransport and WebSocketStream are unavailable in every tested view, including the permissive
-  control; their containment is unverified. Revalidate new engine features before adding support.
-- Deny package calls to all application/core/plugin commands except the narrow broker. Native caller
-  identity must come from the receiving runtime, never a supplied package ID.
-  P02b1's application dispatcher does not intercept core/plugin commands. Those use Tauri ACLs;
-  P02b2a now covers pending channel fetch across views; recheck queue lifetime/generation behavior
-  in the production transport and audit remaining internal exceptions before claiming complete
-  native denial in R02. No production application or third-party plugins run in the probe.
-- Carry P02b2b2a's same-window results into production integration: scope native identity and grants
-  by webview, not its containing window. Tauri child views require the opt-in unstable feature;
-  production resize, modal/focus/IME behavior and service lifetime across page destruction remain
-  implementation work. Private process IDs remain diagnostic, never the termination mechanism.
-- Reconcile P02d's measured byte/object/task limits with the full runtime in P02e and retain their
-  production owners and recovery obligations. P02c supplies measured operation admission, but its
-  64 KiB payload check excludes the IPC envelope
-  and runs after deserialization. Neither that guard nor the finite load fixture establishes a
-  pre-admission allocation bound, sustained-flood containment or fair scheduling.
-  P02e1 now provides concrete native byte-count evidence for application and asset paths; a broker-only
-  patch cannot close both. Preserve this baseline while P02e2 tests a minimal auditable receive boundary.
-- State the actual supported OS/engine matrix and explicit fail-closed behavior elsewhere. A macOS
-  experiment does not establish Windows/Linux parity.
+- C01/R02 bind authority to native caller, installed version, activation generation and current
+  scoped grants at effects. Deny all native application/core/plugin access except audited Host
+  operations. Re-audit framework-internal exceptions and pending-channel lifecycle; the synthetic
+  probe does not contain the production app's plugins or services.
+- R02/R03 own the checked engine matrix, pre-creation controls, guarded protocol registration,
+  post-message removal, generation-safe completion and independent native termination. Do not turn
+  private diagnostic process IDs into the stopping mechanism. Production layout, focus, IME and
+  service lifetime remain explicit application tests.
+- Repeat the scoped egress tests and preserve distinctions between negative receiver evidence,
+  unavailable APIs and missing positive controls. Unknown engine features do not inherit support
+  merely because previous selectors remain present.
+- Apply the composed receive/operation/file/event/run/service policies from P02. R01 owns archive
+  staging; R02/R03 own transport/private data; C06/C07 own real-agent cancellation and late effects;
+  R05 owns services; R07/R11 own binary retention, transfer and crash recovery. Independent user-owned
+  work must not be stopped through package provenance alone.
+- Keep stop/revoke management outside package capacity. Implement bounded response generation and
+  operational diagnostics; pressure sampling in a disposable fixture is not that implementation.
+- Fail closed without losing access to retained user data. Expand OS/engine coverage only with real
+  native evidence, never by extrapolating the macOS result to Windows/Linux.
 
 ## Source constraints
 
@@ -166,7 +182,13 @@ fail-closed engine path or require another topology; no silent CSP-only fallback
 
 ## Consequences
 
-P02 and K0 stay pending. C01–C09 do not begin until a feasible path is established. The executable,
-fixtures, raw synthetic events and rejection reasons remain available for regression and comparison.
-Any eventual topology decision must replace this provisional decision with measured evidence and
-preserve the original toolbox invariants.
+P02 and K0 pass their preparation/feasibility scope. C01 is next; this does not complete any service
+workflow or production-runtime gate. Native receiver code remains an opt-in example. The existing
+trusted-only application loader is unchanged until the approved implementation sequence reaches
+R02/R03 and its native verification succeeds.
+
+Keep the executable, fixtures and failed/successful receipts as regression inputs. If actual
+integration reproduces an invariant violation, stop that activation path and revise the arrangement;
+this decision is not permission to hide a failure in the limitations section. A sandboxed helper
+remains a possible alternative, but no unmeasured helper, remote-view protocol or second engine is
+required solely to claim an absolute guarantee absent from the design.

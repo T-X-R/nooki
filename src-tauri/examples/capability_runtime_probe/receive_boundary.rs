@@ -57,7 +57,12 @@ define_class!(
             let id = self.ivars().serial.get(); self.ivars().serial.set(id + 1);
             self.ivars().pending.borrow_mut().insert(id, Pending { task:task.retain(), stopped:Rc::new(Cell::new(false)) });
             if let Err(reason) = self.receive(id, task) {
-                self.ivars().app.state::<Probe>().record(&self.ivars().owner, json!({"receiveBoundary":"rejected-before-dispatch","reason":reason}));
+                let state = self.ivars().app.state::<Probe>();
+                let count = state.receive_rejections.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                // Preserve control/peer evidence in the probe's 256-event diagnostic cap.
+                if count <= 16 || count % 64 == 0 {
+                    state.record(&self.ivars().owner, json!({"receiveBoundary":"rejected-before-dispatch","reason":reason,"totalRejections":count}));
+                }
                 self.finish(id, reply(413, &reason));
             }
         }

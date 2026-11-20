@@ -67,10 +67,11 @@ are unavailable rather than successful stubs; simulated data/services are visibl
 preview Host, starter check script, `tests/developer-kit.test.ts`.
 **Verification:** V-K and independent scaffold/check/pack; document exact Host/API version in receipt.
 
-### [ ] P02 — Prove the runtime isolation approach before committing to transport
+### [x] P02 — Prove the runtime isolation approach before committing to transport
 
-**State:** in-progress; same branch and PR #38. Split into P02a/P02b to keep the
-executable experiment separate from the evidence-backed topology and budget decision.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P00, P01. **Size:** M, bounded experiment.
 **Deliver:** A disposable desktop probe and runtime ADR comparing viable isolation arrangements;
@@ -84,8 +85,9 @@ coverage and remaining integration risks rather than claim production isolation.
 ### [x] P02a — Measure separate-webview boundaries with a disposable desktop probe
 
 **State:** verified on 2026-11-20; [native receipt](capability-platform-evidence/P02a.md).
-The experiment passed execution/measurement acceptance, but the candidate failed UDP containment;
-P02/P02b/K0 remain pending. Same branch and PR #38, pending human merge.
+The experiment passed execution/measurement acceptance, but the candidate failed UDP containment.
+The baseline failure remains retained; subsequent repairs and final acceptance are linked from P02.
+Same branch and PR #38, pending human merge.
 
 **Depends on:** P00, P01. **Size:** M, bounded experiment.
 **Deliver:** Standalone probe executable, hostile/static/media fixtures and local-only network receiver.
@@ -94,10 +96,11 @@ attempts and host/peer responsiveness while one fixture is unresponsive; failure
 **Likely files:** Native probe example and configuration, fixture HTML/script, focused probe tests.
 **Verification:** Focused tests plus the real desktop probe, isolated data paths and synthetic inputs.
 
-### [ ] P02b — Decide topology and budgets from measured constraints
+### [x] P02b — Decide topology and budgets from measured constraints
 
-**State:** in-progress; split into P02b1/P02b2 before refining the probe. The original
-failed P02a evidence remains the baseline; neither child alone clears K0.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02a. **Size:** S.
 **Deliver:** Runtime ADR comparing viable alternatives and evidence receipt with initial limits.
@@ -110,7 +113,7 @@ termination and network results, tested OS scope, remaining production-integrati
 
 **State:** verified on 2026-11-20; [native receipt](capability-platform-evidence/P02b1.md),
 same branch and PR #38, pending human merge. The reproduced app-command and WebRTC routes are
-closed in this probe; private SPI and remaining channels/budgets still require P02b2. K0 is pending.
+closed in this probe; subsequent SPI/channel/budget work is reconciled in the final P02 receipt.
 
 **Depends on:** P02a. **Size:** M, bounded experiment.
 **Deliver:** Restrict package application commands at native dispatch and configure the engine before
@@ -121,10 +124,11 @@ prevent package loading. Record private-API and remaining network-coverage limit
 **Likely files:** Native probe, probe policy/test, hostile fixture, evidence receipt and runtime ADR.
 **Verification:** Focused policy tests and V-N on the actual desktop engine, preserving failed traces.
 
-### [ ] P02b2 — Resolve the remaining runtime arrangement and resource budgets
+### [x] P02b2 — Resolve the remaining runtime arrangement and resource budgets
 
-**State:** in-progress; split into P02b2a/P02b2b before extending the probe. Retain the
-parent's full acceptance; a passing network or media sample alone does not clear K0.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02b1. **Size:** M, split further if needed.
 **Deliver:** Measured embedding/navigation, playback/cleanup, extended network probes and limits;
@@ -150,11 +154,11 @@ advances and pause/release are observable; any newly discovered escape remains a
 **Verification:** V-N with synthetic local receivers and audio, plus focused probe tests; record exact
 scope rather than claiming all network APIs from a small sample.
 
-### [ ] P02b2b — Select the supported arrangement and bounded operating limits
+### [x] P02b2b — Select the supported arrangement and bounded operating limits
 
-**State:** in-progress; native network closure is P02b2b1; integrated-view/budget/decision work is
-P02b2b2. Split before changing native configuration and its test dependencies; neither child clears
-the parent or K0 alone.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02b2a. **Size:** M, split experiments further only if necessary.
 **Deliver:** Resolve remaining measured escapes, validate page integration and representative resource
@@ -182,10 +186,11 @@ and lockfile. These dependencies are already transitive and stay outside the pro
 **Verification:** Focused tests and V-N, preserving P02b2a's failed evidence; update the ADR without
 claiming untested engine compatibility or a completed runtime decision.
 
-### [ ] P02b2b2 — Validate integration and resource bounds, then decide topology
+### [x] P02b2b2 — Validate integration and resource bounds, then decide topology
 
-**State:** in-progress; split into P02b2b2a (same-window integration) and P02b2b2b
-(resource bounds and supported-topology decision) before changing the probe. Neither alone clears K0.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02b2b1. **Size:** M, split further if actual footprint requires it.
 **Deliver:** Integrated-page experiment, measured bounded resource policies and final P02 decision.
@@ -201,7 +206,7 @@ have bounded initial limits and error behavior; support and SPI failure policies
 pending human merge. Native view identity and view-scoped permissions hold inside one window;
 network controls, hidden playback and independent child termination pass their measured cases.
 The failed title-command positive control was corrected and rerun; its trace remains retained.
-P02/K0 stay pending on P02b2b2b's resource bounds and supported-topology decision.
+The later resource/support decision is recorded in the final P02 receipt.
 
 **Depends on:** P02b2b1. **Size:** M, bounded experiment.
 **Deliver:** Opt-in embedded probe using native Webview caller identity, view-scoped core permissions,
@@ -213,11 +218,11 @@ leave host management and the other page usable. Record actual API/platform limi
 **Verification:** Focused policy tests, both probe builds, V-N including a positive shell permission
 control, page switching, playback, network receiver controls and child process exit.
 
-### [ ] P02b2b2b — Measure resource bounds and record the supported topology
+### [x] P02b2b2b — Measure resource bounds and record the supported topology
 
-**State:** in-progress; split into P02c (IPC admission), P02d (retained-resource bounds) and
-P02e (supported-topology decision) before adding load fixtures. Short sibling IDs avoid further
-nesting; all three remain children of this delivery, and no single measurement clears K0.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02b2b2a. **Size:** M; split only if the actual scope requires it.
 **Deliver:** Representative boundary-load fixtures, initial limits for required resource classes,
@@ -234,7 +239,8 @@ parent acceptance item has a feasible and documented path.
 same branch and PR #38, pending human merge. Two same-window callers reach six operations and
 256 KiB admitted payloads; excess work is refused, checksums and post-failure recovery pass,
 and final capacity is zero. Explicit future-abort release is unit-tested, not inferred from view
-closure. Pre-dispatch allocation bounds and fairness remain unproven; P02/K0 stay pending.
+closure. This admission slice alone does not bound pre-dispatch allocation or prove fairness;
+P02e2/P02e3 and the final P02 receipt record the receive boundary and decision.
 
 **Depends on:** P02b2b2a. **Size:** M, bounded experiment.
 **Deliver:** Native caller-scoped admission with per-request, per-caller and aggregate in-flight
@@ -250,7 +256,7 @@ stay responsive during load. Record transport allocation limits separately from 
 **State:** verified on 2026-11-20 through P02d1 and P02d2; [combined budget table and evidence](capability-platform-evidence/P02d2.md).
 The scoped native experiments cover archive/byte storage, shared disk reservations, queued/delivered
 events and live task/service ownership. Production adapters and durable recovery remain assigned to
-their owners. P02e must reconcile transport allocation and runtime support before P02/K0 can pass.
+their owners. The final P02 receipt reconciles transport allocation and scoped runtime support.
 
 **Depends on:** P02c. **Size:** M; split only if actual scope requires it.
 **Deliver:** Boundary-load evidence and proposed limits for archive expansion, private storage,
@@ -267,7 +273,8 @@ enforcement from services to be delivered in C01–T08.
 **State:** verified on 2026-11-20; [receipt and measurements](capability-platform-evidence/P02d1.md),
 same branch and PR #38, pending human merge. Real ZIP/file boundaries, byte readback, replacement
 preservation and ordinary staging cleanup pass. This single-writer experiment does not establish
-profile-wide reservations, crash recovery or production transfer semantics; P02d2/P02e remain pending.
+profile-wide reservations, crash recovery or production transfer semantics. P02d2 adds shared
+reservations; the final P02 decision retains the production recovery/transfer obligations.
 
 **Depends on:** P02c. **Size:** M.
 **Deliver:** Disposable native archive reader and disk-backed private-data/transfer fixtures with
@@ -296,12 +303,11 @@ event delivery is bounded with explicit overflow semantics. Reconcile all P02d r
 **Verification:** Native concurrent boundary/failure fixtures; actual data/handle ownership, not
 successful counters alone. Repeat relevant desktop checks when changing the runtime integration.
 
-### [ ] P02e — Reconcile runtime evidence and decide supported topology
+### [x] P02e — Reconcile runtime evidence and decide supported topology
 
-**State:** in-progress. P02e1's finite native probe confirms materialization before denial on both
-application and asset routes. P02e2 now verifies an earlier native receive boundary for the scoped
-desktop cases. P02e3's final audit remains pending, including earlier WebKit allocations and support;
-do not turn a bounded-copy experiment into a hard host-memory claim.
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02c, P02d. **Size:** S.
 **Deliver:** Final P02 receipt, supported OS/engine and fail-closed policy, updated runtime ADR,
@@ -316,7 +322,7 @@ claim from a payload check, no platform parity inferred, and no silent fallback 
 **State:** verified on 2026-11-20; [audit and native evidence](capability-platform-evidence/P02e1.md).
 Two same-window callers deliver 1 MiB to decoded application dispatch and to the resource-protocol
 handler before command denial/HTTP 403. This is a reproduced receive-boundary gap, not an OOM test
-or a runtime acceptance pass. P02e/P02/K0 remain pending.
+or a runtime acceptance pass. Subsequent receive repairs and the final P02 decision preserve this failed baseline.
 
 **Depends on:** P02c, P02d. **Deliver:** Pinned receive-path audit, finite native reproduction and
 requirement/evidence matrix. **Acceptance:** Distinguish operation admission from prior framework
@@ -330,7 +336,8 @@ responsive host status, focused probe tests and exact engine scope.
 Pre-registered native handlers bound package IPC/resource copies before decode, with the native
 post-message fallback removed. Both callers reject oversized requests, cancel safely and recover;
 normal media and independent child removal pass. No dependency fork or method swizzling. This is
-not a hard WebKit/native memory bound or a production transport approval; P02e3/P02/K0 remain pending.
+not a hard WebKit/native memory bound or a production transport approval; P02e3 and the final P02
+receipt separately record the stop-under-pressure case and scoped feasibility selection.
 
 **Depends on:** P02e1. **Size:** M; split if the chosen source-level change requires it.
 **Deliver:** A disposable receive-boundary experiment covering native post-message and all exposed
@@ -344,7 +351,11 @@ host-availability invariant, retain the failure and evaluate a stronger arrangem
 boundary on the desktop with source-backed instrumentation; native identity and independent stop
 remain valid. Preserve P02e1's baseline. No hard RSS bound inferred from a length check.
 
-### [ ] P02e3 — Record the complete feasibility and support decision
+### [x] P02e3 — Record the complete feasibility and support decision
+
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
 
 **Depends on:** P02e2. **Size:** S.
 **Deliver:** Final P02 receipt and runtime ADR, including encoding-aware wire/chunk budgets,
@@ -355,7 +366,38 @@ the new runtime without making ordinary retained user data inaccessible.
 **Verification:** Reconcile the complete P02 evidence matrix and current source before checking
 P02e, its parents or K0. Production gates still require the actual application implementations.
 
-### [ ] K0 — Preparation gate
+### [x] P02e3a — Stop a sender during finite receive rejection pressure
+
+**State:** verified on 2026-11-20; [native receipt and 190 events](capability-platform-evidence/P02e3a.md).
+The shell removes A during rising refusals; B succeeds before/after removal; reservations return to zero.
+
+**Depends on:** P02e2. **Size:** S.
+**Deliver:** A finite bounded-concurrency sender, sampled refusal diagnostics with total counters,
+and a peer doing valid operations while the shell independently removes the sender.
+**Acceptance:** Refusal counts rise during the workload; shell disable works while pressure is active;
+peer operations continue/recover and receive reservations return to zero. No OOM or hard RSS claim.
+**Verification:** Native same-window run, explicit maximum duration/request count, normal quit,
+focused probe tests and retained events. Correct P02e2's diagnostic-vector wording: record already
+caps at 256 events; pressure sampling prevents low-value refusals exhausting that evidence capacity.
+
+### [x] P02e3b — Select the scoped feasibility path and compose its limits
+
+**State:** verified on 2026-11-20; [combined evidence, budget and support decision](capability-platform-evidence/P02.md),
+[ADR 0007](adr/0007-capability-runtime-isolation-experiment.md), same branch and PR #38, pending human merge.
+Scoped macOS feasibility is accepted; production integration and native requalification remain R02/R03/K4.
+
+**Depends on:** P02e3a. **Size:** S.
+**Deliver:** P02 receipt and updated ADR with one wire/chunk policy, exact tested engine support,
+required controls, fail-closed activation and explicit production owners.
+**Acceptance:** Every P02 condition has measured evidence or an identified production integration
+obligation consistent with the design. Do not equate a feasibility choice with production isolation.
+**Verification:** Reconcile P02 receipts and inspect native source assumptions; assert encoded chunk
+plus bounded serialized envelope fits the receive limit; preserve historical failures and limits.
+
+### [x] K0 — Preparation gate
+
+**State:** verified on 2026-11-20; [requirement-by-requirement preparation audit](capability-platform-evidence/P02.md).
+P00/P01/P02 evidence reconciled; C01 is next. No production runtime or later gate is marked complete.
 
 **Depends on:** P00, P01, P02.
 **Verify:** Baseline is reproducible, the minimal external-project path works, and a feasible runtime

@@ -1,0 +1,1900 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 446,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 448,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 449,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 501,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 693,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 700,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 701,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 701,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 709,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": null,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": true,
+        "peerConnectionEnabled": true,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 719,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 720,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 721,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 721,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 722,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 722,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 730,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 736,
+    "value": {
+      "enginePolicy": {
+        "available": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": false
+      }
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 738,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 738,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 739,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 1407,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 1409,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 1411,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1522,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1543,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1787,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 2292,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 3298,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 21437,
+    "value": {
+      "action": "pressure",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 53,
+        "probe-b": 16,
+        "probe-control": 53,
+        "probe-shell": 52
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-b",
+        "probe-control"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21442,
+    "value": {
+      "maxConcurrent": 8,
+      "maxDurationMs": 60000,
+      "maxRequests": 4096,
+      "oversizedBodyBytes": 131072,
+      "pressureStart": true
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21444,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21455,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 1
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21457,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 2
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21457,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 3
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21458,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 4
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21562,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 5
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21563,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 6
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21563,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 7
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21564,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 8
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21666,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 9
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21667,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 10
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21667,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 11
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21668,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 12
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21668,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 13
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21669,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 14
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21669,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 15
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21699,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21770,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 16
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21951,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 22203,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 22205,
+    "value": {
+      "attempts": 4,
+      "pressurePeer": true,
+      "succeeded": 4
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 22385,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 64
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 22458,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 22710,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 23062,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 23314,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 128
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 23422,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 23424,
+    "value": {
+      "attempts": 8,
+      "pressurePeer": true,
+      "succeeded": 8
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 23774,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 24126,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24235,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 192
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 24476,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 24824,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 24827,
+    "value": {
+      "attempts": 12,
+      "pressurePeer": true,
+      "succeeded": 12
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 25168,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 256
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25180,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26213,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 320
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 27149,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 384
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 28077,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 448
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 29019,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 512
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30065,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 576
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 31004,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 640
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 31831,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 704
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 32359,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 740,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 95,
+        "probe-b": 21,
+        "probe-control": 97,
+        "probe-shell": 95
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-b",
+        "probe-control"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 32372,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 32627,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 32760,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 768
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 32880,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 32881,
+    "value": {
+      "attempts": 16,
+      "pressurePeer": true,
+      "succeeded": 16
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 33133,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 33389,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 33643,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 33736,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 832
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 34073,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 34075,
+    "value": {
+      "attempts": 20,
+      "pressurePeer": true,
+      "succeeded": 20
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 34424,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 34664,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 896
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 34776,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 35103,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 35456,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 35459,
+    "value": {
+      "attempts": 24,
+      "pressurePeer": true,
+      "succeeded": 24
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 35601,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch",
+      "totalRejections": 960
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 35810,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 36155,
+    "value": {
+      "action": "stop",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 992,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 110,
+        "probe-b": 26,
+        "probe-control": 112,
+        "probe-shell": 110
+      },
+      "views": [
+        "probe-shell",
+        "probe-unavailable",
+        "probe-b",
+        "probe-control"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 36167,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 39720,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 992,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 110,
+        "probe-b": 26,
+        "probe-control": 126,
+        "probe-shell": 125
+      },
+      "views": [
+        "probe-shell",
+        "probe-unavailable",
+        "probe-b",
+        "probe-control"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 39723,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 39976,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 39979,
+    "value": {
+      "attempts": 28,
+      "pressurePeer": true,
+      "succeeded": 28
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 40232,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 40485,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 40741,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 40997,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 41002,
+    "value": {
+      "attempts": 32,
+      "pressurePeer": true,
+      "succeeded": 32
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 41260,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 41515,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 41770,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 42026,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 42030,
+    "value": {
+      "attempts": 36,
+      "pressurePeer": true,
+      "succeeded": 36
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 42286,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 42541,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 42796,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 43053,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 43059,
+    "value": {
+      "attempts": 40,
+      "pressurePeer": true,
+      "succeeded": 40
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 43314,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 43572,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 43829,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 44084,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 44089,
+    "value": {
+      "attempts": 44,
+      "pressurePeer": true,
+      "succeeded": 44
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 44344,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 44600,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 44856,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 45113,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 45118,
+    "value": {
+      "attempts": 48,
+      "pressurePeer": true,
+      "succeeded": 48
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 45373,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 45630,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 45886,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 46139,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 46142,
+    "value": {
+      "attempts": 52,
+      "pressurePeer": true,
+      "succeeded": 52
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 46396,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 46654,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 46910,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 47167,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 47174,
+    "value": {
+      "attempts": 56,
+      "pressurePeer": true,
+      "succeeded": 56
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 47430,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 47682,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 47936,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 48191,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 48194,
+    "value": {
+      "attempts": 60,
+      "pressurePeer": true,
+      "succeeded": 60
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 48448,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 48703,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 48957,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 49213,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 49218,
+    "value": {
+      "attempts": 64,
+      "pressurePeer": true,
+      "succeeded": 64
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 49472,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 49726,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 49979,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 50232,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 50235,
+    "value": {
+      "attempts": 68,
+      "pressurePeer": true,
+      "succeeded": 68
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 50488,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 50741,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 50994,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 51248,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 51254,
+    "value": {
+      "attempts": 72,
+      "pressurePeer": true,
+      "succeeded": 72
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 51509,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 51761,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 52014,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 52267,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 52270,
+    "value": {
+      "attempts": 76,
+      "pressurePeer": true,
+      "succeeded": 76
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 52524,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 52776,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 53029,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 53291,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 53293,
+    "value": {
+      "attempts": 80,
+      "pressurePeer": true,
+      "succeeded": 80
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 53319,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 992,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 110,
+        "probe-b": 81,
+        "probe-control": 180,
+        "probe-shell": 179
+      },
+      "views": [
+        "probe-shell",
+        "probe-unavailable",
+        "probe-b",
+        "probe-control"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 53546,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 53799,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 54051,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 54306,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 54312,
+    "value": {
+      "attempts": 84,
+      "pressurePeer": true,
+      "succeeded": 84
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 54568,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 54824,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 55081,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 55335,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 55339,
+    "value": {
+      "attempts": 88,
+      "pressurePeer": true,
+      "succeeded": 88
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 55591,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 55844,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 56098,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 56351,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 56353,
+    "value": {
+      "attempts": 92,
+      "pressurePeer": true,
+      "succeeded": 92
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 56607,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 56861,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 57118,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 57380,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 57382,
+    "value": {
+      "attempts": 96,
+      "pressurePeer": true,
+      "succeeded": 96
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 57635,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 57889,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 58143,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 58499,
+    "value": {
+      "bodyBytes": 51,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 58506,
+    "value": {
+      "attempts": 100,
+      "pressurePeer": true,
+      "succeeded": 100
+    }
+  }
+]

@@ -38,6 +38,8 @@ struct Probe {
     receiving: admission::Admission,
     #[cfg(feature = "runtime-probe-receive")]
     receive_rate: receive_policy::Rate,
+    #[cfg(feature = "runtime-probe-receive")]
+    receive_rejections: std::sync::atomic::AtomicU64,
 }
 
 impl Probe {
@@ -105,9 +107,9 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         "extended" => for target in probe_views(app).values() {
             target.eval("void window.runExtendedProbe()").map_err(|e| e.to_string())?;
         },
-        "load" | "ingress" | "receive" => for label in ["probe-a", "probe-b"] {
+        "load" | "ingress" | "receive" | "pressure" => for label in ["probe-a", "probe-b"] {
             if let Some(target) = probe_views(app).get(label) {
-                let script = match action.as_str() { "load" => "void window.runLoadProbe()", "receive" => "void window.runReceiveProbe()", _ => "void window.runIngressProbe()" };
+                let script = match action.as_str() { "load" => "void window.runLoadProbe()", "receive" => "void window.runReceiveProbe()", "pressure" => "void window.runReceivePressure()", _ => "void window.runIngressProbe()" };
                 target.eval(script).map_err(|e| e.to_string())?;
             }
         },
@@ -151,7 +153,10 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
     #[allow(unused_mut)]
     let mut result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "views": probe_views(app).keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap(), "admission": state.admission.snapshot()});
     #[cfg(feature = "runtime-probe-receive")]
-    { result["receiving"] = state.receiving.snapshot(); }
+    {
+        result["receiving"] = state.receiving.snapshot();
+        result["receiveRejections"] = state.receive_rejections.load(std::sync::atomic::Ordering::Relaxed).into();
+    }
     state.record("native", result.clone());
     Ok(result)
 }
@@ -255,6 +260,8 @@ fn main() {
             receiving: admission::Admission::default(),
             #[cfg(feature = "runtime-probe-receive")]
             receive_rate: receive_policy::Rate::default(),
+            #[cfg(feature = "runtime-probe-receive")]
+            receive_rejections: std::sync::atomic::AtomicU64::new(0),
         })
         .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
             // Observe the already-decoded synthetic message; do not grant the command.

@@ -41,3 +41,46 @@ receiveButton.onclick = async () => {
   receiveButton.disabled = true
   display(await outcome(() => invoke('probe_control', { action: 'receive' })))
 }
+
+window.runReceivePressure = async () => {
+  const deadline = performance.now() + 60000
+  if (label === 'probe-a') {
+    const payload = 'x'.repeat(131072)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60000)
+    let attempted = 0
+    await invoke('probe_report', { value: { pressureStart: true, maxRequests: 4096, maxConcurrent: 8, maxDurationMs: 60000, oversizedBodyBytes: payload.length } })
+    while (attempted < 4096 && performance.now() < deadline) {
+      await Promise.all(Array.from({ length: 8 }, (_, index) => outcome(async () => {
+        attempted++
+        const response = index % 2
+          ? await fetch('nookiprobe://localhost/pixel.svg', { signal: controller.signal })
+          : await fetch('ipc://localhost/probe_ingress', { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' }, signal: controller.signal })
+        await response.text()
+      })))
+      await wait(100)
+    }
+    clearTimeout(timeout)
+    display({ pressureFinished: true, attempted })
+    await outcome(() => invoke('probe_report', { value: { pressureFinished: true, attempted } }))
+  } else if (label === 'probe-b') {
+    let attempts = 0, succeeded = 0
+    while (attempts < 240 && performance.now() < deadline) {
+      const result = await outcome(() => invoke('probe_rpc', { owner: label, payload: 'peer under pressure' }))
+      attempts++
+      if (result.fulfilled && result.value === 'peer under pressure') succeeded++
+      if (attempts % 4 === 0) {
+        const value = { pressurePeer: true, attempts, succeeded }
+        display(value)
+        await outcome(() => invoke('probe_report', { value }))
+      }
+      await wait(250)
+    }
+  }
+}
+const pressureButton = document.getElementById('pressure')
+pressureButton.disabled = label !== 'probe-shell'
+pressureButton.onclick = async () => {
+  pressureButton.disabled = true
+  display(await outcome(() => invoke('probe_control', { action: 'pressure' })))
+}
