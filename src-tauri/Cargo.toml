@@ -11,6 +11,7 @@ rust-version = "1.90"
 [features]
 # Disposable probe only; normal application builds do not enable child-view APIs.
 runtime-probe-embedded = ["tauri/unstable"]
+runtime-probe-receive = ["runtime-probe-embedded"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -48,4 +49,6 @@ tauri-plugin-updater = "2.14.1"
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 # Existing transitive dependencies, exposed only to the disposable native runtime probe.
 objc2 = "=0.6.4"
-objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "WKPreferences", "WKWebViewConfiguration", "WKWebsiteDataStore"] }
+objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "WKPreferences", "WKWebViewConfiguration", "WKWebsiteDataStore", "WKURLSchemeHandler", "WKURLSchemeTask", "WKWebView", "WKUserContentController"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSObject", "NSString", "NSData", "NSDictionary", "NSURL", "NSURLRequest", "NSURLResponse", "NSStream"] }
+percent-encoding = "=2.3.2"

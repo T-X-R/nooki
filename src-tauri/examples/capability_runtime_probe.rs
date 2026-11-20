@@ -3,6 +3,12 @@
 mod policy;
 #[path = "capability_runtime_probe/admission.rs"]
 mod admission;
+#[cfg(any(test, feature = "runtime-probe-receive"))]
+#[path = "capability_runtime_probe/receive_policy.rs"]
+mod receive_policy;
+#[cfg(feature = "runtime-probe-receive")]
+#[path = "capability_runtime_probe/receive_boundary.rs"]
+mod receive_boundary;
 #[cfg(target_os = "macos")]
 #[path = "capability_runtime_probe/native_configuration.rs"]
 mod native_configuration;
@@ -28,6 +34,10 @@ struct Probe {
     events: Mutex<Vec<Value>>,
     ticks: Mutex<BTreeMap<String, u64>>,
     admission: admission::Admission,
+    #[cfg(feature = "runtime-probe-receive")]
+    receiving: admission::Admission,
+    #[cfg(feature = "runtime-probe-receive")]
+    receive_rate: receive_policy::Rate,
 }
 
 impl Probe {
@@ -95,9 +105,9 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         "extended" => for target in probe_views(app).values() {
             target.eval("void window.runExtendedProbe()").map_err(|e| e.to_string())?;
         },
-        "load" | "ingress" => for label in ["probe-a", "probe-b"] {
+        "load" | "ingress" | "receive" => for label in ["probe-a", "probe-b"] {
             if let Some(target) = probe_views(app).get(label) {
-                let script = if action == "load" { "void window.runLoadProbe()" } else { "void window.runIngressProbe()" };
+                let script = match action.as_str() { "load" => "void window.runLoadProbe()", "receive" => "void window.runReceiveProbe()", _ => "void window.runIngressProbe()" };
                 target.eval(script).map_err(|e| e.to_string())?;
             }
         },
@@ -118,6 +128,8 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         "busy" => probe_views(app).get("probe-a").cloned().ok_or("A already destroyed")?
             .eval("void window.startBusy()").map_err(|e| e.to_string())?,
         "stop" => if let Some(target) = probe_views(app).get("probe-a").cloned() {
+            #[cfg(feature = "runtime-probe-receive")]
+            app.run_on_main_thread(|| receive_boundary::remove("probe-a")).map_err(|e| e.to_string())?;
             #[cfg(feature = "runtime-probe-embedded")]
             target.close().map_err(|e| e.to_string())?;
             #[cfg(not(feature = "runtime-probe-embedded"))]
@@ -136,7 +148,10 @@ async fn probe_control(window: Webview, action: String, channel: Option<tauri::i
         },
         _ => return Err("unknown probe action".into()),
     }
-    let result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "views": probe_views(app).keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap(), "admission": state.admission.snapshot()});
+    #[allow(unused_mut)]
+    let mut result = json!({"action": action, "elapsedMs": started.elapsed().as_millis(), "views": probe_views(app).keys().collect::<Vec<_>>(), "ticks": *state.ticks.lock().unwrap(), "admission": state.admission.snapshot()});
+    #[cfg(feature = "runtime-probe-receive")]
+    { result["receiving"] = state.receiving.snapshot(); }
     state.record("native", result.clone());
     Ok(result)
 }
@@ -208,13 +223,39 @@ fn silent_wav() -> Vec<u8> {
     data.extend(b"data"); data.extend(sample_bytes.to_le_bytes()); data.resize(sample_bytes as usize + 44, 0); data
 }
 
+fn asset_response(owner: &str, path: &str) -> tauri::http::Response<Vec<u8>> {
+    let (status, mime, data) = match path {
+        "/index.html" => (200, "text/html", include_bytes!("capability_runtime_probe/assets/index.html").to_vec()),
+        "/probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/probe.js").to_vec()),
+        "/extended-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/extended-probe.js").to_vec()),
+        "/load-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/load-probe.js").to_vec()),
+        "/ingress-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/ingress-probe.js").to_vec()),
+        "/receive-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/receive-probe.js").to_vec()),
+        "/service-worker.js" => (200, "text/javascript", b"/* Synthetic registration-only fixture; no persistent work. */".to_vec()),
+        "/pixel.svg" => (200, "image/svg+xml", br##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#479"/></svg>"##.to_vec()),
+        "/tone.wav" => (200, "audio/wav", silent_wav()),
+        _ => (403, "text/plain", b"No package-private route".to_vec()),
+    };
+    let mut response = tauri::http::Response::builder().status(status).header("Content-Type", mime);
+    // B is a native-only negative control; production policy still includes CSP.
+    if !["probe-control", "probe-b"].contains(&owner) {
+        response = response.header("Content-Security-Policy", "default-src 'none'; script-src nookiprobe:; style-src 'unsafe-inline'; connect-src nookiprobe: ipc: http://ipc.localhost; img-src nookiprobe:; media-src nookiprobe:; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
+    }
+    response.body(data).unwrap()
+}
+
 fn main() {
     assert!(cfg!(target_os = "macos"), "This experiment currently measures macOS only");
     let root = PathBuf::from(std::env::var_os("NOOKI_TEST_PROFILE").expect("Use the isolated profile launcher"));
     let mut context = tauri::generate_context!("examples/capability_runtime_probe/tauri.conf.json");
     app_profile::configure(context.config_mut(), |key| std::env::var_os(key)).expect("isolated profile configuration");
     tauri::Builder::default()
-        .manage(Probe { root, started: Instant::now(), events: Mutex::new(Vec::new()), ticks: Mutex::new(BTreeMap::new()), admission: admission::Admission::default() })
+        .manage(Probe { root, started: Instant::now(), events: Mutex::new(Vec::new()), ticks: Mutex::new(BTreeMap::new()), admission: admission::Admission::default(),
+            #[cfg(feature = "runtime-probe-receive")]
+            receiving: admission::Admission::default(),
+            #[cfg(feature = "runtime-probe-receive")]
+            receive_rate: receive_policy::Rate::default(),
+        })
         .invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
             // Observe the already-decoded synthetic message; do not grant the command.
             if invoke.message.command() == "probe_ingress" {
@@ -234,23 +275,7 @@ fn main() {
             if request.uri().path() == "/budget-ingress" {
                 ctx.app_handle().state::<Probe>().record(ctx.webview_label(), json!({"transportIngress":"custom-protocol", "requestBodyBytes":request.body().len(), "method":request.method().as_str()}));
             }
-            let (status, mime, data) = match request.uri().path() {
-                "/index.html" => (200, "text/html", include_bytes!("capability_runtime_probe/assets/index.html").to_vec()),
-                "/probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/probe.js").to_vec()),
-                "/extended-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/extended-probe.js").to_vec()),
-                "/load-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/load-probe.js").to_vec()),
-                "/ingress-probe.js" => (200, "text/javascript", include_bytes!("capability_runtime_probe/assets/ingress-probe.js").to_vec()),
-                "/service-worker.js" => (200, "text/javascript", b"/* Synthetic registration-only fixture; no persistent work. */".to_vec()),
-                "/pixel.svg" => (200, "image/svg+xml", br##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#479"/></svg>"##.to_vec()),
-                "/tone.wav" => (200, "audio/wav", silent_wav()),
-                _ => (403, "text/plain", b"No package-private route".to_vec()),
-            };
-            let mut response = tauri::http::Response::builder().status(status).header("Content-Type", mime);
-            // B is a native-only negative control; production policy still includes CSP.
-            if !["probe-control", "probe-b"].contains(&ctx.webview_label()) {
-                response = response.header("Content-Security-Policy", "default-src 'none'; script-src nookiprobe:; style-src 'unsafe-inline'; connect-src nookiprobe: ipc: http://ipc.localhost; img-src nookiprobe:; media-src nookiprobe:; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");
-            }
-            response.body(data).unwrap()
+            asset_response(ctx.webview_label(), request.uri().path())
         })
         .setup(|app| {
             #[cfg(feature = "runtime-probe-embedded")]
@@ -263,6 +288,8 @@ fn main() {
                 let popup_app = app.handle().clone(); let popup_owner = label.to_string();
                 #[cfg(target_os = "macos")]
                 let (configuration, ready, policy) = native_configuration::prepare(label);
+                #[cfg(feature = "runtime-probe-receive")]
+                receive_boundary::prepare(&configuration, app.handle(), label);
                 #[cfg(target_os = "macos")]
                 app.state::<Probe>().record(label, json!({"enginePolicy": policy}));
                 #[cfg(not(feature = "runtime-probe-embedded"))]
@@ -302,7 +329,15 @@ fn main() {
                     view
                 };
                 #[cfg(target_os = "macos")]
-                if ready { window.navigate("nookiprobe://localhost/index.html".parse()?)?; }
+                if ready {
+                    #[cfg(feature = "runtime-probe-receive")]
+                    if matches!(*label, "probe-a" | "probe-b") {
+                        window.with_webview(move |native| {
+                            receive_boundary::remove_post_message(native.inner());
+                        })?;
+                    }
+                    window.navigate("nookiprobe://localhost/index.html".parse()?)?;
+                }
             }
             let handle = app.handle().clone();
             std::thread::spawn(move || {

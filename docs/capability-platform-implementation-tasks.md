@@ -299,8 +299,9 @@ successful counters alone. Repeat relevant desktop checks when changing the runt
 ### [ ] P02e — Reconcile runtime evidence and decide supported topology
 
 **State:** in-progress. P02e1's finite native probe confirms materialization before denial on both
-application and asset routes. Split the remaining work into P02e2 (receive-boundary experiment)
-and P02e3 (final topology audit); do not turn this finding into an accepted invariant violation.
+application and asset routes. P02e2 now verifies an earlier native receive boundary for the scoped
+desktop cases. P02e3's final audit remains pending, including earlier WebKit allocations and support;
+do not turn a bounded-copy experiment into a hard host-memory claim.
 
 **Depends on:** P02c, P02d. **Size:** S.
 **Deliver:** Final P02 receipt, supported OS/engine and fail-closed policy, updated runtime ADR,
@@ -323,7 +324,13 @@ allocation; preserve the failed boundary and identify the next owning enforcemen
 **Verification:** Native command/asset negative requests with recorded byte counts and final denial,
 responsive host status, focused probe tests and exact engine scope.
 
-### [ ] P02e2 — Bound receiving paths before selecting the production transport
+### [x] P02e2 — Bound receiving paths before selecting the production transport
+
+**State:** scoped experiment verified on 2026-11-20; [receipt and 110 native events](capability-platform-evidence/P02e2.md).
+Pre-registered native handlers bound package IPC/resource copies before decode, with the native
+post-message fallback removed. Both callers reject oversized requests, cancel safely and recover;
+normal media and independent child removal pass. No dependency fork or method swizzling. This is
+not a hard WebKit/native memory bound or a production transport approval; P02e3/P02/K0 remain pending.
 
 **Depends on:** P02e1. **Size:** M; split if the chosen source-level change requires it.
 **Deliver:** A disposable receive-boundary experiment covering native post-message and all exposed
