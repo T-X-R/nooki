@@ -223,6 +223,11 @@ The [resumed verification](capability-platform-evidence/P02-resume.md) adds fres
 removal 21,232 ms into pressure, 112/112 retained peer successes, zero post-removal reservations,
 and uncapped hidden-media/release/loop-removal evidence. Eleven probe tests and the committed-source
 desktop rebuild/reinstall pass. Unfinished C02b changes are excluded; later gates remain pending.
+The [continued native acceptance](capability-platform-evidence/P02-continued.md) adds two fresh
+256/45-event runs on the unchanged probe: removal 9,140 ms into pressure, 132/132 retained peer
+successes, zero post-removal reservations, hidden playback/release and independent loop removal.
+Eleven probe tests and the `ca1a57e` desktop rebuild/reinstall pass; unfinished C03a changes are
+preserved and excluded from that build. The collector cap and production acceptance limits remain.
 
 **Depends on:** P02b2b1. **Size:** M, bounded experiment.
 **Deliver:** Opt-in embedded probe using native Webview caller identity, view-scoped core permissions,

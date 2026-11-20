@@ -1,0 +1,707 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 307,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 307,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 307,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 334,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 417,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 417,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 417,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 417,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 423,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 423,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 423,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 424,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 433,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 433,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 433,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 433,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": null,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": true,
+        "peerConnectionEnabled": true,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 449,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 449,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 449,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 449,
+    "value": {
+      "enginePolicy": {
+        "available": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": false
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 828,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 829,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 829,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 881,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 893,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1140,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1642,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 2645,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 15648,
+    "value": {
+      "playbackStart": {
+        "fulfilled": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 15652,
+    "value": {
+      "playback": {
+        "currentTime": 0.1756567081902176,
+        "ended": false,
+        "focused": true,
+        "networkState": 1,
+        "paused": false,
+        "readyState": 4
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 27510,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 32,
+        "probe-b": 17,
+        "probe-control": 30,
+        "probe-shell": 32
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 36881,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 42,
+        "probe-b": 26,
+        "probe-control": 40,
+        "probe-shell": 41
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 36882,
+    "value": {
+      "playback": {
+        "currentTime": 21.297026584145986,
+        "ended": false,
+        "focused": false,
+        "networkState": 1,
+        "paused": false,
+        "readyState": 4
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 40138,
+    "value": {
+      "action": "show-a",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 45,
+        "probe-b": 30,
+        "probe-control": 43,
+        "probe-shell": 45
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 43789,
+    "value": {
+      "currentSrc": "nookiprobe://localhost/tone.wav",
+      "mediaReleased": true,
+      "networkState": 0,
+      "paused": true,
+      "readyState": 0,
+      "srcAttribute": null,
+      "stoppedAdvancing": true
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 50030,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 55,
+        "probe-b": 40,
+        "probe-control": 53,
+        "probe-shell": 54
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 54010,
+    "value": {
+      "action": "busy",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 59,
+        "probe-b": 44,
+        "probe-control": 57,
+        "probe-shell": 58
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 54010,
+    "value": {
+      "infiniteLoopStarted": true
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 60027,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 59,
+        "probe-b": 50,
+        "probe-control": 63,
+        "probe-shell": 64
+      },
+      "views": [
+        "probe-shell",
+        "probe-a",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 64056,
+    "value": {
+      "action": "stop",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 59,
+        "probe-b": 54,
+        "probe-control": 67,
+        "probe-shell": 68
+      },
+      "views": [
+        "probe-shell",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69146,
+    "value": {
+      "playbackStart": {
+        "fulfilled": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 69149,
+    "value": {
+      "playback": {
+        "currentTime": 0.1671744165942073,
+        "ended": false,
+        "focused": true,
+        "networkState": 1,
+        "paused": false,
+        "readyState": 4
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 77900,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiveRejections": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 59,
+        "probe-b": 68,
+        "probe-control": 81,
+        "probe-shell": 82
+      },
+      "views": [
+        "probe-shell",
+        "probe-unavailable",
+        "probe-control",
+        "probe-b"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 77901,
+    "value": {
+      "playback": {
+        "currentTime": 8.809717166434686,
+        "ended": false,
+        "focused": false,
+        "networkState": 1,
+        "paused": false,
+        "readyState": 4
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 82064,
+    "value": {
+      "currentSrc": "nookiprobe://localhost/tone.wav",
+      "mediaReleased": true,
+      "networkState": 0,
+      "paused": true,
+      "readyState": 0,
+      "srcAttribute": null,
+      "stoppedAdvancing": true
+    }
+  }
+]
