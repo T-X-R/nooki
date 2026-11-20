@@ -397,6 +397,39 @@ impl PlatformState {
   pub fn grant_documents(&self, capability_id: &str, ids: Vec<String>, id: &str) -> Result<crate::document_grants::DocumentGrant, String> {
     crate::document_grants::grant(self, &self.data_dir, capability_id, ids, id)
   }
+  pub fn revoke_document_grant(&self, id: &str) -> Result<(), String> {
+    crate::document_grants::revoke(&self.data_dir, id)
+  }
+
+  pub(crate) fn prepare_document_grant(&self, id: &str) -> Result<(), String> {
+    let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
+    if !registry.capabilities.iter().any(|item| item.manifest.id == id && item.enabled
+      && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected)) {
+      return Err("PERMISSION_DENIED: selected document access is not authorized".into());
+    }
+    if !registry.generations.contains_key(id) {
+      let next = registry.clone();
+      self.commit_registry(&mut registry, next, id)?;
+    }
+    Ok(())
+  }
+
+  // A short synchronous read/capture shares the lifecycle/revocation fence. Never await or re-enter.
+  pub(crate) fn with_document_authority<T>(&self, id: &str,
+      effect: impl FnOnce(&crate::capability_authority::InvocationContext) -> Result<T, String>) -> Result<T, String> {
+    // Match the board worker's data -> authority order; restore uses the same cross-process data lock.
+    let _data = crate::task_worker::data_lock(&self.data_dir)?.ok_or("RESOURCE_BUSY: user data is changing; retry later")?;
+    crate::user_data::ensure_restore_complete(&self.data_dir)?;
+    let _fence = crate::capability_authority::fence(&self.data_dir)?;
+    let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+    let current = load_registry(&self.data_dir)?;
+    let installed = current.capabilities.iter().find(|item| item.manifest.id == id && item.enabled
+      && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected))
+      .ok_or("PERMISSION_DENIED: selected document access is not authorized")?;
+    let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select documents again for this installation")?;
+    effect(&crate::capability_authority::InvocationContext { capability_id: id.into(),
+      capability_version: installed.manifest.version.clone(), generation: generation.clone() })
+  }
   pub fn document_grants(&self, capability_id: &str) -> Result<Vec<crate::document_grants::DocumentGrant>, String> {
     crate::document_grants::list(self, &self.data_dir, capability_id)
   }

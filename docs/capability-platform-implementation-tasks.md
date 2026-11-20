@@ -546,6 +546,9 @@ the public path, not just direct Rust calls, before closing C01c or C01.
 
 ### [ ] C02 — Let a capability select and read authorized document snapshots
 
+**State:** in progress. C02a below completes native authorization/recovery foundations; the public
+picker, Host/kit contract, revocation UI and actual package acceptance remain C02b. C02/K1 stay open.
+
 **Depends on:** C01. **Size:** M.
 **Deliver:** The document branch of the host Library picker, returning recipient-scoped snapshot grants.
 **Acceptance:** Picker shows recipient/purpose; dismissal reads nothing; only chosen snapshots are
@@ -553,6 +556,37 @@ readable and revocation prevents later reads. Existing citations continue to res
 **Likely files:** `src/platform/document-grants.ts`, `src/features/library/LibraryDialogs.tsx`,
 `src-tauri/src/document_grants.rs`, contract, focused grant/picker test.
 **Verification:** V-D, focused picker V-UI and V-N; exercise two package identities and denied sharing.
+
+### [x] C02a — Fence selected snapshots and durable revocation against lifecycle and restore
+
+**State:** verified on 2026-11-20; [receipt](capability-platform-evidence/C02a.md), same branch and
+PR #38, pending human merge. Native grants bind to current installation generations; old authority
+does not revive after re-enable, reinstall or data restore. User citation access is retained after
+revocation. This adds no package-requested picker or public revocation endpoint.
+
+**Depends on:** C01. **Size:** M, native authorization slice split from C02.
+**Deliver:** Current-registry authorization, immutable snapshot replay, durable revocation markers,
+shared data/lifecycle ordering and recovery guards that prevent reuse of removed grant identities.
+**Acceptance:** Missing permission, foreign owner and stale installations fail; restart retains valid
+snapshots; revoke survives restart/restore and preserves user citations; failed durability is not
+acknowledged as success. Restore/capture/read cannot race across native processes, and an interrupted
+restore blocks grant access until recovery. Restored snapshot IDs cannot silently acquire new content.
+**Verification:** Fourteen document-grant test entries including a real child-process lock fixture,
+the Library restore suite, complete native/JavaScript regression, desktop build/install/signature.
+The receipt retains reproduced failures, the bounded review findings and the exact evidence limits.
+
+### [ ] C02b — Deliver the host-owned document picker and public selection workflow
+
+**Depends on:** C02a. **Size:** M; split only if measured scope requires it.
+**Deliver:** `library.requestSelection` document branch, typed dismissal/selected results, purpose and
+recipient display, host-owned grant/revoke controls, canonical kit contract and exported fixture.
+**Acceptance:** Dismissal reads nothing; approved selection returns only selected snapshots to its
+intended installation. A pending picker cannot approve an updated/replaced installation or a disposed
+caller. Revocation blocks later package reads while user citations still resolve. Neither requests
+nor resource IDs confer whole-Library access or a package-selected recipient identity.
+**Verification:** V-D, picker V-UI and actual V-N through an independently packaged capability;
+exercise two identities, denied sharing, cancellation, lifecycle change while selecting, revocation
+and restart. Reproduce the promised public flow before closing C02 or claiming its K1 conditions.
 
 ### [ ] C03 — Create a task-board item without implicitly delegating it
 

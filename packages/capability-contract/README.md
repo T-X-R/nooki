@@ -266,6 +266,17 @@ if (grant) {
 
 Grants bind an immutable selection to a Capability ID and version. Nooki's native and browser-development Hosts reject documents outside that grant; the portable kit's preview Host does not implement grants and rejects these calls. Native checks also reject missing permissions, disabled or uninstalled recipients, and version mismatches. A grant contains up to 50 documents and 8 MB of UTF-8 content. The Capability still decides when to call AI and must explain the input scope before generation.
 
+Nooki 0.4.0's native Host additionally binds a grant to the current installation generation. Restart
+preserves a valid grant; disabling/re-enabling, updating or reinstalling the recipient requires a new
+user selection, even when its version string is unchanged. Older native grants without this binding
+remain user-readable citation snapshots but cannot authorize package reads. Native revocation blocks
+future reads without deleting the snapshot or erasing content already delivered to the package.
+Restoring older user data cannot undo local revocation or reuse a removed snapshot ID for different
+content; select again with a new grant ID. A busy or interrupted data restore refuses grant operations
+until the data transaction finishes or recovery completes. This native behavior does not make the
+shared-realm browser development Host an isolation boundary. Package-requested selection and a
+public revocation interface are not part of this increment.
+
 `DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId`, `snapshotId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. `snapshotId` addresses platform-owned conversation evidence independently of capability grants. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Nooki to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.
 
 Platform Conversations use Codex session APIs directly. Their Library access and task ownership do not add full-library or Codex-session access to CapabilityHost. Existing packages continue to use scoped grants and the platform Model Gateway.
