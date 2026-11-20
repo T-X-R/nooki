@@ -2,6 +2,58 @@
 
 This package is the stable type boundary between Capability Packages and the Nooki. A capability depends on the Manifest, Host, storage, and page-entry types defined here, without depending on shell pages or the Tauri implementation.
 
+## Shipped contract and portable verification
+
+The exported kit targets Nooki 0.3.2's existing Host contract and legacy archive format. There is no
+separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
+tested Nooki version. The toolbox design describes future services, not methods available in this kit.
+The canonical types include the current document references, selected snapshots, publications and
+conversation attachment inputs. Board selection, chat handoff and observable agent-run APIs will be
+added with their implementations. `ai.invoke` is the existing model gateway, not an agent-run handle.
+
+| Surface | Desktop Nooki | Portable `preview/host.ts` |
+|---|---|---|
+| Environment snapshot/subscription | Host language/theme | Controlled in-memory simulation |
+| `storage` | Package-private persistent JSON, permission checked | Empty per instance; JSON copies and permission checks; resets on reload |
+| Jobs, document grants/publication/open, activity writes, AI and Codex sources | Existing scoped Host operations | Explicit unavailable error; no empty-success responses |
+| Board, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
+
+Legacy packages require a Page; jobs and job-backed commands are optional. `widget` has never had a
+supported package loader and is no longer advertised by the public type. The legacy `activity.read`
+permission remains recognized for compatibility, but it exposes no public read method. This kit
+does not add page-free packages or the future archive/API/data-version negotiation.
+
+Use the same deterministic preview Host for local tests, without importing Nooki's source:
+
+```ts
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { createPreviewHost } from './host.ts'
+
+test('save a note', async () => {
+  const { host } = createPreviewHost({
+    id: 'org.example.notes', name: 'Notes', version: '1.0.0',
+    minPlatformVersion: '0.3.2', entrypoints: ['page'], permissions: ['storage'],
+  })
+  await host.storage.set('note', 'Synthetic text')
+  assert.equal(await host.storage.get('note'), 'Synthetic text')
+  await assert.rejects(host.documents.listGrants(), /requires desktop Nooki/)
+})
+```
+
+Save this as `preview/storage.test.mjs` and run `node --test preview/storage.test.mjs` with Node
+22.22.3 (the verified runtime). Keeping this JavaScript test under `preview/` avoids adding Node
+types or Node imports to the browser package's typecheck and import-boundary checks.
+Every Host instance begins empty; the preview reads neither browser storage nor native credentials.
+Use `setEnvironment` returned alongside `host` to exercise language/theme changes. This harness tests
+package UI and storage logic only. It does not simulate grants, Jobs, agents, durability, cancellation
+or native isolation. Test those using the actual archive in an isolated desktop profile.
+
+From the scaffolded project, run `npm install`, `npm run check`, and `npm run pack`. Packaging also
+requires Python 3 for ZIP creation. The resulting archive contains the manifest, bundled entry and
+scoped styles; preview tools stay in the source project. Preview data no longer persists in browser
+storage: copy any useful test text before upgrading an older starter. Desktop package data is unaffected.
+
 ## Follow the platform language and theme
 
 The platform publishes its current language and theme through `host.environment`. A Capability Package owns its translations and styles and subscribes to environment changes. It must not read the platform's Zustand store, i18next instance, or page DOM.
@@ -150,7 +202,7 @@ if (grant) {
 }
 ```
 
-Grants bind an immutable selection to a Capability ID and version. Both native and preview Hosts reject documents outside that grant. Native checks also reject missing permissions, disabled or uninstalled recipients, and version mismatches. A grant contains up to 50 documents and 8 MB of UTF-8 content. The Capability still decides when to call AI and must explain the input scope before generation.
+Grants bind an immutable selection to a Capability ID and version. Nooki's native and browser-development Hosts reject documents outside that grant; the portable kit's preview Host does not implement grants and rejects these calls. Native checks also reject missing permissions, disabled or uninstalled recipients, and version mismatches. A grant contains up to 50 documents and 8 MB of UTF-8 content. The Capability still decides when to call AI and must explain the input scope before generation.
 
 `DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId`, `snapshotId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. `snapshotId` addresses platform-owned conversation evidence independently of capability grants. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Nooki to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.
 

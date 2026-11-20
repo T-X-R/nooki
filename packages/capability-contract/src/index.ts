@@ -6,7 +6,7 @@ export type AiInvocationResult = {
   output: string
 }
 
-export type CapabilityEntrypoint = 'page' | 'command' | 'widget' | 'job'
+export type CapabilityEntrypoint = 'page' | 'command' | 'job'
 export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected'
 export type CapabilityLanguage = 'zh' | 'en'
 export type CapabilityTheme = 'light' | 'dark'

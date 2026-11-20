@@ -50,7 +50,13 @@ focused baseline results and limitations are recorded; no mock is presented as n
 **Likely files:** Fixture manifest/entry, baseline receipt and verification instructions.
 **Verification:** V-P/V-K/V-B/V-A and V-N using the archive in two isolated desktop profiles.
 
-### [ ] P01 — Export the minimal public contract and development harness
+### [x] P01 — Export the minimal public contract and development harness
+
+**State:** complete on 2026-11-20; same branch and PR #38, pending human merge.
+Evidence: [P01 verification receipt](capability-platform-evidence/P01.md). Kit 0.2.0 has a deterministic
+storage/environment preview Host, explicit desktop-only errors and supported entrypoint types; the
+exported ZIP scaffold passed independent dependency installation, tests, check/pack and browser checks.
+Future board/chat/agent service definitions ship with C01–C08, not as successful stubs.
 
 **Depends on:** P00. **Size:** M.
 **Deliver:** Canonical definitions for the first workflow and a kit that exposes only implemented

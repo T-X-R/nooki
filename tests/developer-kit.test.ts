@@ -25,8 +25,26 @@ test('released kit scaffolds an independent project with canonical Host types an
     // Reuse test dependencies only; project source and contract stay outside the repo.
     const dependencies = fileURLToPath(new URL('../node_modules', import.meta.url))
     await symlink(dependencies, join(target, 'node_modules'), 'dir')
-    execFileSync(process.execPath, [join(dependencies, 'typescript/bin/tsc'), '--noEmit'], { cwd: target, stdio: 'pipe' })
+    const contractGuide = await readFile(join(skill, 'references/contract.md'), 'utf8')
+    const example = contractGuide.match(/```ts\n(import assert from 'node:assert\/strict'[\s\S]*?)```/)![1]
+    await writeFile(join(target, 'preview/storage.test.mjs'), example)
+    execFileSync(process.execPath, ['--test', 'preview/storage.test.mjs'], { cwd: target, stdio: 'pipe' })
+    await writeFile(join(target, 'supported-contract.ts'), `import type { CapabilityEntrypoint, CapabilityHost } from './contract'
+// @ts-expect-error Widgets have no implemented loader.
+const widget: CapabilityEntrypoint = 'widget'
+declare const host: CapabilityHost
+// @ts-expect-error Board services are not shipped yet.
+host.board.create({ title: 'Test' })
+// @ts-expect-error Agent runs are not the legacy AI invocation API.
+host.agents.start({})
+`)
+    execFileSync(process.execPath, [join(dependencies, 'typescript/bin/tsc'), '--noEmit'], { cwd: target, stdio: 'inherit' })
     execFileSync(process.execPath, [join(target, 'scripts/check.mjs')], { cwd: target, stdio: 'pipe' })
+    execFileSync(process.execPath, [join(target, 'scripts/package-capability.mjs'), '.', 'dist'], { cwd: target, stdio: 'pipe' })
+    const archive = join(target, 'dist/org.example.notes-1.0.0.capability.zip')
+    const archived = JSON.parse(execFileSync('python3', ['-c', 'import json,sys,zipfile\nwith zipfile.ZipFile(sys.argv[1]) as z: print(json.dumps({"files": sorted(z.namelist()), "manifest": json.loads(z.read("manifest.json"))}))', archive], { encoding: 'utf8' }))
+    assert.deepEqual(archived.files, ['entry.js', 'manifest.json', 'style.css'])
+    assert.equal(archived.manifest.id, 'org.example.notes')
     assert.throws(() => execFileSync(process.execPath, [join(skill, 'scripts/create-capability.mjs'), target, 'org.example.other'], { stdio: 'pipe' }))
     assert.equal(JSON.parse(await readFile(join(target, 'manifest.json'), 'utf8')).id, 'org.example.notes')
   } finally { await rm(root, { recursive: true, force: true }) }
