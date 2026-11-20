@@ -443,6 +443,10 @@ No production isolated-transport claim; C01b/C01c remain required for the public
 
 ### [ ] C01b — Persist the first board effect and idempotency receipt atomically
 
+**State:** in-progress; split into C01b1 (cross-process authorization fence) and C01b2
+(atomic board effect/receipt) before implementation. An in-process mutex cannot reject work queued
+in a separate worker after a timeout and revocation.
+
 **Depends on:** C01a. **Size:** M.
 **Deliver:** Worker-side create-item transaction with canonical payload hash and durable result,
 including authority-generation validation coordinated with lifecycle changes across processes.
@@ -451,6 +455,33 @@ reply loss do not duplicate the effect; revoked/old-generation requests cannot c
 item neither delegates nor starts an agent.
 **Verification:** Actual board-file readback, concurrent/restart/failure/revoke tests through the
 native owner; keep existing task-worker behavior intact.
+
+### [x] C01b1 — Share the authorization fence with the native worker
+
+**State:** verified on 2026-11-20; [cross-process fence and regression receipt](capability-platform-evidence/C01b1.md).
+Native live-record/registry fencing and actual process-boundary tests pass. The task-board transaction
+is not connected yet; C01b2/C01c and the C01 parent remain pending. Same branch and PR #38.
+
+**Depends on:** C01a. **Size:** M.
+**Deliver:** A private, bounded live-authorization record keyed by handle digest, a stable native
+file lock, and a worker-side effect-boundary validator. Clear live records on host startup; never
+restore authority from a previous process. No renderer issuance endpoint is added.
+**Acceptance:** Wrong caller/scope, revoked handles and old installation generations fail at the
+worker boundary; revoke and a committing effect are ordered across actual processes. Current
+registry changes remain authoritative if record cleanup cannot occur; no stale cache revives grants.
+**Verification:** Native process-boundary race, restart, digest/non-replay, legacy lifecycle and
+failure tests; keep C01b pending until the real board effect and receipt pass C01b2.
+
+### [ ] C01b2 — Commit board creation and its replay receipt together
+
+**Depends on:** C01b1. **Size:** M.
+**Deliver:** Native worker create-item path with a canonical payload hash and result in the same
+atomic board file as the item. Deny access through the generic renderer worker-command escape path.
+**Acceptance:** Same package/operation/key/input returns the original reference, changed input
+conflicts, and receipt replay survives restart/reply loss/deletion without recreating an item.
+A create operation only adds a todo item, with no execution authorization or agent side effect.
+**Verification:** Real file contents, concurrent retries, injected pre/post-commit failure and
+revoke/worker races, plus existing board regressions. Public Host/UI delivery remains C01c/C03.
 
 ### [ ] C01c — Connect authorized Host mutation requests and document the contract
 
