@@ -207,6 +207,11 @@ pending human merge. Native view identity and view-scoped permissions hold insid
 network controls, hidden playback and independent child termination pass their measured cases.
 The failed title-command positive control was corrected and rerun; its trace remains retained.
 The later resource/support decision is recorded in the final P02 receipt.
+Current-source revalidation after the user reported unlocking also passes: see the
+[2026-11-20 unlocked-desktop receipt](capability-platform-evidence/P02-unlocked.md).
+It repeats channel ownership, hidden playback/release, loop removal, receive limits and removal
+during finite pressure; the first run's incomplete receive result is retained, and a separate run
+provides both complete package results. Production integration remains pending.
 
 **Depends on:** P02b2b1. **Size:** M, bounded experiment.
 **Deliver:** Opt-in embedded probe using native Webview caller identity, view-scoped core permissions,
