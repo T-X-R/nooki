@@ -4,7 +4,7 @@ use std::{
   collections::BTreeMap,
   fs,
   path::{Path, PathBuf},
-  sync::RwLock,
+  sync::{Mutex, RwLock},
 };
 
 const SETTINGS_FILE: &str = "platform-settings.json";
@@ -79,6 +79,8 @@ pub struct InstalledCapability {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 struct CapabilityRegistry {
   capabilities: Vec<InstalledCapability>,
+  #[serde(default)]
+  generations: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +104,7 @@ pub struct PlatformState {
   data_dir: PathBuf,
   settings: RwLock<PlatformSettings>,
   registry: RwLock<CapabilityRegistry>,
+  authority: Mutex<crate::capability_authority::Authority>,
 }
 
 impl PlatformState {
@@ -120,10 +123,66 @@ impl PlatformState {
       data_dir,
       settings: RwLock::new(settings),
       registry: RwLock::new(registry),
+      authority: Mutex::new(crate::capability_authority::Authority::default()),
     })
   }
 
   pub fn data_dir(&self) -> &Path { &self.data_dir }
+
+  /// Trusted native controller only: calling this method is the board-create grant decision.
+  /// C01c must bind this controller to host approval/manifest policy; do not expose it to packages.
+  pub fn grant_board_creation(&self, caller: &str, id: &str, expected_version: &str) -> Result<String, String> {
+    let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
+    let installed = registry.capabilities.iter().find(|item| item.manifest.id == id && item.enabled && item.manifest.version == expected_version)
+      .ok_or("PERMISSION_DENIED: installation is not active at the expected version")?;
+    let version = installed.manifest.version.clone();
+    if !registry.generations.contains_key(id) {
+      let next = registry.clone();
+      self.commit_registry(&mut registry, next, id)?;
+    }
+    let context = crate::capability_authority::InvocationContext { capability_id:id.into(), capability_version:version, generation:registry.generations[id].clone() };
+    self.authority.lock().map_err(|_| "RESOURCE_UNAVAILABLE: authority unavailable")?.issue(caller, context)
+  }
+
+  pub fn revoke_board_invocation(&self, caller: &str, handle: &str) -> Result<(), String> {
+    self.authority.lock().map_err(|_| "RESOURCE_UNAVAILABLE: authority unavailable")?.revoke(caller, handle)
+  }
+
+  /// Linearizes a short synchronous local effect with revocation and registry transitions.
+  /// The effect must not re-enter PlatformState or await another process. Worker coordination is C01b.
+  pub fn with_board_authority<T>(&self, caller: &str, handle: &str, operation: &str, resource: &str,
+      effect: impl FnOnce(&crate::capability_authority::InvocationContext) -> Result<T, String>) -> Result<T, String> {
+    let registry = self.registry.read().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
+    let authority = self.authority.lock().map_err(|_| "RESOURCE_UNAVAILABLE: authority unavailable")?;
+    let context = authority.context(caller, handle, operation, resource)?;
+    if registry.generations.get(&context.capability_id) != Some(&context.generation)
+      || !registry.capabilities.iter().any(|item| item.manifest.id == context.capability_id && item.manifest.version == context.capability_version && item.enabled) {
+      return Err("PERMISSION_DENIED: stale installation generation".into());
+    }
+    effect(context)
+  }
+
+  fn commit_registry(&self, registry: &mut CapabilityRegistry, mut next: CapabilityRegistry, changed_id: &str) -> Result<(), String> {
+    use std::io::Write;
+    let mut authority = self.authority.lock().map_err(|_| "RESOURCE_UNAVAILABLE: authority unavailable")?;
+    if next.capabilities.iter().any(|item| item.manifest.id == changed_id) {
+      next.generations.insert(changed_id.into(), crate::capability_authority::nonce()?);
+    } else { next.generations.remove(changed_id); }
+    let parent = self.data_dir.join(INSTALLED_CAPABILITIES_DIR);
+    fs::create_dir_all(&parent).map_err(|e| e.to_string())?;
+    let path = parent.join(REGISTRY_FILE);
+    let mut file = fs::File::create(path.with_extension("json.tmp")).map_err(|e| e.to_string())?;
+    file.write_all(&serde_json::to_vec_pretty(&next).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    file.sync_all().map_err(|e| e.to_string())?;
+    fs::rename(path.with_extension("json.tmp"), &path).map_err(|e| e.to_string())?;
+    // After rename the new state is visible even if the final durability acknowledgement fails.
+    *registry = next;
+    authority.invalidate(changed_id);
+    #[cfg(unix)]
+    fs::File::open(parent).and_then(|directory| directory.sync_all())
+      .map_err(|_| "OUTCOME_UNKNOWN: registry changed but durability acknowledgement failed".to_string())?;
+    Ok(())
+  }
 
   pub fn capability_agent(&self) -> Result<String, String> {
     self.settings
@@ -171,11 +230,7 @@ impl PlatformState {
     };
     let mut next = registry.clone();
     next.capabilities.push(installed.clone());
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, &installed.manifest.id)?;
     Ok(installed)
   }
 
@@ -206,11 +261,7 @@ impl PlatformState {
     }
     capability.manifest = manifest;
     let updated = capability.clone();
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, &updated.manifest.id)?;
     Ok(updated)
   }
 
@@ -226,11 +277,7 @@ impl PlatformState {
       .find(|capability| capability.manifest.id == id)
       .ok_or_else(|| "能力尚未安装".to_string())?;
     capability.enabled = enabled;
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, id)?;
     Ok(())
   }
 
@@ -245,11 +292,7 @@ impl PlatformState {
     if next.capabilities.len() == before {
       return Err("能力尚未安装".into());
     }
-    persist_json(
-      &self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE),
-      &next,
-    )?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, id)?;
     // Only package executables are removed; namespaced data and documents stay.
     let packages = self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(id);
     if packages.is_dir() { let _ = fs::remove_dir_all(packages); }
@@ -323,8 +366,7 @@ impl PlatformState {
     let mut next = registry.clone();
     next.capabilities.retain(|item| item.manifest.id != package.manifest.id);
     next.capabilities.push(installed.clone());
-    persist_json(&self.data_dir.join(INSTALLED_CAPABILITIES_DIR).join(REGISTRY_FILE), &next)?;
-    *registry = next;
+    self.commit_registry(&mut registry, next, &installed.manifest.id)?;
     Ok(installed)
   }
 

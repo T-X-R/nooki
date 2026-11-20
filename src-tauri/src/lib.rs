@@ -12,6 +12,7 @@ pub mod conversation_skills;
 pub mod source_snapshots;
 pub mod document_grants;
 pub mod capability_runtime;
+pub mod capability_authority;
 pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;

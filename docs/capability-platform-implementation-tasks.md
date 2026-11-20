@@ -408,6 +408,9 @@ block production runtime promises; reconcile them before freezing transport-depe
 
 ### [ ] C01 — Bind a Host mutation to invocation identity and scoped authority
 
+**State:** in-progress; split into C01a–C01c before implementation because authority lifecycle,
+worker persistence and public Host delivery have separate verification boundaries.
+
 **Depends on:** P01, P02. **Size:** M.
 **Deliver:** The authority context and durable idempotency receipt used by the first board mutation,
 including activation identity and operation/resource scope. Do not build unrelated policy engines.
@@ -417,6 +420,42 @@ the same result while changed payload conflicts; revoked or old-generation calls
 `src/platform/capability-broker.ts`, canonical contract.
 **Verification:** New authority/receipt tests plus V-P. Record that the legacy runtime remains trusted-only;
 protocol-level checks here do not prove isolation from arbitrary same-realm code.
+
+### [x] C01a — Bind native invocation handles to installation generations
+
+**State:** verified on 2026-11-20; [native implementation and regression receipt](capability-platform-evidence/C01a.md).
+Generation-bound handles and lifecycle invalidation are integrated. No new package-callable endpoint;
+C01b/C01c and the C01 parent remain pending. Same branch and PR #38, pending human merge.
+
+**Depends on:** P02. **Size:** M.
+**Deliver:** A bounded native authority store and installation-generation tracking, integrated with
+install/update/disable/uninstall. This is host-controller infrastructure, not a new package API.
+**Acceptance:** Handles bind actual native caller, package/version, generation and the first board
+operation/resource scope; forged/unknown handles and stale generations fail; revocation is serialized
+with the synchronous effect check. Restart never restores live invocation handles.
+**Verification:** Native lifecycle, wrong-caller/scope, revoke/effect ordering and capacity tests.
+No production isolated-transport claim; C01b/C01c remain required for the public mutation path.
+
+### [ ] C01b — Persist the first board effect and idempotency receipt atomically
+
+**Depends on:** C01a. **Size:** M.
+**Deliver:** Worker-side create-item transaction with canonical payload hash and durable result,
+including authority-generation validation coordinated with lifecycle changes across processes.
+**Acceptance:** Same key/input returns one durable result; changed input conflicts; restart and
+reply loss do not duplicate the effect; revoked/old-generation requests cannot commit. Creating an
+item neither delegates nor starts an agent.
+**Verification:** Actual board-file readback, concurrent/restart/failure/revoke tests through the
+native owner; keep existing task-worker behavior intact.
+
+### [ ] C01c — Connect authorized Host mutation requests and document the contract
+
+**Depends on:** C01b. **Size:** M; split if public delivery requires it.
+**Deliver:** Trusted-controller issuance, bounded Host adapter, canonical error/idempotency types,
+kit/Skill updates and actual desktop verification. Package requests cannot choose owner or grants.
+**Acceptance:** Native caller binding reaches the authoritative operation; forged input is refused;
+public preview reports unsupported desktop operations; disabling invalidates the old caller.
+**Verification:** V-P, exported-kit checks and native negative cases. C03 owns the completed public
+board workflow/UI; do not mark C01 complete from C01a alone.
 
 ### [ ] C02 — Let a capability select and read authorized document snapshots
 
