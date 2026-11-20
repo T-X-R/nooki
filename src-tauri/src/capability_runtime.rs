@@ -428,13 +428,7 @@ impl PlatformState {
   }
   // Callers hold the native authority fence while using this current-registry snapshot.
   pub(crate) fn document_context(&self, id: &str) -> Result<crate::capability_authority::InvocationContext, String> {
-    let current = load_registry(&self.data_dir)?;
-    let installed = current.capabilities.iter().find(|item| item.manifest.id == id && item.enabled
-      && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected))
-      .ok_or("PERMISSION_DENIED: selected document access is not authorized")?;
-    let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select documents again for this installation")?;
-    Ok(crate::capability_authority::InvocationContext { capability_id: id.into(),
-      capability_version: installed.manifest.version.clone(), generation: generation.clone() })
+    document_context(&self.data_dir, id)
   }
   pub fn document_grants(&self, capability_id: &str) -> Result<Vec<crate::document_grants::DocumentGrant>, String> {
     crate::document_grants::list(self, &self.data_dir, capability_id)
@@ -604,6 +598,17 @@ impl CapabilityRegistry {
         && item.manifest.version == context.capability_version && item.enabled
         && item.manifest.permissions.contains(&CapabilityPermission::BoardCreate))
   }
+}
+
+// Caller holds the authority fence; this also serves worker-side document effects without re-locking.
+pub(crate) fn document_context(root: &Path, id: &str) -> Result<crate::capability_authority::InvocationContext, String> {
+  let current = load_registry(root)?;
+  let installed = current.capabilities.iter().find(|item| item.manifest.id == id && item.enabled
+    && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected))
+    .ok_or("PERMISSION_DENIED: selected document access is not authorized")?;
+  let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select documents again for this installation")?;
+  Ok(crate::capability_authority::InvocationContext { capability_id: id.into(),
+    capability_version: installed.manifest.version.clone(), generation: generation.clone() })
 }
 
 /// Native worker effect boundary; never a renderer issuance endpoint. The caller must be supplied

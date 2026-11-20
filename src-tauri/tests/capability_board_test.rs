@@ -270,3 +270,118 @@ async fn queued_native_request_is_rechecked_after_revocation_before_writing() {
     assert!(response["error"].as_str().unwrap().contains("PERMISSION_DENIED"));
     assert!(!root.join("task-board.json").exists());drop(native);fs::remove_dir_all(root).unwrap();
 }
+
+fn source_fixture() -> (PathBuf,PlatformState,GoalWorker,String,Value) {
+    let (root,state,worker,_)=fixture();
+    let mut manifest=state.list_capabilities().unwrap()[0].manifest.clone();
+    manifest.permissions.extend([CapabilityPermission::DocumentsReadSelected,CapabilityPermission::DocumentsPublish]);
+    state.update_capability(manifest.clone()).unwrap();
+    manifest.id="example.other".into();state.install_capability(manifest).unwrap();
+    let document=state.publish_document("example.notes",app_lib::document_library::DocumentPublication {key:"minutes".into(),title:"Selected minutes".into(),collection_key:"notes".into(),collection_name:"Notes".into(),document_date:"2026-11-20".into(),content:"Original selected input".into()}).unwrap();
+    let grant=state.grant_documents("example.notes",vec![document.id],"selected").unwrap();
+    let handle=state.grant_board_creation("native-a","example.notes","0.1.0").unwrap();
+    (root,state,worker,handle,serde_json::to_value(&grant.documents[0].reference).unwrap())
+}
+fn sourced(handle:&str,key:&str,reference:Value)->Value {
+    let mut value=request(handle,key);value["input"]["sources"]=json!([reference]);value
+}
+
+#[tokio::test]
+async fn selected_sources_commit_with_canonical_references_without_execution_authority() {
+    let (root,state,mut worker,handle,reference)=source_fixture();
+    let result=command(&mut worker,sourced(&handle,"selected",reference.clone())).await.unwrap();
+    let board=disk(&root);let card=&board["cards"][0];
+    assert_eq!(card["sources"],json!([{"id":reference["documentId"],"title":reference["title"],"reference":reference}]));
+    assert_eq!(card["id"],result["id"]);assert_eq!(card["status"],"todo");
+    for field in ["authorization","threadId","runId","execution","engine","delivery"] {assert!(card.get(field).is_none());}
+    assert!(!fs::read_to_string(root.join("task-board.json")).unwrap().contains("Original selected input"));
+    state.publish_document("example.notes",app_lib::document_library::DocumentPublication {key:"minutes".into(),title:"Edited title".into(),collection_key:"notes".into(),collection_name:"Notes".into(),document_date:"2026-11-20".into(),content:"Changed original".into()}).unwrap();
+    worker.tick().await.unwrap();assert_eq!(disk(&root),board);
+    drop(worker);drop(state);
+    let state=PlatformState::load(root.clone()).unwrap();let mut worker=GoalWorker::new(root.clone(),"/missing-agent".into());
+    let fresh=state.grant_board_creation("native-a","example.notes","0.1.0").unwrap();
+    assert_eq!(command(&mut worker,sourced(&fresh,"selected",reference.clone())).await.unwrap(),result);
+    assert_eq!(state.read_document_source("selected",reference["documentId"].as_str().unwrap()).unwrap().content.as_deref(),Some("Original selected input"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn unselected_foreign_revoked_and_forged_references_leave_no_card_or_receipt() {
+    let (root,state,mut worker,handle,reference)=source_fixture();
+    let foreign=state.grant_documents("example.other",vec![reference["documentId"].as_str().unwrap().into()],"foreign").unwrap();
+    let mut cases=vec![serde_json::to_value(&foreign.documents[0].reference).unwrap()];
+    for (field,value) in [("documentId","example.notes/notes/2026/11/unselected"),("revision","forged"),("title","Misleading title"),("kind","artifact"),("grantId","missing")] {
+        let mut changed=reference.clone();changed[field]=json!(value);cases.push(changed);
+    }
+    let mut unknown=reference.clone();unknown["capabilityId"]=json!("example.notes");cases.push(unknown);
+    for value in cases {
+        assert!(command(&mut worker,sourced(&handle,"denied",value)).await.is_err());
+        assert!(!root.join("task-board.json").exists());
+    }
+    state.revoke_document_grant("selected").unwrap();
+    assert!(command(&mut worker,sourced(&handle,"revoked",reference)).await.unwrap_err().contains("PERMISSION_DENIED"));
+    assert!(!root.join("task-board.json").exists());fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn source_revocation_blocks_new_effects_but_not_metadata_only_receipt_replay() {
+    let (root,state,mut worker,handle,reference)=source_fixture();
+    let result=command(&mut worker,sourced(&handle,"committed",reference.clone())).await.unwrap();
+    state.revoke_document_grant("selected").unwrap();let before=disk(&root);
+    assert_eq!(command(&mut worker,sourced(&handle,"committed",reference.clone())).await.unwrap(),result);
+    assert!(command(&mut worker,sourced(&handle,"new",reference)).await.unwrap_err().contains("PERMISSION_DENIED"));
+    assert_eq!(disk(&root),before);fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn stale_selection_and_missing_document_permission_cannot_be_attached() {
+    for permission in [true,false] {
+        let (root,state,mut worker,_,reference)=source_fixture();
+        let mut manifest=state.list_capabilities().unwrap().into_iter().find(|cap|cap.manifest.id=="example.notes").unwrap().manifest;
+        if !permission {manifest.permissions.retain(|value|*value!=CapabilityPermission::DocumentsReadSelected);}
+        state.update_capability(manifest).unwrap();
+        let handle=state.grant_board_creation("native-a","example.notes","0.1.0").unwrap();
+        assert!(command(&mut worker,sourced(&handle,"stale",reference)).await.unwrap_err().contains("PERMISSION_DENIED"));
+        assert!(!root.join("task-board.json").exists());
+        command(&mut worker,request(&handle,"source-free")).await.unwrap();fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn duplicate_and_excessive_selected_references_fail_without_truncation() {
+    let (root,_state,mut worker,handle,reference)=source_fixture();
+    for count in [2,51] {
+        let mut value=request(&handle,"invalid");value["input"]["sources"]=json!(vec![reference.clone();count]);
+        assert!(command(&mut worker,value).await.unwrap_err().contains("INVALID_INPUT"));
+        assert!(!root.join("task-board.json").exists());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn interrupted_restore_blocks_sourced_creation_and_existing_receipt_replay() {
+    let (root,_state,mut worker,handle,reference)=source_fixture();
+    command(&mut worker,request(&handle,"existing")).await.unwrap();let before=disk(&root);
+    fs::create_dir(root.join(".data-restore")).unwrap();fs::write(root.join(".data-restore/prepared.json"),b"\"incomplete\"").unwrap();
+    for value in [request(&handle,"existing"),sourced(&handle,"new",reference)] {
+        assert!(command(&mut worker,value).await.unwrap_err().contains("RESOURCE_BUSY"));
+        assert_eq!(disk(&root),before);
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
+async fn combined_selected_sources_obey_the_task_input_byte_limit() {
+    let (root,state,mut worker,handle,_)=source_fixture();let mut references=Vec::new();
+    for index in 0..5 {
+        let document=state.publish_document("example.notes",app_lib::document_library::DocumentPublication {key:format!("large-{index}"),title:format!("Large {index}"),collection_key:"notes".into(),collection_name:"Notes".into(),document_date:"2026-11-20".into(),content:"x".repeat(2_000_000)}).unwrap();
+        let grant=state.grant_documents("example.notes",vec![document.id],&format!("large-{index}")).unwrap();
+        references.push(serde_json::to_value(&grant.documents[0].reference).unwrap());
+    }
+    let mut over=request(&handle,"over");over["input"]["sources"]=json!(references);
+    assert!(command(&mut worker,over).await.unwrap_err().contains("RESOURCE_LIMIT"));assert!(!root.join("task-board.json").exists());
+    let mut exact=request(&handle,"exact");exact["input"]["sources"]=json!(&references[..4]);
+    command(&mut worker,exact).await.unwrap();assert_eq!(disk(&root)["cards"][0]["sources"].as_array().unwrap().len(),4);
+    assert!(fs::metadata(root.join("task-board.json")).unwrap().len()<10_000);
+    fs::remove_dir_all(root).unwrap();
+}

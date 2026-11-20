@@ -175,6 +175,32 @@ pub fn read_selected(state: &PlatformState, data_dir: &Path, capability_id: &str
   })
 }
 
+// The board worker already holds task-data.lock and the authority fence through its commit.
+// Return canonical references only; a task is user-owned and creation does not delegate execution.
+pub(crate) fn board_sources(root: &Path, context: &crate::capability_authority::InvocationContext,
+    references: &[DocumentReference]) -> Result<Vec<serde_json::Value>, String> {
+  if references.is_empty() { return Ok(Vec::new()); }
+  if crate::capability_runtime::document_context(root, &context.capability_id)? != *context {
+    return Err("PERMISSION_DENIED: document installation changed".into());
+  }
+  let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  let denied = "PERMISSION_DENIED: source is not an authorized selected snapshot";
+  let mut sources = Vec::new();
+  let mut bytes = 0usize;
+  for reference in references {
+    let record = read(root, &reference.grant_id).map_err(|_| denied)?;
+    if !record.authorizes(context) || revoked(root, &reference.grant_id)? { return Err(denied.into()); }
+    let selected = source(record.grant, &reference.document_id).map_err(|_| denied)?;
+    let canonical = &selected.reference;
+    if canonical.kind != reference.kind || canonical.title != reference.title || canonical.revision != reference.revision
+      || canonical.grant_id != reference.grant_id { return Err(denied.into()); }
+    bytes += selected.content.as_ref().ok_or(denied)?.len();
+    if bytes > 8_000_000 { return Err("RESOURCE_LIMIT: selected task inputs exceed 8 MB".into()); }
+    sources.push(serde_json::json!({"id":canonical.document_id,"title":canonical.title,"reference":canonical}));
+  }
+  Ok(sources)
+}
+
 fn source(grant: DocumentGrant, document_id: &str) -> Result<SelectedDocument, String> {
   grant.documents.into_iter().find(|doc| doc.reference.document_id == document_id)
     .ok_or_else(|| "Document is outside the authorized selection".into())

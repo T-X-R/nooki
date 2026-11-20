@@ -608,6 +608,11 @@ and restart. Reproduce the promised public flow before closing C02 or claiming i
 
 ### [ ] C03 — Create a task-board item without implicitly delegating it
 
+**State:** implementation underway; split before changes into C03a/C03b/C03c below. C01 already
+provides creation/provenance/atomic replay. Remaining work is authorized source references, retained
+snapshot behavior in existing task workflows, and public kit/native acceptance. C02 native UI
+observations remain separately pending; C03 depends on completed C01 and uses C02a grant authority.
+
 **Depends on:** C01. **Size:** M.
 **Deliver:** Public item creation over the native board owner, with stable result and provenance.
 **Acceptance:** Authorized creation survives restart; duplicate requests create one item; creation
@@ -615,6 +620,44 @@ cannot self-authorize execution or mark a delivery accepted.
 **Likely files:** `src-tauri/src/task_goals.rs`, native Host board adapter (new), contract,
 `src/features/task-board/task-board.ts`, board API tests (new).
 **Verification:** V-B plus receipt-failure/retry tests and V-N; verify current Goals behavior is preserved.
+
+### [x] C03a — Validate selected references at native board creation
+
+**State:** verified on 2026-11-20; [C03a evidence](capability-platform-evidence/C03a.md),
+same branch and PR #38, pending human merge. Canonical selected references and live authority
+are checked before the atomic native card/receipt effect; replay remains metadata-only.
+Nineteen board tests, full native/JavaScript regression and desktop build/install pass.
+Public sourced creation and retained delegation remain C03b/C03c; parent C03/K1 stay pending.
+
+**Depends on:** C01, C02a. **Size:** M.
+**Deliver:** Bounded typed source references; current selected-document permission, installation and
+revocation checks under the worker data/authority locks; canonical snapshot references in the same
+board/receipt commit. No document body or package-provided authority is persisted as a source.
+**Acceptance:** Selected references succeed; forged, foreign, unselected, stale or revoked references
+cannot create a card/receipt. Existing receipt replay returns the prior item without rereading sources;
+new keys must pass current source authorization. Source-free behavior and no-delegation remain intact.
+**Verification:** Native board/source tests, existing receipt durability and grant/lifecycle suites.
+
+### [ ] C03b — Preserve selected snapshots in user-owned task workflows
+
+**Depends on:** C03a. **Size:** M.
+**Deliver:** Task source representation and user citation opening; explicit user delegation captures
+retained selected snapshots rather than silently reading changed current documents. Existing plain
+Library references retain their current behavior. Restore validation covers the new reference shape.
+**Acceptance:** Original edits, package disable/uninstall and grant revocation do not change an
+already-created user's task citation. New package reads remain denied. Delegation is still explicit;
+retries/resume keep their captured input. Malformed references fail without selecting a different input.
+**Verification:** Task/Goals/source snapshot tests and focused task-reference UI verification.
+
+### [ ] C03c — Deliver sourced creation through the public Host and exported kit
+
+**Depends on:** C03a, C03b. **Size:** M.
+**Deliver:** Public adapter, versioned contract/kit documentation and an independent package fixture
+that selects a document then creates a todo with its reference and a stable idempotency key.
+**Acceptance:** Actual ZIP selection/create/replay/restart works; revoked/foreign new sources fail;
+user citation survives revocation; no agent starts and no delivery is accepted by creation.
+**Verification:** Host/kit tests, real archive V-N, V-B/V-D regressions and desktop build/install.
+C03 and K1 remain open until all required child checks and C02's pending acceptance are resolved.
 
 ### [ ] K1 — Selected inputs and durable board creation
 

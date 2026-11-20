@@ -14,7 +14,7 @@ const MAX_RECEIPT_BYTES: usize = 1024 * 1024;
 struct Input {
     title: String,
     #[serde(default)] description: String,
-    #[serde(default)] sources: Vec<Value>,
+    #[serde(default)] sources: Vec<crate::document_grants::DocumentReference>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,12 +56,24 @@ pub(crate) fn validate(board: &Value) -> Result<(), String> {
 
 fn parse_request(request: Value) -> Result<Request, String> {
     if serde_json::to_vec(&request).map_err(|e|e.to_string())?.len() > 65_536 { return Err("INVALID_INPUT: board request exceeds 64 KiB".into()); }
+    if let Some(sources) = request["input"]["sources"].as_array() {
+        if sources.len() > 50 || sources.iter().any(|source| source.as_object().is_none_or(|object|
+            object.len() != 5 || object.keys().any(|key| !["kind","documentId","title","grantId","revision"].contains(&key.as_str())))) {
+            return Err("INVALID_INPUT: invalid selected source references".into());
+        }
+    }
     let request: Request = serde_json::from_value(request).map_err(|_| "INVALID_INPUT: invalid board create request")?;
     if request.op != CREATE || request.key.is_empty() || request.key.len() > 128 || request.key.chars().any(char::is_control)
         || request.input.title.trim().is_empty() || request.input.title.chars().count() > 120 || request.input.description.chars().count() > 20_000 {
         return Err("INVALID_INPUT: invalid board create content or key".into());
     }
-    if !request.input.sources.is_empty() { return Err("UNSUPPORTED_SERVICE: authorized board source snapshots are not available yet".into()); }
+    let mut ids = HashSet::new();
+    for source in &request.input.sources {
+        if source.kind != "library-document" || !ids.insert(&source.document_id)
+            || crate::document_library::validate_id(&source.document_id).is_err() {
+            return Err("INVALID_INPUT: invalid or duplicate selected source".into());
+        }
+    }
     Ok(request)
 }
 
@@ -72,6 +84,7 @@ pub(crate) fn validate_request(request: &Value) -> Result<(), String> {
 // Called with the worker's task-data lock already held. Only the synchronous effect holds authority.
 pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<Value, String> {
     let request = parse_request(request)?;
+    crate::user_data::ensure_restore_complete(root)?;
     crate::capability_runtime::with_worker_board_authority(root, &request.caller, &request.handle, "board.create", "board", |context| {
         let key = hash(&(&context.capability_id, "board.create", &request.key))?;
         let payload_hash = hash(&request.input)?;
@@ -85,6 +98,7 @@ pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<V
         if records.len() >= MAX_RECEIPTS || records.values().filter(|r| r.capability_id == context.capability_id).count() >= MAX_PACKAGE_RECEIPTS {
             return Err("RESOURCE_LIMIT: board create receipts are full; existing receipts are retained".into());
         }
+        let sources = crate::document_grants::board_sources(root, context, &request.input.sources)?;
         let result = ItemRef { id: crate::capability_authority::nonce()?, revision: 1 };
         if board["cards"].as_array().unwrap().iter().any(|c| c["id"] == result.id) || records.values().any(|r| r.result.id == result.id) {
             return Err("RESOURCE_UNAVAILABLE: board identity collision".into());
@@ -94,7 +108,7 @@ pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<V
         if receipt_bytes.len() > MAX_RECEIPT_BYTES { return Err("RESOURCE_LIMIT: board receipt byte capacity exceeded".into()); }
         let created = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e|e.to_string())?.as_millis();
         board["cards"].as_array_mut().unwrap().push(json!({"id":result.id,"revision":1,"title":request.input.title,
-            "description":request.input.description,"sources":[],"status":"todo","createdAt":created,
+            "description":request.input.description,"sources":sources,"status":"todo","createdAt":created,
             "provenance":{"type":"capability","capabilityId":context.capability_id,"capabilityVersion":context.capability_version}}));
         board["capabilityReceipts"] = serde_json::from_slice(&receipt_bytes).map_err(|e|e.to_string())?;
         board["writeToken"] = json!(crate::capability_authority::nonce()?);
