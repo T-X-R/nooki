@@ -9,6 +9,7 @@
   and [P02b2b1 pre-creation controls](../capability-platform-evidence/P02b2b1.md)
   plus [P02b2b2a same-window integration](../capability-platform-evidence/P02b2b2a.md)
   and [P02c bounded operation admission](../capability-platform-evidence/P02c.md)
+  plus [P02d1 retained byte budgets](../capability-platform-evidence/P02d1.md)
 
 ## Context
 
@@ -69,6 +70,15 @@ Tauri has already allocated/decoded the payload when admission runs; this does n
 memory or sustained flooding. Explicit future-abort release has a unit test, but view removal is
 not yet wired to native-operation cancellation. Fairness is unproven. P02d/P02e retain the remaining
 resource policies and topology decision; this slice does not clear P02 or K0.
+
+P02d1 measures candidate file-content limits using real ZIP decompression and a fresh single-writer
+disk store: 32 MiB compressed / 64 MiB expanded / 16 MiB per archive entry / 256 entries; private
+values of 256 KiB within 16 MiB and 256 keys; 64 MiB binary items written in 64 KiB chunks within a
+128 MiB retained-plus-staged store. Exact boundaries, denial, byte readback and ordinary rollback
+pass. Replacement accounting includes the old value until commit. These are experimental logical
+content limits, not filesystem-allocation or process-memory bounds. P02d2 still owns aggregate
+reservations across stores, queues, runs and live service resources; production persistence,
+authorization and crash recovery remain assigned to R01–R03/R07/R11.
 
 The extended fixture demonstrated actual silent-audio playback advancing while its window lost
 focus, followed by pause and empty media state. It did not prove audible output, arbitrary codec

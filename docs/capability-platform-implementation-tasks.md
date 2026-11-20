@@ -247,6 +247,9 @@ stay responsive during load. Record transport allocation limits separately from 
 
 ### [ ] P02d — Measure retained-resource budgets with representative fixtures
 
+**State:** in-progress; split into P02d1 (archive and retained byte storage) and P02d2
+(queued events, runs and service ownership). These are native experiments, not production APIs.
+
 **Depends on:** P02c. **Size:** M; split only if actual scope requires it.
 **Deliver:** Boundary-load evidence and proposed limits for archive expansion, private storage,
 binary transfer, queued events, concurrent runs and live service handles, with explicit owning
@@ -256,6 +259,34 @@ representative assets fit; every resource has a bounded policy and an implementa
 **Likely files:** Resource-load fixture, probe resource owner/tests, budget evidence table.
 **Verification:** Boundary and failure cases with measured data sizes; distinguish prototype
 enforcement from services to be delivered in C01–T08.
+
+### [x] P02d1 — Measure archive expansion and staged byte storage
+
+**State:** verified on 2026-11-20; [receipt and measurements](capability-platform-evidence/P02d1.md),
+same branch and PR #38, pending human merge. Real ZIP/file boundaries, byte readback, replacement
+preservation and ordinary staging cleanup pass. This single-writer experiment does not establish
+profile-wide reservations, crash recovery or production transfer semantics; P02d2/P02e remain pending.
+
+**Depends on:** P02c. **Size:** M.
+**Deliver:** Disposable native archive reader and disk-backed private-data/transfer fixtures with
+bounded entries, bytes and chunks. Record values, representative asset sizes and production owners.
+**Acceptance:** Exact boundaries pass, overflow fails, failed replacement preserves old bytes,
+incomplete/cancelled staging publishes nothing, and removal returns usable capacity. No whole-file
+IPC or process-memory bound is inferred from a streamed file experiment.
+**Verification:** Real ZIP decompression and temporary-file writes/readback, corruption/failure cases,
+native tests and reproducible machine-readable measurements.
+
+### [ ] P02d2 — Measure retained execution and event ownership
+
+**Depends on:** P02d1. **Size:** M.
+**Deliver:** Bounded real event payloads, concurrent task ownership and live service handles with
+per-package/global accounting, stop cleanup and proposed limits assigned to production tasks.
+Reconcile profile-wide retained-data/staging limits across the independent stores measured in P02d1;
+a bound on one fixture store does not cap an arbitrary number of package stores.
+**Acceptance:** Overload leaves existing work intact; cancellation/stop reclaims actual resources;
+event delivery is bounded with explicit overflow semantics. Reconcile all P02d resource classes.
+**Verification:** Native concurrent boundary/failure fixtures; actual data/handle ownership, not
+successful counters alone. Repeat relevant desktop checks when changing the runtime integration.
 
 ### [ ] P02e — Reconcile runtime evidence and decide supported topology
 
