@@ -1,0 +1,29 @@
+{
+  "profile": "/private/tmp/nooki-profile-tu8kzH",
+  "grants": [
+    {
+      "id": "a6ad0adc29ae40add996fd35bc85d9f2f134bec2d595dbd341aeb57f5806f689",
+      "capabilityId": "org.example.selection-reader",
+      "documentId": "org.example.selection-reader/selection-tests/2026/11/beta",
+      "contentSha256": "2072b9db96bfb29f99eecc9a0ad462695eb04acd1578fdd530db61afb0cef2b1",
+      "createdAt": "2026-11-20T17:17:30.208629+08:00",
+      "revoked": true
+    },
+    {
+      "id": "c48ad8bdfa81ee477f69eacf404546eccf46a5adfd441000c07bfa5fe8166a7d",
+      "capabilityId": "org.example.selection-peer",
+      "documentId": "org.example.selection-reader/selection-tests/2026/11/beta",
+      "contentSha256": "2072b9db96bfb29f99eecc9a0ad462695eb04acd1578fdd530db61afb0cef2b1",
+      "createdAt": "2026-11-20T17:19:05.583842+08:00",
+      "revoked": false
+    },
+    {
+      "id": "e77d92882b867b88fb7367f702174fbe7ca1c0970f059f8fab96057a32ab163f",
+      "capabilityId": "org.example.selection-reader",
+      "documentId": "org.example.selection-reader/selection-tests/2026/11/alpha",
+      "contentSha256": "3b86397c5b91e3ec73d6dd825b3d063177072f91783b116ab524d2e8b11274f2",
+      "createdAt": "2026-11-20T17:12:51.181637+08:00",
+      "revoked": false
+    }
+  ]
+}

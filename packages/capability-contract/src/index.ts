@@ -163,6 +163,7 @@ export type DocumentGrant = {
   capabilityId: string
   capabilityVersion: string
   createdAt: string
+  purpose?: string
   documents: Omit<SelectedDocument, 'content'>[]
 }
 
@@ -186,6 +187,15 @@ export type DocumentPublication = {
 
 export type HostErrorCode = 'INVALID_INPUT' | 'PERMISSION_DENIED' | 'UNSUPPORTED_SERVICE' | 'CONFLICT' | 'RESOURCE_LIMIT' | 'RESOURCE_BUSY' | 'RESOURCE_UNAVAILABLE' | 'OUTCOME_UNKNOWN' | 'CANCELLED'
 export type HostServiceError = Error & { readonly code: HostErrorCode }
+export type LibrarySelectionRequest = {
+  purpose: string
+  /** This release supports document snapshots. Artifact requests fail explicitly. */
+  kinds: ('document' | 'artifact')[]
+  /** Document snapshots use text/markdown. Unsupported filters fail explicitly. */
+  mediaTypes?: string[]
+  limit?: number
+}
+export type LibrarySelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: DocumentGrant }
 export type IdempotencyOptions = { idempotencyKey: string }
 export type BoardItemReference = { id: string; revision: number }
 export type BoardCreateInput = {
@@ -196,6 +206,9 @@ export type BoardCreateInput = {
 }
 
 export type CapabilityHost = {
+  library: {
+    requestSelection(request: LibrarySelectionRequest): Promise<LibrarySelectionResult>
+  }
   board: {
     /** Creates a draft item, never delegates work. Retry an uncertain outcome with the same key/input. */
     create(input: BoardCreateInput, options: IdempotencyOptions): Promise<BoardItemReference>

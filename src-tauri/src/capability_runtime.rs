@@ -106,6 +106,7 @@ pub struct PlatformState {
   data_dir: PathBuf,
   settings: RwLock<PlatformSettings>,
   registry: RwLock<CapabilityRegistry>,
+  pub(crate) document_selections: std::sync::Mutex<BTreeMap<String, crate::document_selection::Selection>>,
 }
 
 impl PlatformState {
@@ -121,6 +122,7 @@ impl PlatformState {
       data_dir,
       settings: RwLock::new(settings),
       registry: RwLock::new(registry),
+      document_selections: std::sync::Mutex::new(BTreeMap::new()),
     })
   }
 
@@ -422,12 +424,16 @@ impl PlatformState {
     crate::user_data::ensure_restore_complete(&self.data_dir)?;
     let _fence = crate::capability_authority::fence(&self.data_dir)?;
     let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+    effect(&self.document_context(id)?)
+  }
+  // Callers hold the native authority fence while using this current-registry snapshot.
+  pub(crate) fn document_context(&self, id: &str) -> Result<crate::capability_authority::InvocationContext, String> {
     let current = load_registry(&self.data_dir)?;
     let installed = current.capabilities.iter().find(|item| item.manifest.id == id && item.enabled
       && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected))
       .ok_or("PERMISSION_DENIED: selected document access is not authorized")?;
     let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select documents again for this installation")?;
-    effect(&crate::capability_authority::InvocationContext { capability_id: id.into(),
+    Ok(crate::capability_authority::InvocationContext { capability_id: id.into(),
       capability_version: installed.manifest.version.clone(), generation: generation.clone() })
   }
   pub fn document_grants(&self, capability_id: &str) -> Result<Vec<crate::document_grants::DocumentGrant>, String> {

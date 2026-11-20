@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.4.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.5.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -16,6 +16,7 @@ added with their implementations. `ai.invoke` is the existing model gateway, not
 | Environment snapshot/subscription | Host language/theme | Controlled in-memory simulation |
 | `storage` | Package-private persistent JSON, permission checked | Empty per instance; JSON copies and permission checks; resets on reload |
 | Jobs, document grants/publication/open, activity writes, AI and Codex sources | Existing scoped Host operations | Explicit unavailable error; no empty-success responses |
+| `library.requestSelection` | Host-owned document picker; explicit selection or dismissal | `UNSUPPORTED_SERVICE`; no simulated grants |
 | `board.create` | Permission-checked durable draft creation with an idempotency key | `UNSUPPORTED_SERVICE`; no simulated success |
 | Board selection/update/delegation, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
 
@@ -248,9 +249,56 @@ Only commands that opt in receive content. This handoff uses the same broker for
 
 A publication may opt into a document activity with `activity: { type, title, key? }`. This uses the existing `documents.publish` authorization, always targets the successfully published document, and never grants arbitrary activity writes. Publication and activity persistence are separate effects; a failed activity write rejects the publication call, so an idempotent retry repairs it without duplicating the document.
 
+## Request document selection
+
+Declare `documents.read-selected` and require `minPlatformVersion: "0.5.0"` or newer:
+
+```ts
+const selection = await host.library.requestSelection({
+  purpose: 'Use the selected notes to draft meeting actions.',
+  kinds: ['document'],
+  mediaTypes: ['text/markdown'], // Optional; unsupported filters are refused.
+  limit: 3,
+})
+if (selection.status === 'selected') {
+  const { grant } = selection // Metadata only; no document body in the picker result.
+  const source = await host.documents.readSelected(grant.id, grant.documents[0].reference.documentId)
+  // Use source.content and retain source.reference for citations.
+}
+// { status: 'dismissed' } creates no grant and shares no document content.
+```
+
+The host displays the installed recipient, version, package-provided purpose, saved document titles
+and explicit authorization controls. The package cannot choose the recipient, inspect the list,
+read previews or approve on the user's behalf. Selection captures the saved version at confirmation;
+unsaved editor drafts are not included. Existing snapshots remain immutable when live documents change.
+
+`LibrarySelectionRequest` and `LibrarySelectionResult` are canonical exported types. Purpose must
+contain 1–1,000 Unicode scalar values and cannot be blank; limit is 1–50, default 1. Kinds must be a
+nonempty array. This version implements only `document` and `text/markdown`; artifact requests or
+other media types return `UNSUPPORTED_SERVICE` rather than silently ignoring filters. Unknown fields
+return `INVALID_INPUT`. The existing 50-document / 8 MB grant bounds still apply.
+
+One picker can be open at a time; a competing request returns `RESOURCE_BUSY`. Pages and jobs may
+request selection; ending the caller lifetime closes its pending picker and prevents late result
+delivery. Disabling, reinstalling or changing the recipient while selection is pending cannot grant
+the replacement installation access. Native approval sessions expire after 15 minutes; reopen the
+picker to make a fresh selection. Abandoned sessions are reclaimed on the next native selection call.
+
+Confirmation retries retain the first approved IDs and the same private session. The host UI offers
+explicit retry after an uncertain native outcome; it never silently captures a different selection.
+Cancellation cannot undo a grant already accepted at the native capture boundary. Such a grant stays
+visible in Document access, even if the caller closed before receiving the result. The user can revoke
+future reads there; already delivered content cannot be recalled. Revocation preserves source citations.
+
+Picker failures use the stable `HostServiceError.code` values listed for board operations. The portable
+preview always returns `UNSUPPORTED_SERVICE`; a successful stub is not evidence of native sharing.
+Legacy packages remain trusted code in the main JavaScript realm; this is a scoped Host workflow,
+not hostile-package isolation. Never import Tauri or private selection controllers.
+
 ## Read an explicitly selected document
 
-Declare `documents.read-selected` with `minPlatformVersion: "0.3.0"`. The **Nooki Library UI** creates the authorization after the user reviews the selected titles and recipient. CapabilityHost intentionally has no grant-creation, full-library listing, search, or private cross-Capability storage interface.
+Declare `documents.read-selected` with `minPlatformVersion: "0.3.0"`. The **Nooki Library UI** creates the authorization after the user reviews the selected titles and recipient. CapabilityHost has no direct grant-creation, full-library listing, search, or private cross-Capability storage interface. Nooki 0.5.0 adds the host-owned picker below.
 
 ```ts
 const grants = await host.documents.listGrants()
@@ -274,8 +322,8 @@ future reads without deleting the snapshot or erasing content already delivered 
 Restoring older user data cannot undo local revocation or reuse a removed snapshot ID for different
 content; select again with a new grant ID. A busy or interrupted data restore refuses grant operations
 until the data transaction finishes or recovery completes. This native behavior does not make the
-shared-realm browser development Host an isolation boundary. Package-requested selection and a
-public revocation interface are not part of this increment.
+shared-realm browser development Host an isolation boundary. In Nooki 0.5.0, users inspect and revoke
+access through **Library → Document access**, including grants whose recipient is disabled or removed.
 
 `DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId`, `snapshotId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. `snapshotId` addresses platform-owned conversation evidence independently of capability grants. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Nooki to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.
 

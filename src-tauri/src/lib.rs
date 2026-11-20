@@ -13,6 +13,7 @@ pub mod conversation_instructions;
 pub mod conversation_skills;
 pub mod source_snapshots;
 pub mod document_grants;
+pub mod document_selection;
 pub mod capability_runtime;
 pub mod capability_authority;
 pub mod codex_session_source;
@@ -288,6 +289,26 @@ fn conversation_publish(document: DocumentPublication, state: tauri::State<'_, P
 #[tauri::command]
 fn library_grant_documents(capability_id: String, ids: Vec<String>, id: String, state: tauri::State<'_, PlatformState>) -> Result<document_grants::DocumentGrant, String> {
   state.grant_documents(&capability_id, ids, &id)
+}
+#[tauri::command]
+fn library_selection_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, document_selection::SelectionError> {
+  document_selection::begin(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_selection_commit(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<document_grants::DocumentGrant, document_selection::SelectionError> {
+  document_selection::commit(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_selection_cancel(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
+  document_selection::cancel(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentAccess>, document_selection::SelectionError> {
+  document_selection::accesses(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_revoke_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
+  document_selection::revoke(&state, webview.label(), request)
 }
 #[tauri::command]
 fn capability_document_grants(capability_id: String, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentGrant>, String> {
@@ -636,6 +657,11 @@ pub fn run() {
       capability_codex_sessions_read_daily_files,
       capability_documents_publish,
       library_grant_documents,
+      library_selection_begin,
+      library_selection_commit,
+      library_selection_cancel,
+      library_document_access,
+      library_revoke_document_access,
       capability_document_grants,
       capability_read_selected_document,
       library_read_source,

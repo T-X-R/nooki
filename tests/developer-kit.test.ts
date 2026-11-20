@@ -27,12 +27,15 @@ test('released kit scaffolds an independent project with canonical Host types an
     await symlink(dependencies, join(target, 'node_modules'), 'dir')
     const contractGuide = await readFile(join(skill, 'references/contract.md'), 'utf8')
     const example = contractGuide.match(/```ts\n(import assert from 'node:assert\/strict'[\s\S]*?)```/)![1]
-    await writeFile(join(target, 'preview/storage.test.mjs'), example)
+    await writeFile(join(target, 'preview/storage.test.mjs'), example + `\n test('preview refuses native selection', async () => {\n const { host } = createPreviewHost({ id: 'org.example.notes', name: 'Notes', version: '1.0.0', minPlatformVersion: '0.5.0', entrypoints: ['page'], permissions: ['documents.read-selected'] })\n await assert.rejects(host.library.requestSelection({ purpose: 'Read', kinds: ['document'] }), { code: 'UNSUPPORTED_SERVICE' })\n })\n`)
     execFileSync(process.execPath, ['--test', 'preview/storage.test.mjs'], { cwd: target, stdio: 'pipe' })
     await writeFile(join(target, 'supported-contract.ts'), `import type { CapabilityEntrypoint, CapabilityHost } from './contract'
 // @ts-expect-error Widgets have no implemented loader.
 const widget: CapabilityEntrypoint = 'widget'
 declare const host: CapabilityHost
+host.library.requestSelection({ purpose: 'Draft actions', kinds: ['document'], limit: 1 })
+// @ts-expect-error Recipient identity belongs to the Host.
+host.library.requestSelection({ purpose: 'Read', kinds: ['document'], capabilityId: 'foreign' })
 host.board.create({ title: 'Test' }, { idempotencyKey: 'one' })
 // @ts-expect-error Mutations require a stable idempotency key.
 host.board.create({ title: 'Test' })

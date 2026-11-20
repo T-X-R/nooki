@@ -28,6 +28,8 @@ pub struct DocumentGrant {
   pub capability_id: String,
   pub capability_version: String,
   pub created_at: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub purpose: Option<String>,
   pub documents: Vec<SelectedDocument>,
 }
 
@@ -61,11 +63,18 @@ fn metadata(mut grant: DocumentGrant) -> DocumentGrant {
 }
 
 pub fn grant(state: &PlatformState, data_dir: &Path, capability_id: &str, ids: Vec<String>, id: &str) -> Result<DocumentGrant, String> {
+  grant_for_selection(state, data_dir, capability_id, ids, id, None)
+}
+pub(crate) fn grant_for_selection(state: &PlatformState, data_dir: &Path, capability_id: &str, ids: Vec<String>, id: &str,
+    selection: Option<&crate::document_selection::Selection>) -> Result<DocumentGrant, String> {
   state.prepare_document_grant(capability_id)?;
   let ids: BTreeSet<_> = ids.into_iter().collect();
   if ids.is_empty() || ids.len() > 50 { return Err("Select between 1 and 50 documents".into()); }
   let target = path(data_dir, id)?;
   state.with_document_authority(capability_id, |context| {
+    if selection.is_some_and(|selection| selection.context != *context) {
+      return Err("PERMISSION_DENIED: installation changed while selecting documents".into());
+    }
     if revoked(data_dir, id)? { return Err("PERMISSION_DENIED: document grant is revoked".into()); }
     if target.try_exists().map_err(|e| e.to_string())? {
       let existing = read(data_dir, id)?;
@@ -89,7 +98,7 @@ pub fn grant(state: &PlatformState, data_dir: &Path, capability_id: &str, ids: V
         document_date: doc.document_date.clone(), content: Some(doc.content),
       });
     }
-    let grant = DocumentGrant { id: id.into(), capability_id: capability_id.into(), capability_version: context.capability_version.clone(), created_at: chrono::Local::now().to_rfc3339(), documents };
+    let grant = DocumentGrant { id: id.into(), capability_id: capability_id.into(), capability_version: context.capability_version.clone(), created_at: chrono::Local::now().to_rfc3339(), purpose: selection.map(|selection| selection.purpose.clone()), documents };
     fs::create_dir_all(target.parent().unwrap()).map_err(|_| "Could not create document grants directory")?;
     let record = StoredGrant { grant: grant.clone(), activation_generation: Some(context.generation.clone()) };
     let source = serde_json::to_vec(&record).map_err(|_| "Could not serialize document grant")?;
@@ -110,6 +119,32 @@ pub fn grant(state: &PlatformState, data_dir: &Path, capability_id: &str, ids: V
     confirm_directory(data_dir)?;
     Ok(metadata(grant))
   })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentAccess { pub grant: DocumentGrant, pub status: &'static str }
+pub(crate) fn access_records(state: &PlatformState) -> Result<Vec<DocumentAccess>, String> {
+  let root = state.data_dir();
+  let _data = crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing; retry later")?;
+  crate::user_data::ensure_restore_complete(root)?;
+  let _fence = crate::capability_authority::fence(root)?;
+  let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
+  let directory = root.join("document-grants");
+  if !directory.try_exists().map_err(|e| e.to_string())? { return Ok(Vec::new()); }
+  let mut records = Vec::new();
+  for entry in fs::read_dir(directory).map_err(|e| e.to_string())? {
+    let path = entry.map_err(|e| e.to_string())?.path();
+    if path.extension().and_then(|extension| extension.to_str()) != Some("json") { continue; }
+    let id = path.file_stem().and_then(|stem| stem.to_str()).ok_or("Invalid document grant ID")?;
+    let record = read(root, id)?;
+    let status = if revoked(root, id)? { "revoked" }
+      else if state.document_context(&record.grant.capability_id).is_ok_and(|context| record.authorizes(&context)) { "active" }
+      else { "inactive" };
+    records.push(DocumentAccess { grant: metadata(record.grant), status });
+  }
+  records.sort_by(|a,b| b.grant.created_at.cmp(&a.grant.created_at));
+  Ok(records)
 }
 
 pub fn list(state: &PlatformState, data_dir: &Path, capability_id: &str) -> Result<Vec<DocumentGrant>, String> {

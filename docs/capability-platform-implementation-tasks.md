@@ -581,6 +581,13 @@ The receipt retains reproduced failures, the bounded review findings and the exa
 
 ### [ ] C02b — Deliver the host-owned document picker and public selection workflow
 
+**State:** implementation and automated verification pass on 2026-11-20; installed-app acceptance
+is in progress. [C02b receipt](capability-platform-evidence/C02b.md) records independent archive
+imports, selected snapshots, cross-package denial and positive control, missing-permission denial,
+job selection, stale-Host cancellation, restart, revocation and retained user citations. Keyboard,
+narrow access-manager layout and the final post-revoke peer read remain open;
+C02b/C02/K1 are not promoted by the partial native results.
+
 **Depends on:** C02a. **Size:** M; split only if measured scope requires it.
 **Deliver:** `library.requestSelection` document branch, typed dismissal/selected results, purpose and
 recipient display, host-owned grant/revoke controls, canonical kit contract and exported fixture.

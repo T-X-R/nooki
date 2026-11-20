@@ -19,6 +19,7 @@ import { taskBoardAgent } from '../features/task-board/task-board-agent.ts'
 import { CapabilitiesPage } from '../features/capabilities/CapabilitiesPage.tsx'
 import { CapabilityErrorBoundary, CapabilityPage } from '../features/capabilities/CapabilityPage.tsx'
 import { LibraryPage } from '../features/library/LibraryPage.tsx'
+import { LibrarySelectionDialog } from '../features/library/LibrarySelectionDialog.tsx'
 import { SettingsPage } from '../features/settings/SettingsPage.tsx'
 import { useAppUpdate } from '../features/settings/use-app-update.ts'
 import { SkillPoolPage } from '../features/skills/SkillPoolPage.tsx'
@@ -166,6 +167,7 @@ function App() {
   return (
     <div className="app-shell">
       <WindowTitlebar />
+      <LibrarySelectionDialog language={language} />
       <div className="app-workspace" inert={updates.installing}>
         <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
