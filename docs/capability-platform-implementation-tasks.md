@@ -69,6 +69,9 @@ preview Host, starter check script, `tests/developer-kit.test.ts`.
 
 ### [ ] P02 — Prove the runtime isolation approach before committing to transport
 
+**State:** in-progress; same branch and PR #38. Split into P02a/P02b to keep the
+executable experiment separate from the evidence-backed topology and budget decision.
+
 **Depends on:** P00, P01. **Size:** M, bounded experiment.
 **Deliver:** A disposable desktop probe and runtime ADR comparing viable isolation arrangements;
 select a supported approach or record why none meets the design. Do not replace the loader yet.
@@ -77,6 +80,28 @@ infinite-loop termination; measure asset/media/IPC constraints and initial budge
 coverage and remaining integration risks rather than claim production isolation.
 **Likely files:** New isolated probe, hostile fixture, media fixture, probe test, runtime ADR.
 **Verification:** V-N on the actual desktop engine; retain reproducible probe steps and results.
+
+### [x] P02a — Measure separate-webview boundaries with a disposable desktop probe
+
+**State:** verified on 2026-11-20; [native receipt](capability-platform-evidence/P02a.md).
+The experiment passed execution/measurement acceptance, but the candidate failed UDP containment;
+P02/P02b/K0 remain pending. Same branch and PR #38, pending human merge.
+
+**Depends on:** P00, P01. **Size:** M, bounded experiment.
+**Deliver:** Standalone probe executable, hostile/static/media fixtures and local-only network receiver.
+**Acceptance:** Real engine reports native caller binding, DOM/storage separation, denied native/egress
+attempts and host/peer responsiveness while one fixture is unresponsive; failures stay visible.
+**Likely files:** Native probe example and configuration, fixture HTML/script, focused probe tests.
+**Verification:** Focused tests plus the real desktop probe, isolated data paths and synthetic inputs.
+
+### [ ] P02b — Decide topology and budgets from measured constraints
+
+**Depends on:** P02a. **Size:** S.
+**Deliver:** Runtime ADR comparing viable alternatives and evidence receipt with initial limits.
+**Acceptance:** Identify a feasible approach or concrete unmet invariants; include media/assets/IPC,
+termination and network results, tested OS scope, remaining production-integration risks and next step.
+**Likely files:** Runtime ADR, P02 receipt, probe refinements only where needed to resolve findings.
+**Verification:** V-N repeatable probes; K0 stays pending if any design invariant lacks a feasible path.
 
 ### [ ] K0 — Preparation gate
 
