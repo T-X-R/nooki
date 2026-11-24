@@ -95,6 +95,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
 pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), String> {
   crate::capability_board::validate(board)?;
   crate::task_delegation::validate(board)?;
+  crate::task_revisions::validate(board)?;
   let cards = board["cards"].as_array().ok_or("Invalid task board")?;
   let mut ids = std::collections::HashSet::new();
   if let Some(paused) = board.get("paused") {
@@ -212,6 +213,8 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   write_files(&next, &backup.files)?;
   if let Some(board) = backup.files.get("task-board.json") {
     let mut board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
+    crate::task_revisions::migrate(&mut board)?;
+    let original = board.clone();
     // Importing an archive does not authorize new agent execution on this machine.
     board["paused"] = serde_json::Value::Bool(true);
     for card in board["cards"].as_array_mut().into_iter().flatten().filter(|c| c["engine"] == "goals" && c["status"] != "done") {
@@ -221,6 +224,7 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
       card["activeTurn"] = serde_json::json!(false);
       card["requests"] = serde_json::json!([]);
     }
+    crate::task_revisions::prepare(&original, &mut board)?;
     library_management::write_json(&next.join("task-board.json"), &board)?;
   }
   // Read every document before touching existing data, including legacy records.

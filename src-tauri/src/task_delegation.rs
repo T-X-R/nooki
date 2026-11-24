@@ -63,9 +63,6 @@ pub(crate) fn delegate(root: &Path, board: &mut Value, value: Value) -> Result<V
     card["authorization"] = json!({"snapshotId":request.snapshot_id,"documentIds":sources.as_array().unwrap().iter().map(|source|source["id"].clone()).collect::<Vec<_>>()});
     card["status"] = json!("queued"); card["queuedAt"] = json!(now.max(queued_at));
     card.as_object_mut().unwrap().remove("runId"); card.as_object_mut().unwrap().remove("error");
-    if card["provenance"]["type"] == "capability" {
-        card["revision"] = json!(card["revision"].as_u64().and_then(|n|n.checked_add(1)).filter(|n|*n <= 9_007_199_254_740_991).ok_or("Invalid task revision")?);
-    }
     records.insert(request.snapshot_id, Receipt { hash, committed: true });
     board["delegationReceipts"] = serde_json::to_value(records).map_err(|e|e.to_string())?;
     board["writeToken"] = json!(crate::capability_authority::nonce()?);

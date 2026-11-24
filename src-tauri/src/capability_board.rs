@@ -39,7 +39,7 @@ fn receipts(board: &Value) -> Result<BTreeMap<String, Receipt>, String> {
     let mut counts = HashMap::<&str, usize>::new();
     let mut ids = HashSet::new();
     for (key, receipt) in &records {
-        if !hex_id(key) || !hex_id(&receipt.payload_hash) || !hex_id(&receipt.result.id) || receipt.result.revision != 1
+        if !hex_id(key) || !hex_id(&receipt.payload_hash) || !hex_id(&receipt.result.id) || (receipt.result.revision == 0 || receipt.result.revision > crate::task_revisions::MAX_REVISION)
             || receipt.capability_id.is_empty() || receipt.capability_id.len() > 256 || !ids.insert(&receipt.result.id) {
             return Err("Invalid board create receipt".into());
         }
@@ -99,7 +99,7 @@ pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<V
             return Err("RESOURCE_LIMIT: board create receipts are full; existing receipts are retained".into());
         }
         let sources = crate::document_grants::board_sources(root, context, &request.input.sources)?;
-        let result = ItemRef { id: crate::capability_authority::nonce()?, revision: 1 };
+        let result = ItemRef { id: crate::capability_authority::nonce()?, revision: crate::task_revisions::next(board)? };
         if board["cards"].as_array().unwrap().iter().any(|c| c["id"] == result.id) || records.values().any(|r| r.result.id == result.id) {
             return Err("RESOURCE_UNAVAILABLE: board identity collision".into());
         }
@@ -107,12 +107,11 @@ pub(crate) fn create(root: &Path, board: &mut Value, request: Value) -> Result<V
         let receipt_bytes = serde_json::to_vec(&records).map_err(|e|e.to_string())?;
         if receipt_bytes.len() > MAX_RECEIPT_BYTES { return Err("RESOURCE_LIMIT: board receipt byte capacity exceeded".into()); }
         let created = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e|e.to_string())?.as_millis();
-        board["cards"].as_array_mut().unwrap().push(json!({"id":result.id,"revision":1,"title":request.input.title,
+        board["cards"].as_array_mut().unwrap().push(json!({"id":result.id,"revision":result.revision,"title":request.input.title,
             "description":request.input.description,"sources":sources,"status":"todo","createdAt":created,
             "provenance":{"type":"capability","capabilityId":context.capability_id,"capabilityVersion":context.capability_version}}));
         board["capabilityReceipts"] = serde_json::from_slice(&receipt_bytes).map_err(|e|e.to_string())?;
         board["writeToken"] = json!(crate::capability_authority::nonce()?);
-        crate::user_data::validate_task_board(board)?;
         crate::task_goals::save(root, board)?;
         serde_json::to_value(result).map_err(|e|e.to_string())
     })
@@ -123,21 +122,17 @@ pub(crate) fn prepare_legacy(current: &Value, incoming: &mut Value) -> Result<()
     let object = incoming.as_object_mut().ok_or("Invalid task board")?;
     object.remove("capabilityReceipts"); // Only the native writer owns the retained receipt ledger.
     object.remove("delegationReceipts");
+    object.remove("revisionSequence");
     if current.get("writeToken").is_some() && incoming["writeToken"] != current["writeToken"] {
         return Err("CONFLICT: task board changed; refresh before saving".into());
     }
     for card in incoming["cards"].as_array_mut().ok_or("Invalid task board")? {
+        if let Some(object) = card.as_object_mut() { object.remove("revision"); }
         let old = current["cards"].as_array().unwrap().iter().find(|old| old["id"] == card["id"]);
         if let Some(old) = old.filter(|old| old["provenance"]["type"] == "capability") {
             card["provenance"] = old["provenance"].clone();
-            card["revision"] = old["revision"].clone();
-            if card != old {
-                let revision = old["revision"].as_u64().and_then(|n| n.checked_add(1)).filter(|n| *n <= 9_007_199_254_740_991)
-                    .ok_or("RESOURCE_UNAVAILABLE: invalid board item revision")?;
-                card["revision"] = json!(revision);
-            }
         } else if let Some(object) = card.as_object_mut() {
-            object.remove("provenance"); object.remove("revision");
+            object.remove("provenance");
         }
     }
     Ok(())

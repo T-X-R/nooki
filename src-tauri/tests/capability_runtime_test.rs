@@ -175,7 +175,10 @@ fn task_board_references_are_validated_and_survive_native_storage() {
   let source_id = "workbench.documents/documents/2026/11/notes";
   let valid = serde_json::json!({"cards":[{"id":"card","title":"Read notes","description":"","status":"todo","createdAt":1793836800000_u64,"sources":[{"id":source_id,"title":"Notes"}]}]});
   state.write_task_board(&valid).unwrap();
-  assert_eq!(state.read_task_board().unwrap(), valid);
+  let stored = state.read_task_board().unwrap();
+  assert_eq!(stored["cards"][0]["sources"], valid["cards"][0]["sources"]);
+  assert_eq!(stored["cards"][0]["revision"], 1);
+  let valid = stored;
   for sources in [serde_json::json!("invalid"), serde_json::json!([{"id":"../outside","title":"Notes"}]), serde_json::json!([{"id":source_id,"title":42}]), serde_json::json!(vec![serde_json::json!({"id":source_id,"title":"Notes"}); 51])] {
     let mut invalid = valid.clone();
     invalid["cards"][0]["sources"] = sources;

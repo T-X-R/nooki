@@ -319,15 +319,13 @@ impl PlatformState {
   }
 
   pub fn read_task_board(&self) -> Result<serde_json::Value, String> {
-    let board: serde_json::Value = load_json(&self.data_dir.join("task-board.json"))?;
-    if !board.is_null() { crate::user_data::validate_task_board(&board)?; }
-    Ok(board)
+    let _tasks = crate::task_worker::data_lock(&self.data_dir)?.ok_or("Task data maintenance is in progress")?;
+    crate::task_goals::load(&self.data_dir)
   }
 
   pub fn write_task_board(&self, board: &serde_json::Value) -> Result<(), String> {
-    crate::user_data::validate_task_board(board)?;
-    let _guard = crate::library_management::DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
-    persist_json(&self.data_dir.join("task-board.json"), board)
+    let _tasks = crate::task_worker::data_lock(&self.data_dir)?.ok_or("Task data maintenance is in progress")?;
+    crate::task_goals::save_legacy(&self.data_dir, &mut crate::task_goals::load(&self.data_dir)?, board.clone())
   }
 
   pub fn package_payload(&self, id: &str, previous: bool) -> Result<crate::package_installer::PackagePayload, String> {

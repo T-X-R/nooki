@@ -73,6 +73,7 @@ async fn native_continuation_pause_restart_stop_and_delivery() {
     finish(&root, &tid).await; // Native runtime automatically starts another turn.
     let history = worker.command(json!({"op":"history","id":"first"})).await.unwrap();
     assert_eq!(history["turns"].as_array().unwrap().len(), 3);
+    assert_eq!(history["task"], read(&mut worker).await["cards"][0], "history must return the reconciled task's committed revision");
     let stopped = worker.command(json!({"op":"stop","id":"first"})).await.unwrap();
     assert_eq!(stopped["cards"][0]["status"], "stopped");
     assert_eq!(stopped["cards"][0]["activeTurn"], false);

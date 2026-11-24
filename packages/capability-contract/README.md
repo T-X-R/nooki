@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.6.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.7.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -71,7 +71,7 @@ const item = await host.board.create(
 
 Choose a stable key for one user intent and retain the key/input before submitting. Reuse them after
 an uncertain reply or an explicit retry; generating a new key may create a second item. A successful
-request creates a `todo` card with native package/version provenance and revision 1. It does not start
+request creates a `todo` card with native package/version provenance and a native-assigned revision. It does not start
 an agent, delegate a Goal or accept a delivery. The user controls those later actions in Nooki.
 
 Same package/operation/key and normalized input return the original reference, including after
@@ -80,6 +80,16 @@ input returns `CONFLICT`. Omitted description and sources normalize to `""` and 
 is preserved. The receipt's original revision does not change when the user later edits the card.
 Receipts have no automatic expiry; at capacity, new intents fail while existing receipts remain
 replayable. User-requested restoration of an older backup rolls back board state and receipts.
+
+Starting with Nooki 0.7.0, every task has an opaque positive safe-integer revision, including ordinary
+user drafts and native Goals. Compare revisions for equality; do not assume a new task starts at 1
+or that successive edits increment its revision by exactly one. Changed and new tasks draw from one
+persisted board sequence; unchanged tasks retain their revisions, and deleting/recreating an ID does
+not reuse its previous revision. Renderer-supplied revisions are not authoritative. Legacy boards
+receive deterministic revisions on read without a disk rewrite, persisted on their next save.
+Backup restore is an explicit rollback boundary; it invalidates capability authority and may restore
+an older sequence. Restore-induced Goal changes receive new revisions within the restored board.
+An idempotent create replay still returns its original reference, not the task's current revision.
 
 | Input or retention boundary | Limit |
 |---|---|

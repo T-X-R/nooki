@@ -44,6 +44,28 @@ async fn creation_and_receipt_commit_together_without_starting_an_agent() {
 }
 
 #[tokio::test]
+async fn create_uses_native_sequence_and_replays_its_original_revision_after_edits() {
+    let (root,state,mut worker,handle)=fixture();
+    command(&mut worker,json!({"op":"legacy","board":{"cards":[{"id":"user-draft","title":"User draft","description":"","status":"todo"}]}})).await.unwrap();
+    let result=command(&mut worker,request(&handle,"after-user-draft")).await.unwrap();
+    assert_eq!(result["revision"],2);
+    let mut board=disk(&root);
+    assert_eq!(board["cards"][1]["revision"],result["revision"]);
+    board["cards"][1]["title"]=json!("User edited the capability draft");
+    let edited=command(&mut worker,json!({"op":"legacy","board":board})).await.unwrap();
+    assert_eq!(edited["cards"][1]["revision"],3);
+    assert_eq!(edited["cards"][0]["revision"],1);
+    assert_eq!(command(&mut worker,request(&handle,"after-user-draft")).await.unwrap(),result);
+    assert_eq!(disk(&root),edited);
+    let mut helper_input=edited.clone();helper_input.as_object_mut().unwrap().remove("capabilityReceipts");
+    state.write_task_board(&helper_input).unwrap();
+    assert_eq!(disk(&root)["capabilityReceipts"],edited["capabilityReceipts"]);
+    assert_eq!(command(&mut worker,request(&handle,"after-user-draft")).await.unwrap(),result);
+    assert_eq!(disk(&root)["cards"],edited["cards"]);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test]
 async fn canonical_replay_survives_restart_and_item_deletion_without_recreation() {
     let (root,state,mut worker,handle)=fixture();
     let result=command(&mut worker,request(&handle,"same")).await.unwrap();
@@ -213,6 +235,10 @@ async fn host_adapter_binds_native_caller_and_rejects_package_selected_authority
     assert_eq!(disk(&root)["cards"][0]["provenance"]["capabilityId"],"example.notes");
     let mut changed=request.clone();changed["input"]["title"]=json!("Different");
     assert_eq!(serde_json::to_value(board_create(&state,"native-a",changed).await.unwrap_err()).unwrap()["code"],"CONFLICT");
+    let mut second=request.clone();second["key"]=json!("second-host-create");
+    let second_result=board_create(&state,"native-a",second.clone()).await.unwrap();
+    assert_eq!(second_result["revision"],2);
+    assert_eq!(board_create(&state,"native-a",second).await.unwrap(),second_result);
     state.set_capability_enabled("example.notes",false).unwrap();
     assert_eq!(serde_json::to_value(board_create(&state,"native-a",request).await.unwrap_err()).unwrap()["code"],"PERMISSION_DENIED");
     drop(native);fs::remove_dir_all(root).unwrap();

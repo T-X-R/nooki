@@ -73,7 +73,7 @@ pub async fn board_create(state: &PlatformState, native_caller: &str, value: Val
         .map_err(|e| HostError::from_native(&e, true))?;
     if result.as_object().is_none_or(|object| object.len() != 2)
         || !result["id"].as_str().is_some_and(|id| id.len() == 64 && id.bytes().all(|b| b.is_ascii_hexdigit()))
-        || result["revision"].as_u64() != Some(1) {
+        || !result["revision"].as_u64().is_some_and(|revision| revision > 0 && revision <= crate::task_revisions::MAX_REVISION) {
         return Err(HostError::from_native("OUTCOME_UNKNOWN:", true));
     }
     Ok(result)

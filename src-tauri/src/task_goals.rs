@@ -40,8 +40,10 @@ fn now() -> u64 { std::time::SystemTime::now().duration_since(std::time::UNIX_EP
 fn id(value: &Value) -> Result<&str, String> {
     value.as_str().filter(|id| !id.is_empty() && id.len() <= 100 && id.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')).ok_or("Invalid task identity".into())
 }
-pub(crate) fn save(root: &Path, board: &Value) -> Result<(), String> {
+pub(crate) fn save(root: &Path, board: &mut Value) -> Result<(), String> {
     use std::io::Write;
+    crate::task_revisions::prepare(&load(root)?, board)?;
+    crate::user_data::validate_task_board(board)?;
     let temporary = root.join("task-board.pending");
     let mut file = fs::File::create(&temporary).map_err(|e| e.to_string())?;
     file.write_all(&serde_json::to_vec(board).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
@@ -55,10 +57,24 @@ pub(crate) fn confirm_save(root: &Path) -> Result<(), String> {
 }
 pub(crate) fn load(root: &Path) -> Result<Value, String> {
     let path = root.join("task-board.json");
-    if !path.exists() { return Ok(json!({"cards":[]})); }
-    let board = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    if !path.exists() { return Ok(json!({"cards":[],"revisionSequence":0})); }
+    let mut board = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     crate::user_data::validate_task_board(&board)?;
+    crate::task_revisions::migrate(&mut board)?;
     Ok(board)
+}
+// Caller holds task-data.lock. Reuse the same receipt, provenance and Goal fences for every draft writer.
+pub(crate) fn save_legacy(root: &Path, board: &mut Value, mut incoming: Value) -> Result<(), String> {
+    crate::capability_board::prepare_legacy(board, &mut incoming)?;
+    crate::user_data::validate_task_board(&incoming)?;
+    let busy = board["cards"].as_array().unwrap().iter().any(|c| c["engine"] == "goals" && (c["activeTurn"] == true || matches!(c["status"].as_str(), Some("running" | "question" | "pausing" | "stopping"))));
+    if busy && incoming["cards"].as_array().unwrap().iter().any(|c| c["engine"] != "goals" && c["status"] == "running" && !board["cards"].as_array().unwrap().iter().any(|old| old["id"] == c["id"] && old["status"] == "running")) {
+        return Err("A background Goal already owns the queue slot. Refresh the task board.".into());
+    }
+    let goals: Vec<_> = board["cards"].as_array().unwrap().iter().filter(|c| c["engine"] == "goals").cloned().collect();
+    board["cards"] = json!(incoming["cards"].as_array().unwrap().iter().filter(|c| c["engine"] != "goals").cloned().chain(goals).collect::<Vec<_>>());
+    if board.get("writeToken").is_some() { board["writeToken"] = json!(crate::capability_authority::nonce()?); }
+    save(root, board)
 }
 // Catalog reads never attach a second app-server to a task-owned thread.
 pub fn conversation_cards(root: &Path) -> Result<Vec<Value>, String> {
@@ -232,9 +248,9 @@ impl GoalWorker {
             if let Some(index) = board["cards"].as_array().unwrap().iter().enumerate().filter(|(_, c)| c["engine"] == "goals" && c["status"] == "queued" && c["restored"] != true && c["archived"] != true).min_by_key(|(_, c)| c["queuedAt"].as_u64().unwrap_or_default()).map(|(index, _)| index) {
                 let mut card = board["cards"][index].clone();
                 card["status"] = json!("running"); card["intent"] = json!("activate"); card["activeTurn"] = json!(true);
-                board["cards"][index] = card.clone(); save(&self.root, &board)?;
+                board["cards"][index] = card.clone(); save(&self.root, &mut board)?;
                 let result = self.prepare(&mut card).await;
-                board["cards"][index] = card.clone(); save(&self.root, &board)?; // Identity and policy before activation.
+                board["cards"][index] = card.clone(); save(&self.root, &mut board)?; // Identity and policy before activation.
                 let prepared = result.is_ok();
                 let result = match result {
                     Ok(()) => self.rpc("thread/goal/set", json!({"threadId":card["threadId"],"objective":Self::objective(&card),"status":"active","origin":"user"})).await.map(|_| ()),
@@ -247,7 +263,7 @@ impl GoalWorker {
                 board["cards"][index] = card;
             }
         }
-        if original != board { save(&self.root, &board)?; }
+        if original != board { save(&self.root, &mut board)?; }
         Ok(())
     }
     pub async fn command(&mut self, request: Value) -> Result<Value, String> {
@@ -258,17 +274,8 @@ impl GoalWorker {
         if op == "read" { return Ok(board); }
         if op == crate::capability_board::CREATE { return crate::capability_board::create(&self.root, &mut board, request); }
         if op == "legacy" {
-            let mut incoming = request["board"].clone();
-            crate::capability_board::prepare_legacy(&board, &mut incoming)?;
-            crate::user_data::validate_task_board(&incoming)?;
-            let busy = board["cards"].as_array().unwrap().iter().any(|c| c["engine"] == "goals" && (c["activeTurn"] == true || matches!(c["status"].as_str(), Some("running" | "question" | "pausing" | "stopping"))));
-            if busy && incoming["cards"].as_array().unwrap().iter().any(|c| c["engine"] != "goals" && c["status"] == "running" && !board["cards"].as_array().unwrap().iter().any(|old| old["id"] == c["id"] && old["status"] == "running")) {
-                return Err("A background Goal already owns the queue slot. Refresh the task board.".into());
-            }
-            let goals: Vec<_> = board["cards"].as_array().unwrap().iter().filter(|c| c["engine"] == "goals").cloned().collect();
-            board["cards"] = json!(incoming["cards"].as_array().unwrap().iter().filter(|c| c["engine"] != "goals").cloned().chain(goals).collect::<Vec<_>>());
-            if board.get("writeToken").is_some() { board["writeToken"] = json!(crate::capability_authority::nonce()?); }
-
+            save_legacy(&self.root, &mut board, request["board"].clone())?;
+            return Ok(board);
         } else if op == "queue-pause" { board["paused"] = json!(request["paused"] == true); }
         else if op == "add" {
             let task_id = id(&request["id"])?;
@@ -304,7 +311,8 @@ impl GoalWorker {
                 "history" => {
                     if card["status"] != "queued" && card["restored"] != true && card["archived"] != true {
                         self.reconcile_card(&mut card).await?;
-                        board["cards"][index] = card.clone(); save(&self.root, &board)?;
+                        board["cards"][index] = card.clone(); save(&self.root, &mut board)?;
+                        card = board["cards"][index].clone();
                     }
                     let mut history = self.rpc("thread/read", json!({"threadId":thread,"includeTurns":true})).await?["thread"].clone();
                     for turn in history["turns"].as_array_mut().into_iter().flatten() { crate::codex_conversations::sanitize_turn(turn); }
@@ -322,7 +330,7 @@ impl GoalWorker {
                 "pause" | "stop" => {
                     card["intent"] = json!(if op == "pause" {"pause"} else {"stop"});
                     if card["status"] != "done" { card["status"] = json!(if op == "pause" {"pausing"} else {"stopping"}); }
-                    board["cards"][index] = card.clone(); save(&self.root, &board)?;
+                    board["cards"][index] = card.clone(); save(&self.root, &mut board)?;
                     if thread.is_empty() { card["status"] = json!(if op == "pause" {"paused"} else {"stopped"}); }
                     else { self.restore(&card).await?; self.reconcile_card(&mut card).await?; }
                 }
@@ -358,7 +366,7 @@ impl GoalWorker {
                         // Only an explicit user message starts a turn. Never rewrite or reactivate the Goal.
                         card["intent"] = json!("run"); card["activeTurn"] = json!(true);
                         if card["status"] != "done" { card["status"] = json!("running"); }
-                        board["cards"][index] = card.clone(); save(&self.root, &board)?;
+                        board["cards"][index] = card.clone(); save(&self.root, &mut board)?;
                         self.rpc("turn/start", json!({"threadId":thread,"clientUserMessageId":message_id,"input":input})).await?;
                     }
                     self.reconcile_card(&mut card).await?;
@@ -386,7 +394,7 @@ impl GoalWorker {
                 "remove" => {
                     if !thread.is_empty() && !matches!(card["status"].as_str(), Some("stopped" | "done" | "review" | "paused")) { return Err("Stop the task before deleting it".into()); }
                     if card["activeTurn"] == true { return Err("Wait for the current turn to finish".into()); }
-                    board["cards"].as_array_mut().unwrap().remove(index); save(&self.root, &board)?; return Ok(board);
+                    board["cards"].as_array_mut().unwrap().remove(index); save(&self.root, &mut board)?; return Ok(board);
                 }
                 "reply" => {
                     if let Some(pending) = card["requests"].as_array().into_iter().flatten().find(|r| r["id"] == request["requestId"] && r["method"] == "nooki/asyncQuestion") {
@@ -403,7 +411,7 @@ impl GoalWorker {
                         self.rpc("turn/steer", json!({"threadId":thread,"expectedTurnId":pending["params"]["turnId"],"clientUserMessageId":pending["id"],"input":[{"type":"text","text":input,"text_elements":[]}]})).await?;
                         self.answered.insert(answer_key);
                         self.reconcile_card(&mut card).await?;
-                        board["cards"][index] = card; save(&self.root, &board)?; return Ok(board);
+                        board["cards"][index] = card; save(&self.root, &mut board)?; return Ok(board);
                     }
                     let requests = self.requests.get_mut(&thread).ok_or("This request expired; refresh the task")?;
                     let at = requests.iter().position(|r| r["id"] == request["requestId"]).ok_or("This request expired; refresh the task")?;
@@ -418,7 +426,7 @@ impl GoalWorker {
             }
             board["cards"][index] = card;
         }
-        save(&self.root, &board)?;
+        save(&self.root, &mut board)?;
         Ok(board)
     }
 }

@@ -197,6 +197,7 @@ export type LibrarySelectionRequest = {
 }
 export type LibrarySelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: DocumentGrant }
 export type IdempotencyOptions = { idempotencyKey: string }
+/** Native-assigned opaque revision; compare for equality, never infer an edit count. */
 export type BoardItemReference = { id: string; revision: number }
 export type BoardCreateInput = {
   title: string

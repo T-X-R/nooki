@@ -720,13 +720,17 @@ C03's child checks are complete and included in the K1 audit below.
 **State:** complete on 2026-11-24; [requirement-to-evidence audit](capability-platform-evidence/K1.md).
 C01/C02/C03, outside-checkout kit archives, actual Host grant/replay refusal cases, regression and
 installed-app checks pass. Trusted-only limitation and later production containment gates remain.
-Next eligible implementation task: C04. Same PR #38 remains open for human merge.
+C04 follows this gate; its current slice status is recorded below. Same PR #38 remains open for human merge.
 
 **Depends on:** C01, C02, C03.
 **Verify:** Grant and idempotency failure cases pass through the real Host; current ZIP, document and
 board regressions pass. The outside-checkout fixture uses the updated kit without private imports.
 
 ### [ ] C04 — Select an existing task and attach a delivery with a scoped grant
+
+**State:** C04a implements the shared revision foundation; validation and delivery are recorded in
+its evidence receipt. C04b/C04c remain pending: no public task picker or delivery attachment is shipped.
+The split ensures user edits, native Goal changes and delete/recreate invalidate approved revisions.
 
 **Depends on:** C02, C03. **Size:** M.
 **Deliver:** Host-owned task picker and delivery attachment to an existing item.
@@ -735,6 +739,44 @@ denial/conflict preserves the item and the grant cannot accept, delegate or muta
 **Likely files:** Task selection component (new), native Host board adapter, contract,
 `src/features/task-board/TaskReferences.tsx`, focused selection/attachment tests.
 **Verification:** V-B, focused V-UI and V-N including another user's edit between selection and write.
+
+### [x] C04a — Make task revisions native-owned across every board writer
+
+**State:** complete on 2026-11-24; [C04a evidence](capability-platform-evidence/C04a.md). Native-owned
+versions, migration, restore, replay and all writer paths pass 210 native top-level tests plus one
+nested child, 180 JavaScript tests and an isolated installed-0.7.0 worker run. Two existing native
+live-agent tests remain ignored. Platform/contract 0.7.0 and kit 0.6.0 are aligned; strict desktop
+signature verification passes. Next: C04b.
+
+**Depends on:** C03. **Size:** M.
+**Deliver:** One persisted board revision sequence; changed/new cards receive a new revision while
+unchanged cards keep theirs. Central native persistence covers legacy UI, Goals and capability writes;
+old boards migrate without changing content. Incoming renderer revision fields are not authority.
+**Acceptance:** User edits and native state transitions change the affected revision; unrelated-card
+edits do not. Delete/recreate never reuses an old revision, including across restart. Failed writes
+do not consume committed state. Existing create receipts retain their original result on replay.
+**Verification:** Native legacy/Goals/create/restart/failure and backup-validation tests, full regression,
+matching contract/kit documentation and desktop build/install. Parent C04 stays pending.
+
+### [ ] C04b — Authorize and atomically attach deliveries to selected tasks
+
+**Depends on:** C04a, C02. **Size:** M.
+**Deliver:** Host-owned task selection sessions and operation-scoped grants, plus a native attachment
+transaction with expected-revision checks and durable idempotency receipts. Bind current installation,
+task identity and the requested attachment operation; retain delivery data as user-owned content.
+**Acceptance:** Missing/foreign/stale/revoked authority or user edits reject new effects unchanged;
+exact committed retries return their recorded result without duplicating delivery. Grants cannot
+accept, delegate or edit other tasks. Existing agent deliveries are preserved.
+**Verification:** Native transaction, lifecycle, stale-selection and reply-loss/restart tests.
+
+### [ ] C04c — Ship the public task picker and independent attachment flow
+
+**Depends on:** C04b. **Size:** M.
+**Deliver:** Host picker, public typed requestSelection/attachDelivery, canonical kit/Skill and
+independent ZIP fixture, with user-visible delivery references on existing tasks.
+**Acceptance:** Real ZIP selection/attachment/dismissal/retry/restart, concurrent-user-edit refusal,
+keyboard/layout and retained delivery after removal pass. No execution or acceptance is inferred.
+**Verification:** V-B/V-K, focused V-UI/V-N, desktop build/install; close C04 only after all child checks.
 
 ### [ ] C05 — Hand selected context to a native conversation draft
 
