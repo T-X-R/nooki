@@ -556,10 +556,11 @@ Keep the legacy shared-realm trusted-only limitation explicit; R02 owns isolated
 **Verification:** V-P, exported-kit check/pack and V-N. Record native Tauri caller injection and
 the public path, not just direct Rust calls, before closing C01c or C01.
 
-### [ ] C02 — Let a capability select and read authorized document snapshots
+### [x] C02 — Let a capability select and read authorized document snapshots
 
-**State:** in progress. C02a below completes native authorization/recovery foundations; the public
-picker, Host/kit contract, revocation UI and actual package acceptance remain C02b. C02/K1 stay open.
+**State:** complete on 2026-11-24 through C02a/C02b; [final native acceptance](capability-platform-evidence/C02b-native-completion.md)
+closes the remaining keyboard/layout checks. Public snapshot selection, permission/lifecycle refusal,
+revocation, independent peer reads and retained user citations pass. Same PR #38, pending human merge.
 
 **Depends on:** C01. **Size:** M.
 **Deliver:** The document branch of the host Library picker, returning recipient-scoped snapshot grants.
@@ -587,10 +588,9 @@ restore blocks grant access until recovery. Restored snapshot IDs cannot silentl
 the Library restore suite, complete native/JavaScript regression, desktop build/install/signature.
 The receipt retains reproduced failures, the bounded review findings and the exact evidence limits.
 
-### [ ] C02b — Deliver the host-owned document picker and public selection workflow
+### [x] C02b — Deliver the host-owned document picker and public selection workflow
 
-**State:** implementation and automated verification pass on 2026-11-20; installed-app acceptance
-is in progress. [C02b receipt](capability-platform-evidence/C02b.md) records independent archive
+**State:** complete on 2026-11-24. [C02b receipt](capability-platform-evidence/C02b.md) records independent archive
 imports, selected snapshots, cross-package denial and positive control, missing-permission denial,
 job selection, stale-Host cancellation, restart, revocation and retained user citations. The
 [follow-up receipt](capability-platform-evidence/C02b-ui.md) adds the successful native post-revoke
@@ -600,8 +600,9 @@ focus, Tab to a document and Escape dismissal, plus access-manager initial focus
 Both closing paths reported page focus rather than the opener. The
 [focus follow-up](capability-platform-evidence/C02b-focus.md) reproduces and fixes loss of a keyboard
 trigger across asynchronous issuance/cleanup and temporary disabling; real-component delayed-success,
-dismissal and no-focus-stealing checks pass. Installed-app keyboard restoration and narrower native
-access-manager layout remain open. Browser evidence is not relabeled as native. C02b/C02/K1 remain pending.
+dismissal and no-focus-stealing checks pass. [Final native acceptance](capability-platform-evidence/C02b-native-completion.md)
+verifies keyboard restoration for both dialogs and the supported 980×680 minimum window in Chinese/light
+and English/dark. Browser and native evidence remain distinct. C02b/C02 are complete.
 
 **Depends on:** C02a. **Size:** M; split only if measured scope requires it.
 **Deliver:** `library.requestSelection` document branch, typed dismissal/selected results, purpose and
@@ -618,8 +619,9 @@ and restart. Reproduce the promised public flow before closing C02 or claiming i
 
 **State:** complete on 2026-11-24 through C03a/C03b/C03c. Native source authority, retained user
 snapshots, public kit and actual ZIP create/replay/revoke/restart acceptance pass; creation remains
-todo-only. [Final public/native receipt](capability-platform-evidence/C03c.md). C02 native focus/layout
-observations remain separately pending, so K1 stays open. Same branch and PR #38, pending human merge.
+todo-only. [Final public/native receipt](capability-platform-evidence/C03c.md). C02's subsequent native
+focus/layout completion is reconciled in the [K1 audit](capability-platform-evidence/K1.md).
+Same branch and PR #38, pending human merge.
 
 **Depends on:** C01. **Size:** M.
 **Deliver:** Public item creation over the native board owner, with stable result and provenance.
@@ -702,7 +704,8 @@ delegation supplies that text rather than a fresh ID-only read. Capture errors l
 0.6.0 and kit 0.5.0 expose selected sources through the existing native owner. Two independently
 built ZIPs pass selection/create/replay, cross-package denial, revocation, restart and retained
 task citations. Native state contains one idle todo and one receipt, with no execution authorization.
-Full regression and desktop build/install/signature verification pass. C03 closes; C02/K1 stay open.
+Full regression and desktop build/install/signature verification pass. C03 is complete; the K1 audit
+also records the subsequent completion of C02 native acceptance.
 
 **Depends on:** C03a, C03b. **Size:** M.
 **Deliver:** Public adapter, versioned contract/kit documentation and an independent package fixture
@@ -710,9 +713,14 @@ that selects a document then creates a todo with its reference and a stable idem
 **Acceptance:** Actual ZIP selection/create/replay/restart works; revoked/foreign new sources fail;
 user citation survives revocation; no agent starts and no delivery is accepted by creation.
 **Verification:** Host/kit tests, real archive V-N, V-B/V-D regressions and desktop build/install.
-C03's child checks are complete; K1 still requires C02's pending native acceptance.
+C03's child checks are complete and included in the K1 audit below.
 
-### [ ] K1 — Selected inputs and durable board creation
+### [x] K1 — Selected inputs and durable board creation
+
+**State:** complete on 2026-11-24; [requirement-to-evidence audit](capability-platform-evidence/K1.md).
+C01/C02/C03, outside-checkout kit archives, actual Host grant/replay refusal cases, regression and
+installed-app checks pass. Trusted-only limitation and later production containment gates remain.
+Next eligible implementation task: C04. Same PR #38 remains open for human merge.
 
 **Depends on:** C01, C02, C03.
 **Verify:** Grant and idempotency failure cases pass through the real Host; current ZIP, document and

@@ -1,5 +1,8 @@
 # C02b follow-up: focus across asynchronous selection
 
+Follow-up: [installed-app keyboard and minimum-window acceptance](C02b-native-completion.md) now
+passes and closes C02b/C02. The incomplete native status below describes this earlier repair run.
+
 - Date: 2026-11-24; source is this receipt's commit, based on `ef275aa`.
 - Same branch and [PR #38](https://github.com/T-X-R/nooki/pull/38); human merge pending.
 - Result: asynchronous keyboard focus regression reproduced and fixed in real components.
