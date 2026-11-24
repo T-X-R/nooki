@@ -641,10 +641,12 @@ cannot create a card/receipt. Existing receipt replay returns the prior item wit
 new keys must pass current source authorization. Source-free behavior and no-delegation remain intact.
 **Verification:** Native board/source tests, existing receipt durability and grant/lifecycle suites.
 
-### [ ] C03b — Preserve selected snapshots in user-owned task workflows
+### [x] C03b — Preserve selected snapshots in user-owned task workflows
 
-**State:** split before implementation into C03b1 (native snapshot/restore semantics) and C03b2
-(user citation UI and existing renderer delegation integration). Both are required to close C03b.
+**State:** complete on 2026-11-24; [native snapshot/restore evidence](capability-platform-evidence/C03b1.md),
+[citation/delegation implementation](capability-platform-evidence/C03b2.md) and
+[installed-app acceptance](capability-platform-evidence/C03b2-native.md). Same branch and PR #38,
+pending human merge. Public sourced creation C03c and parent C03/K1 remain open.
 
 **Depends on:** C03a. **Size:** M.
 **Deliver:** Task source representation and user citation opening; explicit user delegation captures
@@ -672,13 +674,13 @@ not substitute current content for an existing selection. Retry preserves captur
 the selected reference with the same document ID conflicts. Missing/malformed snapshots fail closed.
 **Verification:** Native Goals/board, source snapshot and backup/restore tests, full regression.
 
-### [ ] C03b2 — Connect user citation opening and explicit renderer delegation
+### [x] C03b2 — Connect user citation opening and explicit renderer delegation
 
-**State:** implementation, 31 native board tests, full regression and component browser checks pass;
-[C03b2 evidence and remaining native checks](capability-platform-evidence/C03b2.md). Three bounded
-review cycles resolved replay, stale-write and failed-commit binding findings. Desktop build/install
-pass. Native citation/delegation and restart acceptance remain pending because desktop control
-was unavailable; this task and parent C03b/C03/K1 remain unchecked.
+**State:** complete on 2026-11-24; [implementation/regression](capability-platform-evidence/C03b2.md)
+and [native acceptance](capability-platform-evidence/C03b2-native.md). Actual citation opening,
+explicit delegation, missing-source failure, Tab/Enter, current-document contrast, restart and
+withdrawal pass. Native state confirms retained original content and no agent run/thread.
+Desktop build/install/signature checks pass. C03c, parent C03 and K1 remain unchecked.
 
 **Depends on:** C03b1. **Size:** M.
 **Deliver:** Typed selected references on task cards, retained-citation opening, and native capture

@@ -1,0 +1,87 @@
+{
+  "profile": "/private/tmp/nooki-profile-QwNWXy",
+  "testedSource": "8a898fde0d6f5b42c41527f91b5d137c6bb42335",
+  "finalBoard": {
+    "cards": [
+      {
+        "description": "Use the originally selected content.",
+        "id": "selected-task",
+        "sources": [
+          {
+            "id": "example.notes/notes/2026/11/minutes",
+            "reference": {
+              "documentId": "example.notes/notes/2026/11/minutes",
+              "grantId": "selected",
+              "kind": "library-document",
+              "revision": "2026-11-20T00:00:00Z",
+              "title": "Original selected notes"
+            },
+            "title": "Original selected notes"
+          }
+        ],
+        "status": "todo",
+        "title": "Selected snapshot task"
+      },
+      {
+        "description": "Capture must fail and leave this task idle.",
+        "id": "missing-task",
+        "sources": [
+          {
+            "id": "example.notes/notes/2026/11/minutes",
+            "reference": {
+              "documentId": "example.notes/notes/2026/11/minutes",
+              "grantId": "missing",
+              "kind": "library-document",
+              "revision": "2026-11-20T00:00:00Z",
+              "title": "Original selected notes"
+            },
+            "title": "Original selected notes"
+          }
+        ],
+        "status": "todo",
+        "title": "Missing source task"
+      },
+      {
+        "description": "Plain reference control.",
+        "id": "plain-task",
+        "sources": [
+          {
+            "id": "example.notes/notes/2026/11/minutes",
+            "title": "Changed current notes"
+          }
+        ],
+        "status": "todo",
+        "title": "Current document task"
+      }
+    ],
+    "delegationReceipts": {
+      "5b5be6cc-298d-4858-95bc-fceda67b6824": {
+        "committed": false,
+        "hash": "20b50d4cdeb065486681460cc809635e491498de21c7a70ee29ffd626e2e36d8"
+      },
+      "716491f5-b70b-4d9d-8cea-0bdb20127efc": {
+        "committed": true,
+        "hash": "57e991f6dcc98ebdcf9485deee1deb6832d5040bf868b6cf880e258858bf1483"
+      }
+    },
+    "paused": true,
+    "writeToken": "d2f3538a17e8ea0269a7846067fcc7cc1922cdc4a952985005ea8eed799e3ae4"
+  },
+  "capturedSource": {
+    "reference": {
+      "documentId": "example.notes/notes/2026/11/minutes",
+      "grantId": "selected",
+      "kind": "library-document",
+      "revision": "2026-11-20T00:00:00Z",
+      "snapshotId": "716491f5-b70b-4d9d-8cea-0bdb20127efc",
+      "title": "Original selected notes"
+    },
+    "documentDate": "2026-11-20",
+    "content": "# Original selected notes\n\nORIGINAL SELECTED CONTENT — retained after revoke.\n"
+  },
+  "currentDocument": "# Changed current notes\n\nCHANGED CURRENT CONTENT — should not replace the selection.\n",
+  "grantRevoked": true,
+  "originalSha256": "8738cc39804aa1345aaeea6b3984a3427dfb8248c4a8b78655208706360bf1e7",
+  "currentSha256": "5eb030f697707d70c3d3b55e09f05e1fc12d98bd3d668ee1e3ed2ec9302206f3",
+  "checks": "Snapshot matches original grant; current body differs; final todos have no execution authorization/run/thread; queue paused; committed and pending receipts retained."
+}
