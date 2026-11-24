@@ -29,7 +29,6 @@ function snapshot(input: BoardCreateInput, options: IdempotencyOptions): { input
       || [...copy.input.title].length > 120 || (copy.input.description !== undefined && (typeof copy.input.description !== 'string' || [...copy.input.description].length > 20_000))
       || typeof copy.key !== 'string' || !copy.key || new TextEncoder().encode(copy.key).length > 128 || /\p{Cc}/u.test(copy.key)
       || (copy.input.sources !== undefined && !Array.isArray(copy.input.sources))) throw invalid()
-    if (copy.input.sources?.length) throw error('UNSUPPORTED_SERVICE', 'Authorized board source snapshots are not available yet')
     return copy
   } catch (cause) { throw normalize(cause, 'INVALID_INPUT') }
 }

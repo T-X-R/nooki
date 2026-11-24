@@ -201,7 +201,9 @@ export type BoardItemReference = { id: string; revision: number }
 export type BoardCreateInput = {
   title: string
   description?: string
-  /** Nonempty sources require the forthcoming authorized-snapshot integration. */
+  /** Nooki 0.6.0+: unchanged references from this package's active document selection (at most 50).
+   * New creation requires current read-selected authority; exact committed replay does not reread sources.
+   * Task/conversation snapshot IDs and locators are not accepted as creation inputs. */
   sources?: DocumentReference[]
 }
 

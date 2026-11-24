@@ -37,6 +37,9 @@ host.library.requestSelection({ purpose: 'Draft actions', kinds: ['document'], l
 // @ts-expect-error Recipient identity belongs to the Host.
 host.library.requestSelection({ purpose: 'Read', kinds: ['document'], capabilityId: 'foreign' })
 host.board.create({ title: 'Test' }, { idempotencyKey: 'one' })
+host.library.requestSelection({ purpose: 'Review notes', kinds: ['document'] }).then(selection => {
+  if (selection.status === 'selected') return host.board.create({ title: 'Selected task', sources: selection.grant.documents.map(doc => doc.reference) }, { idempotencyKey: 'selected-intent' })
+})
 // @ts-expect-error Mutations require a stable idempotency key.
 host.board.create({ title: 'Test' })
 // @ts-expect-error Packages cannot select the owner of the mutation.

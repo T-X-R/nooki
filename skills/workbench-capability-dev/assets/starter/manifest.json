@@ -3,7 +3,7 @@
   "name": "Quick notes",
   "description": "A small place to keep a note.",
   "version": "1.0.0",
-  "minPlatformVersion": "0.5.0",
+  "minPlatformVersion": "0.6.0",
   "entrypoints": [
     "page",
     "job",

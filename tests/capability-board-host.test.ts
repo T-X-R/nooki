@@ -96,3 +96,38 @@ test('lifecycle invalidation closes even a Host that has not requested authority
   await assert.rejects(client.board.create({title:'X'},{idempotencyKey:'one'}),{code:'CANCELLED'})
   assert.equal(f.calls.length,0)
 })
+
+test('selected sources are copied before issuance and forwarded intact without extra document reads', async () => {
+  const f=fixture();let finish!:(handle:string)=>void
+  const client=createBoardClient({...f.config,invoke:async(command,args)=>{
+    if(command==='capability_board_begin')return new Promise<string>(resolve=>{finish=resolve})
+    return f.config.invoke(command,args)
+  }})
+  const reference={kind:'library-document' as const,documentId:'example.notes/notes/2026/11/minutes',title:'Selected notes',grantId:'selected',revision:'original'}
+  const input={title:'Review notes',sources:[reference]}
+  const expected=structuredClone(input)
+  const request=client.board.create(input,{idempotencyKey:'selected-intent'})
+  void request.catch(()=>{}) // Keep the red reproduction observed if issuance never starts.
+  reference.grantId='changed';input.sources.push({...reference,documentId:'another'})
+  assert.equal(typeof finish,'function')
+  finish('a'.repeat(64));await request
+  assert.deepEqual(f.calls,[{command:'capability_board_create',args:{request:{handle:'a'.repeat(64),key:'selected-intent',input:expected}}}])
+  await client.dispose()
+})
+
+test('native source refusal and exact replay keep the same input and stable Host error codes', async () => {
+  const f=fixture();let denied=true
+  const client=createBoardClient({...f.config,invoke:async(command,args)=>{
+    const result=await f.config.invoke(command,args)
+    if(command==='capability_board_create' && denied)throw {code:'PERMISSION_DENIED',message:'Selected source revoked'}
+    return result
+  }})
+  const input={title:'Review',sources:[{kind:'library-document' as const,documentId:'example.notes/notes/2026/11/minutes',title:'Original',grantId:'selected',revision:'original'}]}
+  const options={idempotencyKey:'intent'}
+  await assert.rejects(client.board.create(input,options),{code:'PERMISSION_DENIED'})
+  denied=false
+  await client.board.create(input,options)
+  const creates=f.calls.filter(call=>call.command==='capability_board_create')
+  assert.equal(creates.length,2);assert.deepEqual(creates[0],creates[1])
+  await client.dispose()
+})

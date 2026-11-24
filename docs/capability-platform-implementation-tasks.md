@@ -595,8 +595,10 @@ imports, selected snapshots, cross-package denial and positive control, missing-
 job selection, stale-Host cancellation, restart, revocation and retained user citations. The
 [follow-up receipt](capability-platform-evidence/C02b-ui.md) adds the successful native post-revoke
 peer read, browser keyboard/error/retry/layout checks and explicit native replacement/update/reinstall
-regressions. Native keyboard and narrower access-manager observations remain open; browser evidence
-is not relabeled as native. C02b/C02/K1 remain pending.
+regressions. The [0.6.0 native run](capability-platform-evidence/C03c.md) verifies picker Search
+focus, Tab to a document and Escape dismissal, plus access-manager initial focus and Escape.
+Both closing paths report page focus rather than the opener; this discrepancy and narrower native
+access-manager layout remain open. Browser evidence is not relabeled as native. C02b/C02/K1 remain pending.
 
 **Depends on:** C02a. **Size:** M; split only if measured scope requires it.
 **Deliver:** `library.requestSelection` document branch, typed dismissal/selected results, purpose and
@@ -609,12 +611,12 @@ nor resource IDs confer whole-Library access or a package-selected recipient ide
 exercise two identities, denied sharing, cancellation, lifecycle change while selecting, revocation
 and restart. Reproduce the promised public flow before closing C02 or claiming its K1 conditions.
 
-### [ ] C03 — Create a task-board item without implicitly delegating it
+### [x] C03 — Create a task-board item without implicitly delegating it
 
-**State:** implementation underway; split before changes into C03a/C03b/C03c below. C01 already
-provides creation/provenance/atomic replay. Remaining work is authorized source references, retained
-snapshot behavior in existing task workflows, and public kit/native acceptance. C02 native UI
-observations remain separately pending; C03 depends on completed C01 and uses C02a grant authority.
+**State:** complete on 2026-11-24 through C03a/C03b/C03c. Native source authority, retained user
+snapshots, public kit and actual ZIP create/replay/revoke/restart acceptance pass; creation remains
+todo-only. [Final public/native receipt](capability-platform-evidence/C03c.md). C02 native focus/layout
+observations remain separately pending, so K1 stays open. Same branch and PR #38, pending human merge.
 
 **Depends on:** C01. **Size:** M.
 **Deliver:** Public item creation over the native board owner, with stable result and provenance.
@@ -690,7 +692,14 @@ and conversation snapshot consumers compatible; capture alone must not authorize
 delegation supplies that text rather than a fresh ID-only read. Capture errors leave the todo idle.
 **Verification:** Focused adapter/store tests, task-reference UI and native citation/delegation checks.
 
-### [ ] C03c — Deliver sourced creation through the public Host and exported kit
+### [x] C03c — Deliver sourced creation through the public Host and exported kit
+
+**State:** complete on 2026-11-24; [receipt](capability-platform-evidence/C03c.md) and
+[retained synthetic state](capability-platform-evidence/C03c-native-state.json). Platform/contract
+0.6.0 and kit 0.5.0 expose selected sources through the existing native owner. Two independently
+built ZIPs pass selection/create/replay, cross-package denial, revocation, restart and retained
+task citations. Native state contains one idle todo and one receipt, with no execution authorization.
+Full regression and desktop build/install/signature verification pass. C03 closes; C02/K1 stay open.
 
 **Depends on:** C03a, C03b. **Size:** M.
 **Deliver:** Public adapter, versioned contract/kit documentation and an independent package fixture
@@ -698,7 +707,7 @@ that selects a document then creates a todo with its reference and a stable idem
 **Acceptance:** Actual ZIP selection/create/replay/restart works; revoked/foreign new sources fail;
 user citation survives revocation; no agent starts and no delivery is accepted by creation.
 **Verification:** Host/kit tests, real archive V-N, V-B/V-D regressions and desktop build/install.
-C03 and K1 remain open until all required child checks and C02's pending acceptance are resolved.
+C03's child checks are complete; K1 still requires C02's pending native acceptance.
 
 ### [ ] K1 — Selected inputs and durable board creation
 

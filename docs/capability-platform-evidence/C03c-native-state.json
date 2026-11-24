@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-24",
+  "platformVersion": "0.6.0",
+  "profile": "/private/tmp/nooki-profile-5dTf40",
+  "board": {
+    "cards": [
+      {
+        "createdAt": 1795487045794,
+        "description": "Review original selected notes. Creation does not execute work.",
+        "id": "68848bd2eafac2545cdb3d087353e44e0e3e89d0f479cc8a004a4586dff995b6",
+        "provenance": {
+          "capabilityId": "org.example.sourced-board",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 1,
+        "sources": [
+          {
+            "id": "org.example.sourced-board/source-tests/2026/11/minutes",
+            "reference": {
+              "documentId": "org.example.sourced-board/source-tests/2026/11/minutes",
+              "grantId": "84ee339495897f72211448b0b91d3f636c0b572ecfc44401a0997724aae80521",
+              "kind": "library-document",
+              "revision": "2026-11-24T10:23:49.685057000+08:00",
+              "title": "Sourced board reader notes"
+            },
+            "title": "Sourced board reader notes"
+          }
+        ],
+        "status": "todo",
+        "title": "Sourced review — org.example.sourced-board"
+      }
+    ],
+    "capabilityReceipts": {
+      "0ee2bb73881a011664244654a88dc6b25e2b5fa5621b4a43821b75f711543f7d": {
+        "capabilityId": "org.example.sourced-board",
+        "payloadHash": "6ebbef3d316bc4328ba611038663b529ba30d6b818209ec358d94bd3bc886f3a",
+        "result": {
+          "id": "68848bd2eafac2545cdb3d087353e44e0e3e89d0f479cc8a004a4586dff995b6",
+          "revision": 1
+        }
+      }
+    }
+  },
+  "grant": {
+    "id": "84ee339495897f72211448b0b91d3f636c0b572ecfc44401a0997724aae80521",
+    "capabilityId": "org.example.sourced-board",
+    "capabilityVersion": "1.0.0",
+    "createdAt": "2026-11-24T10:24:02.367725+08:00",
+    "purpose": "Create a review todo from selected synthetic notes; no agent execution.",
+    "documents": [
+      {
+        "reference": {
+          "kind": "library-document",
+          "documentId": "org.example.sourced-board/source-tests/2026/11/minutes",
+          "title": "Sourced board reader notes",
+          "grantId": "84ee339495897f72211448b0b91d3f636c0b572ecfc44401a0997724aae80521",
+          "revision": "2026-11-24T10:23:49.685057000+08:00"
+        },
+        "documentDate": "2026-11-24",
+        "content": "# Original notes\nORIGINAL SELECTED SOURCE"
+      }
+    ]
+  },
+  "revocation": true,
+  "currentContent": "# Changed notes\nCHANGED CURRENT SOURCE",
+  "contentSha256": {
+    "selected": "0694f927aab5b6c3cda7a55f27c485b9e4b71842a23e3c1cfc24633115ae1fc5",
+    "current": "889517ce8bd129bdcf6b0e385e5232db239c7fb858b54cd251e1508872c08d6a"
+  },
+  "nativeTasks": [],
+  "observations": {
+    "foreignSourceBeforeRevoke": "PERMISSION_DENIED",
+    "changedPayloadSameKey": "CONFLICT",
+    "readAfterRevoke": "PERMISSION_DENIED",
+    "newKeyAfterRevoke": "PERMISSION_DENIED",
+    "exactReplayAfterRevokeAndRestart": {
+      "id": "68848bd2eafac2545cdb3d087353e44e0e3e89d0f479cc8a004a4586dff995b6",
+      "revision": 1
+    },
+    "taskCitationAfterRevokeAndRestart": "ORIGINAL SELECTED SOURCE",
+    "normalQuitExitCodes": [
+      0,
+      0
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "org.example.sourced-board",
+  "name": "Sourced board reader",
+  "description": "Public selected-source creation acceptance with synthetic notes",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.6.0",
+  "entrypoints": ["page"],
+  "permissions": ["storage", "documents.publish", "documents.read-selected", "board.create"],
+  "locales": {
+    "zh": { "name": "来源待办验证 reader", "description": "公开接口与合成资料验收" },
+    "en": { "name": "Sourced board reader", "description": "Public selected-source creation acceptance" }
+  }
+}

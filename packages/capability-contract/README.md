@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.5.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.6.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -87,7 +87,7 @@ replayable. User-requested restoration of an older backup rolls back board state
 | Description | At most 20,000 Unicode scalar values |
 | Key | Nonempty, at most 128 UTF-8 bytes, no control characters |
 | Public input/key envelope | At most 63 KiB serialized UTF-8; native envelope at most 64 KiB |
-| Sources | Omit or supply `[]`; nonempty references return `UNSUPPORTED_SERVICE` until authorized snapshot integration |
+| Sources | Up to 50 unique selected-document references; at most 8,000,000 UTF-8 bytes of combined snapshot bodies |
 | Receipts | At most 256 per package, 1,024 per profile and 1 MiB serialized ledger |
 
 Requests reject unknown fields, including owner, capability ID, authorization and execution state.
@@ -116,6 +116,41 @@ The legacy controller runs in the trusted main WebView. Native effects recheck c
 installation generation and permission, but legacy packages share the main JavaScript realm and
 can bypass its module boundaries if malicious. This API is not hostile-package isolation; isolated
 runtime enforcement remains separate work. Do not import Tauri or host controller modules.
+
+### Create a draft from selected documents
+
+For nonempty sources, require `minPlatformVersion: "0.6.0"` and declare both `board.create` and
+`documents.read-selected`. Pass the references returned by the Host picker unchanged; the Host
+captures source content and validates authority without requiring the package to read document bodies.
+
+```ts
+const selection = await host.library.requestSelection({
+  purpose: 'Create a review task using the selected meeting notes.', kinds: ['document'], limit: 5,
+})
+if (selection.status === 'selected') {
+  const intent = {
+    input: { title: 'Review meeting notes', sources: selection.grant.documents.map(doc => doc.reference) },
+    options: { idempotencyKey: crypto.randomUUID() },
+  }
+  // This package also declares storage. Persist before the first attempt, then reuse on retry.
+  await host.storage.set('pending-review', intent)
+  const item = await host.board.create(intent.input, intent.options)
+}
+```
+
+Each creation source must have exactly `kind`, `documentId`, `title`, `grantId` and `revision`.
+Task/conversation `snapshotId`, `locator`, duplicate document IDs and arbitrary current-document
+references are not accepted here. Metadata must match the canonical selection, and the grant must
+belong to this package's currently authorized installation/version. Missing, foreign, revoked or
+stale grants cannot create a new task; aggregate content bounds still apply across multiple grants.
+
+Exact committed retries return only the original item reference and do not reread or reauthorize
+the sources. The package must still have current `board.create` authority. Thus a committed retry
+can succeed after source revocation, while a new key with that source is denied. Changed source
+identity under the same key conflicts; do not replace a saved selection silently to make a retry pass.
+Existing user-owned task citations remain readable after source edits, revocation or package removal.
+Creation remains todo-only; later delegation is an explicit user action in Nooki. Portable preview
+continues to reject creation with `UNSUPPORTED_SERVICE`, including sourced creation.
 
 ## Follow the platform language and theme
 
