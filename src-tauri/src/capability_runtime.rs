@@ -65,6 +65,8 @@ pub enum CapabilityPermission {
   DocumentsReadSelected,
   #[serde(rename = "board.create")]
   BoardCreate,
+  #[serde(rename = "board.attach-delivery")]
+  BoardAttachDelivery,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -107,6 +109,7 @@ pub struct PlatformState {
   settings: RwLock<PlatformSettings>,
   registry: RwLock<CapabilityRegistry>,
   pub(crate) document_selections: std::sync::Mutex<BTreeMap<String, crate::document_selection::Selection>>,
+  pub(crate) task_selections: std::sync::Mutex<BTreeMap<String, crate::task_selection::Selection>>,
 }
 
 impl PlatformState {
@@ -123,6 +126,7 @@ impl PlatformState {
       settings: RwLock::new(settings),
       registry: RwLock::new(registry),
       document_selections: std::sync::Mutex::new(BTreeMap::new()),
+      task_selections: std::sync::Mutex::new(BTreeMap::new()),
     })
   }
 
@@ -402,10 +406,13 @@ impl PlatformState {
   }
 
   pub(crate) fn prepare_document_grant(&self, id: &str) -> Result<(), String> {
+    self.prepare_selection_grant(id, CapabilityPermission::DocumentsReadSelected)
+  }
+  pub(crate) fn prepare_selection_grant(&self, id: &str, permission: CapabilityPermission) -> Result<(), String> {
     let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
     if !registry.capabilities.iter().any(|item| item.manifest.id == id && item.enabled
-      && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected)) {
-      return Err("PERMISSION_DENIED: selected document access is not authorized".into());
+      && item.manifest.permissions.contains(&permission)) {
+      return Err("PERMISSION_DENIED: selected resource access is not authorized".into());
     }
     if !registry.generations.contains_key(id) {
       let next = registry.clone();
@@ -509,6 +516,7 @@ impl CapabilityPermission {
       Self::DocumentsPublish => "documents.publish",
       Self::DocumentsReadSelected => "documents.read-selected",
       Self::BoardCreate => "board.create",
+      Self::BoardAttachDelivery => "board.attach-delivery",
     }
   }
 }
@@ -600,11 +608,14 @@ impl CapabilityRegistry {
 
 // Caller holds the authority fence; this also serves worker-side document effects without re-locking.
 pub(crate) fn document_context(root: &Path, id: &str) -> Result<crate::capability_authority::InvocationContext, String> {
+  selection_context(root, id, CapabilityPermission::DocumentsReadSelected)
+}
+pub(crate) fn selection_context(root: &Path, id: &str, permission: CapabilityPermission) -> Result<crate::capability_authority::InvocationContext, String> {
   let current = load_registry(root)?;
   let installed = current.capabilities.iter().find(|item| item.manifest.id == id && item.enabled
-    && item.manifest.permissions.contains(&CapabilityPermission::DocumentsReadSelected))
-    .ok_or("PERMISSION_DENIED: selected document access is not authorized")?;
-  let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select documents again for this installation")?;
+    && item.manifest.permissions.contains(&permission))
+    .ok_or("PERMISSION_DENIED: selected resource access is not authorized")?;
+  let generation = current.generations.get(id).ok_or("PERMISSION_DENIED: select resources again for this installation")?;
   Ok(crate::capability_authority::InvocationContext { capability_id: id.into(),
     capability_version: installed.manifest.version.clone(), generation: generation.clone() })
 }

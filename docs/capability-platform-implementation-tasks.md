@@ -729,7 +729,7 @@ board regressions pass. The outside-checkout fixture uses the updated kit withou
 ### [ ] C04 — Select an existing task and attach a delivery with a scoped grant
 
 **State:** C04a implements the shared revision foundation; validation and delivery are recorded in
-its evidence receipt. C04b/C04c remain pending: no public task picker or delivery attachment is shipped.
+its evidence receipt. C04b is in progress and C04c remains pending: no public task picker or delivery attachment is shipped.
 The split ensures user edits, native Goal changes and delete/recreate invalidate approved revisions.
 
 **Depends on:** C02, C03. **Size:** M.
@@ -768,6 +768,26 @@ task identity and the requested attachment operation; retain delivery data as us
 exact committed retries return their recorded result without duplicating delivery. Grants cannot
 accept, delegate or edit other tasks. Existing agent deliveries are preserved.
 **Verification:** Native transaction, lifecycle, stale-selection and reply-loss/restart tests.
+
+#### [x] C04b1 — Persist installation-bound task selections
+
+**State:** complete on 2026-11-24; [C04b1 evidence](capability-platform-evidence/C04b1.md). Eleven focused
+authorization tests, 221 native top-level tests plus one nested child and 180 JavaScript tests pass;
+two existing live-agent tests remain ignored. Rebuilt/reinstalled 0.7.0 passes strict signing and an
+installed-worker ledger smoke. No public task-picker/attachment interface is exported. Next: C04b2.
+
+Host-owned pending selection, explicit attach-only approval, durable grant/revocation, exact displayed
+task revisions, bounded retained metadata and a restore epoch outside backups. Reuse the task-data and
+authority fences; legacy board saves must preserve native grant records. Native permission is internal
+until the public controller and kit arrive in C04c. Verify dismissal, stale approval, lifecycle,
+restart, failed commits and restore/recovery; no task attachment API is claimed by this slice.
+
+#### [ ] C04b2 — Commit attachments and replay receipts together
+
+Consume the approved grant under the same task-data/authority fence as revision checking and the
+delivery/receipt commit. Preserve native Agent deliveries and task status, retain authorized document
+content for the user, and bound new records. Verify foreign/revoked/stale requests, original-result
+replay, lost replies, failed writes and removal/restore behavior before closing C04b.
 
 ### [ ] C04c — Ship the public task picker and independent attachment flow
 

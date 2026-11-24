@@ -1,0 +1,48 @@
+{
+  "platformVersion": "0.7.0",
+  "binary": "/Applications/Nooki.app/Contents/MacOS/app",
+  "profile": "/private/tmp/nooki-profile-m50Ees",
+  "scope": "Seeded native grant-ledger persistence only; approval/effect authorization is covered by Rust tests, not this smoke test.",
+  "checks": {
+    "validLedgerRead": true,
+    "rendererForgeryIgnored": true,
+    "editAdvancesRevision": true,
+    "restartRetainsLedger": true,
+    "arrayShapedGrantRejected": true,
+    "workersExitedCleanly": true
+  },
+  "finalBoard": {
+    "cards": [
+      {
+        "description": "No personal data",
+        "id": "task",
+        "revision": 2,
+        "status": "todo",
+        "title": "Synthetic user edit"
+      }
+    ],
+    "paused": true,
+    "revisionSequence": 2,
+    "taskGrants": {
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "context": {
+          "capability_id": "example.synthetic",
+          "capability_version": "1.0.0",
+          "generation": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "createdAt": "2026-11-24T00:00:00Z",
+        "epoch": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "items": [
+          {
+            "id": "task",
+            "revision": 1,
+            "title": "Synthetic user task"
+          }
+        ],
+        "purpose": "Synthetic persistence fixture",
+        "revoked": false
+      }
+    }
+  },
+  "binarySha256": "85553251dc108c93fe5bde1a6391f122ffa9cd04d75c67a8291102a238352366"
+}

@@ -96,6 +96,7 @@ pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), Strin
   crate::capability_board::validate(board)?;
   crate::task_delegation::validate(board)?;
   crate::task_revisions::validate(board)?;
+  crate::task_selection::validate(board)?;
   let cards = board["cards"].as_array().ok_or("Invalid task board")?;
   let mut ids = std::collections::HashSet::new();
   if let Some(paused) = board.get("paused") {
@@ -171,6 +172,7 @@ fn recover_unlocked(root: &Path) -> Result<(), String> {
       let mut previous = BTreeMap::new();
       collect(&directory.join("previous"), &directory.join("previous"), &mut previous)?;
       crate::document_grants::invalidate_replaced(root, &previous)?;
+      crate::task_selection::invalidate_for_restore(root)?;
       for name in ROOTS { remove(&root.join(name))?; }
       write_files(root, &previous)?;
     }
@@ -249,6 +251,7 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   library_management::write_json(&directory.join("prepared.json"), &transaction)?;
   let result = (|| {
     crate::document_grants::invalidate_replaced(root, &backup.files)?;
+    crate::task_selection::invalidate_for_restore(root)?;
     for name in ROOTS {
       remove(&root.join(name))?;
       if next.join(name).exists() { fs::rename(next.join(name), root.join(name)).map_err(|e| e.to_string())?; }

@@ -122,6 +122,7 @@ pub(crate) fn prepare_legacy(current: &Value, incoming: &mut Value) -> Result<()
     let object = incoming.as_object_mut().ok_or("Invalid task board")?;
     object.remove("capabilityReceipts"); // Only the native writer owns the retained receipt ledger.
     object.remove("delegationReceipts");
+    object.remove("taskGrants");
     object.remove("revisionSequence");
     if current.get("writeToken").is_some() && incoming["writeToken"] != current["writeToken"] {
         return Err("CONFLICT: task board changed; refresh before saving".into());
