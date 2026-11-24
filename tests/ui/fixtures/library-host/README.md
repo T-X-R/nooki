@@ -29,3 +29,10 @@ Repeatable UI cases:
    last control; that is not evidence of focus reaching an underlying application control.
 
 Inspect console errors, visible results and DOM bounds; do not infer native security from these mocks.
+
+Focus regression: choose `async-disabled`, use keyboard Enter on Open picker, then Escape in the
+picker. This uses the real Host adapter with delayed synthetic issuance/cleanup and keeps its
+opener disabled for another 2.5 seconds after the result. Focus must return when that button enables.
+Repeat, but open the access manager while the original button remains disabled: enabling it must not take
+focus out of the second dialog. Also select Alpha and approve to check the success path. No native
+grant is created by this browser fixture.

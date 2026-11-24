@@ -597,7 +597,10 @@ job selection, stale-Host cancellation, restart, revocation and retained user ci
 peer read, browser keyboard/error/retry/layout checks and explicit native replacement/update/reinstall
 regressions. The [0.6.0 native run](capability-platform-evidence/C03c.md) verifies picker Search
 focus, Tab to a document and Escape dismissal, plus access-manager initial focus and Escape.
-Both closing paths report page focus rather than the opener; this discrepancy and narrower native
+Both closing paths reported page focus rather than the opener. The
+[focus follow-up](capability-platform-evidence/C02b-focus.md) reproduces and fixes loss of a keyboard
+trigger across asynchronous issuance/cleanup and temporary disabling; real-component delayed-success,
+dismissal and no-focus-stealing checks pass. Installed-app keyboard restoration and narrower native
 access-manager layout remain open. Browser evidence is not relabeled as native. C02b/C02/K1 remain pending.
 
 **Depends on:** C02a. **Size:** M; split only if measured scope requires it.

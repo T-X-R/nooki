@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { LibrarySelectionDialog } from '../../../../src/features/library/LibrarySelectionDialog'
 import { LibraryAccessDialog } from '../../../../src/features/library/LibraryAccessDialog'
 import { libraryPicker } from '../../../../src/platform/library-picker'
+import { createLibraryClient } from '../../../../src/platform/capability-library-host'
+import { captureLibraryFocus } from '../../../../src/platform/library-focus'
 import type { DocumentGrant } from '../../../../packages/capability-contract/src'
 import '../../../../src/app/global.css'
 
@@ -35,9 +37,24 @@ function Harness() {
   const [access, setAccess] = useState(false)
   const [result, setResult] = useState('Ready')
   const [selectedMode, setMode] = useState(mode)
+  const [pending, setPending] = useState(false)
   const reset = () => { listCalls = 0; commitCalls = 0; revokeCalls = 0; audit = []; records = [{ grant: makeGrant(['synthetic/Alpha']), status: 'active' }] }
   async function openPicker() {
     reset(); setResult('Pending')
+    if (mode === 'async-disabled') {
+      setPending(true)
+      const client = createLibraryClient({ id, version: '1.0.0', name: 'Synthetic reader', permission: true, desktop: true,
+        assertActive() {}, onDispose() {}, open: libraryPicker.open, captureFocus: captureLibraryFocus,
+        invoke: async (command, args) => {
+          if (command === 'library_selection_begin') { await delay(); return { ...(args.request as object), handle: 'a'.repeat(64) } }
+          if (command === 'library_selection_commit') return makeGrant(['synthetic/Alpha'])
+          if (command === 'library_selection_cancel') await delay()
+        },
+      })
+      try { setResult(JSON.stringify(await client.library.requestSelection({ purpose: 'Verify focus across asynchronous issuance.', kinds: ['document'] }))) }
+      finally { await client.dispose(); await delay(); setPending(false) }
+      return
+    }
     const controller = new AbortController()
     if (mode === 'abort') setTimeout(() => controller.abort(), 2500)
     try {
@@ -54,8 +71,8 @@ function Harness() {
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, margin: '20px 0' }}>
       <label>Language <select value={language} onChange={event => { const next = event.target.value as 'en' | 'zh'; document.documentElement.lang = next; setLanguage(next) }}><option value="en">English</option><option value="zh">中文</option></select></label>
       <label>Theme <select onChange={event => { document.documentElement.dataset.theme = event.target.value }}><option value="light">Light</option><option value="dark">Dark</option></select></label>
-      <label>Scenario <select value={selectedMode} onChange={event => { mode = event.target.value; setMode(mode) }}>{['success','empty','loading','list-error','commit-error','revoke-error','abort'].map(value => <option key={value}>{value}</option>)}</select></label>
-      <button className="primary-button" onClick={() => void openPicker()}>Open picker</button>
+      <label>Scenario <select value={selectedMode} onChange={event => { mode = event.target.value; setMode(mode) }}>{['success','empty','loading','list-error','commit-error','revoke-error','abort','async-disabled'].map(value => <option key={value}>{value}</option>)}</select></label>
+      <button className="primary-button" disabled={pending} onClick={() => void openPicker()}>Open picker</button>
       <button className="secondary-button" onClick={() => { reset(); setAccess(true) }}>Open access manager</button>
     </div>
     <pre aria-label="Fixture result" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{result}</pre>

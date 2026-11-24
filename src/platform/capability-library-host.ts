@@ -31,6 +31,7 @@ export function createLibraryClient(config: {
   assertActive(): void; onDispose(): void
   invoke(command: string, args: Record<string, unknown>): Promise<unknown>
   open(request: LibraryPickerRequest): Promise<LibrarySelectionResult>
+  captureFocus?(): () => void
 }) {
   let closed = false, running = false
   let controller: AbortController | undefined
@@ -53,6 +54,7 @@ export function createLibraryClient(config: {
         if (!config.permission) throw error('PERMISSION_DENIED','Capability requires documents.read-selected')
         const request = snapshot(input)
         if (running) throw error('RESOURCE_BUSY','This Host already has an open picker')
+        const restoreFocus = config.captureFocus?.()
         running = true; controller = new AbortController()
         let requestId: string | undefined
         let selected: LibrarySelectionResult
@@ -78,6 +80,7 @@ export function createLibraryClient(config: {
           if (requestId) await release(requestId)
           running = false; controller = undefined
           if (closed && !requests.size) clients.delete(client)
+          restoreFocus?.()
         }
         active(); return selected
       },

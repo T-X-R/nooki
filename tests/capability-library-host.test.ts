@@ -14,6 +14,17 @@ function fixture() {
 const input = { purpose: 'Draft actions', kinds: ['document'] as ('document')[], limit: 1 }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
+test('picker focus is captured before async issuance and restored after native cleanup', async () => {
+  const f=fixture();const events:string[]=[]
+  const client=createLibraryClient({...f.config,captureFocus:()=>{events.push('capture');return()=>{events.push('restore')}},
+    invoke:async(command,args)=>{events.push(command);return f.config.invoke(command,args)}})
+  const pending=client.library.requestSelection(input)
+  assert.deepEqual(events,['capture'])
+  await tick();f.picker.dismiss(f.picker.getSnapshot()!);await pending
+  assert.deepEqual(events,['capture','library_selection_begin','library_selection_cancel','restore'])
+  await client.dispose()
+})
+
 test('dismissal captures no content and caller fields never choose native authority', async () => {
   const f=fixture();const client=createLibraryClient(f.config)
   const pending=client.library.requestSelection(input);await tick()
