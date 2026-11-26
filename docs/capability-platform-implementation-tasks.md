@@ -803,8 +803,10 @@ replay, lost replies, failed writes and removal/restore behavior before closing 
 
 ### [ ] C04c — Ship the public task picker and independent attachment flow
 
-**State:** in progress on the existing branch and PR #38. Deliver C04c1–C04c3 below in order;
-the parent closes only after independent archive and installed UI acceptance.
+**State:** in progress on the existing branch and PR #38. C04c1 UI acceptance is waiting for browser
+control; C04c2 implementation may proceed against its verified controller without waiving that
+acceptance. Deliver and close the children in order; the parent closes only after independent archive
+and installed UI acceptance.
 
 **Depends on:** C04b. **Size:** M.
 **Deliver:** Host picker, public typed requestSelection/attachDelivery, canonical kit/Skill and
@@ -829,6 +831,12 @@ permission/version gating, contract/kit/Skill updates and focused keyboard/layou
 Attachment effects remain internal until C04c2; document this boundary explicitly.
 
 #### [ ] C04c2 — Connect attachment submission and retained delivery viewing
+
+**State:** implementation and automated checks pass on 2026-11-26; see [C04c2 evidence](capability-platform-evidence/C04c2.md).
+Platform/contract 0.9.0 and kit 0.8.0 export attachment submission and display retained deliveries.
+238 native top-level tests plus one nested child and 197 JavaScript tests pass. Keep C04c1's pending
+UI checks and all C04c2 public-command/installed-UI acceptance open; automated integration work does
+not substitute for those checks. Parent C04c remains incomplete.
 
 Public typed `board.attachDelivery` calls the C04b2 transaction with lifetime cleanup and a bounded
 frozen request. Display retained text/references on the selected task independently of its original

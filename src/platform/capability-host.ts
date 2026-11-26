@@ -128,6 +128,7 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     if (!installed?.enabled || installed.manifest.version !== version) throw new Error('Capability is not installed or enabled at this version')
   }
   const client = createBoardClient({ id: capabilityId, version: version ?? '', permission: permissions?.includes('board.create') === true,
+    attachPermission: permissions?.includes('board.attach-delivery') === true,
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke })
   const library = createLibraryClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('documents.read-selected') === true,
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: libraryPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })

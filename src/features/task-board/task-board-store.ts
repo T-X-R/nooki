@@ -4,6 +4,11 @@ import type { DocumentReference } from '../../../packages/capability-contract/sr
 export type BoardAuthorization = { snapshotId: string; documentIds: string[] }
 export type BoardSource = { id: string; title: string; reference?: DocumentReference }
 export type BoardDelivery = { text: string; artifacts: ConversationArtifact[]; question?: boolean }
+export type AttachedDelivery = {
+  id: string; title: string; createdAt: string
+  provenance: { type: 'capability'; capabilityId: string; capabilityVersion: string }
+  documents: { reference: DocumentReference; documentDate: string; content: string }[]
+}
 
 export type BoardStatus = 'todo' | 'queued' | 'running' | 'question' | 'review' | 'stopped' | 'done' | 'paused' | 'pausing' | 'stopping' | 'blocked' | 'usageLimited' | 'budgetLimited'
 
@@ -28,6 +33,7 @@ export type BoardCard = {
   runId?: string
   followUp?: string
   delivery?: BoardDelivery
+  attachedDeliveries?: AttachedDelivery[]
   error?: string
 }
 

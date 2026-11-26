@@ -131,3 +131,48 @@ test('native source refusal and exact replay keep the same input and stable Host
   assert.equal(creates.length,2);assert.deepEqual(creates[0],creates[1])
   await client.dispose()
 })
+
+const attachment = () => ({ grantId: 'c'.repeat(64), item: {id:'task',revision:7}, title:'Reviewed notes', documents:[{kind:'library-document' as const,documentId:'example.notes/notes/2026/11/minutes',title:'Notes'}] })
+test('attachment authority is separate from creation and both handles are released', async () => {
+  const f=fixture();const client=createBoardClient({...f.config,attachPermission:true,invoke:async(command,args)=>{
+    if(command==='capability_board_attachment_begin'){f.calls.push({command,args});return 'd'.repeat(64)}
+    if(command==='capability_board_attach'){f.calls.push({command,args});return {item:{id:'task',revision:8},deliveryId:'e'.repeat(64)}}
+    return f.config.invoke(command,args)
+  }})
+  const input=attachment();const options={idempotencyKey:'delivery'}
+  const [a,b]=await Promise.all([client.board.attachDelivery(input,options),client.board.attachDelivery(input,options)])
+  assert.deepEqual(a,b);assert.equal(f.calls.filter(c=>c.command==='capability_board_attachment_begin').length,1)
+  assert.deepEqual(f.calls.find(c=>c.command==='capability_board_attach')!.args,{request:{handle:'d'.repeat(64),key:'delivery',input}})
+  await client.board.create({title:'New'},{idempotencyKey:'new'});await client.dispose()
+  assert.deepEqual(f.calls.filter(c=>c.command==='capability_board_release').map(c=>(c.args as any).request.handle).sort(),['a'.repeat(64),'d'.repeat(64)])
+})
+test('attachment input is copied before issuance and cancelled issuance cannot dispatch', async () => {
+  const f=fixture();let finish!:(handle:string)=>void
+  const client=createBoardClient({...f.config,permission:false,attachPermission:true,invoke:async(command,args)=>command==='capability_board_attachment_begin'?new Promise<string>(r=>{finish=r}):f.config.invoke(command,args)})
+  const input=attachment(),expected=structuredClone(input),options={idempotencyKey:'original'}
+  const request=client.board.attachDelivery(input,options);input.item.revision=99;input.documents[0].title='Changed';options.idempotencyKey='changed';finish('d'.repeat(64));await request
+  assert.deepEqual(f.calls[0].args,{request:{handle:'d'.repeat(64),key:'original',input:expected}});await client.dispose()
+  const other=createBoardClient({...f.config,attachPermission:true,invoke:async(command,args)=>command==='capability_board_attachment_begin'?new Promise<string>(r=>{finish=r}):f.config.invoke(command,args)})
+  const cancelled=assert.rejects(other.board.attachDelivery(attachment(),{idempotencyKey:'cancel'}),{code:'CANCELLED'});const disposed=other.dispose();finish('f'.repeat(64));await disposed;await cancelled
+  assert.equal(f.calls.filter(c=>c.command==='capability_board_attach').length,1)
+})
+test('attachment rejects forged scope, malformed references and unsupported permission before dispatch', async () => {
+  for(const [override,code] of [[{attachPermission:false},'PERMISSION_DENIED'],[{desktop:false},'UNSUPPORTED_SERVICE']] as const){
+    const f=fixture();const client=createBoardClient({...f.config,attachPermission:true,...override});await assert.rejects(client.board.attachDelivery(attachment(),{idempotencyKey:'x'}),{code});assert.equal(f.calls.length,0);await client.dispose()
+  }
+  const f=fixture();const client=createBoardClient({...f.config,attachPermission:true})
+  for(const change of [{status:'done'},{grantId:''},{item:{id:'task',revision:0}},{item:{id:'task',revision:7,accepted:true}},{documents:[]},{documents:[{...attachment().documents[0],snapshotId:'foreign'}]},{documents:[{...attachment().documents[0],grantId:'selected'}]},{documents:[{...attachment().documents[0],revision:null}]},{documents:Array(51).fill(attachment().documents[0])}]){
+    await assert.rejects(client.board.attachDelivery({...attachment(),...change} as never,{idempotencyKey:'x'}),{code:'INVALID_INPUT'})
+  }
+  assert.equal(f.calls.length,0);await client.dispose()
+})
+test('attachment unknown outcomes retain input and stable codes without automatic retry', async () => {
+  const calls:any[]=[];let fail=true
+  const f=fixture();const client=createBoardClient({...f.config,attachPermission:true,invoke:async(command,args)=>{
+    if(command==='capability_board_attachment_begin')return 'd'.repeat(64)
+    if(command==='capability_board_attach'){calls.push(args);if(fail)throw new Error('lost reply');return {item:{id:'task',revision:8},deliveryId:'e'.repeat(64)}}
+    return f.config.invoke(command,args)
+  }})
+  await assert.rejects(client.board.attachDelivery(attachment(),{idempotencyKey:'intent'}),{code:'OUTCOME_UNKNOWN'});assert.equal(calls.length,1)
+  fail=false;await client.board.attachDelivery(attachment(),{idempotencyKey:'intent'});assert.deepEqual(calls[0],calls[1]);await client.dispose()
+})

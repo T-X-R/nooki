@@ -211,6 +211,15 @@ export type BoardGrant = {
   items: (BoardItemReference & { title: string })[]
 }
 export type BoardSelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: BoardGrant }
+export type BoardDeliveryDocumentReference = Omit<DocumentReference, 'snapshotId' | 'locator'>
+export type BoardAttachDeliveryInput = {
+  grantId: string
+  item: BoardItemReference
+  title: string
+  /** Own published documents or exact references from an active document selection; at most 50. */
+  documents: BoardDeliveryDocumentReference[]
+}
+export type BoardAttachmentResult = { item: BoardItemReference; deliveryId: string }
 export type BoardCreateInput = {
   title: string
   description?: string
@@ -227,6 +236,8 @@ export type CapabilityHost = {
   board: {
     /** Nooki 0.8.0+: approve exact task revisions for attaching a delivery. */
     requestSelection(request: BoardSelectionRequest): Promise<BoardSelectionResult>
+    /** Nooki 0.9.0+: retain documents on the exact approved task version without accepting/executing. */
+    attachDelivery(input: BoardAttachDeliveryInput, options: IdempotencyOptions): Promise<BoardAttachmentResult>
     /** Creates a draft item, never delegates work. Retry an uncertain outcome with the same key/input. */
     create(input: BoardCreateInput, options: IdempotencyOptions): Promise<BoardItemReference>
   }

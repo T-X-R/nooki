@@ -6,6 +6,7 @@ import type { Language } from '../../shared/i18n.ts'
 import { taskBoard, goalCommand } from './task-board.ts'
 import { TaskDescriptionInput } from './TaskDescriptionInput.tsx'
 import { TaskReferences } from './TaskReferences.tsx'
+import { TaskDeliveries } from './TaskDeliveries.tsx'
 import type { BoardSource, BoardStatus } from './task-board-store.ts'
 import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
@@ -249,6 +250,7 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
           {card.engine === 'goals' && <dl className="task-goal-workspace task-board-workspace"><dt>{zh ? '工作目录' : 'Workspace'}</dt><dd>{card.execution?.cwd || card.cwd || (zh ? '接单时创建独立任务目录' : 'A dedicated workspace will be created on pickup')}</dd></dl>}
+          <TaskDeliveries deliveries={card.attachedDeliveries ?? []} zh={zh} />
         </div>
         {(card.threadId || card.status !== 'done') && <footer>
           {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}

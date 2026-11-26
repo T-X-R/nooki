@@ -27,7 +27,7 @@ test('released kit scaffolds an independent project with canonical Host types an
     await symlink(dependencies, join(target, 'node_modules'), 'dir')
     const contractGuide = await readFile(join(skill, 'references/contract.md'), 'utf8')
     const example = contractGuide.match(/```ts\n(import assert from 'node:assert\/strict'[\s\S]*?)```/)![1]
-    await writeFile(join(target, 'preview/storage.test.mjs'), example + `\n test('preview refuses native selection', async () => {\n const { host } = createPreviewHost({ id: 'org.example.notes', name: 'Notes', version: '1.0.0', minPlatformVersion: '0.5.0', entrypoints: ['page'], permissions: ['documents.read-selected'] })\n await assert.rejects(host.library.requestSelection({ purpose: 'Read', kinds: ['document'] }), { code: 'UNSUPPORTED_SERVICE' })\n await assert.rejects(host.board.requestSelection({ purpose: 'Attach', operations: ['attachDelivery'] }), { code: 'UNSUPPORTED_SERVICE' })\n })\n`)
+    await writeFile(join(target, 'preview/storage.test.mjs'), example + `\n test('preview refuses native selection', async () => {\n const { host } = createPreviewHost({ id: 'org.example.notes', name: 'Notes', version: '1.0.0', minPlatformVersion: '0.5.0', entrypoints: ['page'], permissions: ['documents.read-selected'] })\n await assert.rejects(host.library.requestSelection({ purpose: 'Read', kinds: ['document'] }), { code: 'UNSUPPORTED_SERVICE' })\n await assert.rejects(host.board.requestSelection({ purpose: 'Attach', operations: ['attachDelivery'] }), { code: 'UNSUPPORTED_SERVICE' })\n await assert.rejects(host.board.attachDelivery({}, { idempotencyKey: 'attach' }), { code: 'UNSUPPORTED_SERVICE' })\n })\n`)
     execFileSync(process.execPath, ['--test', 'preview/storage.test.mjs'], { cwd: target, stdio: 'pipe' })
     await writeFile(join(target, 'supported-contract.ts'), `import type { CapabilityEntrypoint, CapabilityHost } from './contract'
 // @ts-expect-error Widgets have no implemented loader.
@@ -38,6 +38,9 @@ host.library.requestSelection({ purpose: 'Draft actions', kinds: ['document'], l
 host.library.requestSelection({ purpose: 'Read', kinds: ['document'], capabilityId: 'foreign' })
 host.board.create({ title: 'Test' }, { idempotencyKey: 'one' })
 host.board.requestSelection({ purpose: 'Attach notes', operations: ['attachDelivery'], limit: 1 })
+host.board.attachDelivery({ grantId: 'grant', item: { id: 'task', revision: 1 }, title: 'Notes', documents: [{ kind: 'library-document', documentId: 'doc', title: 'Notes' }] }, { idempotencyKey: 'attach' })
+// @ts-expect-error Attachment is not an acceptance operation.
+host.board.attachDelivery({ grantId: 'grant', item: { id: 'task', revision: 1 }, title: 'Notes', documents: [], accepted: true }, { idempotencyKey: 'attach' })
 // @ts-expect-error Delegation is not a task-selection operation.
 host.board.requestSelection({ purpose: 'Execute', operations: ['delegate'] })
 // @ts-expect-error Selection cannot choose another package identity.

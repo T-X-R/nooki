@@ -1,0 +1,5 @@
+{
+  "extends": "../../../../tsconfig.app.json",
+  "compilerOptions": { "tsBuildInfoFile": "../../../../node_modules/.tmp/task-deliveries-fixture.tsbuildinfo" },
+  "include": ["main.tsx", "../../../../src"]
+}

@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.8.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.9.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -18,6 +18,7 @@ added with their implementations. `ai.invoke` is the existing model gateway, not
 | Jobs, document grants/publication/open, activity writes, AI and Codex sources | Existing scoped Host operations | Explicit unavailable error; no empty-success responses |
 | `library.requestSelection` | Host-owned document picker; explicit selection or dismissal | `UNSUPPORTED_SERVICE`; no simulated grants |
 | `board.create` | Permission-checked durable draft creation with an idempotency key | `UNSUPPORTED_SERVICE`; no simulated success |
+| `board.attachDelivery` | Retain authorized documents on an exact selected task revision, with idempotent replay | `UNSUPPORTED_SERVICE`; no simulated write |
 | `board.requestSelection` | Host-owned approval of exact task revisions for attachment | `UNSUPPORTED_SERVICE`; no simulated approval |
 | Board selection/update/delegation, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
 
@@ -159,10 +160,60 @@ inactive and revoked grants remain visible; revoking does not delete tasks or re
 Restore invalidates earlier task approval even when an archive contains its ledger. Browser preview
 always rejects this native service with `UNSUPPORTED_SERVICE`.
 
-**Increment boundary:** 0.8.0 exposes selection and access management. `board.attachDelivery` is not
-yet exported; its native transaction is implemented, and the public submission/display path is C04c2.
-Do not treat receiving a grant as an attachment, execution or acceptance. Complete independent ZIP
-acceptance is recorded by C04c3.
+## Attach retained document text (Nooki 0.9.0)
+
+Declare `board.attach-delivery` and require `minPlatformVersion: "0.9.0"` or newer when using
+`board.attachDelivery`. A selection alone is not an attachment, execution or acceptance. To attach
+text from your own published documents also declare `documents.publish`; for selected documents
+from any producer declare `documents.read-selected` and preserve their exact active grant references.
+
+```ts
+const chosen = await host.board.requestSelection({
+  purpose: 'Attach reviewed meeting notes', operations: ['attachDelivery'], limit: 1,
+})
+if (chosen.status === 'selected') {
+  const { id, revision } = chosen.grant.items[0] // Only id/revision belong in the item input.
+  const intent = {
+    input: {
+      grantId: chosen.grant.id, item: { id, revision }, title: 'Reviewed meeting notes',
+      documents: [publicationReference(manifest.id, publishedNotes)],
+    },
+    options: { idempotencyKey: crypto.randomUUID() },
+  }
+  // Persist the whole intent using declared storage before dispatch when restart recovery is needed.
+  const result = await host.board.attachDelivery(intent.input, intent.options)
+  // result.item is the committed task version; result.deliveryId identifies the retained delivery.
+}
+```
+
+The request title is 1–120 Unicode characters after rejecting blank text. Supply 1–50 distinct
+`library-document` references (`kind`, `documentId`, `title`, optional `grantId`/`revision`). Task or
+conversation snapshot IDs, quote locators, execution/acceptance fields and other request properties
+are rejected. A selected reference needs both `grantId` and `revision`; it retains the approved
+snapshot. A plain reference must belong to this package and retains the current document at commit.
+An optional plain revision is its canonical publication hash, not `updatedAt`. Text retention does
+not copy remote images or other passive dependencies; artifact publication is a later service.
+
+The native transaction checks the exact approved task version and live installation/permissions,
+then atomically saves retained text, the new task revision and a durable receipt. Existing Agent
+delivery and task status remain unchanged. Missing/revoked grants or a changed task reject a new
+effect; request a new selection for a new intent. Exact committed replay returns the original
+`{item, deliveryId}` without rereading originals or adding another delivery. Revocation can block
+new effects while retaining committed metadata. A changed input under the same key conflicts;
+an inactive/removed package cannot invoke even a replay.
+
+On `OUTCOME_UNKNOWN` or transport uncertainty, retry the same key **and complete original input**.
+Do not replace its selected revision with `result.item.revision`, obtain a fresh grant or generate a
+new key for an uncertain old intent. Those actions create different requests. Receipts are retained
+at bounded capacity; `RESOURCE_LIMIT` does not discard earlier outcomes. Existing bounds are 64
+deliveries per task, 256 across the board, 8 MB serialized retained delivery data, and 256 receipts
+per package/1,024 globally. Older completed attachments remain user-owned after source deletion,
+revocation or package removal. Explicit task deletion or restoring an older backup may remove them.
+
+Task details show **Attached deliveries** with producer/version/time and expandable retained text.
+Viewing a delivery is read-only. External Markdown links and images are shown as text, without
+loading live resources. The existing board refresh observes native writes; an attachment response
+is not a renderer-side optimistic write. Full independent ZIP/native UI acceptance remains C04c3.
 
 ## Create a draft from selected documents
 

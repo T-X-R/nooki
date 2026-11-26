@@ -123,3 +123,15 @@
 .task-board-workspace dt { color: var(--ink-soft); }
 .task-board-workspace dd { margin: 0; color: var(--ink-muted); overflow-wrap: anywhere; }
 .task-board-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.task-deliveries { margin-top: 1.5rem; overflow-wrap: anywhere; }
+.task-deliveries-note, .task-delivery-meta { color: var(--ink-muted); font-size: .75rem; line-height: 1.6; }
+.task-deliveries article { padding: 1rem 0; border-top: 1px solid var(--line); }
+.task-deliveries h4 { margin: 0 0 .5rem; font-size: .875rem; }
+.task-delivery-document { margin-top: .75rem; }
+.task-delivery-document summary { cursor: pointer; line-height: 1.6; }
+.task-delivery-document summary small { display: block; color: var(--ink-muted); }
+.task-delivery-content { padding: .75rem 0; line-height: 1.8; font-size: .875rem; overflow-wrap: anywhere; }
+.task-delivery-content pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-delivery-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.task-delivery-content :is(th, td) { border: 1px solid var(--line); padding: .5rem; }
+.task-delivery-content :is(p, ul, ol, pre, blockquote) { margin-bottom: .75rem; }
