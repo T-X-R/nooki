@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, io::Write, path::{Component, Path}};
 use tauri::Manager;
 
-const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "conversation-handoffs.json", "capability-tool-threads.json", "agent-sessions", "tasks.json", "task-board.json", "task-inputs", "task-outputs"];
+const ROOTS: &[&str] = &["document-library", "document-history", "library-organization.json", "source-snapshots", "document-grants", "codex-turn-receipts", "conversation-document-state", "conversation-workspaces", "conversation-agents.json", "conversation-handoffs.json", "capability-agent-runs.json", "capability-tool-threads.json", "agent-sessions", "tasks.json", "task-board.json", "task-inputs", "task-outputs"];
 const LIMIT: usize = 128_000_000;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +55,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
     if !safe_path(name) || !(name.ends_with(".json") || name.ends_with(".md") || (name.starts_with("task-outputs/") && name.ends_with(".txt")) || (name.starts_with("conversation-workspaces/") && (name.to_ascii_lowercase().ends_with(".txt") || name.to_ascii_lowercase().ends_with(".md"))) || (name.starts_with("agent-sessions/") && name.to_ascii_lowercase().ends_with(".jsonl"))) { return Err("Invalid backup path".into()); }
     if name.ends_with(".json") { serde_json::from_str::<serde_json::Value>(content).map_err(|_| format!("Invalid JSON in {name}"))?; }
     if name == "conversation-handoffs.json" { crate::conversation_handoffs::validate_backup(content)?; }
+    if name == "capability-agent-runs.json" { crate::capability_agent_runs::validate_backup(content)?; }
     if name.starts_with("document-history/") {
       let doc: document_library::LibraryDocument = serde_json::from_str(content).map_err(|_| "Invalid document history")?;
       document_library::validate_id(&doc.id)?;
@@ -218,6 +219,7 @@ pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), St
   let directory = root.join(".data-restore");
   let next = directory.join("next");
   write_files(&next, &backup.files)?;
+  crate::capability_agent_runs::mark_restored(&next)?;
   if let Some(board) = backup.files.get("task-board.json") {
     let mut board: serde_json::Value = serde_json::from_str(board).map_err(|_| "Invalid task board")?;
     crate::task_revisions::migrate(&mut board)?;

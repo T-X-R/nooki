@@ -1045,6 +1045,28 @@ conflicts; retries preserve run identity. Persist dispatch intent before contact
 represent uncertain submission without blindly replaying it.
 **Verification:** Native authority, atomic-write failure, concurrency, lost-reply and restore tests.
 
+##### [x] C06b1 — Retain approved intent and claim submission once
+
+**Deliver:** Internal bounded native ledger with immutable instructions, selected-source snapshots,
+agent/policy/schema selection, installation/restore scope, approval receipt and request key. An atomic
+submission claim records a stable client-message identity before any adapter call. Exact retries
+read the original run; a previously claimed submission requires reconciliation, never redispatch.
+**Acceptance:** Restart/reply loss, concurrent claims, failed writes, changed input, mismatched
+snapshots and restore/stale scopes cannot produce a second submission. Backup preserves records
+without restoring execution authority. This slice adds no package endpoint or Agent dispatch.
+**Verification:** 14 focused native tests plus two child-process executions; full regression passes
+289 top-level native tests plus three child executions, with two existing live-agent tests ignored.
+203 platform and 5 capability tests pass. V-APP build/install and strict signature verification pass.
+[Evidence and boundaries](capability-platform-evidence/C06b1.md). C06b2 is next; C06b remains open.
+
+##### [ ] C06b2 — Bind the ledger to Host review and installation authority
+
+**Depends on:** C06b1. **Deliver:** Native Host review/controller checks current installation,
+execution permission, approved policy and selected-source grants under lifecycle fences before
+approval and dispatch. Dismissed/expired/changed approvals fail closed; package fields never supply
+approval or owner identity. **Verification:** Native review/permission/revocation/concurrency tests.
+Public bindings and interaction UI remain C06d; actual adapter dispatch remains C06c.
+
 #### [ ] C06c — Dispatch and reconcile through the existing Codex adapter
 
 **Depends on:** C06b. **Size:** M; separate dispatch from interaction handling if required.
