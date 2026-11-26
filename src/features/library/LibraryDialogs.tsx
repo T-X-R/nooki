@@ -10,7 +10,9 @@ export function LibraryDialog({ title, children, onClose, busy = false, wide = f
   const heading = useId()
   const zh = document.documentElement.lang.startsWith('zh')
   useEffect(() => { const el = dialog.current!; const previous = document.activeElement; el.showModal(); el.querySelector<HTMLElement>('input:not([type=checkbox]), textarea')?.focus(); return () => { el.close(); if (previous instanceof HTMLElement) previous.focus() } }, [])
-  return createPortal(<dialog ref={dialog} className={`library-dialog ${wide ? 'library-dialog-wide' : ''} ${className}`} aria-labelledby={heading} onCancel={(e) => { e.preventDefault(); if (!busy) onClose() }}>
+  return createPortal(<dialog ref={dialog} className={`library-dialog ${wide ? 'library-dialog-wide' : ''} ${className}`} aria-labelledby={heading}
+    onKeyDown={(e) => { if (e.key === 'Escape' && !e.defaultPrevented && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); if (!busy) onClose() } }}
+    onCancel={(e) => { e.preventDefault(); if (!busy) onClose() }}>
     <header className="modal-header"><h2 id={heading}>{title}</h2><button type="button" className="icon-button" aria-label={zh ? '关闭' : 'Close'} disabled={busy} onClick={onClose}><Cross2Icon /></button></header>{children}
   </dialog>, document.body)
 }

@@ -1,36 +1,93 @@
 {
   "date": "2026-11-26",
-  "phase": "installed; picker open; no task approved; Mac locked",
+  "phase": "complete-after-package-removal-and-restart",
   "profile": "/private/tmp/nooki-profile-clnCEZ",
-  "installedExecutableSha256": "433d60c16c86cf84ebf3c4e36402f59e1562fbb02569e936beca5bc12ff2de66",
-  "capabilities": [
-    {
-      "id": "org.example.task-delivery-reader",
-      "version": "1.0.0",
-      "enabled": true,
-      "permissions": [
-        "storage",
-        "documents.publish",
-        "documents.read-selected",
-        "board.create",
-        "board.attach-delivery"
-      ]
-    },
-    {
-      "id": "org.example.task-delivery-peer",
-      "version": "1.0.0",
-      "enabled": true,
-      "permissions": [
-        "storage",
-        "documents.publish",
-        "documents.read-selected",
-        "board.create",
-        "board.attach-delivery"
-      ]
+  "installedExecutableSha256": "0cf26e1ba09c4f17cc4ceaadcfc65f5e5258ff5a1d3b0119189b619987676580",
+  "initialCheckpoint": {
+    "date": "2026-11-26",
+    "phase": "installed; picker open; no task approved; Mac locked",
+    "profile": "/private/tmp/nooki-profile-clnCEZ",
+    "installedExecutableSha256": "433d60c16c86cf84ebf3c4e36402f59e1562fbb02569e936beca5bc12ff2de66",
+    "capabilities": [
+      {
+        "id": "org.example.task-delivery-reader",
+        "version": "1.0.0",
+        "enabled": true,
+        "permissions": [
+          "storage",
+          "documents.publish",
+          "documents.read-selected",
+          "board.create",
+          "board.attach-delivery"
+        ]
+      },
+      {
+        "id": "org.example.task-delivery-peer",
+        "version": "1.0.0",
+        "enabled": true,
+        "permissions": [
+          "storage",
+          "documents.publish",
+          "documents.read-selected",
+          "board.create",
+          "board.attach-delivery"
+        ]
+      }
+    ],
+    "board": {
+      "capabilityReceipts": {
+        "be1366541acd65df732d7a211f3e623e02a1e4a74ddbcc8556e13326e1355ea4": {
+          "capabilityId": "org.example.task-delivery-reader",
+          "payloadHash": "a8904dce647713d82176198617e9759da93ba912457f1502fc4bdd1526abd8e4",
+          "result": {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 1
+          }
+        }
+      },
+      "cards": [
+        {
+          "createdAt": 1795675116562,
+          "description": "Synthetic acceptance task. Do not execute.",
+          "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+          "provenance": {
+            "capabilityId": "org.example.task-delivery-reader",
+            "capabilityVersion": "1.0.0",
+            "type": "capability"
+          },
+          "revision": 1,
+          "sources": [],
+          "status": "todo",
+          "title": "Delivery review — org.example.task-delivery-reader"
+        }
+      ],
+      "revisionSequence": 1,
+      "writeToken": "1c11ec77e872776b741087aadf77896f4f22543821ab214b1eb86843d645cd58"
     }
-  ],
-  "board": {
+  },
+  "firstAttachmentCheckpoint": {
+    "attachmentReceipts": {
+      "5a55fa5423354ca3818d77e8216d56f4324b5dffd51f665f998abfe8e74cd85f": {
+        "capabilityId": "org.example.task-delivery-reader",
+        "payloadHash": "f822570ed7ac4f58f979c6847fcb84b59545356996a2cf7aa03b2b5ecb73c437",
+        "result": {
+          "deliveryId": "7372db07e16cfbae1bfcdbc55b3c9a062d44b3d8ea9ea46dec5a01e28e07e98c",
+          "item": {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 3
+          }
+        }
+      }
+    },
     "capabilityReceipts": {
+      "3599d247487528be6d2d6b728058c527f30e65a02181bbb91464296f68a19fac": {
+        "capabilityId": "org.example.task-delivery-peer",
+        "payloadHash": "197ca5be8be7af9bb0cd264e66e39a90eacfa56a7db4edceb6e8b186feac8397",
+        "result": {
+          "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+          "revision": 2
+        }
+      },
       "be1366541acd65df732d7a211f3e623e02a1e4a74ddbcc8556e13326e1355ea4": {
         "capabilityId": "org.example.task-delivery-reader",
         "payloadHash": "a8904dce647713d82176198617e9759da93ba912457f1502fc4bdd1526abd8e4",
@@ -42,6 +99,30 @@
     },
     "cards": [
       {
+        "attachedDeliveries": [
+          {
+            "createdAt": "2026-11-26T14:50:26.159104+08:00",
+            "documents": [
+              {
+                "content": "# Original notes\nORIGINAL RETAINED DELIVERY\n\n- [x] Reviewed synthetic meeting\n- [ ] Follow up",
+                "documentDate": "2026-11-26",
+                "reference": {
+                  "documentId": "org.example.task-delivery-reader/attachment-tests/2026/11/notes",
+                  "kind": "library-document",
+                  "revision": "88f20c718fbb7eda1e0d0b2600134e32b48e60741568c963156668d8497132a0",
+                  "title": "Delivery Reader notes"
+                }
+              }
+            ],
+            "id": "7372db07e16cfbae1bfcdbc55b3c9a062d44b3d8ea9ea46dec5a01e28e07e98c",
+            "provenance": {
+              "capabilityId": "org.example.task-delivery-reader",
+              "capabilityVersion": "1.0.0",
+              "type": "capability"
+            },
+            "title": "Reviewed notes — org.example.task-delivery-reader"
+          }
+        ],
         "createdAt": 1795675116562,
         "description": "Synthetic acceptance task. Do not execute.",
         "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
@@ -50,13 +131,414 @@
           "capabilityVersion": "1.0.0",
           "type": "capability"
         },
-        "revision": 1,
+        "revision": 3,
         "sources": [],
         "status": "todo",
-        "title": "Delivery review \u2014 org.example.task-delivery-reader"
+        "title": "Delivery review — org.example.task-delivery-reader"
+      },
+      {
+        "createdAt": 1795675792566,
+        "description": "Synthetic acceptance task. Do not execute.",
+        "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+        "provenance": {
+          "capabilityId": "org.example.task-delivery-peer",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 2,
+        "sources": [],
+        "status": "todo",
+        "title": "Delivery review — org.example.task-delivery-peer"
       }
     ],
-    "revisionSequence": 1,
-    "writeToken": "1c11ec77e872776b741087aadf77896f4f22543821ab214b1eb86843d645cd58"
-  }
+    "revisionSequence": 3,
+    "taskGrants": {
+      "05f230dd05d6df92db8dda2a0c3a33a8f7c161e596135897b8cc86e573d97194": {
+        "context": {
+          "capability_id": "org.example.task-delivery-reader",
+          "capability_version": "1.0.0",
+          "generation": "ea636e8e1b84c83c638776031e95404e260b44395d7829e0677438e0aae3e375"
+        },
+        "createdAt": "2026-11-26T14:48:33.841048+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 1,
+            "title": "Delivery review — org.example.task-delivery-reader"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      },
+      "dfe7acd9e65df71cfced5e85bd97a0672906225569670d0618596e3bb7524f5a": {
+        "context": {
+          "capability_id": "org.example.task-delivery-peer",
+          "capability_version": "1.0.0",
+          "generation": "0e0cb7c45c36c8480f7b2f05badf7e0b85449dd611f48c98a368c38a8daca6ff"
+        },
+        "createdAt": "2026-11-26T14:50:09.050035+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+            "revision": 2,
+            "title": "Delivery review — org.example.task-delivery-peer"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      }
+    },
+    "writeToken": "f446674306eced5f1e38d0dac7cfe6f61b58af5e65477b41f4e633c1c1e35977"
+  },
+  "revokedAndSourceChangedCheckpoint": {
+    "attachmentReceipts": {
+      "5a55fa5423354ca3818d77e8216d56f4324b5dffd51f665f998abfe8e74cd85f": {
+        "capabilityId": "org.example.task-delivery-reader",
+        "payloadHash": "f822570ed7ac4f58f979c6847fcb84b59545356996a2cf7aa03b2b5ecb73c437",
+        "result": {
+          "deliveryId": "7372db07e16cfbae1bfcdbc55b3c9a062d44b3d8ea9ea46dec5a01e28e07e98c",
+          "item": {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 3
+          }
+        }
+      }
+    },
+    "capabilityReceipts": {
+      "3599d247487528be6d2d6b728058c527f30e65a02181bbb91464296f68a19fac": {
+        "capabilityId": "org.example.task-delivery-peer",
+        "payloadHash": "197ca5be8be7af9bb0cd264e66e39a90eacfa56a7db4edceb6e8b186feac8397",
+        "result": {
+          "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+          "revision": 2
+        }
+      },
+      "be1366541acd65df732d7a211f3e623e02a1e4a74ddbcc8556e13326e1355ea4": {
+        "capabilityId": "org.example.task-delivery-reader",
+        "payloadHash": "a8904dce647713d82176198617e9759da93ba912457f1502fc4bdd1526abd8e4",
+        "result": {
+          "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+          "revision": 1
+        }
+      }
+    },
+    "cards": [
+      {
+        "attachedDeliveries": [
+          {
+            "createdAt": "2026-11-26T14:50:26.159104+08:00",
+            "documents": [
+              {
+                "content": "# Original notes\nORIGINAL RETAINED DELIVERY\n\n- [x] Reviewed synthetic meeting\n- [ ] Follow up",
+                "documentDate": "2026-11-26",
+                "reference": {
+                  "documentId": "org.example.task-delivery-reader/attachment-tests/2026/11/notes",
+                  "kind": "library-document",
+                  "revision": "88f20c718fbb7eda1e0d0b2600134e32b48e60741568c963156668d8497132a0",
+                  "title": "Delivery Reader notes"
+                }
+              }
+            ],
+            "id": "7372db07e16cfbae1bfcdbc55b3c9a062d44b3d8ea9ea46dec5a01e28e07e98c",
+            "provenance": {
+              "capabilityId": "org.example.task-delivery-reader",
+              "capabilityVersion": "1.0.0",
+              "type": "capability"
+            },
+            "title": "Reviewed notes — org.example.task-delivery-reader"
+          }
+        ],
+        "createdAt": 1795675116562,
+        "description": "Synthetic acceptance task. Do not execute.",
+        "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+        "provenance": {
+          "capabilityId": "org.example.task-delivery-reader",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 3,
+        "sources": [],
+        "status": "todo",
+        "title": "Delivery review — org.example.task-delivery-reader"
+      },
+      {
+        "createdAt": 1795675792566,
+        "description": "Synthetic acceptance task. Do not execute.",
+        "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+        "provenance": {
+          "capabilityId": "org.example.task-delivery-peer",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 2,
+        "sources": [],
+        "status": "todo",
+        "title": "Delivery review — org.example.task-delivery-peer"
+      }
+    ],
+    "revisionSequence": 3,
+    "taskGrants": {
+      "05f230dd05d6df92db8dda2a0c3a33a8f7c161e596135897b8cc86e573d97194": {
+        "context": {
+          "capability_id": "org.example.task-delivery-reader",
+          "capability_version": "1.0.0",
+          "generation": "ea636e8e1b84c83c638776031e95404e260b44395d7829e0677438e0aae3e375"
+        },
+        "createdAt": "2026-11-26T14:48:33.841048+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 1,
+            "title": "Delivery review — org.example.task-delivery-reader"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": true
+      },
+      "dfe7acd9e65df71cfced5e85bd97a0672906225569670d0618596e3bb7524f5a": {
+        "context": {
+          "capability_id": "org.example.task-delivery-peer",
+          "capability_version": "1.0.0",
+          "generation": "0e0cb7c45c36c8480f7b2f05badf7e0b85449dd611f48c98a368c38a8daca6ff"
+        },
+        "createdAt": "2026-11-26T14:50:09.050035+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+            "revision": 2,
+            "title": "Delivery review — org.example.task-delivery-peer"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      }
+    },
+    "writeToken": "f446674306eced5f1e38d0dac7cfe6f61b58af5e65477b41f4e633c1c1e35977"
+  },
+  "finalCapabilities": {
+    "capabilities": [],
+    "generations": {}
+  },
+  "finalExecutionQueue": [],
+  "finalBoard": {
+    "attachmentReceipts": {
+      "5a55fa5423354ca3818d77e8216d56f4324b5dffd51f665f998abfe8e74cd85f": {
+        "capabilityId": "org.example.task-delivery-reader",
+        "payloadHash": "f822570ed7ac4f58f979c6847fcb84b59545356996a2cf7aa03b2b5ecb73c437",
+        "result": {
+          "deliveryId": "7372db07e16cfbae1bfcdbc55b3c9a062d44b3d8ea9ea46dec5a01e28e07e98c",
+          "item": {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 3
+          }
+        }
+      },
+      "970691d937e0c71bd009517a170618a461b2a9433b150315bd3ab3cdbc5dd293": {
+        "capabilityId": "org.example.task-delivery-peer",
+        "payloadHash": "cb67ffeb0018875c9225a7fc710338d05cda41e3589761d4d3baf42d2574ead3",
+        "result": {
+          "deliveryId": "89293deceecaa27444585cb85f32634cb49ae410ce6fbedea5eb993bdd62ea2a",
+          "item": {
+            "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+            "revision": 5
+          }
+        }
+      }
+    },
+    "capabilityReceipts": {
+      "3599d247487528be6d2d6b728058c527f30e65a02181bbb91464296f68a19fac": {
+        "capabilityId": "org.example.task-delivery-peer",
+        "payloadHash": "197ca5be8be7af9bb0cd264e66e39a90eacfa56a7db4edceb6e8b186feac8397",
+        "result": {
+          "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+          "revision": 2
+        }
+      },
+      "be1366541acd65df732d7a211f3e623e02a1e4a74ddbcc8556e13326e1355ea4": {
+        "capabilityId": "org.example.task-delivery-reader",
+        "payloadHash": "a8904dce647713d82176198617e9759da93ba912457f1502fc4bdd1526abd8e4",
+        "result": {
+          "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+          "revision": 1
+        }
+      }
+    },
+    "cards": [
+      {
+        "attachedDeliveries": [
+          {
+            "createdAt": "2026-11-26T14:50:26.159104+08:00",
+            "documents": [
+              {
+                "content": "# Original notes\nORIGINAL RETAINED DELIVERY\n\n- [x] Reviewed synthetic meeting\n- [ ] Follow up",
+                "documentDate": "2026-11-26",
+                "reference": {
+                  "documentId": "org.example.task-delivery-reader/attachment-tests/2026/11/notes",
+                  "kind": "library-document",
+                  "revision": "88f20c718fbb7eda1e0d0b2600134e32b48e60741568c963156668d8497132a0",
+                  "title": "Delivery Reader notes"
+                }
+              }
+            ],
+            "id": "7372db07e16cfbae1bfcdbc55b3c9a062d44b3d8ea9ea46dec5a01e28e07e98c",
+            "provenance": {
+              "capabilityId": "org.example.task-delivery-reader",
+              "capabilityVersion": "1.0.0",
+              "type": "capability"
+            },
+            "title": "Reviewed notes — org.example.task-delivery-reader"
+          }
+        ],
+        "createdAt": 1795675116562,
+        "description": "Synthetic acceptance task. Do not execute.",
+        "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+        "provenance": {
+          "capabilityId": "org.example.task-delivery-reader",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 4,
+        "status": "todo",
+        "title": "Delivery review —— edited after approval"
+      },
+      {
+        "attachedDeliveries": [
+          {
+            "createdAt": "2026-11-26T14:59:12.441320+08:00",
+            "documents": [
+              {
+                "content": "# Original notes\nORIGINAL RETAINED DELIVERY\n\n- [x] Reviewed synthetic meeting\n- [ ] Follow up",
+                "documentDate": "2026-11-26",
+                "reference": {
+                  "documentId": "org.example.task-delivery-reader/attachment-tests/2026/11/notes",
+                  "grantId": "6274c745d3e13f24cd17e6a77c24897fa4ff51ebff5820a906985aa91232c065",
+                  "kind": "library-document",
+                  "revision": "2026-11-26T14:55:03.272763000+08:00",
+                  "title": "Delivery Reader notes"
+                }
+              }
+            ],
+            "id": "89293deceecaa27444585cb85f32634cb49ae410ce6fbedea5eb993bdd62ea2a",
+            "provenance": {
+              "capabilityId": "org.example.task-delivery-peer",
+              "capabilityVersion": "1.0.0",
+              "type": "capability"
+            },
+            "title": "Reviewed notes — org.example.task-delivery-peer"
+          }
+        ],
+        "createdAt": 1795675792566,
+        "description": "Synthetic acceptance task. Do not execute.",
+        "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+        "provenance": {
+          "capabilityId": "org.example.task-delivery-peer",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 5,
+        "sources": [],
+        "status": "todo",
+        "title": "Delivery review — org.example.task-delivery-peer"
+      }
+    ],
+    "revisionSequence": 5,
+    "taskGrants": {
+      "05f230dd05d6df92db8dda2a0c3a33a8f7c161e596135897b8cc86e573d97194": {
+        "context": {
+          "capability_id": "org.example.task-delivery-reader",
+          "capability_version": "1.0.0",
+          "generation": "ea636e8e1b84c83c638776031e95404e260b44395d7829e0677438e0aae3e375"
+        },
+        "createdAt": "2026-11-26T14:48:33.841048+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 1,
+            "title": "Delivery review — org.example.task-delivery-reader"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": true
+      },
+      "a894286acb707a3cf97323903aa97c128d91afb574fdea6705b512f2a6763899": {
+        "context": {
+          "capability_id": "org.example.task-delivery-peer",
+          "capability_version": "1.0.0",
+          "generation": "0e0cb7c45c36c8480f7b2f05badf7e0b85449dd611f48c98a368c38a8daca6ff"
+        },
+        "createdAt": "2026-11-26T14:58:59.380624+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+            "revision": 2,
+            "title": "Delivery review — org.example.task-delivery-peer"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      },
+      "dfe7acd9e65df71cfced5e85bd97a0672906225569670d0618596e3bb7524f5a": {
+        "context": {
+          "capability_id": "org.example.task-delivery-peer",
+          "capability_version": "1.0.0",
+          "generation": "0e0cb7c45c36c8480f7b2f05badf7e0b85449dd611f48c98a368c38a8daca6ff"
+        },
+        "createdAt": "2026-11-26T14:50:09.050035+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "a4e9cd8f55fa19d8d36e607f1b0907ad5663bf883d7053a7c471d0e53499009c",
+            "revision": 2,
+            "title": "Delivery review — org.example.task-delivery-peer"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      },
+      "e3d54f0ee69618b6af58a6f0e67e9e48a9388df4760fa92f3c79d2a3c7981475": {
+        "context": {
+          "capability_id": "org.example.task-delivery-reader",
+          "capability_version": "1.0.0",
+          "generation": "ea636e8e1b84c83c638776031e95404e260b44395d7829e0677438e0aae3e375"
+        },
+        "createdAt": "2026-11-26T14:55:28.395929+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 3,
+            "title": "Delivery review — org.example.task-delivery-reader"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      },
+      "fb48e3acbf4b5f0342fb1e014cd11c1c172ccc9a376b2ed366a64c04cb1514a8": {
+        "context": {
+          "capability_id": "org.example.task-delivery-reader",
+          "capability_version": "1.0.0",
+          "generation": "ea636e8e1b84c83c638776031e95404e260b44395d7829e0677438e0aae3e375"
+        },
+        "createdAt": "2026-11-26T14:56:27.080890+08:00",
+        "epoch": "788466abc51a9a5dbea789eb7b2220f1734260a676e33737ef4d2f92c75a2f17",
+        "items": [
+          {
+            "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+            "revision": 3,
+            "title": "Delivery review — org.example.task-delivery-reader"
+          }
+        ],
+        "purpose": "Attach synthetic meeting notes to this task only. No execution or acceptance.",
+        "revoked": false
+      }
+    },
+    "writeToken": "d11484ab1ead3885b389bc4194eb10eb639cf8452aa6dafa311cda306d0c3c1f"
+  },
+  "sourceStateNote": "Reader source was deleted with approval and replay/viewing verified before republication for later source-grant tests. Final source is republished."
 }

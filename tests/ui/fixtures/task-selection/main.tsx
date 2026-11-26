@@ -60,6 +60,7 @@ function Harness() {
     try {
       const value = await boardPicker.open({ selectionId: crypto.randomUUID(), capabilityId: id, version: '1.0.0', name: 'Synthetic reader', purpose: 'Attach reviewed synthetic meeting notes.', limit: 1, signal: controller.signal, confirm: async items => {
         audit.push(`commit:${JSON.stringify(items)}`); commitCalls++
+        if (mode === 'commit-loading') await delay()
         if (mode === 'commit-error' && commitCalls === 1) throw new Error('OUTCOME_UNKNOWN: synthetic commit reply lost')
         return makeGrant(items.map(item => item.id))
       } })
@@ -71,7 +72,7 @@ function Harness() {
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, margin: '20px 0' }}>
       <label>Language <select value={language} onChange={event => { const next = event.target.value as 'en' | 'zh'; document.documentElement.lang = next; setLanguage(next) }}><option value="en">English</option><option value="zh">中文</option></select></label>
       <label>Theme <select onChange={event => { document.documentElement.dataset.theme = event.target.value }}><option value="light">Light</option><option value="dark">Dark</option></select></label>
-      <label>Scenario <select value={selectedMode} onChange={event => { mode = event.target.value; setMode(mode) }}>{['success','empty','loading','list-error','commit-error','revoke-error','abort','async-disabled','same-title','stale','inactive'].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>Scenario <select value={selectedMode} onChange={event => { mode = event.target.value; setMode(mode) }}>{['success','empty','loading','list-error','commit-loading','commit-error','revoke-error','abort','async-disabled','same-title','stale','inactive'].map(value => <option key={value}>{value}</option>)}</select></label>
       <button className="primary-button" disabled={pending} onClick={() => void openPicker()}>Open picker</button>
       <button className="secondary-button" onClick={() => { reset(); setAccess(true) }}>Open access manager</button>
     </div>

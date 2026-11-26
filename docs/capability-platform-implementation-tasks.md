@@ -726,12 +726,12 @@ C04 follows this gate; its current slice status is recorded below. Same PR #38 r
 **Verify:** Grant and idempotency failure cases pass through the real Host; current ZIP, document and
 board regressions pass. The outside-checkout fixture uses the updated kit without private imports.
 
-### [ ] C04 — Select an existing task and attach a delivery with a scoped grant
+### [x] C04 — Select an existing task and attach a delivery with a scoped grant
 
-**State:** C04a implements the shared revision foundation and C04b implements scoped native attachment
-transactions; validation and delivery are recorded in their evidence receipts. C04c remains pending:
-no public task picker or delivery attachment is shipped.
-The split ensures user edits, native Goal changes and delete/recreate invalidate approved revisions.
+**State:** complete on 2026-11-26 through C04a–C04c. Public task selection, scoped attachment and
+retained viewing pass independent ZIP/native acceptance, including foreign/revoked authority,
+user edits, exact replay, source deletion and package removal/restart. See [C04c3 evidence](capability-platform-evidence/C04c3.md).
+Task status and execution authority remain unchanged. Next: C05.
 
 **Depends on:** C02, C03. **Size:** M.
 **Deliver:** Host-owned task picker and delivery attachment to an existing item.
@@ -801,12 +801,11 @@ delivery/receipt commit. Preserve native Agent deliveries and task status, retai
 content for the user, and bound new records. Verify foreign/revoked/stale requests, original-result
 replay, lost replies, failed writes and removal/restore behavior before closing C04b.
 
-### [ ] C04c — Ship the public task picker and independent attachment flow
+### [x] C04c — Ship the public task picker and independent attachment flow
 
-**State:** in progress on the existing branch and PR #38. C04c1 UI acceptance is waiting for browser
-control; C04c2 implementation may proceed against its verified controller without waiving that
-acceptance. Deliver and close the children in order; the parent closes only after independent archive
-and installed UI acceptance.
+**State:** complete on 2026-11-26 on the existing branch and PR #38. All three children pass;
+[C04c3 evidence](capability-platform-evidence/C04c3.md) separates installed acceptance from simulated
+component checks and records the real WKWebView Escape fix. PR #38 remains open for human review.
 
 **Depends on:** C04b. **Size:** M.
 **Deliver:** Host picker, public typed requestSelection/attachDelivery, canonical kit/Skill and
@@ -815,42 +814,40 @@ independent ZIP fixture, with user-visible delivery references on existing tasks
 keyboard/layout and retained delivery after removal pass. No execution or acceptance is inferred.
 **Verification:** V-B/V-K, focused V-UI/V-N, desktop build/install; close C04 only after all child checks.
 
-#### [ ] C04c1 — Expose task selection and user access management
+#### [x] C04c1 — Expose task selection and user access management
 
-**State:** implementation and automated checks are complete on 2026-11-26; UI acceptance is pending.
-[C04c1 evidence](capability-platform-evidence/C04c1.md) records 238 native top-level tests plus one
-nested child and 190 JavaScript tests, exported-kit checks and bounded review. Browser control
-timed out before rendering could be inspected; keyboard, focus and layout remain unverified.
-Keep this child and its parent unchecked until those checks pass.
+**State:** complete on 2026-11-26. [C04c1 evidence](capability-platform-evidence/C04c1.md) records
+the implementation checks; [C04c3](capability-platform-evidence/C04c3.md) closes keyboard/focus/layout,
+frozen retry, loading/error and access-state acceptance. Native search-field Escape was fixed and
+verified in the rebuilt/reinstalled app.
 
 Public typed `board.requestSelection`, host-owned picker and task-board access manager using the
 C04b1 native controller. Bind the installed identity, requested attach-only operation and displayed
 revisions; dismissal grants nothing and disposal rejects late results. Preserve frozen confirmation
 across uncertain retries and show stale/revoked/inactive status. Include native command bindings,
 permission/version gating, contract/kit/Skill updates and focused keyboard/layout verification.
-Attachment effects remain internal until C04c2; document this boundary explicitly.
+Attachment effects were internal in this slice; C04c2 exports them and C04c3 verifies the complete flow.
 
-#### [ ] C04c2 — Connect attachment submission and retained delivery viewing
+#### [x] C04c2 — Connect attachment submission and retained delivery viewing
 
-**State:** implementation and automated checks pass on 2026-11-26; see [C04c2 evidence](capability-platform-evidence/C04c2.md).
-Platform/contract 0.9.0 and kit 0.8.0 export attachment submission and display retained deliveries.
-238 native top-level tests plus one nested child and 197 JavaScript tests pass. Keep C04c1's pending
-UI checks and all C04c2 public-command/installed-UI acceptance open; automated integration work does
-not substitute for those checks. Parent C04c remains incomplete.
+**State:** complete on 2026-11-26. [C04c2 evidence](capability-platform-evidence/C04c2.md) records
+the implementation checks; [C04c3](capability-platform-evidence/C04c3.md) verifies public attachment,
+refusal/replay, retained viewing after source deletion and package removal/restart. Platform/contract
+0.9.0 and kit 0.8.0 are aligned; 197 JavaScript tests pass after the Escape fix.
 
 Public typed `board.attachDelivery` calls the C04b2 transaction with lifetime cleanup and a bounded
 frozen request. Display retained text/references on the selected task independently of its original
 source or producing package, preserving Agent delivery and task status. Verify error/replay/refresh,
 removed-source viewing and keyboard access; update the exported kit and Skill.
 
-#### [ ] C04c3 — Verify independent archives and the installed complete flow
+#### [x] C04c3 — Verify independent archives and the installed complete flow
 
-**State:** in progress on 2026-11-26; [C04c3 evidence](capability-platform-evidence/C04c3.md).
-Reader/peer 1.0.0 independently pass exported-kit check/pack and actual ZIP installation with the
-user-approved five permissions. Reader publication, todo creation and opening the Host task picker
-pass in isolated 0.9.0. Keyboard testing was interrupted by an explicit Mac-lock report before task
-approval. Attachment/replay/refusal/revoke/restart, retained viewing and complete UI acceptance
-remain pending; no C04c child is closed by this checkpoint.
+**State:** complete on 2026-11-26; [C04c3 evidence](capability-platform-evidence/C04c3.md).
+Reader/peer 1.0.0 independently pass exported-kit check/pack and actual ZIP installation with five
+user-approved permissions. Native attachment/refusal/revoke/edit/replay/restart and retained viewing
+pass. Keyboard/layout and component edge-state checks pass. Final state: two todo cards, one delivery
+each, two attachment receipts, no installed packages and no queued execution. Desktop build/install
+and strict signing pass; C04c and C04 are closed. Next: C05.
 
 Build reader/peer ZIP fixtures outside the checkout with the exported kit. Verify actual installation,
 selection, dismissal, attachment, replay/conflict, user-edit refusal, revoke, restart and retained
