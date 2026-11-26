@@ -51,6 +51,40 @@ fn save(target: &Path, documents: &[SnapshotDocument]) -> Result<(), String> {
   Ok(())
 }
 
+// Caller holds task-data.lock. Retained offers are user-owned inputs, not live package grants.
+pub(crate) fn capture_handoff(root:&Path,id:&str,draft:&crate::conversation_handoffs::Draft,ids:&[String])->Result<Vec<SnapshotDocument>,String> {
+  let requested:std::collections::BTreeSet<_>=ids.iter().cloned().collect();
+  if requested.len()!=ids.len() || ids.len()+draft.documents.len()>50 {return Err("INVALID_INPUT: select at most 50 distinct documents".into());}
+  for extra in &requested {
+    document_library::validate_id(extra).map_err(|_|"INVALID_INPUT: invalid additional document")?;
+    if draft.documents.iter().any(|d|d.reference.document_id==*extra) {return Err("CONFLICT: document already included in the retained offer".into());}
+  }
+  let mut retained=Vec::new();
+  for doc in &draft.documents {
+    let mut reference=serde_json::to_value(&doc.reference).map_err(|e|e.to_string())?;
+    reference["snapshotId"]=serde_json::json!(id);reference["handoffId"]=serde_json::json!(draft.id);
+    retained.push(SnapshotDocument {reference,document_date:doc.document_date.clone(),content:doc.content.clone().ok_or("RESOURCE_UNAVAILABLE: retained source missing")?});
+  }
+  let target=path(root,id)?;
+  if target.try_exists().map_err(|e|e.to_string())? {
+    let saved=read(root,id)?;
+    let retained_match=saved.len()>=retained.len() && saved.iter().zip(&retained).all(|(a,b)|a.reference==b.reference && a.content==b.content && a.document_date==b.document_date);
+    let extras=if saved.len()>=retained.len() {&saved[retained.len()..]} else {&[]};
+    let saved_ids:std::collections::BTreeSet<_>=extras.iter().filter_map(|d|d.reference["documentId"].as_str().map(String::from)).collect();
+    if !retained_match || saved_ids!=requested || extras.len()!=requested.len() || extras.iter().any(|d|d.reference["snapshotId"]!=id || d.reference.get("handoffId").is_some()) {
+      return Err("CONFLICT: handoff source snapshot differs".into());
+    }
+    return Ok(saved);
+  }
+  let mut bytes=retained.iter().map(|d|d.content.len()).sum::<usize>();
+  for document_id in requested {
+    let doc=document_library::read_document(root,&document_id)?;bytes+=doc.content.len();
+    if bytes>8_000_000 {return Err("RESOURCE_LIMIT: selected documents exceed 8 MB".into());}
+    retained.push(SnapshotDocument {reference:serde_json::json!({"kind":"library-document","documentId":document_id,"title":doc.title,"revision":doc.updated_at,"snapshotId":id}),document_date:doc.document_date.clone(),content:doc.content});
+  }
+  save(&target,&retained)?;Ok(retained)
+}
+
 #[derive(Deserialize, PartialEq, Eq)]
 struct TaskSource {
   id: String,

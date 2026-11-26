@@ -146,6 +146,18 @@ pub fn read(root: &Path, id: &str) -> Result<Draft, String> {
     list(root)?.into_iter().find(|draft| draft.id == id).ok_or("NOT_FOUND: handoff draft unavailable".into())
 }
 
+/// Host manual-send inputs, independent of the producing installation and current Library grants.
+pub fn sources(root:&Path,draft_id:&str,request_id:&str,ids:&[String])->Result<serde_json::Value,String> {
+    if !hex(draft_id) || request_id.is_empty() || request_id.len()>100 || !request_id.bytes().all(|b|b.is_ascii_lowercase()||b.is_ascii_digit()||b==b'-') {
+        return Err("INVALID_INPUT: invalid handoff source identity".into());
+    }
+    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
+    crate::user_data::ensure_restore_complete(root)?;
+    let ledger=load(root)?;let draft=ledger.drafts.get(draft_id).ok_or("RESOURCE_UNAVAILABLE: handoff draft unavailable")?;
+    let documents=crate::source_snapshots::capture_handoff(root,request_id,draft,ids)?;
+    serde_json::to_value(documents).map_err(|e|e.to_string())
+}
+
 // Caller holds task-data and authority fences. Return only the original approved request/receipt;
 // callers compare proposal content before exposing metadata. No source recapture or navigation.
 pub(crate) fn lookup(root:&Path,capability_id:&str,key:&str)->Result<Option<(ApprovedDraft,Receipt)>,String> {

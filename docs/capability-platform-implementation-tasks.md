@@ -957,6 +957,7 @@ Codex protocol fixtures, full affected regression and V-APP. No public SDK/UI ac
 
 ###### [ ] C05b2b — Integrate public handoff, review UI and retained draft navigation
 
+**State:** split before implementation into retained send inputs and the public review/adoption flow.
 **Depends on:** C05b2a. **Size:** M.
 **Deliver:** Public typed handoff, immutable request/lifetime controller, Host review dialog and safe
 chat offer navigation/adoption over existing composer ownership. Manual send must use the retained
@@ -965,6 +966,19 @@ source snapshots, not re-read current Library IDs. Update canonical kit/Skill/pr
 intent; existing unsent text remains intact and opening sends no turn. Retained drafts remain usable
 without the producing package. Verify real-component keyboard/focus/error/layout behavior.
 **Verification:** V-A/V-K, component UI and V-APP; C05c still owns installed archive acceptance.
+
+1. [x] **Retained send inputs:** materialize the offered source text through the existing native
+   snapshot owner and use it in explicit conversation sends. Preserve provenance, additional user
+   attachments, earlier working-copy edits and retry snapshots. Verify original deletion/producer
+   removal, backup/restore, conflicting inputs, foreign callers and native working-copy preparation.
+   This internal path does not expose a successful public handoff before the review/adoption UI exists.
+   Six native and four JavaScript additions pass; full regression passes 275 top-level native tests
+   plus one nested child (two existing live-agent tests ignored) and 201 JavaScript tests. Desktop
+   build/install and signature verification pass. [Evidence](capability-platform-evidence/C05b2b-sources.md)
+   records working-copy preservation, snapshot reuse and the isolated process-launch fixture fix.
+2. [ ] **Public review and adoption:** connect the typed package client, Host approval dialog and
+   retained-offer navigation to the composer without replacing unsent user work. Update kit/preview/
+   Skill and verify real components, then proceed to C05c installed acceptance.
 
 #### [ ] C05c — Verify independent handoff archives and installed behavior
 

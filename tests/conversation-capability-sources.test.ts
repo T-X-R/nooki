@@ -35,3 +35,18 @@ test('an attachment-free turn provides no sources instead of borrowing history',
     checkpoints: { sources: [] } })
   assert.deepEqual(currentConversationSources([task({ status: 'completed' }), empty], context), [])
 })
+
+test('handoff turns expose retained snapshots and only their additional selected documents', () => {
+  const handoffId='a'.repeat(64)
+  const offered=task({ input:{threadId:'thread-1',message:'Review',documentIds:['extra'],snapshotId:'snapshot-1',handoffId},
+    checkpoints:{sources:[
+      {reference:{kind:'library-document',documentId:'original',title:'Retained',snapshotId:'snapshot-1',handoffId},content:'Retained original'},
+      {reference:{kind:'library-document',documentId:'extra',title:'Extra',snapshotId:'snapshot-1'},content:'Additional user selection'},
+    ]} })
+  assert.deepEqual(currentConversationSources([offered],context).map(source=>source.content),['Retained original','Additional user selection'])
+  for(const patch of [{handoffId:'b'.repeat(64)},{documentIds:[]},{snapshotId:'another'}]) {
+    assert.throws(()=>currentConversationSources([{...offered,input:{...(offered.input as object),...patch}}],context))
+  }
+  const corrupt=structuredClone(offered);(corrupt.checkpoints.sources as any[])[1].reference.handoffId='b'.repeat(64)
+  assert.throws(()=>currentConversationSources([corrupt],context))
+})

@@ -667,6 +667,7 @@ pub fn run() {
       conversation_handoff_host::conversation_handoff_begin, conversation_handoff_host::conversation_handoff_cancel,
       conversation_handoff_host::conversation_handoff_targets, conversation_handoff_host::conversation_handoff_commit,
       conversation_handoff_host::conversation_handoff_drafts, conversation_handoff_host::conversation_handoff_read,
+      conversation_handoff_host::conversation_handoff_sources,
       conversation_list, conversation_change, conversation_create, conversation_create_board_thread, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,

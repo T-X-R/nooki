@@ -11,11 +11,14 @@ struct Page {handle:String,cursor:Option<String>}
 #[serde(deny_unknown_fields)]
 struct Read {id:String}
 #[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct Sources {draft_id:String,snapshot_id:String,document_ids:Vec<String>}
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Empty {}
 fn request<T:serde::de::DeserializeOwned>(caller:&str,value:Value)->Result<T,String> {
     if caller!="main" {return Err("PERMISSION_DENIED: draft access requires the host".into());}
-    if !value.is_object() || serde_json::to_vec(&value).map_err(|e|e.to_string())?.len()>4096 {return Err("INVALID_INPUT: invalid draft request".into());}
+    if !value.is_object() || serde_json::to_vec(&value).map_err(|e|e.to_string())?.len()>64*1024 {return Err("INVALID_INPUT: invalid draft request".into());}
     serde_json::from_value(value).map_err(|_|"INVALID_INPUT: invalid draft request".into())
 }
 async fn page(state:&PlatformState,bridge:&ConversationHost,cursor:Option<String>)->Result<Value,String> {
@@ -79,6 +82,10 @@ pub fn read(state:&PlatformState,caller:&str,value:Value)->Result<Value,String> 
     if input.id.len()!=64 || !input.id.bytes().all(|b|b.is_ascii_hexdigit()) {return Err("INVALID_INPUT: invalid draft identity".into());}
     serde_json::to_value(drafts::read(state.data_dir(),&input.id)?).map_err(|e|e.to_string())
 }
+pub fn sources(state:&PlatformState,caller:&str,value:Value)->Result<Value,String> {
+    let input:Sources=request(caller,value)?;
+    drafts::sources(state.data_dir(),&input.draft_id,&input.snapshot_id,&input.document_ids)
+}
 #[derive(Debug,Serialize)]
 pub struct HandoffError {code:&'static str,message:&'static str}
 impl HandoffError {
@@ -119,6 +126,10 @@ pub fn conversation_handoff_drafts(webview:tauri::Webview,request:Value,state:ta
 #[tauri::command]
 pub fn conversation_handoff_read(webview:tauri::Webview,request:Value,state:tauri::State<'_,PlatformState>)->Result<Value,HandoffError> {
     read(&state,webview.label(),request).map_err(|e|HandoffError::from_native(&e,false))
+}
+#[tauri::command]
+pub fn conversation_handoff_sources(webview:tauri::Webview,request:Value,state:tauri::State<'_,PlatformState>)->Result<Value,HandoffError> {
+    sources(&state,webview.label(),request).map_err(|e|HandoffError::from_native(&e,true))
 }
 
 #[cfg(test)]
