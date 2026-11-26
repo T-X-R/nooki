@@ -845,6 +845,13 @@ removed-source viewing and keyboard access; update the exported kit and Skill.
 
 #### [ ] C04c3 — Verify independent archives and the installed complete flow
 
+**State:** in progress on 2026-11-26; [C04c3 evidence](capability-platform-evidence/C04c3.md).
+Reader/peer 1.0.0 independently pass exported-kit check/pack and actual ZIP installation with the
+user-approved five permissions. Reader publication, todo creation and opening the Host task picker
+pass in isolated 0.9.0. Keyboard testing was interrupted by an explicit Mac-lock report before task
+approval. Attachment/replay/refusal/revoke/restart, retained viewing and complete UI acceptance
+remain pending; no C04c child is closed by this checkpoint.
+
 Build reader/peer ZIP fixtures outside the checkout with the exported kit. Verify actual installation,
 selection, dismissal, attachment, replay/conflict, user-edit refusal, revoke, restart and retained
 delivery after package removal. Record native state plus keyboard/focus/layout evidence separately

@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-26",
+  "phase": "installed; picker open; no task approved; Mac locked",
+  "profile": "/private/tmp/nooki-profile-clnCEZ",
+  "installedExecutableSha256": "433d60c16c86cf84ebf3c4e36402f59e1562fbb02569e936beca5bc12ff2de66",
+  "capabilities": [
+    {
+      "id": "org.example.task-delivery-reader",
+      "version": "1.0.0",
+      "enabled": true,
+      "permissions": [
+        "storage",
+        "documents.publish",
+        "documents.read-selected",
+        "board.create",
+        "board.attach-delivery"
+      ]
+    },
+    {
+      "id": "org.example.task-delivery-peer",
+      "version": "1.0.0",
+      "enabled": true,
+      "permissions": [
+        "storage",
+        "documents.publish",
+        "documents.read-selected",
+        "board.create",
+        "board.attach-delivery"
+      ]
+    }
+  ],
+  "board": {
+    "capabilityReceipts": {
+      "be1366541acd65df732d7a211f3e623e02a1e4a74ddbcc8556e13326e1355ea4": {
+        "capabilityId": "org.example.task-delivery-reader",
+        "payloadHash": "a8904dce647713d82176198617e9759da93ba912457f1502fc4bdd1526abd8e4",
+        "result": {
+          "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+          "revision": 1
+        }
+      }
+    },
+    "cards": [
+      {
+        "createdAt": 1795675116562,
+        "description": "Synthetic acceptance task. Do not execute.",
+        "id": "376965704b964fa05a8dd3756b0756663842baa7c3b1894e0181852afc1b3fe4",
+        "provenance": {
+          "capabilityId": "org.example.task-delivery-reader",
+          "capabilityVersion": "1.0.0",
+          "type": "capability"
+        },
+        "revision": 1,
+        "sources": [],
+        "status": "todo",
+        "title": "Delivery review \u2014 org.example.task-delivery-reader"
+      }
+    ],
+    "revisionSequence": 1,
+    "writeToken": "1c11ec77e872776b741087aadf77896f4f22543821ab214b1eb86843d645cd58"
+  }
+}

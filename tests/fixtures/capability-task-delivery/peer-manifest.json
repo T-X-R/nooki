@@ -1,0 +1,27 @@
+{
+  "id": "org.example.task-delivery-peer",
+  "name": "Delivery Peer",
+  "description": "Public SDK synthetic task-delivery acceptance. No agent execution.",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.9.0",
+  "entrypoints": [
+    "page"
+  ],
+  "permissions": [
+    "storage",
+    "documents.publish",
+    "documents.read-selected",
+    "board.create",
+    "board.attach-delivery"
+  ],
+  "locales": {
+    "en": {
+      "name": "Delivery Peer",
+      "description": "Synthetic task-delivery acceptance."
+    },
+    "zh": {
+      "name": "成果对照验收",
+      "description": "合成任务与成果附加验收，不执行 Agent。"
+    }
+  }
+}
