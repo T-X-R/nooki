@@ -1088,6 +1088,10 @@ servers, and `orchestrator.mcp.enabled=false` do not establish a process-startup
 configuration isolation that preserves native authentication and managed restrictions, then verify
 Skills/hooks/tool startup as well as the C06a filesystem/network policy. Do not certify the complete
 adapter policy from C06a or from a post-start configuration comparison.
+The [native credential-link checkpoint](capability-platform-evidence/C06c-auth-link.md) proves
+synthetic file-store continuity through a separate Codex home without copying credentials. It is a
+candidate authentication mechanism, not complete configuration isolation: system/cloud/project
+layers, OAuth refresh, keyring-backed login and the complete tool policy remain unverified.
 
 **Depends on:** C06b. **Size:** M; separate dispatch from interaction handling if required.
 **Deliver:** Dedicated package-run sessions through the existing Codex transport with verified input/

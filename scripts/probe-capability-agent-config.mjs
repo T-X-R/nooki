@@ -32,7 +32,7 @@ enabled = true
 startup_timeout_sec = 3
 `).join('\n')
 
-async function scenario(name, initial, overlay, added = [], startupArgs = []) {
+async function scenario(name, initial, overlay, added = [], startupArgs = [], threadOptions = {}) {
   await writeFile(join(home, 'config.toml'), config(initial))
   const child = spawn(executable, ['app-server', '--strict-config', ...startupArgs], { ...options, cwd, stdio: ['pipe', 'pipe', 'pipe'] })
   const lines = createInterface({ input: child.stdout }), pending = new Map()
@@ -55,7 +55,7 @@ async function scenario(name, initial, overlay, added = [], startupArgs = []) {
     const inherited = await rpc('config/read', { cwd, includeLayers: true })
     for (const server of initial) assert.equal(inherited.config.mcp_servers[server].enabled, true)
     if (added.length) await writeFile(join(home, 'config.toml'), config([...initial, ...added]))
-    const thread = await rpc('thread/start', { cwd, ephemeral: true, approvalPolicy: 'never', sandbox: 'read-only', dynamicTools: [], selectedCapabilityRoots: [],
+    const thread = await rpc('thread/start', { cwd, ephemeral: true, approvalPolicy: 'never', sandbox: 'read-only', dynamicTools: [], selectedCapabilityRoots: [], ...threadOptions,
       config: { features: { apps: false, plugins: false, hooks: false, mcp_lazy_stdio_startup: false }, ...overlay } })
     assert.equal(thread.approvalPolicy, 'never')
     assert.equal(thread.sandbox.type, 'readOnly')
@@ -71,7 +71,7 @@ async function scenario(name, initial, overlay, added = [], startupArgs = []) {
     }
     assert.equal(child.exitCode, null, 'A dead app-server cannot establish a negative startup control')
     assert.equal(child.signalCode, null)
-    return { name, initial, added, startupArgs, started: [...started].sort() }
+    return { name, initial, added, startupArgs, threadOptions, started: [...started].sort() }
   } finally {
     if (child.exitCode === null && child.signalCode === null) { child.kill('SIGTERM'); await once(child, 'exit') }
     lines.close(); for (const request of pending.values()) clearTimeout(request.timer)
@@ -91,6 +91,8 @@ results.push(await scenario('orchestrator-disable', ['native_disabled_canary'], 
 assert.deepEqual(results.at(-1).started, ['native_added_canary', 'native_disabled_canary'])
 results.push(await scenario('bootstrap-disable', ['bootstrap_canary'], { orchestrator: { mcp: { enabled: false } } }, [], ['-c', 'orchestrator.mcp.enabled=false']))
 assert.deepEqual(results.at(-1).started, ['bootstrap_canary'])
+results.push(await scenario('empty-environment', ['environment_canary'], {}, [], [], { environments: [] }))
+assert.deepEqual(results.at(-1).started, ['environment_canary'])
 const receipt = { version: 'codex-cli 0.170.0', root, results, modelTurns: 0,
   productionPolicyCertified: false,
   conclusion: 'Empty maps retain connectors, enumerated disables miss configuration additions, and orchestrator.mcp.enabled=false does not prevent these startup processes.' }
