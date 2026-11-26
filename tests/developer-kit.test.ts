@@ -27,7 +27,7 @@ test('released kit scaffolds an independent project with canonical Host types an
     await symlink(dependencies, join(target, 'node_modules'), 'dir')
     const contractGuide = await readFile(join(skill, 'references/contract.md'), 'utf8')
     const example = contractGuide.match(/```ts\n(import assert from 'node:assert\/strict'[\s\S]*?)```/)![1]
-    await writeFile(join(target, 'preview/storage.test.mjs'), example + `\n test('preview refuses native selection', async () => {\n const { host } = createPreviewHost({ id: 'org.example.notes', name: 'Notes', version: '1.0.0', minPlatformVersion: '0.5.0', entrypoints: ['page'], permissions: ['documents.read-selected'] })\n await assert.rejects(host.library.requestSelection({ purpose: 'Read', kinds: ['document'] }), { code: 'UNSUPPORTED_SERVICE' })\n })\n`)
+    await writeFile(join(target, 'preview/storage.test.mjs'), example + `\n test('preview refuses native selection', async () => {\n const { host } = createPreviewHost({ id: 'org.example.notes', name: 'Notes', version: '1.0.0', minPlatformVersion: '0.5.0', entrypoints: ['page'], permissions: ['documents.read-selected'] })\n await assert.rejects(host.library.requestSelection({ purpose: 'Read', kinds: ['document'] }), { code: 'UNSUPPORTED_SERVICE' })\n await assert.rejects(host.board.requestSelection({ purpose: 'Attach', operations: ['attachDelivery'] }), { code: 'UNSUPPORTED_SERVICE' })\n })\n`)
     execFileSync(process.execPath, ['--test', 'preview/storage.test.mjs'], { cwd: target, stdio: 'pipe' })
     await writeFile(join(target, 'supported-contract.ts'), `import type { CapabilityEntrypoint, CapabilityHost } from './contract'
 // @ts-expect-error Widgets have no implemented loader.
@@ -37,6 +37,11 @@ host.library.requestSelection({ purpose: 'Draft actions', kinds: ['document'], l
 // @ts-expect-error Recipient identity belongs to the Host.
 host.library.requestSelection({ purpose: 'Read', kinds: ['document'], capabilityId: 'foreign' })
 host.board.create({ title: 'Test' }, { idempotencyKey: 'one' })
+host.board.requestSelection({ purpose: 'Attach notes', operations: ['attachDelivery'], limit: 1 })
+// @ts-expect-error Delegation is not a task-selection operation.
+host.board.requestSelection({ purpose: 'Execute', operations: ['delegate'] })
+// @ts-expect-error Selection cannot choose another package identity.
+host.board.requestSelection({ purpose: 'Attach', operations: ['attachDelivery'], capabilityId: 'foreign' })
 host.library.requestSelection({ purpose: 'Review notes', kinds: ['document'] }).then(selection => {
   if (selection.status === 'selected') return host.board.create({ title: 'Selected task', sources: selection.grant.documents.map(doc => doc.reference) }, { idempotencyKey: 'selected-intent' })
 })
@@ -66,6 +71,8 @@ test('kit check rejects unsupported entrypoints, permissions and global CSS', as
   assert.throws(() => validateManifest({ ...manifest, permissions: ['filesystem.all'] }))
   assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.3.2', permissions: ['board.create'] }))
   validateManifest({ ...manifest, minPlatformVersion: '0.4.0', permissions: ['board.create'] })
+  assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.7.0', permissions: ['board.attach-delivery'] }))
+  validateManifest({ ...manifest, minPlatformVersion: '0.8.0', permissions: ['board.attach-delivery'] })
   assert.throws(() => validateStyle('body { color: red }', 'style.css'))
   assert.throws(() => validateStyle('.notes, :root { color: red }', 'style.css'))
   validateStyle('.wb-cap-page.notes textarea { color: var(--ink) }', 'style.css')

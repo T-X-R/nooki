@@ -803,12 +803,44 @@ replay, lost replies, failed writes and removal/restore behavior before closing 
 
 ### [ ] C04c — Ship the public task picker and independent attachment flow
 
+**State:** in progress on the existing branch and PR #38. Deliver C04c1–C04c3 below in order;
+the parent closes only after independent archive and installed UI acceptance.
+
 **Depends on:** C04b. **Size:** M.
 **Deliver:** Host picker, public typed requestSelection/attachDelivery, canonical kit/Skill and
 independent ZIP fixture, with user-visible delivery references on existing tasks.
 **Acceptance:** Real ZIP selection/attachment/dismissal/retry/restart, concurrent-user-edit refusal,
 keyboard/layout and retained delivery after removal pass. No execution or acceptance is inferred.
 **Verification:** V-B/V-K, focused V-UI/V-N, desktop build/install; close C04 only after all child checks.
+
+#### [ ] C04c1 — Expose task selection and user access management
+
+**State:** implementation and automated checks are complete on 2026-11-26; UI acceptance is pending.
+[C04c1 evidence](capability-platform-evidence/C04c1.md) records 238 native top-level tests plus one
+nested child and 190 JavaScript tests, exported-kit checks and bounded review. Browser control
+timed out before rendering could be inspected; keyboard, focus and layout remain unverified.
+Keep this child and its parent unchecked until those checks pass.
+
+Public typed `board.requestSelection`, host-owned picker and task-board access manager using the
+C04b1 native controller. Bind the installed identity, requested attach-only operation and displayed
+revisions; dismissal grants nothing and disposal rejects late results. Preserve frozen confirmation
+across uncertain retries and show stale/revoked/inactive status. Include native command bindings,
+permission/version gating, contract/kit/Skill updates and focused keyboard/layout verification.
+Attachment effects remain internal until C04c2; document this boundary explicitly.
+
+#### [ ] C04c2 — Connect attachment submission and retained delivery viewing
+
+Public typed `board.attachDelivery` calls the C04b2 transaction with lifetime cleanup and a bounded
+frozen request. Display retained text/references on the selected task independently of its original
+source or producing package, preserving Agent delivery and task status. Verify error/replay/refresh,
+removed-source viewing and keyboard access; update the exported kit and Skill.
+
+#### [ ] C04c3 — Verify independent archives and the installed complete flow
+
+Build reader/peer ZIP fixtures outside the checkout with the exported kit. Verify actual installation,
+selection, dismissal, attachment, replay/conflict, user-edit refusal, revoke, restart and retained
+delivery after package removal. Record native state plus keyboard/focus/layout evidence separately
+from simulated preview checks. Close C04c and C04 only after all child acceptance passes.
 
 ### [ ] C05 — Hand selected context to a native conversation draft
 

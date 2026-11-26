@@ -315,6 +315,26 @@ fn library_revoke_document_access(webview: tauri::Webview, request: serde_json::
   document_selection::revoke(&state, webview.label(), request)
 }
 #[tauri::command]
+fn board_selection_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  task_selection::begin(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, false))
+}
+#[tauri::command]
+fn board_selection_commit(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  task_selection::commit(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, true))
+}
+#[tauri::command]
+fn board_selection_cancel(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  task_selection::cancel(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, false))
+}
+#[tauri::command]
+fn board_task_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  task_selection::accesses(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, false))
+}
+#[tauri::command]
+fn board_revoke_task_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  task_selection::revoke(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, true))
+}
+#[tauri::command]
 fn capability_document_grants(capability_id: String, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentGrant>, String> {
   state.document_grants(&capability_id)
 }
@@ -661,6 +681,8 @@ pub fn run() {
       capability_codex_sessions_read_daily_files,
       capability_documents_publish,
       library_grant_documents,
+      board_selection_begin, board_selection_commit, board_selection_cancel,
+      board_task_access, board_revoke_task_access,
       library_selection_begin,
       library_selection_commit,
       library_selection_cancel,

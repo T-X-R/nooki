@@ -22,6 +22,8 @@ import { createBoardClient } from './capability-board-host.ts'
 import { createLibraryClient } from './capability-library-host.ts'
 import { captureLibraryFocus } from './library-focus.ts'
 import { libraryPicker } from './library-picker.ts'
+import { createBoardSelectionClient } from './capability-board-selection.ts'
+import { boardPicker } from './board-picker.ts'
 
 const hostDisposers = new WeakMap<CapabilityHost, () => Promise<void>>()
 export async function releaseCapabilityHost(host: CapabilityHost): Promise<void> {
@@ -129,12 +131,14 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke })
   const library = createLibraryClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('documents.read-selected') === true,
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: libraryPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
-  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose()]) }
+  const selection = createBoardSelectionClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('board.attach-delivery') === true,
+    desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: boardPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
+  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose(), selection.dispose()]) }
   const cancel = () => { void dispose().catch(() => console.warn('Capability invocation release failed')) }
   execution?.signal.addEventListener('abort', cancel, { once: true })
   const host: CapabilityHost = Object.freeze({
     library: library.library,
-    board: client.board,
+    board: Object.freeze({ ...client.board, ...selection.board }),
     environment: capabilityEnvironment,
     tasks: capabilityTasks(capabilityId),
     storage: createStorage(capabilityId, permissions, assertActive),

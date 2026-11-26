@@ -7,7 +7,7 @@ export type AiInvocationResult = {
 }
 
 export type CapabilityEntrypoint = 'page' | 'command' | 'job'
-export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create'
+export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create' | 'board.attach-delivery'
 export type CapabilityLanguage = 'zh' | 'en'
 export type CapabilityTheme = 'light' | 'dark'
 
@@ -199,6 +199,18 @@ export type LibrarySelectionResult = { status: 'dismissed' } | { status: 'select
 export type IdempotencyOptions = { idempotencyKey: string }
 /** Native-assigned opaque revision; compare for equality, never infer an edit count. */
 export type BoardItemReference = { id: string; revision: number }
+export type BoardSelectionRequest = { purpose: string; operations: ['attachDelivery']; limit?: number }
+/** Metadata only. No task content, execution or acceptance authority is granted. */
+export type BoardGrant = {
+  id: string
+  capabilityId: string
+  capabilityVersion: string
+  createdAt: string
+  purpose: string
+  operations: ['attachDelivery']
+  items: (BoardItemReference & { title: string })[]
+}
+export type BoardSelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: BoardGrant }
 export type BoardCreateInput = {
   title: string
   description?: string
@@ -213,6 +225,8 @@ export type CapabilityHost = {
     requestSelection(request: LibrarySelectionRequest): Promise<LibrarySelectionResult>
   }
   board: {
+    /** Nooki 0.8.0+: approve exact task revisions for attaching a delivery. */
+    requestSelection(request: BoardSelectionRequest): Promise<BoardSelectionResult>
     /** Creates a draft item, never delegates work. Retry an uncertain outcome with the same key/input. */
     create(input: BoardCreateInput, options: IdempotencyOptions): Promise<BoardItemReference>
   }

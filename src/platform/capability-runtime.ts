@@ -2,8 +2,9 @@ import { invoke } from '@tauri-apps/api/core'
 import { taskRunner } from './tasks.ts'
 import { invalidateBoardClients } from './capability-board-host.ts'
 import { invalidateLibraryClients } from './capability-library-host.ts'
+import { invalidateBoardSelections } from './capability-board-selection.ts'
 async function invalidateCapabilityClients(id: string) {
-  await Promise.all([invalidateBoardClients(id), invalidateLibraryClients(id)])
+  await Promise.all([invalidateBoardClients(id), invalidateLibraryClients(id), invalidateBoardSelections(id)])
 }
 import { applyPackageStyles, loadPackageModule, removePackageStyles, type PackagePayload } from './package-loader.ts'
 import {

@@ -1,0 +1,5 @@
+{
+  "extends": "../../../../tsconfig.app.json",
+  "compilerOptions": { "tsBuildInfoFile": "../../../../node_modules/.tmp/task-selection-fixture.tsbuildinfo" },
+  "include": ["main.tsx", "../../../../src"]
+}

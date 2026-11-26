@@ -9,7 +9,7 @@ impl Fixture {
         let root=std::env::temp_dir().join(format!("nooki-task-selection-{}",crate::capability_authority::nonce().unwrap()));
         let state=PlatformState::load(root.clone()).unwrap();
         for id in ["example.reader","example.peer"] {
-            let manifest: CapabilityManifest=serde_json::from_value(json!({"id":id,"name":id,"version":"1.0.0","description":"","entrypoints":["page"],"permissions":["board.attach-delivery"],"minPlatformVersion":"0.7.0"})).unwrap();
+            let manifest: CapabilityManifest=serde_json::from_value(json!({"id":id,"name":id,"version":"1.0.0","description":"","entrypoints":["page"],"permissions":["board.attach-delivery"],"minPlatformVersion":"0.8.0"})).unwrap();
             state.install_capability(manifest).unwrap();
         }
         state.write_task_board(&json!({"cards":[{"id":"first","title":"User task","description":"Private description","status":"todo"},{"id":"second","title":"Other task","description":"Other private data","status":"todo"}]})).unwrap();
@@ -172,7 +172,7 @@ fn update_reinstall_and_permission_removal_invalidate_grants_and_pending_approva
         let f=Fixture::new();let ticket=f.begin("approved");commit(&f.state,"main",f.approved(&ticket)).unwrap();
         let pending=f.begin("pending");
         if change=="reinstall" { f.state.uninstall_capability("example.reader").unwrap(); }
-        let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.reader","name":"Reader","version":if change=="update" {"2.0.0"} else {"1.0.0"},"description":"","entrypoints":["page"],"permissions":if change=="permission" {json!([])} else {json!(["board.attach-delivery"])},"minPlatformVersion":"0.7.0"})).unwrap();
+        let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.reader","name":"Reader","version":if change=="update" {"2.0.0"} else {"1.0.0"},"description":"","entrypoints":["page"],"permissions":if change=="permission" {json!([])} else {json!(["board.attach-delivery"])},"minPlatformVersion":"0.8.0"})).unwrap();
         if change=="reinstall" { f.state.install_capability(manifest).unwrap(); }
         else { f.state.update_capability(manifest).unwrap(); }
         let before=fs::read(f.root.join("task-board.json")).unwrap();
@@ -195,4 +195,12 @@ fn data_maintenance_and_pending_capacity_fail_without_task_effects() {
     assert!(begin(&f.state,"main",f.request("overflow")).unwrap_err().starts_with("RESOURCE_LIMIT"));
     cancel(&f.state,"main",json!({"requestId":"first"})).unwrap();f.begin("replacement");
     assert_eq!(fs::read(f.root.join("task-board.json")).unwrap(),before);
+}
+
+#[test]
+fn public_task_permission_requires_the_supported_platform_version() {
+    let f=Fixture::new();
+    let mut manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.floor","name":"Floor","version":"1.0.0","description":"","entrypoints":["page"],"permissions":["board.attach-delivery"],"minPlatformVersion":"0.7.0"})).unwrap();
+    assert!(f.state.install_capability(manifest.clone()).unwrap_err().contains("0.8.0"));
+    manifest.min_platform_version="0.8.0".into();f.state.install_capability(manifest).unwrap();
 }

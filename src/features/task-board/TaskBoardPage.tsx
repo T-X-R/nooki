@@ -9,6 +9,7 @@ import { TaskReferences } from './TaskReferences.tsx'
 import type { BoardSource, BoardStatus } from './task-board-store.ts'
 import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
+import { TaskAccessDialog } from './TaskAccessDialog.tsx'
 
 const columns: { key: string; zh: string; en: string; hint: [string, string]; empty: [string, string]; statuses: BoardStatus[] }[] = [
   { key: 'todo', zh: '待办', en: 'To do', hint: ['想法与下一步', 'Ideas and next steps'], empty: ['等待新的待办', 'Waiting for your next idea'], statuses: ['todo', 'queued'] },
@@ -19,6 +20,7 @@ const columns: { key: string; zh: string; en: string; hint: [string, string]; em
 
 export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation, targetId, onTargetConsumed }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void; targetId: string | null; onTargetConsumed(): void }) {
   const zh = language === 'zh'
+  const [accessOpen, setAccessOpen] = useState(false)
   const [today, setToday] = useState(() => new Date())
   const state = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
   const [ready, setReady] = useState(false)
@@ -146,7 +148,8 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   }
 
   const statusBadge = (status: BoardStatus) => <span className={`task-board-status ${status}`}>{statuses[status]}</span>
-  return <div className="task-board" ref={board} onKeyDown={event => { if (event.key === 'Escape' && open && !event.nativeEvent.isComposing) { event.preventDefault(); close() } }}>
+  return <div className="task-board" ref={board} onKeyDown={event => { if (event.key === 'Escape' && open && !accessOpen && !event.nativeEvent.isComposing) { event.preventDefault(); close() } }}>
+    {accessOpen && <TaskAccessDialog language={language} onClose={() => setAccessOpen(false)} />}
     <div className="task-board-content" ref={content} onClick={event => {
       if (open && event.target instanceof Element && !event.target.closest('button, a, input, textarea, select, label, summary')) close()
     }}>
@@ -157,7 +160,10 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             <time className="task-board-date" dateTime={dateStamp} aria-label={dateLabel}><span>{shortDate}</span><span>{weekday}</span></time>
             <h1>{zh ? '任务板' : 'Task board'}</h1>
           </div>
-          <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
+          <div className="task-board-heading-actions">
+            {!!window.__TAURI_INTERNALS__ && <button className="secondary-button" onClick={() => setAccessOpen(true)}>{zh ? '任务授权' : 'Task access'}</button>}
+            <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
+          </div>
         </header>
         <div className="task-board-agent">
           <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={agentCat} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queueStatus}</span></span>

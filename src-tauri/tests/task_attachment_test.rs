@@ -13,7 +13,7 @@ impl Fixture {
         fs::create_dir(&root).unwrap();
         let state=PlatformState::load(root.clone()).unwrap();
         for id in ["example.writer","example.peer"] {
-            let manifest:CapabilityManifest=serde_json::from_value(json!({"id":id,"name":id,"description":"","version":"1.0.0","entrypoints":["page"],"permissions":["board.create","board.attach-delivery","documents.publish","documents.read-selected"],"minPlatformVersion":"0.7.0"})).unwrap();
+            let manifest:CapabilityManifest=serde_json::from_value(json!({"id":id,"name":id,"description":"","version":"1.0.0","entrypoints":["page"],"permissions":["board.create","board.attach-delivery","documents.publish","documents.read-selected"],"minPlatformVersion":"0.8.0"})).unwrap();
             state.install_capability(manifest).unwrap();
         }
         state.write_task_board(&json!({"cards":[{"id":"user-task","title":"Review notes","description":"User-owned task","status":"todo","delivery":{"text":"Existing agent result","artifacts":[]}},{"id":"other-task","title":"Other task","description":"Unchanged","status":"todo"}]})).unwrap();

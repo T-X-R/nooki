@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 pub struct HostError { code: &'static str, message: &'static str }
 
 impl HostError {
-    fn from_native(error: &str, dispatched: bool) -> Self {
+    pub(crate) fn from_native(error: &str, dispatched: bool) -> Self {
         let (code, message) = match error.split_once(':').map(|(code, _)| code) {
             Some("INVALID_INPUT") => ("INVALID_INPUT", "Invalid board request"),
             Some("PERMISSION_DENIED") => ("PERMISSION_DENIED", "Board authority is missing or no longer valid"),

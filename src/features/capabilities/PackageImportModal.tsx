@@ -42,6 +42,7 @@ export function PackageImportModal({ language, onClose, onInstalled }: { languag
     'documents.publish': zh ? '发布文档' : 'Publish documents',
     'documents.read-selected': zh ? '读取你授权的文档' : 'Read documents you authorize',
     'board.create': zh ? '创建任务板草稿（不会自动执行）' : 'Create task-board drafts (without starting work)',
+    'board.attach-delivery': zh ? '请求为你选择的任务附加成果（不会执行或验收）' : 'Request attachment access to tasks you select (without executing or accepting)',
   }
   const fileSize = fileInfo && (fileInfo.size < 1024 * 1024
     ? `${(fileInfo.size / 1024).toLocaleString(language, { maximumFractionDigits: 1 })} KB`

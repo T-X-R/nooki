@@ -46,7 +46,7 @@ export function createBoardClient(config: {
     if (closed) throw error('CANCELLED', 'This Host invocation has ended')
     try { config.assertActive() } catch { throw error('PERMISSION_DENIED', 'Capability is no longer active at this version') }
   }
-  const board: CapabilityHost['board'] = Object.freeze({
+  const board: Pick<CapabilityHost['board'], 'create'> = Object.freeze({
     async create(input: BoardCreateInput, options: IdempotencyOptions): Promise<BoardItemReference> {
       active()
       if (!config.desktop) throw error('UNSUPPORTED_SERVICE', 'board.create requires desktop Nooki')

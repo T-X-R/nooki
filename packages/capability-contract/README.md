@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.7.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.8.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -18,6 +18,7 @@ added with their implementations. `ai.invoke` is the existing model gateway, not
 | Jobs, document grants/publication/open, activity writes, AI and Codex sources | Existing scoped Host operations | Explicit unavailable error; no empty-success responses |
 | `library.requestSelection` | Host-owned document picker; explicit selection or dismissal | `UNSUPPORTED_SERVICE`; no simulated grants |
 | `board.create` | Permission-checked durable draft creation with an idempotency key | `UNSUPPORTED_SERVICE`; no simulated success |
+| `board.requestSelection` | Host-owned approval of exact task revisions for attachment | `UNSUPPORTED_SERVICE`; no simulated approval |
 | Board selection/update/delegation, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
 
 Legacy packages require a Page; jobs and job-backed commands are optional. `widget` has never had a
@@ -127,7 +128,43 @@ installation generation and permission, but legacy packages share the main JavaS
 can bypass its module boundaries if malicious. This API is not hostile-package isolation; isolated
 runtime enforcement remains separate work. Do not import Tauri or host controller modules.
 
-### Create a draft from selected documents
+### Select existing tasks (Nooki 0.8.0)
+
+Declare `board.attach-delivery` and `minPlatformVersion: "0.8.0"` or newer. The Host presents a
+picker naming the package, purpose and attach-only operation; only the user chooses tasks.
+
+```ts
+const selection = await host.board.requestSelection({
+  purpose: 'Attach the reviewed meeting notes',
+  operations: ['attachDelivery'],
+  limit: 1,
+})
+if (selection.status === 'selected') {
+  const { id: grantId, items } = selection.grant
+  // Preserve these exact references. They contain id, revision and title, not task bodies.
+}
+```
+
+`purpose` is required (1–1,000 Unicode characters after rejecting blank text); `limit` defaults to
+one and may be 1–50. Only `['attachDelivery']` is supported. Other operations fail explicitly.
+Dismissal returns `{status: 'dismissed'}` and no grant. The metadata result identifies this package
+and version, purpose, operation, approval time and exact selected item revisions. It provides no
+full-board read, task content, delegation or acceptance authority. Do not infer edit counts from a
+revision. A changed task requires a fresh selection, even when its title later becomes identical.
+
+Confirmation retries retain the same approved task versions. A lost issuance reply is cleaned up by
+host-owned request correlation; package disposal/lifecycle changes close the picker and prevent late
+results. The user can inspect and revoke task grants from **Task board → Task access**. Stale,
+inactive and revoked grants remain visible; revoking does not delete tasks or retained deliveries.
+Restore invalidates earlier task approval even when an archive contains its ledger. Browser preview
+always rejects this native service with `UNSUPPORTED_SERVICE`.
+
+**Increment boundary:** 0.8.0 exposes selection and access management. `board.attachDelivery` is not
+yet exported; its native transaction is implemented, and the public submission/display path is C04c2.
+Do not treat receiving a grant as an attachment, execution or acceptance. Complete independent ZIP
+acceptance is recorded by C04c3.
+
+## Create a draft from selected documents
 
 For nonempty sources, require `minPlatformVersion: "0.6.0"` and declare both `board.create` and
 `documents.read-selected`. Pass the references returned by the Host picker unchanged; the Host
