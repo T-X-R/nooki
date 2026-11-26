@@ -67,6 +67,8 @@ pub enum CapabilityPermission {
   BoardCreate,
   #[serde(rename = "board.attach-delivery")]
   BoardAttachDelivery,
+  #[serde(rename = "conversations.handoff")]
+  ConversationsHandoff,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -109,6 +111,7 @@ pub struct PlatformState {
   settings: RwLock<PlatformSettings>,
   registry: RwLock<CapabilityRegistry>,
   pub(crate) document_selections: std::sync::Mutex<BTreeMap<String, crate::document_selection::Selection>>,
+  pub(crate) handoff_selections: std::sync::Mutex<BTreeMap<String, crate::conversation_handoff_selection::Selection>>,
   pub(crate) task_selections: std::sync::Mutex<BTreeMap<String, crate::task_selection::Selection>>,
 }
 
@@ -127,6 +130,7 @@ impl PlatformState {
       registry: RwLock::new(registry),
       document_selections: std::sync::Mutex::new(BTreeMap::new()),
       task_selections: std::sync::Mutex::new(BTreeMap::new()),
+      handoff_selections: std::sync::Mutex::new(BTreeMap::new()),
     })
   }
 
@@ -526,6 +530,7 @@ impl CapabilityPermission {
       Self::DocumentsReadSelected => "documents.read-selected",
       Self::BoardCreate => "board.create",
       Self::BoardAttachDelivery => "board.attach-delivery",
+      Self::ConversationsHandoff => "conversations.handoff",
     }
   }
 }
@@ -573,6 +578,9 @@ pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   let minimum = semver::Version::parse(&manifest.min_platform_version).map_err(|_| "最低平台版本无效")?;
   if manifest.permissions.contains(&CapabilityPermission::BoardAttachDelivery) && minimum < semver::Version::new(0, 8, 0) {
     return Err("board.attach-delivery requires minPlatformVersion 0.8.0 or newer".into());
+  }
+  if manifest.permissions.contains(&CapabilityPermission::ConversationsHandoff) && minimum < semver::Version::new(0, 10, 0) {
+    return Err("conversations.handoff requires minPlatformVersion 0.10.0 or newer".into());
   }
   let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).map_err(|_| "平台版本无效")?;
   if minimum > current { return Err(format!("此能力需要 Nooki {minimum} 或更新版本")); }

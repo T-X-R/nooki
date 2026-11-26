@@ -52,6 +52,8 @@ host.library.requestSelection({ purpose: 'Review notes', kinds: ['document'] }).
 host.board.create({ title: 'Test' })
 // @ts-expect-error Packages cannot select the owner of the mutation.
 host.board.create({ title: 'Test', capabilityId: 'foreign' }, { idempotencyKey: 'one' })
+// @ts-expect-error Native handoff review has no public Host method yet.
+host.conversations.handoff({})
 // @ts-expect-error Agent runs are not the legacy AI invocation API.
 host.agents.start({})
 `)
@@ -76,6 +78,8 @@ test('kit check rejects unsupported entrypoints, permissions and global CSS', as
   validateManifest({ ...manifest, minPlatformVersion: '0.4.0', permissions: ['board.create'] })
   assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.7.0', permissions: ['board.attach-delivery'] }))
   validateManifest({ ...manifest, minPlatformVersion: '0.8.0', permissions: ['board.attach-delivery'] })
+  assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.9.0', permissions: ['conversations.handoff'] }))
+  validateManifest({ ...manifest, minPlatformVersion: '0.10.0', permissions: ['conversations.handoff'] })
   assert.throws(() => validateStyle('body { color: red }', 'style.css'))
   assert.throws(() => validateStyle('.notes, :root { color: red }', 'style.css'))
   validateStyle('.wb-cap-page.notes textarea { color: var(--ink) }', 'style.css')

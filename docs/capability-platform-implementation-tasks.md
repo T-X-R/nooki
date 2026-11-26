@@ -889,6 +889,10 @@ interactive acceptance remain C05b/C05c and cannot be inferred from this storage
 
 #### [ ] C05b — Authorize handoff and open it safely in native chat
 
+**State:** in progress; split into C05b1/C05b2 before implementation because native approval,
+public contract and conversation UI span separate owners. The package proposes content; the host
+chooses the target during approval. No general conversation grant/listing API is introduced.
+
 **Depends on:** C05a. **Size:** M; split further before implementation if needed.
 **Deliver:** Host-owned review/target selection, installation and selected-source checks, lifecycle
 fencing and public typed handoff with canonical kit/Skill updates. Keep offered drafts separate from
@@ -898,6 +902,37 @@ navigation and Agent adapters; do not create a second message history or executi
 revocation and changed replay target fail without effect. Unknown commit retries preserve exact
 approved input. Existing unsent text is preserved, including navigation and delayed completion.
 **Verification:** V-A/V-K, focused native authority/restore tests, component checks and V-APP.
+
+##### [x] C05b1 — Bind native handoff approval to content, target and installation
+
+**State:** complete on 2026-11-26; [C05b1 evidence](capability-platform-evidence/C05b1.md). Ten
+controller tests, full regression (259 top-level native tests plus one nested child; 197 JavaScript
+tests), independent exported-kit check/pack and desktop build/install pass. Platform/contract 0.10.0,
+kit 0.9.0. Correlation identity is checked before receipt lookup. Real conversation-target validation,
+Tauri/public method and UI remain C05b2; no handoff is exposed prematurely. The evidence records an
+existing Vite development-dependency audit advisory separately from functional verification.
+
+**Depends on:** C05a. **Size:** M.
+**Deliver:** Bounded native proposal sessions, host-only approval/cancellation, frozen target retries,
+current-installation/source checks, restore invalidation and original receipt replay. Declare the
+handoff permission consistently; no public handoff method or UI is claimed in this increment.
+**Acceptance:** Foreign caller/source, missing permission, changed approval, stale installation or
+restore cannot create a draft. Exact committed requests survive restart without recapturing sources;
+changing input or target conflicts. Approval commits no turn or ordinary composer edit.
+**Verification:** Native controller/permission/replay/lifecycle tests, full affected regression,
+contract/kit checks and V-APP. Real target discovery and interactive approval remain C05b2/C05c.
+
+##### [ ] C05b2 — Expose reviewed handoff and preserve native composer work
+
+**Depends on:** C05b1. **Size:** M; split further if required before implementation.
+**Deliver:** Public typed handoff, native command bindings and target discovery over the current
+conversation owner; review dialog and safe navigation to a retained offer. Keep unsent user text
+separate, requiring explicit adoption/send. Align canonical contract, preview, kit and Skill.
+**Acceptance:** Native target validation precedes commit; unavailable targets fail visibly. Dismissal,
+unknown-outcome retries, disposal and disabled openers preserve exact input and user drafts. No turn
+is sent by handoff. Verify focus, keyboard, loading/error and language/theme/layout behavior.
+**Verification:** V-A/V-K, native command checks, component UI checks and V-APP; C05c closes installed
+independent archive acceptance.
 
 #### [ ] C05c — Verify independent handoff archives and installed behavior
 

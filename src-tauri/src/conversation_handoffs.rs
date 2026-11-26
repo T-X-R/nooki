@@ -14,7 +14,7 @@ const MAX_DRAFTS: usize = 256;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Target { New, Conversation { id: String } }
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApprovedDraft { pub title: String, pub text: String, pub target: Target, pub sources: Vec<DocumentReference> }
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -27,6 +27,11 @@ pub struct Draft {
     pub documents: Vec<SelectedDocument>, pub capability_id: String,
     pub capability_version: String, pub created_at: String,
 }
+impl Draft {
+    fn input(&self)->ApprovedDraft {
+        ApprovedDraft {title:self.title.clone(),text:self.text.clone(),target:self.target.clone(),sources:self.documents.iter().map(|d|d.reference.clone()).collect()}
+    }
+}
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct StoredReceipt { capability_id: String, input_hash: String, result: Receipt }
@@ -35,9 +40,9 @@ struct StoredReceipt { capability_id: String, input_hash: String, result: Receip
 struct Ledger { drafts: BTreeMap<String, Draft>, receipts: BTreeMap<String, StoredReceipt> }
 fn hash(value: &impl Serialize) -> Result<String, String> { Ok(format!("{:x}", Sha256::digest(serde_json::to_vec(value).map_err(|e| e.to_string())?))) }
 fn hex(value: &str) -> bool { value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()) }
-fn target_valid(target: &Target) -> bool { match target { Target::New => true, Target::Conversation { id } => !id.is_empty() && id.len() <= 256 && !id.chars().any(char::is_control) } }
+pub(crate) fn target_valid(target: &Target) -> bool { match target { Target::New => true, Target::Conversation { id } => !id.is_empty() && id.len() <= 256 && !id.chars().any(char::is_control) } }
 fn identity_valid(id: &str) -> bool { !id.is_empty() && id.len() <= 256 && !id.chars().any(char::is_control) }
-fn input_valid(input: &ApprovedDraft) -> bool {
+pub(crate) fn input_valid(input: &ApprovedDraft) -> bool {
     let mut ids = BTreeSet::new();
     !input.title.trim().is_empty() && input.title.chars().count() <= 120
         && !input.text.trim().is_empty() && input.text.chars().count() <= 20_000 && !input.text.contains('\0')
@@ -51,7 +56,7 @@ fn validate(ledger: &Ledger) -> Result<(), String> {
     if ledger.drafts.len() > MAX_DRAFTS || ledger.receipts.len() != ledger.drafts.len() { return Err("RESOURCE_LIMIT: invalid handoff draft capacity".into()); }
     let mut bytes = 0usize;
     for (id, draft) in &ledger.drafts {
-        let input = ApprovedDraft { title:draft.title.clone(),text:draft.text.clone(),target:draft.target.clone(),sources:draft.documents.iter().map(|d|d.reference.clone()).collect() };
+        let input = draft.input();
         if !hex(id) || id != &draft.id || !input_valid(&input) || !identity_valid(&draft.capability_id)
             || semver::Version::parse(&draft.capability_version).is_err() || chrono::DateTime::parse_from_rfc3339(&draft.created_at).is_err()
             || draft.documents.iter().any(|d| d.content.is_none() || d.document_date.len() > 100) { return Err("Invalid retained handoff draft".into()); }
@@ -65,7 +70,7 @@ fn validate(ledger: &Ledger) -> Result<(), String> {
             || receipt.result.target != draft.target || !referenced.insert(&receipt.result.draft_id) {
             return Err("Invalid handoff receipt".into());
         }
-        let input = ApprovedDraft { title:draft.title.clone(),text:draft.text.clone(),target:draft.target.clone(),sources:draft.documents.iter().map(|d|d.reference.clone()).collect() };
+        let input = draft.input();
         if hash(&input)? != receipt.input_hash { return Err("Invalid handoff request fingerprint".into()); }
     }
     Ok(())
@@ -139,4 +144,14 @@ pub fn list(root: &Path) -> Result<Vec<Draft>, String> {
 }
 pub fn read(root: &Path, id: &str) -> Result<Draft, String> {
     list(root)?.into_iter().find(|draft| draft.id == id).ok_or("NOT_FOUND: handoff draft unavailable".into())
+}
+
+// Caller holds task-data and authority fences. Return only the original approved request/receipt;
+// callers compare proposal content before exposing metadata. No source recapture or navigation.
+pub(crate) fn lookup(root:&Path,capability_id:&str,key:&str)->Result<Option<(ApprovedDraft,Receipt)>,String> {
+    let ledger=load(root)?;
+    let Some(receipt)=ledger.receipts.get(&hash(&(capability_id,"conversations.handoff",key))?) else {return Ok(None)};
+    let draft=&ledger.drafts[&receipt.result.draft_id];
+    confirm(root)?;
+    Ok(Some((draft.input(),receipt.result.clone())))
 }

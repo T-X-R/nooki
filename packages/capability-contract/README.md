@@ -4,11 +4,11 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.9.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.10.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
-conversation attachment inputs. Board selection, chat handoff and observable agent-run APIs will be
+conversation attachment inputs. Chat handoff and observable agent-run APIs will be
 added with their implementations. `ai.invoke` is the existing model gateway, not an agent-run handle.
 
 | Surface | Desktop Nooki | Portable `preview/host.ts` |
@@ -20,7 +20,12 @@ added with their implementations. `ai.invoke` is the existing model gateway, not
 | `board.create` | Permission-checked durable draft creation with an idempotency key | `UNSUPPORTED_SERVICE`; no simulated success |
 | `board.attachDelivery` | Retain authorized documents on an exact selected task revision, with idempotent replay | `UNSUPPORTED_SERVICE`; no simulated write |
 | `board.requestSelection` | Host-owned approval of exact task revisions for attachment | `UNSUPPORTED_SERVICE`; no simulated approval |
-| Board selection/update/delegation, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
+| Board update/delegation, chat, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
+
+Nooki 0.10.0 recognizes `conversations.handoff` for its native review foundation, with a matching
+minimum-platform requirement. This permission does not yet expose a public handoff method. Chat
+integration remains unavailable in the exported Host; do not call private native commands or
+substitute a successful preview response.
 
 Legacy packages require a Page; jobs and job-backed commands are optional. `widget` has never had a
 supported package loader and is no longer advertised by the public type. The legacy `activity.read`

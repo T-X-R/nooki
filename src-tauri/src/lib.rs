@@ -12,6 +12,7 @@ mod codex_background;
 pub mod conversation_documents;
 pub mod conversation_host;
 pub mod conversation_handoffs;
+pub mod conversation_handoff_selection;
 pub mod conversation_instructions;
 pub mod conversation_skills;
 pub mod source_snapshots;
