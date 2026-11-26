@@ -42,6 +42,18 @@ app-server configuration writes cannot replace or disable it. The prototype must
 policy survives every configuration-loading path; the source integration point is not presumed
 adequate until tested.
 
+The source review of pinned 0.170.0 found that `ConfigBuilder::build_with_validation` is not
+a universal enforcement point: `Config::rebuild_with_session_layers` calls
+`load_config_with_layer_stack` directly. The app-server uses that path for retained sessions,
+configuration refresh and thread-scoped MCP status requests. Validation must cover the common
+materialization path and every later effect-producing path, rather than rely on the optional
+builder callback. Moreover, `to_mcp_config_with_loaded_plugins` registers plugin and additional
+servers after materialization; checking only `ConfigToml.mcp_servers` cannot establish a complete
+MCP policy. These are source findings, not proof that the proposed full extension is feasible.
+Startup policy rejection must also remain fatal: native non-strict startup can recover from
+configuration errors using defaults. The disposable MCP experiment therefore fixes strict startup;
+production qualification must prove no recovery path discards an enforced policy.
+
 The policy must:
 
 - bind the approved input/output scope to native filesystem/network permissions;
@@ -74,7 +86,12 @@ size and build/update cost must be measured before production adoption. The audi
 not a size prediction for the proposed component. Nooki's current installed app is not replaced
 with a modified Codex artifact by this proposal.
 
-## Implementation gates if authorized
+## Implementation gates
+
+Disposable synthetic qualification may refine this proposal without adopting a product component.
+Formal integration and distribution remain subject to the pending scope decision. The initial
+[source review and experiment](../capability-platform-evidence/C06c-native-prototype.md) found
+additional loading paths; it did not produce a qualified experimental executable.
 
 1. **Disposable native prototype:** implement the smallest pre-start policy hook against pinned
    official source. Use only synthetic configuration and a local model fixture. Prove ordinary
@@ -114,5 +131,5 @@ codesign verification pass; installed Nooki remains 0.12.0 with unchanged execut
 Logs: `/tmp/nooki-c06c-native-extension-desktop-build.log` and
 `/tmp/nooki-c06c-native-extension-desktop-install.log`. Existing task workers were handed off by the
 installer. Application regression tests were not rerun for this documentation-only change;
-existing bundle-size/plugin-timing advisories remain. No native extension implementation or
+existing bundle-size/plugin-timing advisories remain. No production native extension integration or
 production policy qualification is claimed.

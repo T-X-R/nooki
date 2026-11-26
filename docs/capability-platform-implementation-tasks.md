@@ -1090,6 +1090,11 @@ The concrete scope proposal for a Codex-native pre-start policy extension is
 [ADR 0009 (pending)](adr/0009-codex-native-policy-extension.md). It preserves Codex priority and native
 model/authentication ownership, but an additional native component would change distribution and
 maintenance scope. No such component or relaxed policy is authorized by the existing checkpoints.
+The [materialization review and disposable experiment](capability-platform-evidence/C06c-native-prototype.md)
+identify builder-callback bypasses, later plugin MCP registration and non-strict startup recovery.
+The official CLI reproduced the missing refusal on both thread creation and direct session refresh.
+The temporary source guard has not compiled or passed native acceptance; its dependency-fetch build
+was stopped. No C06c acceptance item is closed by that experiment.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
