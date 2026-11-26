@@ -7,7 +7,8 @@ static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0)
 struct Fixture { root: PathBuf, state: PlatformState, doc: String }
 impl Fixture {
   fn new() -> Self {
-    let root = std::env::temp_dir().join(format!("nooki-selection-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+    let root = std::env::temp_dir().join(format!("nooki-selection-{}-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(), NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed)));
+    fs::create_dir(&root).unwrap();
     let state = PlatformState::load(root.clone()).unwrap();
     for id in ["example.reader", "example.other"] {
       state.install_capability(CapabilityManifest { id:id.into(), version:"0.1.0".into(), name:id.into(), description:String::new(), locales:BTreeMap::new(), entrypoints:vec![CapabilityEntrypoint::Page], permissions:vec![CapabilityPermission::DocumentsReadSelected,CapabilityPermission::DocumentsPublish], min_platform_version:"0.1.0".into() }).unwrap();

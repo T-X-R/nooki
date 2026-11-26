@@ -123,6 +123,7 @@ pub(crate) fn prepare_legacy(current: &Value, incoming: &mut Value) -> Result<()
     object.remove("capabilityReceipts"); // Only the native writer owns the retained receipt ledger.
     object.remove("delegationReceipts");
     object.remove("taskGrants");
+    object.remove("attachmentReceipts");
     object.remove("revisionSequence");
     if current.get("writeToken").is_some() && incoming["writeToken"] != current["writeToken"] {
         return Err("CONFLICT: task board changed; refresh before saving".into());
@@ -130,6 +131,9 @@ pub(crate) fn prepare_legacy(current: &Value, incoming: &mut Value) -> Result<()
     for card in incoming["cards"].as_array_mut().ok_or("Invalid task board")? {
         if let Some(object) = card.as_object_mut() { object.remove("revision"); }
         let old = current["cards"].as_array().unwrap().iter().find(|old| old["id"] == card["id"]);
+        if let Some(deliveries) = old.and_then(|old| old.get("attachedDeliveries")) {
+            card["attachedDeliveries"] = deliveries.clone();
+        } else if let Some(object) = card.as_object_mut() { object.remove("attachedDeliveries"); }
         if let Some(old) = old.filter(|old| old["provenance"]["type"] == "capability") {
             card["provenance"] = old["provenance"].clone();
         } else if let Some(object) = card.as_object_mut() {

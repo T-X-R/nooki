@@ -179,6 +179,14 @@ pub fn read_selected(state: &PlatformState, data_dir: &Path, capability_id: &str
 // Return canonical references only; a task is user-owned and creation does not delegate execution.
 pub(crate) fn board_sources(root: &Path, context: &crate::capability_authority::InvocationContext,
     references: &[DocumentReference]) -> Result<Vec<serde_json::Value>, String> {
+  Ok(task_documents(root, context, references)?.into_iter().map(|selected| {
+    let canonical = selected.reference;
+    serde_json::json!({"id":canonical.document_id,"title":canonical.title,"reference":canonical})
+  }).collect())
+}
+// Caller holds task-data and authority locks. Capture exact approved text for retained task data.
+pub(crate) fn task_documents(root: &Path, context: &crate::capability_authority::InvocationContext,
+    references: &[DocumentReference]) -> Result<Vec<SelectedDocument>, String> {
   if references.is_empty() { return Ok(Vec::new()); }
   if crate::capability_runtime::document_context(root, &context.capability_id)? != *context {
     return Err("PERMISSION_DENIED: document installation changed".into());
@@ -196,7 +204,7 @@ pub(crate) fn board_sources(root: &Path, context: &crate::capability_authority::
       || canonical.grant_id != reference.grant_id { return Err(denied.into()); }
     bytes += selected.content.as_ref().ok_or(denied)?.len();
     if bytes > 8_000_000 { return Err("RESOURCE_LIMIT: selected task inputs exceed 8 MB".into()); }
-    sources.push(serde_json::json!({"id":canonical.document_id,"title":canonical.title,"reference":canonical}));
+    sources.push(selected);
   }
   Ok(sources)
 }

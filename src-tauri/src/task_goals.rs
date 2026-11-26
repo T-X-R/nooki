@@ -273,6 +273,7 @@ impl GoalWorker {
         let op = request["op"].as_str().ok_or("Task operation missing")?;
         if op == "read" { return Ok(board); }
         if op == crate::capability_board::CREATE { return crate::capability_board::create(&self.root, &mut board, request); }
+        if op == crate::task_attachments::ATTACH { return crate::task_attachments::attach(&self.root, &mut board, request); }
         if op == "legacy" {
             save_legacy(&self.root, &mut board, request["board"].clone())?;
             return Ok(board);

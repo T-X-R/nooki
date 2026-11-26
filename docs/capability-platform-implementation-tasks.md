@@ -728,8 +728,9 @@ board regressions pass. The outside-checkout fixture uses the updated kit withou
 
 ### [ ] C04 — Select an existing task and attach a delivery with a scoped grant
 
-**State:** C04a implements the shared revision foundation; validation and delivery are recorded in
-its evidence receipt. C04b is in progress and C04c remains pending: no public task picker or delivery attachment is shipped.
+**State:** C04a implements the shared revision foundation and C04b implements scoped native attachment
+transactions; validation and delivery are recorded in their evidence receipts. C04c remains pending:
+no public task picker or delivery attachment is shipped.
 The split ensures user edits, native Goal changes and delete/recreate invalidate approved revisions.
 
 **Depends on:** C02, C03. **Size:** M.
@@ -758,7 +759,11 @@ do not consume committed state. Existing create receipts retain their original r
 **Verification:** Native legacy/Goals/create/restart/failure and backup-validation tests, full regression,
 matching contract/kit documentation and desktop build/install. Parent C04 stays pending.
 
-### [ ] C04b — Authorize and atomically attach deliveries to selected tasks
+### [x] C04b — Authorize and atomically attach deliveries to selected tasks
+
+**State:** complete on 2026-11-26 via C04b1 and C04b2. Native grants, exact revision checks,
+retained text and atomic attachment/replay receipts pass native and installed-worker acceptance.
+The public controller, picker, kit and user-visible delivery remain C04c.
 
 **Depends on:** C04a, C02. **Size:** M.
 **Deliver:** Host-owned task selection sessions and operation-scoped grants, plus a native attachment
@@ -782,7 +787,14 @@ authority fences; legacy board saves must preserve native grant records. Native 
 until the public controller and kit arrive in C04c. Verify dismissal, stale approval, lifecycle,
 restart, failed commits and restore/recovery; no task attachment API is claimed by this slice.
 
-#### [ ] C04b2 — Commit attachments and replay receipts together
+#### [x] C04b2 — Commit attachments and replay receipts together
+
+**State:** complete on 2026-11-26; [C04b2 evidence](capability-platform-evidence/C04b2.md). Sixteen
+focused native tests, 237 native top-level tests plus one nested child and 180 JavaScript tests pass;
+two existing live-agent tests remain ignored. Installed 0.7.0 workers pass concurrent/lost-reply/restart,
+queued-revocation and cross-process publication/edit/delete checks. Desktop build/install and strict
+signature verification pass. Source snapshots, revisions and receipts commit together; no public API
+is exported yet. Next: C04c; parent C04 remains open.
 
 Consume the approved grant under the same task-data/authority fence as revision checking and the
 delivery/receipt commit. Preserve native Agent deliveries and task status, retain authorized document

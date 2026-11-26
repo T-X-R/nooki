@@ -1,4 +1,4 @@
-//! Host-controller authority for the first board mutation. No renderer command exposes issuance.
+//! Host-controller authority for scoped board mutations; handles never imply task-selection grants.
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::Path, time::{Duration, Instant}};
@@ -32,7 +32,8 @@ pub struct InvocationContext {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Invocation { caller: String, context: InvocationContext }
+struct Invocation { caller: String, context: InvocationContext, #[serde(default = "create_operation")] operation: String }
+fn create_operation() -> String { "board.create".into() }
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct Authority { invocations: BTreeMap<String, Invocation> }
 
@@ -45,7 +46,8 @@ pub(crate) fn nonce() -> Result<String, String> {
 }
 
 impl Authority {
-    pub fn issue(&mut self, caller: &str, context: InvocationContext) -> Result<String, String> {
+    pub fn issue(&mut self, caller: &str, context: InvocationContext, operation: &str) -> Result<String, String> {
+        if !matches!(operation, "board.create" | "board.attachDelivery") { return Err("PERMISSION_DENIED: unsupported board operation".into()); }
         if caller.is_empty() || caller.len() > 128 || !caller.is_ascii() { return Err("INVALID_INPUT: native caller missing or invalid".into()); }
         if self.invocations.len() >= 256 || self.invocations.values().filter(|entry| entry.context.capability_id == context.capability_id).count() >= 16 {
             return Err("INVOCATION_LIMIT: release an existing invocation".into());
@@ -56,23 +58,24 @@ impl Authority {
         let handle = nonce()?;
         let key = digest(&handle)?;
         if self.invocations.contains_key(&key) { return Err("RESOURCE_UNAVAILABLE: invocation identity collision".into()); }
-        self.invocations.insert(key, Invocation { caller:caller.into(), context });
+        self.invocations.insert(key, Invocation { caller:caller.into(), context, operation:operation.into() });
         Ok(handle)
     }
     pub fn context(&self, caller: &str, handle: &str, operation: &str, resource: &str) -> Result<&InvocationContext, String> {
         let entry = self.invocations.get(&digest(handle)?).ok_or("PERMISSION_DENIED: unknown or revoked invocation")?;
-        if entry.caller != caller || operation != "board.create" || resource != "board" {
+        if entry.caller != caller || operation != entry.operation || resource != "board" {
             return Err("PERMISSION_DENIED: invocation scope mismatch".into());
         }
         Ok(&entry.context)
     }
     pub fn revoke(&mut self, caller: &str, handle: &str) -> Result<(), String> {
-        self.context(caller, handle, "board.create", "board")?;
+        let entry = self.invocations.get(&digest(handle)?).ok_or("PERMISSION_DENIED: unknown or revoked invocation")?;
+        if entry.caller != caller { return Err("PERMISSION_DENIED: invocation caller mismatch".into()); }
         self.invocations.remove(&digest(handle)?);
         Ok(())
     }
-    pub fn retain_current(&mut self, current: impl Fn(&InvocationContext) -> bool) {
-        self.invocations.retain(|_, entry| current(&entry.context));
+    pub fn retain_current(&mut self, current: impl Fn(&InvocationContext, &str) -> bool) {
+        self.invocations.retain(|_, entry| current(&entry.context, &entry.operation));
     }
 
     // All callers must hold fence(root), including startup reset and registry commit.

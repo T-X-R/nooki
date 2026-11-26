@@ -14,6 +14,9 @@ fn baseline(board: &Value) -> Result<u64, String> {
     for receipt in board["capabilityReceipts"].as_object().into_iter().flat_map(|map| map.values()) {
         maximum = maximum.max(revision(&receipt["result"]["revision"])?);
     }
+    for receipt in board["attachmentReceipts"].as_object().into_iter().flat_map(|map| map.values()) {
+        maximum = maximum.max(revision(&receipt["result"]["item"]["revision"])?);
+    }
     if let Some(value) = board.get("revisionSequence") {
         let sequence = value.as_u64().filter(|n| *n <= MAX_REVISION && *n >= maximum).ok_or("Invalid task revision sequence")?;
         maximum = sequence;

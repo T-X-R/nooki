@@ -135,11 +135,19 @@ impl PlatformState {
   /// Trusted native controller only: calling this method is the board-create grant decision.
   /// Manifest permission is necessary, not user approval. Do not expose this method to packages.
   pub fn grant_board_creation(&self, caller: &str, id: &str, expected_version: &str) -> Result<String, String> {
+    self.grant_board_operation(caller, id, expected_version, "board.create")
+  }
+  /// Native controller only. A separate explicit task grant is still required for each effect.
+  pub fn grant_board_attachment(&self, caller: &str, id: &str, expected_version: &str) -> Result<String, String> {
+    self.grant_board_operation(caller, id, expected_version, "board.attachDelivery")
+  }
+  fn grant_board_operation(&self, caller: &str, id: &str, expected_version: &str, operation: &str) -> Result<String, String> {
+    let permission = board_permission(operation).ok_or("PERMISSION_DENIED: unsupported board operation")?;
     let mut registry = self.registry.write().map_err(|_| "RESOURCE_UNAVAILABLE: registry unavailable")?;
     let installed = registry.capabilities.iter().find(|item| item.manifest.id == id && item.enabled && item.manifest.version == expected_version)
       .ok_or("PERMISSION_DENIED: installation is not active at the expected version")?;
-    if !installed.manifest.permissions.contains(&CapabilityPermission::BoardCreate) {
-      return Err("PERMISSION_DENIED: capability requires board.create".into());
+    if !installed.manifest.permissions.contains(&permission) {
+      return Err(format!("PERMISSION_DENIED: capability requires {}", permission.as_str()));
     }
     let version = installed.manifest.version.clone();
     if !registry.generations.contains_key(id) {
@@ -151,8 +159,8 @@ impl PlatformState {
     let current = load_registry(&self.data_dir)?;
     if current != *registry { return Err("CONFLICT: installation changed; reload the host state".into()); }
     let mut authority = crate::capability_authority::Authority::load(&self.data_dir)?;
-    authority.retain_current(|context| current.accepts(context));
-    let handle = authority.issue(caller, context)?;
+    authority.retain_current(|context, operation| current.accepts(context, operation));
+    let handle = authority.issue(caller, context, operation)?;
     authority.save(&self.data_dir)?;
     Ok(handle)
   }
@@ -428,6 +436,7 @@ impl PlatformState {
     let _data = crate::task_worker::data_lock(&self.data_dir)?.ok_or("RESOURCE_BUSY: user data is changing; retry later")?;
     crate::user_data::ensure_restore_complete(&self.data_dir)?;
     let _fence = crate::capability_authority::fence(&self.data_dir)?;
+    let _library_fence = crate::library_management::fence(&self.data_dir)?;
     let _library = crate::library_management::DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
     effect(&self.document_context(id)?)
   }
@@ -598,12 +607,15 @@ fn load_registry(root: &Path) -> Result<CapabilityRegistry, String> {
 }
 
 impl CapabilityRegistry {
-  fn accepts(&self, context: &crate::capability_authority::InvocationContext) -> bool {
+  fn accepts(&self, context: &crate::capability_authority::InvocationContext, operation: &str) -> bool {
     self.generations.get(&context.capability_id) == Some(&context.generation)
       && self.capabilities.iter().any(|item| item.manifest.id == context.capability_id
         && item.manifest.version == context.capability_version && item.enabled
-        && item.manifest.permissions.contains(&CapabilityPermission::BoardCreate))
+        && board_permission(operation).is_some_and(|permission| item.manifest.permissions.contains(&permission)))
   }
+}
+fn board_permission(operation: &str) -> Option<CapabilityPermission> {
+  match operation { "board.create" => Some(CapabilityPermission::BoardCreate), "board.attachDelivery" => Some(CapabilityPermission::BoardAttachDelivery), _ => None }
 }
 
 // Caller holds the authority fence; this also serves worker-side document effects without re-locking.
@@ -627,6 +639,6 @@ pub fn with_worker_board_authority<T>(root: &Path, caller: &str, handle: &str, o
   let _fence = crate::capability_authority::fence(root)?;
   let authority = crate::capability_authority::Authority::load(root)?;
   let context = authority.context(caller, handle, operation, resource)?;
-  if !load_registry(root)?.accepts(context) { return Err("PERMISSION_DENIED: stale installation generation".into()); }
+  if !load_registry(root)?.accepts(context, operation) { return Err("PERMISSION_DENIED: stale installation generation".into()); }
   effect(context)
 }

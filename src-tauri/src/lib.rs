@@ -17,6 +17,7 @@ pub mod source_snapshots;
 pub mod document_grants;
 pub mod document_selection;
 pub mod task_selection;
+pub(crate) mod task_attachments;
 pub mod capability_runtime;
 pub mod capability_authority;
 pub mod codex_session_source;

@@ -10,16 +10,16 @@ pub struct HostError { code: &'static str, message: &'static str }
 impl HostError {
     fn from_native(error: &str, dispatched: bool) -> Self {
         let (code, message) = match error.split_once(':').map(|(code, _)| code) {
-            Some("INVALID_INPUT") => ("INVALID_INPUT", "Invalid board create request"),
-            Some("PERMISSION_DENIED") => ("PERMISSION_DENIED", "Board create authority is missing or no longer valid"),
+            Some("INVALID_INPUT") => ("INVALID_INPUT", "Invalid board request"),
+            Some("PERMISSION_DENIED") => ("PERMISSION_DENIED", "Board authority is missing or no longer valid"),
             Some("CONFLICT") => ("CONFLICT", "State changed or the idempotency key was used with different input"),
-            Some("RESOURCE_LIMIT" | "INVOCATION_LIMIT") => ("RESOURCE_LIMIT", "Board create capacity is exhausted"),
+            Some("RESOURCE_LIMIT" | "INVOCATION_LIMIT") => ("RESOURCE_LIMIT", "Board operation capacity is exhausted"),
             Some("RESOURCE_BUSY") => ("RESOURCE_BUSY", "The native owner is busy; retry with the same key and input"),
             Some("UNSUPPORTED_SERVICE") => ("UNSUPPORTED_SERVICE", "This board operation is not supported"),
-            Some("RESOURCE_UNAVAILABLE") => ("RESOURCE_UNAVAILABLE", "Board create is unavailable"),
+            Some("RESOURCE_UNAVAILABLE") => ("RESOURCE_UNAVAILABLE", "Board operation is unavailable"),
             Some("OUTCOME_UNKNOWN") => ("OUTCOME_UNKNOWN", "The outcome is unknown; retry with the same key and input"),
             _ if dispatched => ("OUTCOME_UNKNOWN", "The outcome is unknown; retry with the same key and input"),
-            _ => ("RESOURCE_UNAVAILABLE", "Board create is unavailable"),
+            _ => ("RESOURCE_UNAVAILABLE", "Board operation is unavailable"),
         };
         Self { code, message }
     }
@@ -55,6 +55,30 @@ pub fn board_begin(state: &PlatformState, caller: &str, value: Value) -> Result<
 pub fn board_release(state: &PlatformState, caller: &str, value: Value) -> Result<(), HostError> {
     let request: BoardReleaseRequest = controller_request(caller, value)?;
     state.revoke_board_invocation(caller, &request.handle).map_err(|e| HostError::from_native(&e, false))
+}
+
+pub fn board_attachment_begin(state: &PlatformState, caller: &str, value: Value) -> Result<String, HostError> {
+    let request: BoardBeginRequest = controller_request(caller, value)?;
+    state.grant_board_attachment(caller, &request.capability_id, &request.version)
+        .map_err(|e| HostError::from_native(&e, false))
+}
+
+pub async fn board_attach(state: &PlatformState, native_caller: &str, value: Value) -> Result<Value, HostError> {
+    let invalid = || HostError::from_native("INVALID_INPUT:", false);
+    if !value.is_object() || serde_json::to_vec(&value).map_err(|_| invalid())?.len() > 65_536 { return Err(invalid()); }
+    let request: BoardCreateRequest = serde_json::from_value(value).map_err(|_| invalid())?;
+    let wire = json!({"op":crate::task_attachments::ATTACH,"caller":native_caller,"handle":request.handle,"key":request.key,"input":request.input});
+    crate::task_attachments::validate_request(&wire).map_err(|e| HostError::from_native(&e, false))?;
+    state.with_board_authority(native_caller, &request.handle, crate::task_attachments::OPERATION, "board", |_| Ok(()))
+        .map_err(|e| HostError::from_native(&e, false))?;
+    let result = crate::task_worker::request(state.data_dir(), wire).await.map_err(|e| HostError::from_native(&e, true))?;
+    if result.as_object().is_none_or(|object| object.len() != 2) || result["item"].as_object().is_none_or(|object| object.len() != 2)
+        || !result["item"]["id"].as_str().is_some_and(|id| !id.is_empty() && id.len() <= 256)
+        || !result["item"]["revision"].as_u64().is_some_and(|r| r > 0 && r <= crate::task_revisions::MAX_REVISION)
+        || !result["deliveryId"].as_str().is_some_and(|id| id.len() == 64 && id.bytes().all(|b|b.is_ascii_hexdigit())) {
+        return Err(HostError::from_native("OUTCOME_UNKNOWN:", true));
+    }
+    Ok(result)
 }
 
 pub async fn board_create(state: &PlatformState, native_caller: &str, value: Value) -> Result<Value, HostError> {

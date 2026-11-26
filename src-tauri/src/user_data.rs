@@ -39,6 +39,7 @@ fn collect(root: &Path, path: &Path, files: &mut BTreeMap<String, String>) -> Re
 }
 pub fn capture(root: &Path, local_storage: BTreeMap<String, String>, capabilities: serde_json::Value) -> Result<Backup, String> {
   let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; try the backup again")?;
+  let _library_fence = library_management::fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
   let mut files = BTreeMap::new();
   for name in ROOTS { collect(root, &root.join(name), &mut files)?; }
@@ -97,6 +98,7 @@ pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), Strin
   crate::task_delegation::validate(board)?;
   crate::task_revisions::validate(board)?;
   crate::task_selection::validate(board)?;
+  crate::task_attachments::validate(board)?;
   let cards = board["cards"].as_array().ok_or("Invalid task board")?;
   let mut ids = std::collections::HashSet::new();
   if let Some(paused) = board.get("paused") {
@@ -160,6 +162,7 @@ fn write_files(root: &Path, files: &BTreeMap<String, String>) -> Result<(), Stri
 pub fn recover(root: &Path) -> Result<(), String> {
   if !root.join(".data-restore").try_exists().map_err(|e| e.to_string())? { return Ok(()); }
   let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; retry data recovery")?;
+  let _library_fence = library_management::fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Data unavailable")?;
   recover_unlocked(root)
 }
@@ -198,6 +201,7 @@ pub(crate) fn ensure_restore_complete(root: &Path) -> Result<(), String> {
 }
 pub fn restore(root: &Path, backup: &Backup, transaction: &str) -> Result<(), String> {
   let _tasks = crate::task_worker::data_lock(root)?.ok_or("Task state is changing; stop tasks before restoring")?;
+  let _library_fence = library_management::fence(root)?;
   if root.join("task-board.json").exists() {
     let board: serde_json::Value = serde_json::from_slice(&fs::read(root.join("task-board.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     if board["cards"].as_array().into_iter().flatten().any(|card| card["engine"] == "goals" && (card["activeTurn"] == true || !matches!(card["status"].as_str(), Some("queued" | "paused" | "stopped" | "review" | "done")))) {
