@@ -1015,12 +1015,14 @@ no work; reconnect observes the same run and preserves structured result/artifac
 client (new), contract, adapter/run tests.
 **Verification:** V-A and deterministic transport/approval failures; V-N with one recorded real-agent run.
 
-#### [ ] C06a — Prove the bounded Codex execution policy
+#### [x] C06a — Prove the bounded Codex execution policy
 
-**State:** in progress; the actual macOS filesystem/network probe and an ephemeral app-server
-policy acknowledgement pass on CLI 0.170.0 with zero model turns. The first candidate exposed a
-broader-than-expected `:minimal` read scope, so full effective-scope auditing remains before closure.
-See [C06a checkpoint](capability-platform-evidence/C06a.md); no public Agent method is exposed.
+**State:** complete as the version-pinned policy-feasibility slice. Official CLI 0.170.0 source audit,
+actual macOS read/write/symlink/deny-glob and direct-network controls, missing-profile/unsupported-version
+checks and ephemeral app-server acknowledgement pass with zero model turns. The broad native
+`:minimal` defaults and metadata visibility are explicitly accounted for. See
+[C06a evidence](capability-platform-evidence/C06a.md). C06b is next; production adapter/tool policy
+and public API acceptance remain C06c–C06e.
 
 **Depends on:** C01/C02. **Size:** S.
 **Deliver:** Reproducible, credential-free native policy probe using the installed Codex CLI and
