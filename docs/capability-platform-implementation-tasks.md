@@ -1081,6 +1081,14 @@ dependencies. V-APP build/install and strict signature verification pass.
 
 #### [ ] C06c — Dispatch and reconcile through the existing Codex adapter
 
+**State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
+connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
+servers, and `orchestrator.mcp.enabled=false` do not establish a process-startup deny-all. See
+[C06c configuration evidence](capability-platform-evidence/C06c-config.md). Before dispatch, prove
+configuration isolation that preserves native authentication and managed restrictions, then verify
+Skills/hooks/tool startup as well as the C06a filesystem/network policy. Do not certify the complete
+adapter policy from C06a or from a post-start configuration comparison.
+
 **Depends on:** C06b. **Size:** M; separate dispatch from interaction handling if required.
 **Deliver:** Dedicated package-run sessions through the existing Codex transport with verified input/
 output workspace policy; no inherited capability bridge, unrelated Skills, connectors or tools.
