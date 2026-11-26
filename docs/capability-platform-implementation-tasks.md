@@ -1086,6 +1086,10 @@ The official 0.172.0 release reproduces the same six configuration limitations. 
 Codex-first path has no verified complete policy interface. The owner explicitly retained Codex
 priority on 2026-11-26; do not switch to another adapter. Continue qualifying the Codex-native
 startup boundary against the unchanged C06 acceptance bar. Production dispatch remains unavailable.
+The concrete scope proposal for a Codex-native pre-start policy extension is
+[ADR 0009 (pending)](adr/0009-codex-native-policy-extension.md). It preserves Codex priority and native
+model/authentication ownership, but an additional native component would change distribution and
+maintenance scope. No such component or relaxed policy is authorized by the existing checkpoints.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
