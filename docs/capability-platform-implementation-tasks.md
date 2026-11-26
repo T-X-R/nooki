@@ -987,6 +987,11 @@ without the producing package. Verify real-component keyboard/focus/error/layout
 
 #### [ ] C05c — Verify independent handoff archives and installed behavior
 
+**State:** in progress; independent Reader/Peer 1.0.0 ZIPs are built from exported kit 0.10.0,
+with separate dependencies and passing check/pack. [Artifact checkpoint](capability-platform-evidence/C05c.md).
+The new handoff permission requires installation approval for these concrete artifacts; actual
+installed acceptance remains pending and C05 stays open.
+
 **Depends on:** C05b. **Size:** S.
 **Deliver:** Independent reader/peer ZIP acceptance using synthetic data and the exported kit.
 **Acceptance:** Actual install, review/dismissal, fresh/existing conversation targets, repeated handoff,
