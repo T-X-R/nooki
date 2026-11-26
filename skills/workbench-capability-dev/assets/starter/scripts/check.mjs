@@ -16,7 +16,7 @@ export function validateManifest(manifest) {
   const permissions = ['storage', 'activity.read', 'activity.write', 'ai.invoke', 'codex.sessions.read', 'documents.publish', 'documents.read-selected', 'board.create', 'board.attach-delivery', 'conversations.handoff']
   fail(Array.isArray(manifest.permissions) && manifest.permissions.every((p) => permissions.includes(p)), 'Unknown capability permission')
   const [major, minor] = manifest.minPlatformVersion.split('.').map(Number)
-  fail(!manifest.permissions.includes('conversations.handoff') || major > 0 || minor >= 10, 'conversations.handoff requires minPlatformVersion 0.10.0 or newer')
+  fail(!manifest.permissions.includes('conversations.handoff') || major > 0 || minor >= 11, 'conversations.handoff requires minPlatformVersion 0.11.0 or newer')
   fail(!manifest.permissions.includes('board.attach-delivery') || major > 0 || minor >= 8, 'board.attach-delivery requires minPlatformVersion 0.8.0 or newer')
   fail(!manifest.permissions.includes('board.create') || major > 0 || minor >= 4, 'board.create requires minPlatformVersion 0.4.0 or newer')
   for (const language of ['zh', 'en']) fail(manifest.locales?.[language]?.name?.trim(), `Set locales.${language}.name`)

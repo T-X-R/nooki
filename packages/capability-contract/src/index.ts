@@ -229,7 +229,16 @@ export type BoardCreateInput = {
   sources?: DocumentReference[]
 }
 
+export type ConversationHandoffInput = { title: string; text: string; sources?: DocumentReference[] }
+export type ConversationHandoffTarget = { kind: 'new' } | { kind: 'conversation'; id: string }
+export type ConversationHandoffReceipt = { draftId: string; target: ConversationHandoffTarget }
+export type ConversationHandoffResult = { status: 'dismissed' } | { status: 'handedOff'; receipt: ConversationHandoffReceipt }
+
 export type CapabilityHost = {
+  conversations: {
+    /** Nooki 0.11.0+: user-reviewed draft offer. Never sends a turn. Retry unchanged on uncertainty. */
+    handoff(input: ConversationHandoffInput, options: IdempotencyOptions): Promise<ConversationHandoffResult>
+  }
   library: {
     requestSelection(request: LibrarySelectionRequest): Promise<LibrarySelectionResult>
   }

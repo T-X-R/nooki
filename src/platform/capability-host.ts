@@ -24,6 +24,8 @@ import { captureLibraryFocus } from './library-focus.ts'
 import { libraryPicker } from './library-picker.ts'
 import { createBoardSelectionClient } from './capability-board-selection.ts'
 import { boardPicker } from './board-picker.ts'
+import { createHandoffClient } from './capability-handoff.ts'
+import { handoffReview } from './handoff-review.ts'
 
 const hostDisposers = new WeakMap<CapabilityHost, () => Promise<void>>()
 export async function releaseCapabilityHost(host: CapabilityHost): Promise<void> {
@@ -134,10 +136,14 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: libraryPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
   const selection = createBoardSelectionClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('board.attach-delivery') === true,
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: boardPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
-  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose(), selection.dispose()]) }
+  const handoff = createHandoffClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('conversations.handoff') === true,
+    desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: handoffReview.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true },
+    onCommitted: id => window.dispatchEvent(new CustomEvent('workbench:open-handoff', { detail: id })) })
+  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose(), selection.dispose(), handoff.dispose()]) }
   const cancel = () => { void dispose().catch(() => console.warn('Capability invocation release failed')) }
   execution?.signal.addEventListener('abort', cancel, { once: true })
   const host: CapabilityHost = Object.freeze({
+    conversations: handoff.conversations,
     library: library.library,
     board: Object.freeze({ ...client.board, ...selection.board }),
     environment: capabilityEnvironment,

@@ -20,6 +20,7 @@ import { CapabilitiesPage } from '../features/capabilities/CapabilitiesPage.tsx'
 import { CapabilityErrorBoundary, CapabilityPage } from '../features/capabilities/CapabilityPage.tsx'
 import { LibraryPage } from '../features/library/LibraryPage.tsx'
 import { LibrarySelectionDialog } from '../features/library/LibrarySelectionDialog.tsx'
+import { ConversationHandoffDialog } from '../features/conversation/ConversationHandoffDialog.tsx'
 import { TaskSelectionDialog } from '../features/task-board/TaskSelectionDialog.tsx'
 import { SettingsPage } from '../features/settings/SettingsPage.tsx'
 import { useAppUpdate } from '../features/settings/use-app-update.ts'
@@ -46,6 +47,7 @@ function App() {
     return () => { current = false; window.removeEventListener('workbench:library-changed', load) }
   }, [])
   const [taskTarget, setTaskTarget] = useState<string | null>(null)
+  const [handoffTarget, setHandoffTarget] = useState<string | null>(null)
   const [conversationTarget, setConversationTarget] = useState<string | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [conversationDocuments, setConversationDocuments] = useState<LibrarySelection>({ documentIds: [], folders: [] })
@@ -151,9 +153,11 @@ function App() {
   useEffect(() => {
     const open = (event: Event) => openDocument((event as CustomEvent<DocumentReference>).detail)
     const conversation = (event: Event) => { setConversationTarget((event as CustomEvent<string>).detail); navigate('conversations') }
+    const handoff = (event: Event) => { setHandoffTarget((event as CustomEvent<string>).detail); setConversationTarget(null); navigate('conversations') }
+    window.addEventListener('workbench:open-handoff', handoff)
     window.addEventListener('workbench:open-conversation', conversation)
     window.addEventListener('workbench:open-document', open)
-    return () => { window.removeEventListener('workbench:open-document', open); window.removeEventListener('workbench:open-conversation', conversation) }
+    return () => { window.removeEventListener('workbench:open-handoff', handoff); window.removeEventListener('workbench:open-document', open); window.removeEventListener('workbench:open-conversation', conversation) }
   }, [])
 
   const chooseAgent = async (id: string) => {
@@ -170,6 +174,7 @@ function App() {
       <WindowTitlebar />
       <LibrarySelectionDialog language={language} />
       <TaskSelectionDialog language={language} />
+      <ConversationHandoffDialog language={language} />
       <div className="app-workspace" inert={updates.installing}>
         <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">
@@ -185,7 +190,7 @@ function App() {
               {view !== 'library' && view !== 'today' && <Topbar onOpenCommand={() => setCommandOpen(true)} />}
               <div className={view === 'today' ? 'page-wrap task-board-wrap' : 'page-wrap'}>
               {view === 'today' && <TaskBoardPage targetId={taskTarget} onTargetConsumed={() => setTaskTarget(null)} language={language} agentAvailable={codexAvailable} onConversation={id => { setConversationTarget(id); navigate('conversations') }} toolbar={<Topbar onOpenCommand={() => setCommandOpen(true)} />} />}
-              {view === 'conversations' && <ConversationPage onTask={id => { setTaskTarget(id); navigate('today') }} onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
+              {view === 'conversations' && <ConversationPage incomingHandoffId={handoffTarget} onHandoffConsumed={() => setHandoffTarget(null)} onTask={id => { setTaskTarget(id); navigate('today') }} onSelected={setActiveConversationId} language={language} selectedAgent={capabilityAgent} targetId={conversationTarget} onTargetConsumed={() => setConversationTarget(null)} incomingSelection={conversationDocuments} onConsumed={() => setConversationDocuments({ documentIds: [], folders: [] })} onDocument={openDocument} />}
               {view === 'tasks' && <TaskPage onOpenConversation={(id) => { setConversationTarget(id); navigate('conversations') }} language={language} installed={installedCapabilities} onOpenCapability={openCapability} />}
               {view === 'skills' && <SkillPoolPage language={language} />}
               {view === 'library' && <LibraryPage onOpenCommand={() => setCommandOpen(true)} organization={organization} organizationError={organizationError} onAddToConversation={(ids) => { setConversationDocuments(ids); navigate('conversations') }} installed={installedCapabilities} target={documentTarget} onOpenCapability={openCapability} onDocument={openDocument} />}

@@ -12,6 +12,7 @@ export function createPreviewHost(manifest: CapabilityManifest) {
     throw new Error(`Preview unavailable: ${operation} requires desktop Nooki.`)
   }
   const host: CapabilityHost = {
+    conversations: { handoff: async () => { throw Object.assign(new Error('conversations.handoff requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
     library: { requestSelection: async () => { throw Object.assign(new Error('Library selection requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
     board: { attachDelivery: async () => { throw Object.assign(new Error('board.attachDelivery requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, requestSelection: async () => { throw Object.assign(new Error('Task selection requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, create: async () => { throw Object.assign(new Error('board.create requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
     environment: {

@@ -887,10 +887,10 @@ The store cannot send turns or overwrite existing composer contents.
 **Verification:** Focused native persistence/failure/replay/backup tests and V-APP. Authority and
 interactive acceptance remain C05b/C05c and cannot be inferred from this storage test.
 
-#### [ ] C05b — Authorize handoff and open it safely in native chat
+#### [x] C05b — Authorize handoff and open it safely in native chat
 
-**State:** in progress; split into C05b1/C05b2 before implementation because native approval,
-public contract and conversation UI span separate owners. The package proposes content; the host
+**State:** complete on 2026-11-26; native authority and public UI slices are verified.
+See [public handoff evidence](capability-platform-evidence/C05b2b-ui.md). The package proposes content; the host
 chooses the target during approval. No general conversation grant/listing API is introduced.
 
 **Depends on:** C05a. **Size:** M; split further before implementation if needed.
@@ -922,9 +922,9 @@ changing input or target conflicts. Approval commits no turn or ordinary compose
 **Verification:** Native controller/permission/replay/lifecycle tests, full affected regression,
 contract/kit checks and V-APP. Real target discovery and interactive approval remain C05b2/C05c.
 
-##### [ ] C05b2 — Expose reviewed handoff and preserve native composer work
+##### [x] C05b2 — Expose reviewed handoff and preserve native composer work
 
-**State:** in progress, split into native bindings and the public UI integration below. Ordinary
+**State:** complete; native bindings and public UI integration below pass their gates. Ordinary
 conversation targets are distinct from task execution threads; target checks must use the current
 conversation owner rather than trusting a renderer-supplied conversation ID.
 
@@ -955,9 +955,10 @@ cannot inspect targets or commit. Exact replay returns its existing receipt with
 **Verification:** Native adapter/binding tests with actual local conversation catalog and deterministic
 Codex protocol fixtures, full affected regression and V-APP. No public SDK/UI acceptance is inferred.
 
-###### [ ] C05b2b — Integrate public handoff, review UI and retained draft navigation
+###### [x] C05b2b — Integrate public handoff, review UI and retained draft navigation
 
-**State:** split before implementation into retained send inputs and the public review/adoption flow.
+**State:** complete on 2026-11-26; both retained inputs and public review/adoption are delivered.
+Platform/contract 0.11.0 and kit 0.10.0; [UI evidence](capability-platform-evidence/C05b2b-ui.md).
 **Depends on:** C05b2a. **Size:** M.
 **Deliver:** Public typed handoff, immutable request/lifetime controller, Host review dialog and safe
 chat offer navigation/adoption over existing composer ownership. Manual send must use the retained
@@ -976,9 +977,13 @@ without the producing package. Verify real-component keyboard/focus/error/layout
    plus one nested child (two existing live-agent tests ignored) and 201 JavaScript tests. Desktop
    build/install and signature verification pass. [Evidence](capability-platform-evidence/C05b2b-sources.md)
    records working-copy preservation, snapshot reuse and the isolated process-launch fixture fix.
-2. [ ] **Public review and adoption:** connect the typed package client, Host approval dialog and
+2. [x] **Public review and adoption:** connect the typed package client, Host approval dialog and
    retained-offer navigation to the composer without replacing unsent user work. Update kit/preview/
-   Skill and verify real components, then proceed to C05c installed acceptance.
+   Skill and verify real components. Full regression passes 275 top-level native tests plus one nested
+   child (two live-agent tests ignored) and 208 JavaScript tests. Real-component handoff and existing
+   reconnect checks, independent kit check/pack, desktop build/install and strict signing pass.
+   [Evidence](capability-platform-evidence/C05b2b-ui.md) distinguishes component fixtures from the
+   remaining C05c installed acceptance and records unrelated regression findings.
 
 #### [ ] C05c — Verify independent handoff archives and installed behavior
 

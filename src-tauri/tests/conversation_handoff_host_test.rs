@@ -9,7 +9,7 @@ impl Fixture {
     fn new()->Self {
         let guard=FIXTURE.lock().unwrap_or_else(|error|error.into_inner());
         let mut random=[0u8;16];getrandom::fill(&mut random).unwrap();let root=PathBuf::from("/private/tmp").join(format!("nooki-handoff-host-{}",random.iter().map(|b|format!("{b:02x}")).collect::<String>()));
-        let state=PlatformState::load(root.clone()).unwrap();let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.reader","name":"Reader","version":"1.0.0","description":"","entrypoints":["page"],"permissions":["conversations.handoff"],"minPlatformVersion":"0.10.0"})).unwrap();state.install_capability(manifest).unwrap();
+        let state=PlatformState::load(root.clone()).unwrap();let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.reader","name":"Reader","version":"1.0.0","description":"","entrypoints":["page"],"permissions":["conversations.handoff"],"minPlatformVersion":"0.11.0"})).unwrap();state.install_capability(manifest).unwrap();
         let bridge=ConversationHost::new(root.join("missing-agent").to_string_lossy().into(),root.clone(),Arc::new(|_|{}));Self{root,state,bridge,_guard:guard}
     }
     fn begin(&self,id:&str)->Value { review::begin(&self.state,"main",json!({"requestId":id,"capabilityId":"example.reader","version":"1.0.0","key":id,"draft":{"title":"Review","text":"Synthetic draft","sources":[]}})).unwrap() }

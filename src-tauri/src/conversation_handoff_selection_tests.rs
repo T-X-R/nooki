@@ -8,7 +8,7 @@ impl Fixture {
         let root=std::env::temp_dir().join(format!("nooki-handoff-selection-{}",crate::capability_authority::nonce().unwrap()));
         let state=PlatformState::load(root.clone()).unwrap();
         for id in ["example.reader","example.peer"] {
-            let manifest:CapabilityManifest=serde_json::from_value(json!({"id":id,"name":id,"version":"1.0.0","description":"","entrypoints":["page"],"permissions":["conversations.handoff","documents.publish","documents.read-selected"],"minPlatformVersion":"0.10.0"})).unwrap();
+            let manifest:CapabilityManifest=serde_json::from_value(json!({"id":id,"name":id,"version":"1.0.0","description":"","entrypoints":["page"],"permissions":["conversations.handoff","documents.publish","documents.read-selected"],"minPlatformVersion":"0.11.0"})).unwrap();
             state.install_capability(manifest).unwrap();
         }
         Self {root,state}

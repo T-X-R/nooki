@@ -579,8 +579,8 @@ pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   if manifest.permissions.contains(&CapabilityPermission::BoardAttachDelivery) && minimum < semver::Version::new(0, 8, 0) {
     return Err("board.attach-delivery requires minPlatformVersion 0.8.0 or newer".into());
   }
-  if manifest.permissions.contains(&CapabilityPermission::ConversationsHandoff) && minimum < semver::Version::new(0, 10, 0) {
-    return Err("conversations.handoff requires minPlatformVersion 0.10.0 or newer".into());
+  if manifest.permissions.contains(&CapabilityPermission::ConversationsHandoff) && minimum < semver::Version::new(0, 11, 0) {
+    return Err("conversations.handoff requires minPlatformVersion 0.11.0 or newer".into());
   }
   let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).map_err(|_| "平台版本无效")?;
   if minimum > current { return Err(format!("此能力需要 Nooki {minimum} 或更新版本")); }
