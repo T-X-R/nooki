@@ -856,6 +856,10 @@ from simulated preview checks. Close C04c and C04 only after all child acceptanc
 
 ### [ ] C05 — Hand selected context to a native conversation draft
 
+**State:** in progress on the existing branch and PR #38. Inspection found that composer drafts are
+renderer-local and native conversation creation can connect to an Agent. Split the work below before
+implementation: persist an offered draft first; opening it must not create/send an Agent turn.
+
 **Depends on:** C02. **Size:** M.
 **Deliver:** Idempotent handoff returning a conversation/draft receipt with authorized input references.
 **Acceptance:** Opening a draft sends no turn; existing unsent user text is not overwritten; target
@@ -863,6 +867,46 @@ and source scope cannot be chosen by an ungranted ID or replayed into another co
 **Likely files:** `src/features/conversation/conversation-client.ts`, conversation handoff module (new),
 `src-tauri/src/conversation_host.rs`, contract, handoff tests.
 **Verification:** V-A, focused V-UI and V-N; cover dismissal and repeated handoff.
+
+#### [x] C05a — Retain approved handoff drafts and replay receipts atomically
+
+**State:** complete on 2026-11-26; [C05a evidence](capability-platform-evidence/C05a.md). Eleven
+native storage tests and full regression (249 top-level native tests plus one nested child, two
+existing live-agent tests ignored; 197 JavaScript tests) pass. Desktop build/install and strict
+signature verification pass. This internal store exports no capability/Tauri handoff endpoint;
+public authority, navigation and installed archive acceptance remain C05b/C05c.
+
+**Depends on:** C02. **Size:** S.
+**Deliver:** An internal native store for user-owned offered drafts, exact request/target binding,
+retained selected text and durable receipts. Include bounds, restart and backup/restore validation.
+Keep ordinary composer drafts and Agent session owners untouched. No public capability method or
+Tauri command is exported by this storage slice; its caller must supply host-approved scope.
+**Acceptance:** Repeated exact input returns one draft; changed text, source or target conflicts.
+Failed writes do not commit partial drafts; retained data survives source/package removal and restore.
+The store cannot send turns or overwrite existing composer contents.
+**Verification:** Focused native persistence/failure/replay/backup tests and V-APP. Authority and
+interactive acceptance remain C05b/C05c and cannot be inferred from this storage test.
+
+#### [ ] C05b — Authorize handoff and open it safely in native chat
+
+**Depends on:** C05a. **Size:** M; split further before implementation if needed.
+**Deliver:** Host-owned review/target selection, installation and selected-source checks, lifecycle
+fencing and public typed handoff with canonical kit/Skill updates. Keep offered drafts separate from
+unsent composer text; only explicit user action adopts/sends a draft. Reuse existing conversation
+navigation and Agent adapters; do not create a second message history or execution system.
+**Acceptance:** Dismissal produces no draft. Unapproved/foreign target or source, stale installation,
+revocation and changed replay target fail without effect. Unknown commit retries preserve exact
+approved input. Existing unsent text is preserved, including navigation and delayed completion.
+**Verification:** V-A/V-K, focused native authority/restore tests, component checks and V-APP.
+
+#### [ ] C05c — Verify independent handoff archives and installed behavior
+
+**Depends on:** C05b. **Size:** S.
+**Deliver:** Independent reader/peer ZIP acceptance using synthetic data and the exported kit.
+**Acceptance:** Actual install, review/dismissal, fresh/existing conversation targets, repeated handoff,
+source/target refusal, preservation of unsent text, restart and package removal pass. Opening a draft
+starts no Agent turn. Check keyboard/focus/error/layout separately from simulated authority.
+**Verification:** V-N/V-UI plus final native state; close C05 only after all child acceptance passes.
 
 ### [ ] C06 — Expose one observable agent-run path
 
