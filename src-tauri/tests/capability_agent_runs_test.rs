@@ -34,10 +34,10 @@ fn approved_intent_survives_restart_and_exact_replay_without_recapture() {
 #[test]
 fn submission_claim_is_durable_and_cannot_be_reissued_after_lost_reply() {
     let f=Fixture::new();let approved=f.approve("one",&intent()).unwrap();
-    let claimed=runs::claim_submission(&f.0,&scope(),&approved.id,|| Ok(())).unwrap();
+    let claimed=runs::claim_submission(&f.0,&scope(),&approved.id,|_| Ok(())).unwrap();
     let Submission::Pending {client_message_id}=&claimed.submission else {panic!("missing dispatch identity")};
     assert_eq!(client_message_id.len(),64);
-    assert!(runs::claim_submission(&f.0,&scope(),&approved.id,|| Ok(())).unwrap_err().starts_with("OUTCOME_UNKNOWN"));
+    assert!(runs::claim_submission(&f.0,&scope(),&approved.id,|_| Ok(())).unwrap_err().starts_with("OUTCOME_UNKNOWN"));
     assert_eq!(json!(f.approve("one",&intent()).unwrap()),json!(claimed));
     assert_eq!(json!(runs::get(&f.0,&scope(),&approved.id,|| Ok(())).unwrap()),json!(claimed));
 }
@@ -54,7 +54,7 @@ fn changed_intent_conflicts_and_other_installations_cannot_read_or_claim() {
     let mut updated=scope();updated.installation.capability_version="1.0.1".into();
     for other in [foreign,replaced,updated] {
         assert!(runs::get(&f.0,&other,&first.id,|| Ok(())).is_err());
-        assert!(runs::claim_submission(&f.0,&other,&first.id,|| Ok(())).is_err());
+        assert!(runs::claim_submission(&f.0,&other,&first.id,|_| Ok(())).is_err());
     }
     assert_eq!(runs::get(&f.0,&scope(),&first.id,|| Ok(())).unwrap().submission,Submission::Approved);
 }
@@ -67,7 +67,7 @@ fn revoked_authority_is_checked_for_approval_replay_read_and_dispatch() {
     let first=f.approve("one",&intent()).unwrap();let before=fs::read(f.0.join("capability-agent-runs.json")).unwrap();
     assert!(runs::approve(&f.0,&scope(),"one",&intent(),denied,|| panic!("denied replay capture")).is_err());
     assert!(runs::get(&f.0,&scope(),&first.id,denied).is_err());
-    assert!(runs::claim_submission(&f.0,&scope(),&first.id,denied).is_err());
+    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|_|denied()).is_err());
     assert_eq!(fs::read(f.0.join("capability-agent-runs.json")).unwrap(),before);
 }
 
@@ -83,10 +83,10 @@ fn mismatched_sources_and_failed_writes_leave_no_effect_or_dispatch_claim() {
     fs::remove_dir(f.0.join("capability-agent-runs.pending")).unwrap();
     let first=f.approve("one",&intent()).unwrap();
     fs::create_dir(f.0.join("capability-agent-runs.pending")).unwrap();
-    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|| Ok(())).is_err());
+    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|_| Ok(())).is_err());
     assert_eq!(runs::get(&f.0,&scope(),&first.id,|| Ok(())).unwrap().submission,Submission::Approved);
     fs::remove_dir(f.0.join("capability-agent-runs.pending")).unwrap();
-    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|| Ok(())).is_ok());
+    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|_| Ok(())).is_ok());
 }
 
 #[test]
@@ -94,15 +94,15 @@ fn restored_records_are_retained_but_old_approval_never_becomes_runnable() {
     let f=Fixture::new();let first=f.approve("one",&intent()).unwrap();
     let backup=user_data::capture(&f.0,Default::default(),json!([])).unwrap();
     assert!(backup.files.contains_key("capability-agent-runs.json"));
-    runs::claim_submission(&f.0,&scope(),&first.id,|| Ok(())).unwrap();
+    runs::claim_submission(&f.0,&scope(),&first.id,|_| Ok(())).unwrap();
     // Roll back to a backup from before the submission claim: it must not resurrect eligibility.
     user_data::restore(&f.0,&backup,"restore-agent-ledger").unwrap();
     let retained:serde_json::Value=serde_json::from_str(&fs::read_to_string(f.0.join("capability-agent-runs.json")).unwrap()).unwrap();
     assert_eq!(retained["runs"][&first.id]["documents"],json!([source()]));
-    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|| Ok(())).unwrap_err().contains("restore scope"));
+    assert!(runs::claim_submission(&f.0,&scope(),&first.id,|_| Ok(())).unwrap_err().contains("restore scope"));
     let current=Scope {restore_id:Some("restore-agent-ledger".into()),..scope()};
     assert!(runs::get(&f.0,&current,&first.id,|| Ok(())).is_err());
-    assert!(runs::claim_submission(&f.0,&current,&first.id,|| Ok(())).is_err());
+    assert!(runs::claim_submission(&f.0,&current,&first.id,|_| Ok(())).is_err());
     let new=runs::approve(&f.0,&current,"one",&intent(),|| Ok(()),|| Ok(vec![source()])).unwrap();
     assert_ne!(new.id,first.id);assert_ne!(new.approval_id,first.approval_id);
 }
@@ -116,7 +116,7 @@ fn forged_restore_scope_cannot_import_execution_authority() {
     backup.files.insert("capability-agent-runs.json".into(),ledger.to_string());
     user_data::restore(&f.0,&backup,"predictable-restore").unwrap();
     let current=Scope {restore_id:Some("predictable-restore".into()),..scope()};
-    assert!(runs::claim_submission(&f.0,&current,&first.id,|| Ok(())).unwrap_err().starts_with("PERMISSION_DENIED"));
+    assert!(runs::claim_submission(&f.0,&current,&first.id,|_| Ok(())).unwrap_err().starts_with("PERMISSION_DENIED"));
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn authority_and_capture_are_inside_the_shared_data_transaction() {
         Ok(())
     };
     let first=runs::approve(&f.0,&scope(),"one",&intent(),excluded,|| {excluded()?;Ok(vec![source()])}).unwrap();
-    runs::claim_submission(&f.0,&scope(),&first.id,excluded).unwrap();
+    runs::claim_submission(&f.0,&scope(),&first.id,|_|excluded()).unwrap();
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn invalid_or_oversized_input_and_corrupt_disk_are_not_replaced() {
 #[test]
 fn backup_validation_rejects_changed_snapshot_identity_and_submission_identity() {
     let f=Fixture::new();let first=f.approve("one",&intent()).unwrap();
-    runs::claim_submission(&f.0,&scope(),&first.id,|| Ok(())).unwrap();
+    runs::claim_submission(&f.0,&scope(),&first.id,|_| Ok(())).unwrap();
     let backup=user_data::capture(&f.0,Default::default(),json!([])).unwrap();
     for (pointer,value) in [(format!("/runs/{}/documents/0/reference/revision",first.id),json!("forged")),
         (format!("/runs/{}/submission/clientMessageId",first.id),json!("forged"))] {
@@ -197,7 +197,7 @@ fn concurrent_processes_obtain_exactly_one_submission_claim() {
     if let Ok(root)=std::env::var(CHILD) {
         let root=PathBuf::from(root);let id=std::env::var("NOOKI_AGENT_LEDGER_ID").unwrap();
         for _ in 0..100 {
-            match runs::claim_submission(&root,&scope(),&id,|| Ok(())) {
+            match runs::claim_submission(&root,&scope(),&id,|_| Ok(())) {
                 Ok(_)=>{fs::write(root.join(format!("dispatched-{}",std::process::id())),"one").unwrap();return;}
                 Err(e) if e.starts_with("RESOURCE_BUSY")=>std::thread::sleep(std::time::Duration::from_millis(10)),
                 Err(e)=>{assert!(e.starts_with("OUTCOME_UNKNOWN"),"{e}");return;}

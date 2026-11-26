@@ -83,6 +83,8 @@ test('kit check rejects unsupported entrypoints, permissions and global CSS', as
   validateManifest({ ...manifest, minPlatformVersion: '0.8.0', permissions: ['board.attach-delivery'] })
   assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.10.0', permissions: ['conversations.handoff'] }))
   validateManifest({ ...manifest, minPlatformVersion: '0.11.0', permissions: ['conversations.handoff'] })
+  assert.throws(() => validateManifest({ ...manifest, minPlatformVersion: '0.11.0', permissions: ['agents.run'] }))
+  validateManifest({ ...manifest, minPlatformVersion: '0.12.0', permissions: ['agents.run'] })
   assert.throws(() => validateStyle('body { color: red }', 'style.css'))
   assert.throws(() => validateStyle('.notes, :root { color: red }', 'style.css'))
   validateStyle('.wb-cap-page.notes textarea { color: var(--ink) }', 'style.css')

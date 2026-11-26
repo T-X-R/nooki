@@ -50,7 +50,7 @@ fn scope_valid(scope: &Scope) -> bool {
         && hex(&scope.installation.generation) && scope.restore_id.as_ref().is_none_or(|id|
             !id.is_empty() && id.len()<=100 && id.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'))
 }
-fn intent_valid(intent: &Intent) -> bool {
+pub(crate) fn intent_valid(intent: &Intent) -> bool {
     let mut ids=BTreeSet::new();
     !intent.instructions.trim().is_empty() && intent.instructions.chars().count()<=20_000
         && !intent.instructions.contains('\0') && identity(&intent.agent_id) && hex(&intent.policy_digest)
@@ -157,12 +157,20 @@ fn owned<'a>(ledger: &'a Ledger, scope: &Scope, id: &str) -> Result<&'a Run,Stri
 pub fn get(root: &Path, scope: &Scope, id: &str, authorize: impl FnOnce()->Result<(),String>) -> Result<Run,String> {
     fenced(root,scope,authorize,|| {let ledger=load(root)?;let run=owned(&ledger,scope,id)?;confirm(root)?;Ok(run.clone())})
 }
+// Controller holds data/authority fences and has checked the current installation. A lookup
+// returns retained intent for comparison, never a new approval or submission claim.
+pub(crate) fn lookup(root: &Path, scope: &Scope, key: &str) -> Result<Option<Run>,String> {
+    let ledger=load(root)?;
+    let run=ledger.runs.into_values().find(|run|&run.scope==scope && run.request_key==key);
+    if run.is_some() {confirm(root)?;} Ok(run)
+}
 /// Returns dispatch eligibility only on the first durable transition. A repeated claim must be
 /// reconciled using `get`; it never grants a second adapter call, even if the first call never ran.
 /// The controller must revalidate source grants and execution authority in `authorize`.
-pub fn claim_submission(root: &Path, scope: &Scope, id: &str, authorize: impl FnOnce()->Result<(),String>) -> Result<Run,String> {
-    fenced(root,scope,authorize,|| {
+pub fn claim_submission(root: &Path, scope: &Scope, id: &str, authorize: impl FnOnce(&Run)->Result<(),String>) -> Result<Run,String> {
+    fenced(root,scope,||Ok(()),|| {
         let mut ledger=load(root)?;let mut run=owned(&ledger,scope,id)?.clone();
+        authorize(&run)?;
         if run.restored {return Err("PERMISSION_DENIED: imported Agent history carries no execution authority".into());}
         if run.submission!=Submission::Approved {return Err("OUTCOME_UNKNOWN: reconcile the existing Agent submission before proceeding".into());}
         run.submission=Submission::Pending {client_message_id:crate::capability_authority::nonce()?};

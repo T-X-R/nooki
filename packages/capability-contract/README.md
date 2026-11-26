@@ -4,11 +4,16 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.11.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.12.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
 conversation attachment inputs and reviewed chat handoff. Observable agent-run APIs remain future work. `ai.invoke` is the existing model gateway, not an agent-run handle.
+
+`agents.run` is a separate execution permission with a 0.12.0 minimum platform version. This release
+aligns its manifest declaration with the internal native review controller; it does **not** yet
+provide `host.agents` methods. Do not use private native commands or treat `ai.invoke` as a substitute
+run grant. Agent-dependent packages must wait for the public service and its documented policy.
 
 | Surface | Desktop Nooki | Portable `preview/host.ts` |
 |---|---|---|

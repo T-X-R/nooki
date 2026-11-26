@@ -1021,7 +1021,7 @@ client (new), contract, adapter/run tests.
 actual macOS read/write/symlink/deny-glob and direct-network controls, missing-profile/unsupported-version
 checks and ephemeral app-server acknowledgement pass with zero model turns. The broad native
 `:minimal` defaults and metadata visibility are explicitly accounted for. See
-[C06a evidence](capability-platform-evidence/C06a.md). C06b is next; production adapter/tool policy
+[C06a evidence](capability-platform-evidence/C06a.md). C06b is complete; production adapter/tool policy
 and public API acceptance remain C06c–C06e.
 
 **Depends on:** C01/C02. **Size:** S.
@@ -1035,7 +1035,7 @@ fail visibly, with no fallback to unrestricted or prompt-only enforcement. No mo
 **Verification:** Actual macOS sandbox probe with both allowed and denied controls, protocol-schema
 inspection and a receipt distinguishing filesystem enforcement from future tool/approval validation.
 
-#### [ ] C06b — Persist scoped run intent and approval before dispatch
+#### [x] C06b — Persist scoped run intent and approval before dispatch
 
 **Depends on:** C06a. **Size:** M; split if the authority and storage owners exceed a focused slice.
 **Deliver:** Bounded native run records tied to current installation/restore scope, immutable
@@ -1057,15 +1057,27 @@ without restoring execution authority. This slice adds no package endpoint or Ag
 **Verification:** 14 focused native tests plus two child-process executions; full regression passes
 289 top-level native tests plus three child executions, with two existing live-agent tests ignored.
 203 platform and 5 capability tests pass. V-APP build/install and strict signature verification pass.
-[Evidence and boundaries](capability-platform-evidence/C06b1.md). C06b2 is next; C06b remains open.
+[Evidence and boundaries](capability-platform-evidence/C06b1.md). C06b2 is complete below; C06c is next.
 
-##### [ ] C06b2 — Bind the ledger to Host review and installation authority
+##### [x] C06b2 — Bind the ledger to Host review and installation authority
 
 **Depends on:** C06b1. **Deliver:** Native Host review/controller checks current installation,
 execution permission, approved policy and selected-source grants under lifecycle fences before
 approval and dispatch. Dismissed/expired/changed approvals fail closed; package fields never supply
 approval or owner identity. **Verification:** Native review/permission/revocation/concurrency tests.
 Public bindings and interaction UI remain C06d; actual adapter dispatch remains C06c.
+
+The distinct `agents.run` declaration/version floor is brought forward from C06d so this controller
+can require an explicit manifest grant without broadening legacy `ai.invoke`. Platform/contract
+0.12.0 and kit 0.11.0 declare the permission; there is still no public `host.agents` service. Native
+adapter availability and policy-digest resolution are trusted internal inputs until C06c connects
+the real adapter. The current shared-realm production loader remains trusted-only pending R02/R03.
+
+**Verified:** 12 native review tests; full regression passes 301 top-level native tests plus three
+child executions (two existing live-agent tests ignored), 203 platform and 5 capability tests. An
+independent exported-kit project passes type/permission-floor checks and packing with its own
+dependencies. V-APP build/install and strict signature verification pass.
+[Evidence and remaining integration boundaries](capability-platform-evidence/C06b2.md).
 
 #### [ ] C06c — Dispatch and reconcile through the existing Codex adapter
 

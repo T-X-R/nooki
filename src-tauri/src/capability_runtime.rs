@@ -69,6 +69,8 @@ pub enum CapabilityPermission {
   BoardAttachDelivery,
   #[serde(rename = "conversations.handoff")]
   ConversationsHandoff,
+  #[serde(rename = "agents.run")]
+  AgentsRun,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -113,6 +115,7 @@ pub struct PlatformState {
   pub(crate) document_selections: std::sync::Mutex<BTreeMap<String, crate::document_selection::Selection>>,
   pub(crate) handoff_selections: std::sync::Mutex<BTreeMap<String, crate::conversation_handoff_selection::Selection>>,
   pub(crate) task_selections: std::sync::Mutex<BTreeMap<String, crate::task_selection::Selection>>,
+  pub(crate) agent_reviews: std::sync::Mutex<BTreeMap<String, crate::capability_agent_review::Review>>,
 }
 
 impl PlatformState {
@@ -131,6 +134,7 @@ impl PlatformState {
       document_selections: std::sync::Mutex::new(BTreeMap::new()),
       task_selections: std::sync::Mutex::new(BTreeMap::new()),
       handoff_selections: std::sync::Mutex::new(BTreeMap::new()),
+      agent_reviews: std::sync::Mutex::new(BTreeMap::new()),
     })
   }
 
@@ -531,6 +535,7 @@ impl CapabilityPermission {
       Self::BoardCreate => "board.create",
       Self::BoardAttachDelivery => "board.attach-delivery",
       Self::ConversationsHandoff => "conversations.handoff",
+      Self::AgentsRun => "agents.run",
     }
   }
 }
@@ -581,6 +586,9 @@ pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   }
   if manifest.permissions.contains(&CapabilityPermission::ConversationsHandoff) && minimum < semver::Version::new(0, 11, 0) {
     return Err("conversations.handoff requires minPlatformVersion 0.11.0 or newer".into());
+  }
+  if manifest.permissions.contains(&CapabilityPermission::AgentsRun) && minimum < semver::Version::new(0, 12, 0) {
+    return Err("agents.run requires minPlatformVersion 0.12.0 or newer".into());
   }
   let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).map_err(|_| "平台版本无效")?;
   if minimum > current { return Err(format!("此能力需要 Nooki {minimum} 或更新版本")); }

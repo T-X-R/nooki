@@ -24,6 +24,7 @@ pub(crate) mod task_attachments;
 pub mod capability_runtime;
 pub mod capability_authority;
 pub mod capability_agent_runs;
+pub mod capability_agent_review;
 pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;

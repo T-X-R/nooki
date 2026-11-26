@@ -7,7 +7,7 @@ export type AiInvocationResult = {
 }
 
 export type CapabilityEntrypoint = 'page' | 'command' | 'job'
-export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create' | 'board.attach-delivery' | 'conversations.handoff'
+export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create' | 'board.attach-delivery' | 'conversations.handoff' | 'agents.run'
 export type CapabilityLanguage = 'zh' | 'en'
 export type CapabilityTheme = 'light' | 'dark'
 
