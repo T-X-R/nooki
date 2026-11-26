@@ -1,6 +1,6 @@
 # ADR 0008: First supported capability Agent adapter
 
-- Status: proposed; owner decision required before changing the Codex-first implementation order
+- Status: accepted adapter priority — retain Codex first; execution-policy integration remains open
 - Date: 2026-11-26
 - Design authority: [Agent delegation boundary](../capability-platform-design.md#8-runtime-policy-and-limits)
 - Implementation authority: [C06 implementation checklist](../capability-platform-implementation-tasks.md)
@@ -49,9 +49,9 @@ still passes default loader overrides to the app-server. Internal user/project l
 debug-only test configuration hooks do not provide a supported external release isolation interface.
 The release's lazy optional stdio startup is not a startup deny-all or an authority boundary.
 
-## Options
+## Selected direction and alternative
 
-### A. Keep Codex as the first supported capability Agent
+### A. Keep Codex as the first supported capability Agent — selected
 
 Keep C06c's current adapter selection and accepted effect boundaries. Resume dispatch implementation
 when a supported native interface can enforce the complete policy before process/tool startup and
@@ -59,10 +59,11 @@ across reload/resume. Any proposal to distribute a modified Codex runtime or a n
 component requires a separate design decision; it is not silently added to Nooki's thin adapter.
 
 This retains the planned first adapter, but current evidence does not provide a safe implementation
-path through the audited installed/released CLI interfaces. C06c and its dependent delivery remain
-blocked; additional partial probes alone cannot close the gate.
+path through the audited installed/released CLI interfaces. Actual model dispatch remains gated;
+additional partial probes alone cannot close the gate. Necessary internal run preparation may
+progress independently, but must not be reported as complete native execution.
 
-### B. Qualify another existing adapter first — recommended for continued delivery
+### B. Qualify another existing adapter first — not selected
 
 First audit the already integrated Claude Code and pi adapters against the **same** complete C06
 criteria. Their installed help exposes explicit customization/tool controls: Claude includes safe
@@ -84,8 +85,8 @@ new Agent runtime. If one passes, update C06c to that first supported adapter an
 explicitly unsupported for capability-owned runs until its own policy is qualified. Ordinary native
 Codex chat and task-board behavior remain outside this change.
 
-This option changes the Codex-first implementation order, so it is proposed rather than adopted.
-It preserves C06's original one-adapter deliverable and Nooki's existing Agent ownership boundary.
+This option would change the Codex-first implementation order. The owner did not select it;
+it is retained here as the considered alternative, not as an additional implementation task.
 
 ## Independent acceptance and dependency impact
 
@@ -100,15 +101,20 @@ complete or start an unused alternate execution framework to conceal these gates
 
 ## Decision and verification status
 
-No option is adopted yet. No application runtime code or dependency is changed by this proposal.
-The owner is asked to choose the first-adapter direction; C05c's existing installation question
-remains separate. Current receipts and task statuses continue to govern completion.
+The owner explicitly selected **keep Codex first** on 2026-11-26. Option B is not adopted; do not
+switch the first supported capability Agent to Claude/Pi. Continue qualifying the Codex-native
+startup policy boundary without weakening the accepted isolation criteria. This priority decision
+does not certify a working policy interface or authorize replacing the native model/authentication
+owner with a Nooki implementation.
+
+No application runtime code or dependency is changed by this decision. C05c's existing installation
+question remains separate. Current receipts and task statuses continue to govern completion.
 
 Documentation diff checks, desktop build/install and strict deep codesign verification pass.
 Installed Nooki remains 0.12.0 with unchanged executable SHA-256
 `9ff4839694024f84c86cf3652f24cfe35bdab2f0511ebdb5fc325c6a7eae3a91`.
-Logs: `/tmp/nooki-c06c-adapter-decision-desktop-build.log` and
-`/tmp/nooki-c06c-adapter-decision-desktop-install.log`. Probe processes exited; the installer handed
+Logs after the confirmed priority update: `/tmp/nooki-c06c-codex-priority-desktop-build.log` and
+`/tmp/nooki-c06c-codex-priority-desktop-install.log`. Probe processes exited; the installer handed
 off existing normal/test task workers. Application regression tests were not rerun for this
 documentation-only change. Earlier C06b2 results retain their original scope. Existing build-size
 and plugin-timing advisories remain.
