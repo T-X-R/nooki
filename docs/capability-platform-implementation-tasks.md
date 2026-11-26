@@ -1001,6 +1001,11 @@ starts no Agent turn. Check keyboard/focus/error/layout separately from simulate
 
 ### [ ] C06 — Expose one observable agent-run path
 
+**State:** in progress; split below before implementation. C01/C02 are complete, so this work may
+proceed while C05c waits for its separate archive-installation approval. C05c remains a required K2
+gate. The public API is not exposed until native effect policy, durable identity and Host interaction
+handling are verified together.
+
 **Depends on:** C01, C02. **Size:** M.
 **Deliver:** Start/get/subscribe/cancel semantics for one supported existing agent adapter, using host
 approval/question surfaces and durable run identity. No new model client or credential store.
@@ -1009,6 +1014,71 @@ no work; reconnect observes the same run and preserves structured result/artifac
 **Likely files:** Native agent-run adapter (new), `src-tauri/src/conversation_host.rs`, public agent
 client (new), contract, adapter/run tests.
 **Verification:** V-A and deterministic transport/approval failures; V-N with one recorded real-agent run.
+
+#### [ ] C06a — Prove the bounded Codex execution policy
+
+**State:** in progress; the actual macOS filesystem/network probe and an ephemeral app-server
+policy acknowledgement pass on CLI 0.170.0 with zero model turns. The first candidate exposed a
+broader-than-expected `:minimal` read scope, so full effective-scope auditing remains before closure.
+See [C06a checkpoint](capability-platform-evidence/C06a.md); no public Agent method is exposed.
+
+**Depends on:** C01/C02. **Size:** S.
+**Deliver:** Reproducible, credential-free native policy probe using the installed Codex CLI and
+synthetic files. Record the current app-server schema and its named permission-profile, structured
+output and stable request-ID support. Reuse the existing adapter/transport later; do not expose the
+ordinary conversation path directly or create a model client.
+**Acceptance:** Approved inputs can be read; run output can be written; unrelated synthetic files,
+input writes and network access are denied by the native sandbox. Rejection/missing support must
+fail visibly, with no fallback to unrestricted or prompt-only enforcement. No model turn is sent.
+**Verification:** Actual macOS sandbox probe with both allowed and denied controls, protocol-schema
+inspection and a receipt distinguishing filesystem enforcement from future tool/approval validation.
+
+#### [ ] C06b — Persist scoped run intent and approval before dispatch
+
+**Depends on:** C06a. **Size:** M; split if the authority and storage owners exceed a focused slice.
+**Deliver:** Bounded native run records tied to current installation/restore scope, immutable
+instruction/source snapshots, chosen agent/policy, idempotency key and Host approval receipt.
+**Acceptance:** Foreign/revoked inputs and dismissed/stale approvals start no work; changed intent
+conflicts; retries preserve run identity. Persist dispatch intent before contacting an adapter and
+represent uncertain submission without blindly replaying it.
+**Verification:** Native authority, atomic-write failure, concurrency, lost-reply and restore tests.
+
+#### [ ] C06c — Dispatch and reconcile through the existing Codex adapter
+
+**Depends on:** C06b. **Size:** M; separate dispatch from interaction handling if required.
+**Deliver:** Dedicated package-run sessions through the existing Codex transport with verified input/
+output workspace policy; no inherited capability bridge, unrelated Skills, connectors or tools.
+Use native thread/turn/client-message identities and output schema. Reconnect observes the same run;
+local cancellation and unknown remote outcome remain distinct. Only Host-owned surfaces resolve
+questions/approvals; package calls cannot answer them or expand the approved effect scope.
+**Acceptance:** Missing adapter/policy mismatch starts no turn; lost replies/restart never duplicate
+an unreconciled run; stale/foreign events or replies cannot mutate another run. Terminal results keep
+validated structured output and scoped artifact references, not arbitrary filesystem paths.
+**Verification:** Deterministic transport/approval/question/cancellation failures and native process
+checks. C07 remains responsible for deriving and propagating Job parentage across the execution tree.
+
+#### [ ] C06d — Expose observable runs through Host UI and the exported kit
+
+**Depends on:** C06c. **Size:** M; split native bindings and UI if required.
+**Deliver:** Typed available-agent/start/get/subscribe/cancel operations, Host-owned start review and
+interaction UI, ordered resumable snapshots/events and visible stop/reconciliation status. Align the
+permission/version floor, contract, preview and Skill. Keep private vendor/session data out of SDK
+results and never treat a status subscription as execution authority.
+**Acceptance:** Only the owning current installation can observe/control its runs; reconnect uses a
+cursor or fresh snapshot; package code cannot approve itself. Leaving a view cleans subscriptions
+without silently detaching run ownership; explicit cancellation shows the confirmed remote outcome.
+**Verification:** Client/native ownership tests, real-component interaction/accessibility checks,
+independent exported-kit check/pack and V-APP.
+
+#### [ ] C06e — Verify independent archive and real-agent behavior
+
+**Depends on:** C06d. **Size:** S.
+**Deliver:** Independent package acceptance from the exported kit, deterministic denial/fault cases
+and one explicitly recorded real-agent run with synthetic approved inputs.
+**Acceptance:** Native installation, Host approval/question, start/observe/reconnect/cancel and
+structured result/artifact references pass without duplicate work or private credential access.
+**Verification:** V-N and final native state. Record package permissions and obtain any required
+installation/execution authorization before the corresponding test; C06/K2 remain open until passed.
 
 ### [ ] K2 — Chat and agent service gate
 
