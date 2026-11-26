@@ -1081,6 +1081,12 @@ dependencies. V-APP build/install and strict signature verification pass.
 
 #### [ ] C06c — Dispatch and reconcile through the existing Codex adapter
 
+**Next-step decision:** [ADR 0008 (proposed)](adr/0008-capability-agent-adapter-selection.md).
+The official 0.172.0 release reproduces the same six configuration limitations. The current
+Codex-first path has no verified complete policy interface; choose whether to retain that first
+adapter or qualify another already integrated adapter against the unchanged C06 acceptance bar.
+No adapter-order change or production dispatch is adopted by the proposal.
+
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
 servers, and `orchestrator.mcp.enabled=false` do not establish a process-startup deny-all. See
