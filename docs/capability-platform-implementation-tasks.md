@@ -924,6 +924,10 @@ contract/kit checks and V-APP. Real target discovery and interactive approval re
 
 ##### [ ] C05b2 — Expose reviewed handoff and preserve native composer work
 
+**State:** in progress, split into native bindings and the public UI integration below. Ordinary
+conversation targets are distinct from task execution threads; target checks must use the current
+conversation owner rather than trusting a renderer-supplied conversation ID.
+
 **Depends on:** C05b1. **Size:** M; split further if required before implementation.
 **Deliver:** Public typed handoff, native command bindings and target discovery over the current
 conversation owner; review dialog and safe navigation to a retained offer. Keep unsent user text
@@ -933,6 +937,34 @@ unknown-outcome retries, disposal and disabled openers preserve exact input and 
 is sent by handoff. Verify focus, keyboard, loading/error and language/theme/layout behavior.
 **Verification:** V-A/V-K, native command checks, component UI checks and V-APP; C05c closes installed
 independent archive acceptance.
+
+###### [x] C05b2a — Connect native review to actual conversation targets
+
+**Depends on:** C05b1. **Size:** S.
+**State:** complete as the native integration slice. Nine adapter tests and one binding-error test
+pass; full native regression passes 269 top-level tests plus one nested child, with two existing
+live-agent tests ignored. All 197 JavaScript tests, desktop build/install and signature verification
+pass. See [C05b2a evidence](capability-platform-evidence/C05b2a.md). Public SDK/UI and installed
+handoff acceptance remain C05b2b/C05c.
+**Deliver:** Host-only Tauri bindings, metadata-only target pages from the existing conversation owner,
+current target validation and retained-draft reads for the Host UI. Freeze approval before asynchronous
+target discovery and recheck installation/restore/disposal before the effect.
+**Acceptance:** New drafts need no Agent connection. Existing targets must be current ordinary Nooki
+conversations; missing/archived/task-owned targets fail. Foreign callers and dismissed/stale reviews
+cannot inspect targets or commit. Exact replay returns its existing receipt without a target lookup.
+**Verification:** Native adapter/binding tests with actual local conversation catalog and deterministic
+Codex protocol fixtures, full affected regression and V-APP. No public SDK/UI acceptance is inferred.
+
+###### [ ] C05b2b — Integrate public handoff, review UI and retained draft navigation
+
+**Depends on:** C05b2a. **Size:** M.
+**Deliver:** Public typed handoff, immutable request/lifetime controller, Host review dialog and safe
+chat offer navigation/adoption over existing composer ownership. Manual send must use the retained
+source snapshots, not re-read current Library IDs. Update canonical kit/Skill/preview.
+**Acceptance:** User-selected targets/sources match the receipt; cancellation/retry/disposal preserves
+intent; existing unsent text remains intact and opening sends no turn. Retained drafts remain usable
+without the producing package. Verify real-component keyboard/focus/error/layout behavior.
+**Verification:** V-A/V-K, component UI and V-APP; C05c still owns installed archive acceptance.
 
 #### [ ] C05c — Verify independent handoff archives and installed behavior
 

@@ -13,6 +13,7 @@ pub mod conversation_documents;
 pub mod conversation_host;
 pub mod conversation_handoffs;
 pub mod conversation_handoff_selection;
+pub mod conversation_handoff_host;
 pub mod conversation_instructions;
 pub mod conversation_skills;
 pub mod source_snapshots;
@@ -663,6 +664,9 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
+      conversation_handoff_host::conversation_handoff_begin, conversation_handoff_host::conversation_handoff_cancel,
+      conversation_handoff_host::conversation_handoff_targets, conversation_handoff_host::conversation_handoff_commit,
+      conversation_handoff_host::conversation_handoff_drafts, conversation_handoff_host::conversation_handoff_read,
       conversation_list, conversation_change, conversation_create, conversation_create_board_thread, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,

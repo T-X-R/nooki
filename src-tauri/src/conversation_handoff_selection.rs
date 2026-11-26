@@ -76,26 +76,56 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value)->Result<Value,String>
     let selection=Selection {context,restore_id,request_id:input.request_id,key:input.key,draft:input.draft,approved:None,expires_at:Instant::now()+Duration::from_secs(15*60)};
     let result=metadata(&handle,&selection);pending.insert(handle,selection);Ok(result)
 }
-/// The native conversation owner validates the selected target only for a new effect. A recorded
-/// receipt is not a new navigation or send grant. C05b2 supplies real target discovery/validation.
-pub fn commit(state:&PlatformState,caller:&str,value:Value,validate_target:impl FnOnce(&Target)->Result<(),String>)->Result<Value,String> {
+fn parse_commit(caller:&str,value:Value)->Result<Commit,String> {
     if !value["target"].is_object() {return Err("INVALID_INPUT: invalid handoff target".into());}
     let input:Commit=request(caller,value)?;
     if !drafts::target_valid(&input.target) {return Err("INVALID_INPUT: invalid handoff target".into());}
+    Ok(input)
+}
+fn freeze(selection:&mut Selection,target:&Target)->Result<(),String> {
+    if selection.approved.as_ref().is_some_and(|approved|approved!=target) {return Err("CONFLICT: approved handoff target changed".into());}
+    selection.approved=Some(target.clone());Ok(())
+}
+fn current(root:&Path,selection:&Selection)->Result<(),String> {
+    if context(root,&selection.context.capability_id)?!=selection.context || crate::user_data::restored_id(root)?!=selection.restore_id {
+        return Err("PERMISSION_DENIED: handoff installation or restore scope changed".into());
+    }
+    Ok(())
+}
+// Called before and after asynchronous metadata discovery; it grants no access to the package.
+pub(crate) fn check_review(state:&PlatformState,caller:&str,handle:&str)->Result<(),String> {
+    if caller!="main" {return Err("PERMISSION_DENIED: handoff requires the host review controller".into());}
+    let pending=state.handoff_selections.lock().map_err(|_|"RESOURCE_UNAVAILABLE: handoff reviews unavailable")?;
+    let selection=pending.get(handle).filter(|s|s.expires_at>Instant::now()).ok_or("PERMISSION_DENIED: handoff review expired or was dismissed")?;
+    let root=state.data_dir();let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
+    crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;current(root,selection)
+}
+// Freeze before awaiting target validation. An exact committed retry needs no external lookup.
+pub(crate) fn prepare_commit(state:&PlatformState,caller:&str,value:Value)->Result<(Target,Option<Value>),String> {
+    let input=parse_commit(caller,value)?;
+    let mut pending=state.handoff_selections.lock().map_err(|_|"RESOURCE_UNAVAILABLE: handoff reviews unavailable")?;
+    let selection=pending.get_mut(&input.handle).filter(|s|s.expires_at>Instant::now()).ok_or("PERMISSION_DENIED: handoff review expired or was dismissed")?;
+    freeze(selection,&input.target)?;
+    let root=state.data_dir();let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
+    crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;current(root,selection)?;
+    let receipt=if let Some((approved,receipt))=drafts::lookup(root,&selection.context.capability_id,&selection.key)? {
+        if selection.draft.bind(input.target.clone())!=approved {return Err("CONFLICT: handoff key was used with different input or target".into());}
+        Some(serde_json::to_value(receipt).map_err(|e|e.to_string())?)
+    } else {None};
+    Ok((input.target,receipt))
+}
+/// The native conversation owner validates the selected target only for a new effect. A recorded
+/// receipt is not a new navigation or send grant.
+pub fn commit(state:&PlatformState,caller:&str,value:Value,validate_target:impl FnOnce(&Target)->Result<(),String>)->Result<Value,String> {
+    let input=parse_commit(caller,value)?;
     let mut pending=state.handoff_selections.lock().map_err(|_|"RESOURCE_UNAVAILABLE: handoff reviews unavailable")?;
     pending.retain(|_,s|s.expires_at>Instant::now());
     let selection=pending.get_mut(&input.handle).ok_or("PERMISSION_DENIED: handoff review expired or was dismissed")?;
-    if selection.approved.as_ref().is_some_and(|target|target!=&input.target) {return Err("CONFLICT: approved handoff target changed".into());}
-    selection.approved=Some(input.target.clone()); // Freeze even when source/target validation or durable write fails.
+    freeze(selection,&input.target)?;
     let approved=selection.draft.bind(input.target);
     let root=state.data_dir();
     let receipt=drafts::commit_approved(root,&selection.context.capability_id,&selection.context.capability_version,&selection.key,&approved,
-        || {
-            if context(root,&selection.context.capability_id)?!=selection.context || crate::user_data::restored_id(root)?!=selection.restore_id {
-                return Err("PERMISSION_DENIED: handoff installation or restore scope changed".into());
-            }
-            Ok(())
-        },
+        || current(root,selection),
         || {validate_target(&approved.target)?;crate::document_grants::task_documents(root,&selection.context,&approved.sources)})?;
     serde_json::to_value(receipt).map_err(|e|e.to_string())
 }

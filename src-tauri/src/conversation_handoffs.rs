@@ -104,7 +104,7 @@ fn save(root: &Path, ledger: &Ledger) -> Result<(), String> {
 /// Internal effect owner. The authorization callback must check host-approved target/intent and
 /// current installation on every call, including replay; it must not acquire the data/fence locks.
 /// The capture callback must return exact selected snapshots, never package-supplied document text.
-/// No Tauri command or public SDK method calls this storage layer until C05b supplies that controller.
+/// Tauri callers reach this store through the Host review controller, never a package-supplied approval.
 pub fn commit_approved(root: &Path, capability_id: &str, capability_version: &str, key: &str,
     input: &ApprovedDraft, authorize: impl FnOnce() -> Result<(), String>,
     capture: impl FnOnce() -> Result<Vec<SelectedDocument>, String>) -> Result<Receipt, String> {
