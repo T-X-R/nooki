@@ -18,7 +18,7 @@ impl Drop for Fixture {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
 fn scope()->Scope {Scope {installation:InvocationContext {capability_id:"example.reader".into(),capability_version:"1.0.0".into(),generation:"a".repeat(64)},restore_id:None}}
 fn reference()->DocumentReference {DocumentReference {kind:"library-document".into(),document_id:"example.reader/notes/2026/11/source".into(),title:"Selected notes".into(),grant_id:"synthetic-grant".into(),revision:"v1".into()}}
 fn source()->SelectedDocument {SelectedDocument {reference:reference(),document_date:"2026-11-26".into(),content:Some("Immutable selected text".into())}}
-fn intent()->Intent {Intent {instructions:"Summarize the approved input".into(),sources:vec![reference()],agent_id:"codex".into(),policy_digest:"b".repeat(64),output_schema:Some(json!({"type":"object","properties":{"summary":{"type":"string"}}}))}}
+fn intent()->Intent {Intent {instructions:"Summarize the approved input".into(),sources:vec![reference()],agent_id:"codex".into(),policy_digest:"b".repeat(64),component:Some(runs::ComponentIdentity {protocol_revision:1,sha256:"d".repeat(64)}),output_schema:Some(json!({"type":"object","properties":{"summary":{"type":"string"}}}))}}
 
 #[test]
 fn approved_intent_survives_restart_and_exact_replay_without_recapture() {
@@ -46,8 +46,8 @@ fn submission_claim_is_durable_and_cannot_be_reissued_after_lost_reply() {
 fn changed_intent_conflicts_and_other_installations_cannot_read_or_claim() {
     let f=Fixture::new();let first=f.approve("one",&intent()).unwrap();
     for changed in [Intent {instructions:"Different work".into(),..intent()},Intent {agent_id:"other".into(),..intent()},
-        Intent {policy_digest:"c".repeat(64),..intent()},Intent {sources:vec![],..intent()},Intent {output_schema:None,..intent()}] {
-        assert!(f.approve("one",&changed).unwrap_err().starts_with("CONFLICT"));
+        Intent {policy_digest:"c".repeat(64),..intent()},Intent {component:Some(runs::ComponentIdentity {protocol_revision:1,sha256:"e".repeat(64)}),..intent()},Intent {sources:vec![],..intent()},Intent {output_schema:None,..intent()}] {
+        let error=f.approve("one",&changed).unwrap_err();assert!(error.starts_with("CONFLICT"),"{error}: {changed:?}");
     }
     let mut foreign=scope();foreign.installation.capability_id="example.peer".into();
     let mut replaced=scope();replaced.installation.generation="c".repeat(64);
@@ -168,6 +168,8 @@ fn invalid_or_oversized_input_and_corrupt_disk_are_not_replaced() {
     let f=Fixture::new();
     for input in [Intent {instructions:" ".into(),..intent()},Intent {instructions:"x".repeat(20_001),..intent()},
         Intent {sources:vec![reference(),reference()],..intent()},Intent {policy_digest:"unknown".into(),..intent()},
+        Intent {component:Some(runs::ComponentIdentity {protocol_revision:2,sha256:"d".repeat(64)}),..intent()},
+        Intent {component:Some(runs::ComponentIdentity {protocol_revision:1,sha256:"invalid".into()}),..intent()},
         Intent {output_schema:Some(json!({"description":"x".repeat(16_384)})),..intent()}] {
         assert!(runs::approve(&f.0,&scope(),"one",&input,|| panic!("invalid approval"),|| panic!("invalid capture")).is_err());
     }
@@ -212,4 +214,177 @@ fn concurrent_processes_obtain_exactly_one_submission_claim() {
     for child in &mut children {assert!(child.wait().unwrap().success());}
     assert_eq!(fs::read_dir(&f.0).unwrap().filter(|e|e.as_ref().unwrap().file_name().to_string_lossy().starts_with("dispatched-")).count(),1);
     assert!(matches!(runs::get(&f.0,&scope(),&first.id,|| Ok(())).unwrap().submission,Submission::Pending {..}));
+}
+
+#[test]
+fn approved_run_pins_native_component_before_any_dispatch() {
+    let f=Fixture::new();let approved=f.approve("bound",&intent()).unwrap();
+    let stored=json!(runs::get(&f.0,&scope(),&approved.id,||Ok(())).unwrap());
+    assert_eq!(stored["intent"]["component"]["protocolRevision"],json!(1));
+    assert_eq!(stored["intent"]["component"]["sha256"],json!("d".repeat(64)));
+}
+
+fn claimed(f:&Fixture,key:&str)->runs::Run {
+    let run=f.approve(key,&intent()).unwrap();
+    runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap()
+}
+fn bound(f:&Fixture,run:&runs::Run)->runs::NativeRunBinding {
+    runs::native_binding(&f.0,&scope(),&run.id,||Ok(())).unwrap()
+}
+fn native(thread:&str,turn:Option<&str>)->runs::NativeIdentity {
+    runs::NativeIdentity {thread_id:thread.into(),turn_id:turn.map(str::to_owned)}
+}
+#[test]
+fn native_binding_and_identity_survive_lost_replies_without_another_claim() {
+    let f=Fixture::new();let approved=f.approve("bound",&intent()).unwrap();
+    assert!(runs::native_binding(&f.0,&scope(),&approved.id,||Ok(())).is_err());
+    let run=runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).unwrap();let binding=bound(&f,&run);
+    assert_eq!(binding.run_id,run.id);assert_eq!(binding.approval_id,run.approval_id);
+    assert_eq!(binding.scope,scope());assert_eq!(binding.policy_digest,run.intent.policy_digest);
+    assert_eq!(binding.input_digest.len(),64);assert_eq!(bound(&f,&run),binding);
+    assert_eq!(json!(run.submission)["clientMessageId"],binding.client_message_id);
+    let created=native("native-thread",None);let started=native("native-thread",Some("native-turn"));
+    runs::record_native(&f.0,&scope(),&binding,&created,||Ok(())).unwrap();
+    runs::record_native(&f.0,&scope(),&binding,&started,||Ok(())).unwrap();
+    let before=fs::read(f.0.join("capability-agent-runs.json")).unwrap();
+    // A repeated response or late thread-created response cannot overwrite a known turn.
+    for receipt in [&started,&created] {
+        assert_eq!(runs::record_native(&f.0,&scope(),&binding,receipt,||Ok(())).unwrap().native,Some(started.clone()));
+    }
+    assert_eq!(fs::read(f.0.join("capability-agent-runs.json")).unwrap(),before);
+    assert_eq!(runs::get(&f.0,&scope(),&run.id,||Ok(())).unwrap().native,Some(started));
+    assert!(runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap_err().starts_with("OUTCOME_UNKNOWN"));
+    for changed in [native("other-thread",Some("native-turn")),native("native-thread",Some("other-turn"))] {
+        assert!(runs::record_native(&f.0,&scope(),&binding,&changed,||Ok(())).unwrap_err().starts_with("CONFLICT"));
+    }
+}
+
+#[test]
+fn every_binding_dimension_is_checked_against_the_journal() {
+    let f=Fixture::new();let run=claimed(&f,"first");let binding=bound(&f,&run);let other=claimed(&f,"other");
+    let mut wrong_scope=binding.scope.clone();wrong_scope.installation.generation="f".repeat(64);
+    let changes=[
+        runs::NativeRunBinding {run_id:other.id,..binding.clone()},
+        runs::NativeRunBinding {scope:wrong_scope,..binding.clone()},
+        runs::NativeRunBinding {approval_id:"f".repeat(64),..binding.clone()},
+        runs::NativeRunBinding {client_message_id:"f".repeat(64),..binding.clone()},
+        runs::NativeRunBinding {input_digest:"f".repeat(64),..binding.clone()},
+        runs::NativeRunBinding {policy_digest:"f".repeat(64),..binding.clone()},
+        runs::NativeRunBinding {component:runs::ComponentIdentity {protocol_revision:1,sha256:"f".repeat(64)},..binding.clone()},
+        runs::NativeRunBinding {component:runs::ComponentIdentity {protocol_revision:2,..binding.component.clone()},..binding.clone()},
+    ];
+    let before=fs::read(f.0.join("capability-agent-runs.json")).unwrap();
+    for changed in changes {
+        assert!(runs::record_native(&f.0,&scope(),&changed,&native("thread",Some("turn")),||Ok(())).unwrap_err().starts_with("PERMISSION_DENIED"));
+    }
+    assert_eq!(fs::read(f.0.join("capability-agent-runs.json")).unwrap(),before);
+}
+
+#[test]
+fn native_association_is_fenced_atomic_and_unique_to_one_run() {
+    let f=Fixture::new();let one=claimed(&f,"one");let two=claimed(&f,"two");let binding=bound(&f,&one);
+    let observed=native("thread",Some("turn"));
+    let denied=||Err("PERMISSION_DENIED: installation disabled".into());
+    assert!(runs::native_binding(&f.0,&scope(),&one.id,denied).is_err());
+    assert!(runs::record_native(&f.0,&scope(),&binding,&observed,denied).is_err());
+    fs::create_dir(f.0.join("capability-agent-runs.pending")).unwrap();
+    assert!(runs::record_native(&f.0,&scope(),&binding,&observed,||Ok(())).is_err());
+    assert!(runs::get(&f.0,&scope(),&one.id,||Ok(())).unwrap().native.is_none());
+    fs::remove_dir(f.0.join("capability-agent-runs.pending")).unwrap();
+    runs::record_native(&f.0,&scope(),&binding,&observed,|| {
+        assert!(user_data::capture(&f.0,Default::default(),json!([])).is_err());
+        assert!(runs::record_native(&f.0,&scope(),&binding,&observed,||Ok(())).unwrap_err().starts_with("RESOURCE_BUSY"));Ok(())
+    }).unwrap();
+    assert!(runs::record_native(&f.0,&scope(),&bound(&f,&two),&observed,||Ok(())).unwrap_err().starts_with("CONFLICT"));
+    for invalid in [native("",None),native("thread",Some("\n")),native(&"x".repeat(129),None)] {
+        assert!(runs::record_native(&f.0,&scope(),&binding,&invalid,||panic!("invalid input reached authority")).is_err());
+    }
+}
+
+#[test]
+fn native_input_digest_covers_retained_body_instructions_schema_and_agent() {
+    let f=Fixture::new();let original=claimed(&f,"one");let digest=bound(&f,&original).input_digest;
+    for (n,(input,doc)) in [
+        (Intent {instructions:"Changed input".into(),..intent()},source()),
+        (Intent {output_schema:None,..intent()},source()),
+        (Intent {agent_id:"another-agent".into(),..intent()},source()),
+        (intent(),SelectedDocument {content:Some("Different retained body".into()),..source()}),
+    ].into_iter().enumerate() {
+        let run=runs::approve(&f.0,&scope(),&format!("changed-{n}"),&input,||Ok(()),||Ok(vec![doc])).unwrap();
+        runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap();
+        assert_ne!(bound(&f,&run).input_digest,digest);
+    }
+}
+
+#[test]
+fn legacy_approvals_are_readable_but_cannot_be_upgraded_into_native_authority() {
+    let f=Fixture::new();let run=f.approve("legacy",&intent()).unwrap();let path=f.0.join("capability-agent-runs.json");
+    let mut ledger:serde_json::Value=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    ledger["runs"][&run.id]["intent"].as_object_mut().unwrap().remove("component");fs::write(&path,ledger.to_string()).unwrap();
+    let historical=runs::get(&f.0,&scope(),&run.id,||Ok(())).unwrap();assert!(historical.intent.component.is_none());
+    assert!(runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap_err().starts_with("UNSUPPORTED_SERVICE"));
+    assert!(f.approve("legacy",&intent()).unwrap_err().starts_with("CONFLICT"));
+    assert!(f.approve("new-without-component",&historical.intent).unwrap_err().starts_with("UNSUPPORTED_SERVICE"));
+    assert_eq!(f.approve("legacy",&historical.intent).unwrap().id,run.id);
+    ledger["runs"][&run.id]["submission"]=json!({"state":"pending","clientMessageId":"e".repeat(64)});
+    fs::write(&path,ledger.to_string()).unwrap();
+    assert!(runs::native_binding(&f.0,&scope(),&run.id,||Ok(())).unwrap_err().starts_with("UNSUPPORTED_SERVICE"));
+    assert!(runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap_err().starts_with("OUTCOME_UNKNOWN"));
+}
+
+#[test]
+fn restored_native_bindings_preserve_history_without_recovery_authority() {
+    let f=Fixture::new();let run=claimed(&f,"one");let binding=bound(&f,&run);let observed=native("thread",Some("turn"));
+    runs::record_native(&f.0,&scope(),&binding,&observed,||Ok(())).unwrap();
+    let mut backup=user_data::capture(&f.0,Default::default(),json!([])).unwrap();
+    // Even a backup whose scope predicts the upcoming restore is retained-only.
+    let mut ledger:serde_json::Value=serde_json::from_str(&backup.files["capability-agent-runs.json"]).unwrap();
+    ledger["runs"][&run.id]["scope"]["restoreId"]=json!("bound-restore");
+    backup.files.insert("capability-agent-runs.json".into(),ledger.to_string());
+    user_data::restore(&f.0,&backup,"bound-restore").unwrap();let current=Scope {restore_id:Some("bound-restore".into()),..scope()};
+    assert_eq!(runs::get(&f.0,&current,&run.id,||Ok(())).unwrap().native,Some(observed.clone()));
+    assert!(runs::native_binding(&f.0,&current,&run.id,||Ok(())).unwrap_err().starts_with("PERMISSION_DENIED"));
+    let forged=runs::NativeRunBinding {scope:current.clone(),..binding};
+    assert!(runs::record_native(&f.0,&current,&forged,&observed,||Ok(())).unwrap_err().starts_with("PERMISSION_DENIED"));
+}
+
+#[test]
+fn concurrent_native_receipts_after_restart_cannot_reassign_the_run() {
+    const CHILD:&str="NOOKI_AGENT_BINDING_CHILD";
+    if let Ok(root)=std::env::var(CHILD) {
+        let root=PathBuf::from(root);let id=std::env::var("NOOKI_AGENT_BINDING_ID").unwrap();
+        let receipt=native(&format!("thread-{}",std::process::id()),Some("turn"));
+        for _ in 0..100 {
+            let result=runs::native_binding(&root,&scope(),&id,||Ok(())).and_then(|b|runs::record_native(&root,&scope(),&b,&receipt,||Ok(())));
+            match result {
+                Ok(run)=>{assert_eq!(run.native,Some(receipt));fs::write(root.join(format!("associated-{}",std::process::id())),"one").unwrap();return;}
+                Err(e) if e.starts_with("RESOURCE_BUSY")=>std::thread::sleep(std::time::Duration::from_millis(10)),
+                Err(e)=>{assert!(e.starts_with("CONFLICT"),"{e}");return;}
+            }
+        }
+        panic!("native receipt never settled");
+    }
+    let f=Fixture::new();let run=claimed(&f,"one");
+    let mut children=(0..2).map(|_|std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact","concurrent_native_receipts_after_restart_cannot_reassign_the_run","--nocapture"])
+        .env(CHILD,&f.0).env("NOOKI_AGENT_BINDING_ID",&run.id).spawn().unwrap()).collect::<Vec<_>>();
+    for child in &mut children {assert!(child.wait().unwrap().success());}
+    assert_eq!(fs::read_dir(&f.0).unwrap().filter(|e|e.as_ref().unwrap().file_name().to_string_lossy().starts_with("associated-")).count(),1);
+    assert_eq!(runs::get(&f.0,&scope(),&run.id,||Ok(())).unwrap().native.unwrap().turn_id,Some("turn".into()));
+}
+
+#[test]
+fn backup_validation_rejects_duplicate_threads_and_invalid_native_metadata() {
+    let f=Fixture::new();let one=claimed(&f,"one");let two=claimed(&f,"two");
+    runs::record_native(&f.0,&scope(),&bound(&f,&one),&native("thread",Some("turn")),||Ok(())).unwrap();
+    let backup=user_data::capture(&f.0,Default::default(),json!([])).unwrap();
+    for (id,field,value) in [
+        (&two.id,"native",json!(native("thread",None))),
+        (&one.id,"native",json!({"threadId":"","turnId":"turn"})),
+        (&one.id,"submission",json!({"state":"approved"})),
+    ] {
+        let mut corrupted=backup.clone();let mut ledger:serde_json::Value=serde_json::from_str(&backup.files["capability-agent-runs.json"]).unwrap();
+        ledger["runs"][id][field]=value;corrupted.files.insert("capability-agent-runs.json".into(),ledger.to_string());
+        assert!(user_data::validate(&corrupted).is_err());
+    }
 }

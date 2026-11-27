@@ -26,7 +26,7 @@ impl Fixture {
     }
 }
 impl Drop for Fixture {fn drop(&mut self){let _=fs::remove_dir_all(&self.root);}}
-fn policy(agent:&str)->Result<String,String> {assert_eq!(agent,"codex");Ok("b".repeat(64))}
+fn policy(agent:&str)->Result<ResolvedPolicy,String> {assert_eq!(agent,"codex");Ok(ResolvedPolicy {digest:"b".repeat(64),component:runs::ComponentIdentity {protocol_revision:1,sha256:"d".repeat(64)}})}
 
 #[test]
 fn host_review_precedes_durable_approval_and_restart_replay_never_submits_twice() {
@@ -53,10 +53,10 @@ fn dismissal_expiry_and_changed_policy_have_no_execution_effect() {
     f.state.agent_reviews.lock().unwrap().get_mut(expired["handle"].as_str().unwrap()).unwrap().expires_at=Instant::now();
     assert!(approve(&f.state,"main",json!({"handle":expired["handle"]}),policy).is_err());
     let ticket=f.begin("changed-policy","three");
-    assert!(approve(&f.state,"main",json!({"handle":ticket["handle"]}),|_|Ok("c".repeat(64))).is_err());
+    assert!(approve(&f.state,"main",json!({"handle":ticket["handle"]}),|_|Ok(ResolvedPolicy {digest:"c".repeat(64),..policy("codex")?})).is_err());
     assert!(!f.root.join("capability-agent-runs.json").exists());
     let receipt=f.approve(&ticket);
-    assert!(claim(&f.state,"main","example.reader","1.0.0",receipt["runId"].as_str().unwrap(),|_|Ok("c".repeat(64))).is_err());
+    assert!(claim(&f.state,"main","example.reader","1.0.0",receipt["runId"].as_str().unwrap(),|_|Ok(ResolvedPolicy {digest:"c".repeat(64),..policy("codex")?})).is_err());
     assert_eq!(get(&f.state,"main","example.reader","1.0.0",receipt["runId"].as_str().unwrap()).unwrap()["submission"]["state"],"approved");
 }
 
@@ -130,7 +130,7 @@ fn failed_write_and_unavailable_adapter_preserve_frozen_intent() {
     let f=Fixture::new();assert!(begin(&f.state,"main",f.request("unavailable","one"),|_|Err("UNSUPPORTED_SERVICE: unavailable".into())).is_err());
     let mut other=f.request("unsupported","two");other["proposal"]["agentId"]=json!("claude");
     assert!(begin(&f.state,"main",other,|_|panic!("unverified adapter consulted")).is_err());
-    assert!(begin(&f.state,"main",f.request("invalid-policy","three"),|_|Ok("not-a-policy-proof".into())).is_err());
+    assert!(begin(&f.state,"main",f.request("invalid-policy","three"),|_|Ok(ResolvedPolicy {digest:"not-a-policy-proof".into(),..policy("codex")?})).is_err());
     let ticket=f.begin("approved","key");fs::create_dir(f.root.join("capability-agent-runs.pending")).unwrap();
     assert!(approve(&f.state,"main",json!({"handle":ticket["handle"]}),policy).is_err());
     assert!(!f.root.join("capability-agent-runs.json").exists());
@@ -192,4 +192,36 @@ fn review_expiring_during_policy_validation_is_not_committed() {
     });
     assert!(result.unwrap_err().starts_with("PERMISSION_DENIED"));
     assert!(!f.root.join("capability-agent-runs.json").exists());
+}
+
+#[test]
+fn component_identity_is_native_owned_and_fixed_at_review_approval_and_claim() {
+    let f=Fixture::new();let mut forged=f.request("forged-component","one");
+    forged["proposal"]["component"]=json!({"protocolRevision":1,"sha256":"e".repeat(64)});
+    assert!(begin(&f.state,"main",forged,policy).unwrap_err().starts_with("INVALID_INPUT"));
+    let changed=|agent:&str| {let mut next=policy(agent)?;next.component.sha256="e".repeat(64);Ok(next)};
+    let ticket=f.begin("component","one");
+    assert!(approve(&f.state,"main",json!({"handle":ticket["handle"]}),changed).unwrap_err().starts_with("PERMISSION_DENIED"));
+    let receipt=f.approve(&ticket);
+    assert!(claim(&f.state,"main","example.reader","1.0.0",receipt["runId"].as_str().unwrap(),changed).unwrap_err().starts_with("PERMISSION_DENIED"));
+    let run=f.claim(&receipt).unwrap();assert_eq!(run.intent.component,Some(policy("codex").unwrap().component));
+}
+
+#[test]
+fn native_reconciliation_records_prior_submission_after_source_revocation_but_not_reenable() {
+    let f=Fixture::new();let selected=f.source();let mut request=f.request("native","one");request["proposal"]["sources"]=json!([selected]);
+    let receipt=f.approve(&begin(&f.state,"main",request,policy).unwrap());let run=f.claim(&receipt).unwrap();
+    let binding=native_binding(&f.state,"example.reader","1.0.0",&run.id).unwrap();
+    f.state.revoke_document_grant("agent-source").unwrap();
+    let native=runs::NativeIdentity {thread_id:"thread".into(),turn_id:Some("turn".into())};
+    assert_eq!(record_native(&f.state,"example.reader","1.0.0",&binding,&native).unwrap().native,Some(native.clone()));
+    assert!(record_native(&f.state,"example.peer","1.0.0",&binding,&native).is_err());
+    let metadata=get(&f.state,"main","example.reader","1.0.0",&run.id).unwrap();
+    assert!(metadata.get("native").is_none());assert!(metadata.get("component").is_none());
+    f.state.set_capability_enabled("example.reader",false).unwrap();
+    assert!(native_binding(&f.state,"example.reader","1.0.0",&run.id).is_err());
+    assert!(record_native(&f.state,"example.reader","1.0.0",&binding,&native).is_err());
+    f.state.set_capability_enabled("example.reader",true).unwrap();
+    assert!(native_binding(&f.state,"example.reader","1.0.0",&run.id).is_err());
+    assert!(record_native(&f.state,"example.reader","1.0.0",&binding,&native).is_err());
 }

@@ -1,6 +1,6 @@
 //! Native Host review/controller for trusted legacy UI. No IPC endpoint or adapter dispatch here.
 //! Policy resolution is supplied by a native adapter owner, never by the package request.
-use crate::{capability_agent_runs::{self as runs, Intent, Scope}, capability_runtime::{CapabilityPermission, PlatformState},
+use crate::{capability_agent_runs::{self as runs, Intent, Scope, ResolvedPolicy}, capability_runtime::{CapabilityPermission, PlatformState},
     document_grants::DocumentReference};
 use serde::Deserialize;
 use serde_json::{json,Value};
@@ -10,8 +10,8 @@ use std::{path::Path,time::{Duration,Instant}};
 #[serde(rename_all="camelCase",deny_unknown_fields)]
 struct Proposal {instructions:String,sources:Vec<DocumentReference>,agent_id:String,output_schema:Option<Value>}
 impl Proposal {
-    fn bind(&self,policy_digest:String)->Intent {Intent {instructions:self.instructions.clone(),sources:self.sources.clone(),
-        agent_id:self.agent_id.clone(),output_schema:self.output_schema.clone(),policy_digest}}
+    fn bind(&self,policy:ResolvedPolicy)->Intent {Intent {instructions:self.instructions.clone(),sources:self.sources.clone(),
+        agent_id:self.agent_id.clone(),output_schema:self.output_schema.clone(),policy_digest:policy.digest,component:Some(policy.component)}}
 }
 #[derive(Deserialize)]
 #[serde(rename_all="camelCase",deny_unknown_fields)]
@@ -42,20 +42,21 @@ fn current(root:&Path,scope:&Scope)->Result<(),String> {
         return Err("PERMISSION_DENIED: Agent installation or restore scope changed".into());
     } Ok(())
 }
-fn policy_current(intent:&Intent,resolve:impl FnOnce(&str)->Result<String,String>)->Result<(),String> {
-    if resolve(&intent.agent_id)?!=intent.policy_digest {return Err("PERMISSION_DENIED: Agent execution policy changed; review a new intent".into());} Ok(())
+fn policy_current(intent:&Intent,resolve:impl FnOnce(&str)->Result<ResolvedPolicy,String>)->Result<(),String> {
+    let policy=resolve(&intent.agent_id)?;
+    if policy.digest!=intent.policy_digest || Some(policy.component)!=intent.component {return Err("PERMISSION_DENIED: Agent execution policy changed; review a new intent".into());} Ok(())
 }
 fn metadata(run:&runs::Run)->Value {json!({"status":if run.restored {"retained"} else {"approved"},"runId":run.id,"submission":run.submission,"restored":run.restored})}
 fn pending(handle:&str,review:&Review)->Value {
     json!({"status":"pending","handle":handle,"requestId":review.request_id,"capabilityId":review.scope.installation.capability_id,
         "version":review.scope.installation.capability_version,"intent":review.intent})
 }
-/// `resolve_policy` checks adapter availability and returns the digest of its complete, bounded
+/// `resolve_policy` checks adapter availability and returns the component identity and digest of its complete, bounded
 /// execution configuration. It is synchronous native policy lookup, not IPC or package code.
-pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl FnOnce(&str)->Result<String,String>)->Result<Value,String> {
+pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl FnOnce(&str)->Result<ResolvedPolicy,String>)->Result<Value,String> {
     let input:Begin=request(caller,value)?;
     if !correlation(&input.request_id) || input.key.trim().is_empty() || input.key.len()>128 || input.key.chars().any(char::is_control)
-        || !runs::intent_valid(&input.proposal.bind("0".repeat(64))) {return Err("INVALID_INPUT: invalid Agent proposal".into());}
+        || !runs::intent_valid(&input.proposal.bind(ResolvedPolicy {digest:"0".repeat(64),component:runs::ComponentIdentity {protocol_revision:1,sha256:"0".repeat(64)}})) {return Err("INVALID_INPUT: invalid Agent proposal".into());}
     if input.proposal.agent_id!="codex" {return Err("UNSUPPORTED_SERVICE: this Agent has no verified capability execution policy".into());}
     state.prepare_selection_grant(&input.capability_id,CapabilityPermission::AgentsRun)?;
     let root=state.data_dir();
@@ -86,7 +87,7 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl Fn
     let review=Review {scope,request_id:input.request_id,key:input.key,intent,expires_at:Instant::now()+Duration::from_secs(15*60)};
     let result=pending(&handle,&review);reviews.insert(handle,review);Ok(result)
 }
-pub fn approve(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl FnOnce(&str)->Result<String,String>)->Result<Value,String> {
+pub fn approve(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl FnOnce(&str)->Result<ResolvedPolicy,String>)->Result<Value,String> {
     let input:Approval=request(caller,value)?;
     let reviews=state.agent_reviews.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent reviews unavailable")?;
     let review=reviews.get(&input.handle).filter(|r|r.expires_at>Instant::now()).ok_or("PERMISSION_DENIED: Agent review expired or was dismissed")?;
@@ -116,9 +117,10 @@ pub fn get(state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->R
     Ok(metadata(&runs::get(root,&scope,run_id,||current(root,&scope))?))
 }
 /// Adapter owner only: the returned run is the first durable submission claim, not a public SDK
-/// result. C06c must reconcile uncertain submissions and enforce the same resolved native policy.
+/// result. C06c must verify the component bytes/protocol before native startup, reconcile uncertain
+/// submissions and enforce the same resolved native policy.
 pub fn claim(state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str,
-    resolve_policy:impl FnOnce(&str)->Result<String,String>)->Result<runs::Run,String> {
+    resolve_policy:impl FnOnce(&str)->Result<ResolvedPolicy,String>)->Result<runs::Run,String> {
     host(caller)?;let scope=scope(state,id,version)?;let root=state.data_dir();
     runs::claim_submission(root,&scope,run_id,|run| {
         current(root,&scope)?;
@@ -128,6 +130,18 @@ pub fn claim(state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str,
         policy_current(&run.intent,resolve_policy)?;
         crate::document_grants::task_documents(root,&scope.installation,&run.intent.sources)?;Ok(())
     })
+}
+
+/// Trusted adapter observation only: correlate actual native provenance with the retained claim.
+/// No package/renderer endpoint exposes these operations, and neither starts/resumes a turn.
+pub fn native_binding(state:&PlatformState,id:&str,version:&str,run_id:&str)->Result<runs::NativeRunBinding,String> {
+    let scope=scope(state,id,version)?;let root=state.data_dir();
+    runs::native_binding(root,&scope,run_id,||current(root,&scope))
+}
+pub fn record_native(state:&PlatformState,id:&str,version:&str,binding:&runs::NativeRunBinding,
+    observed:&runs::NativeIdentity)->Result<runs::Run,String> {
+    let scope=scope(state,id,version)?;let root=state.data_dir();
+    runs::record_native(root,&scope,binding,observed,||current(root,&scope))
 }
 
 #[cfg(test)]

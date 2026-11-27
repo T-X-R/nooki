@@ -137,6 +137,11 @@ The qualification now makes the missing boundary concrete: native history must b
 Host-approved run before it can be resumed. This proposal extends the native component scope;
 it is not implemented by the six-file fixed-policy experiment.
 
+The [C06c1 Host implementation](../capability-platform-evidence/C06c-host-binding.md) now pins
+component identity at approval and retains native correlation in that existing journal. Native
+admission/provenance and end-to-end restart verification remain unimplemented; the Host envelope
+alone is not trusted native proof.
+
 Reuse the existing C06b run journal as the approval/submission authority. A native-only launch
 binding carries the following values from that retained record and the verified component. The
 package-facing SDK does not construct, edit or receive this binding.

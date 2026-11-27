@@ -1212,6 +1212,40 @@ validated structured output and scoped artifact references, not arbitrary filesy
 **Verification:** Deterministic transport/approval/question/cancellation failures and native process
 checks. C07 remains responsible for deriving and propagating Job parentage across the execution tree.
 
+##### [x] C06c1 — Persist the Host half of native run binding
+
+**State:** complete on 2026-11-27; [Host-binding evidence](capability-platform-evidence/C06c-host-binding.md).
+The approved intent pins the resolved component identity alongside policy; the existing journal
+reconstructs the immutable run/input/approval/submission binding and atomically records native
+thread/turn identity. Reply replay cannot change IDs or claim another dispatch. Current installation
+and restore fences apply, while observing a prior submitted outcome does not require a still-live
+source grant. Historical/imported records cannot gain new execution authority. No process launch,
+public endpoint or actual native provenance verification is introduced.
+
+**Acceptance:** Component changes before approval/claim and all foreign binding dimensions fail;
+thread/turn association survives disk reload/reply loss without replacement; competing processes
+can bind only one identity; failed writes, stale installations and restored history fail closed.
+**Verification:** 23 ledger tests with four child-process executions and 14 Host review tests.
+Final full regression: 312 top-level native tests plus five child executions pass (two existing
+live-Agent tests ignored), as do 208 JavaScript tests. Desktop 0.12.2 build/install and strict
+signing pass. Earlier parallel-run failures and non-reproducing baseline controls are retained
+in the evidence; no unrelated timing fix is claimed.
+Native source/runtime binding and the remaining C06c requirements below are still mandatory.
+
+##### [ ] C06c2 — Bind the native component before startup and recover the same run
+
+**Depends on:** C06c1 and the existing native policy qualification. **Deliver:** A verified private
+launch/provenance path that agrees with the Host journal before any effect, persists native identity
+before dispatch acknowledgement, and reconciles uncertain creation/start without replaying work.
+**Acceptance:** Same-run restart succeeds with unchanged semantic policy despite native transient
+helper allowances; changed/missing/foreign/restored provenance and fork/import refuse execution.
+A supplied/echoed JSON digest or dedicated directory is insufficient. Qualify actual native process
+restart and failure paths with local synthetic Responses fixtures before product integration.
+
+C06c also retains complete effect-policy qualification, verified native authentication ownership,
+component packaging/update rollback and the existing transport/approval/question/cancellation gates.
+C06c1 completion does not make the public Agent path available.
+
 #### [ ] C06d — Expose observable runs through Host UI and the exported kit
 
 **Depends on:** C06c. **Size:** M; split native bindings and UI if required.
