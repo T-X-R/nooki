@@ -28,3 +28,12 @@ For selected Library inputs, declare `documents.read-selected`, require Nooki 0.
 For a chat draft, declare `conversations.handoff`, require Nooki 0.11.0+, and call `host.conversations.handoff({ title, text, sources }, { idempotencyKey })`. Sources are optional; when present they must be unchanged active Library-selection references. The Host user chooses the target and approves sharing. Handle dismissal; persist the exact key/input and retry uncertainty unchanged. The result is a retained draft receipt, not permission to read history or send. Nooki preserves unsent composer work, requires explicit adoption/send, and retains offers after package removal. A committed replay returns metadata without navigating again. Preview returns `UNSUPPORTED_SERVICE`; never call private native commands or simulate approval.
 
 For existing-task approval on Nooki 0.8.0+, declare `board.attach-delivery` and use `host.board.requestSelection` with a purpose and `operations: ["attachDelivery"]`. Handle dismissal; preserve exact granted task revisions and never infer execution/acceptance authority. For Nooki 0.9.0+, use `host.board.attachDelivery` with the selected grant ID, exact `{id, revision}`, and own published or actively selected document references. Persist key and complete input before an effect that needs restart recovery. Retry uncertain outcomes unchanged; viewing retained results never implies acceptance. Consult the bundled contract for source permissions and retention limits.
+
+For Agent execution, require Nooki 0.13.0+ and declare `agents.run`. Use `host.agents.listAvailable()`;
+the currently distributed app advertises no capability Agent until native component integration is
+finished. Handle that empty state explicitly. Persist the exact input/key before `start`, let the
+Host obtain confirmation, and retain the returned run ID. Reopen with `get`/`subscribe`; release
+subscriptions on unmount. On uncertainty, reconcile the same request instead of generating another
+key. `cancel` returns observed state, not a promise that interruption already won. Do not use
+`ai.invoke` or private native commands as a fallback. Read the contract for supported snapshots and
+remaining structured-result/question/artifact work. Preview never fabricates a run or approval.

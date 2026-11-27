@@ -27,6 +27,7 @@ pub mod capability_agent_runs;
 pub mod capability_agent_review;
 pub(crate) mod capability_codex;
 pub(crate) mod capability_agent_execution;
+mod capability_agent_host;
 pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
@@ -631,6 +632,7 @@ pub fn run() {
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
+      app.manage(capability_agent_host::AgentHost::default());
       app.manage(task_execution::TaskExecutions::default());
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);
@@ -668,6 +670,10 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
+      capability_agent_host::capability_agent_available, capability_agent_host::capability_agent_begin,
+      capability_agent_host::capability_agent_approve, capability_agent_host::capability_agent_dismiss,
+      capability_agent_host::capability_agent_start, capability_agent_host::capability_agent_get,
+      capability_agent_host::capability_agent_cancel,
       conversation_handoff_host::conversation_handoff_begin, conversation_handoff_host::conversation_handoff_cancel,
       conversation_handoff_host::conversation_handoff_targets, conversation_handoff_host::conversation_handoff_commit,
       conversation_handoff_host::conversation_handoff_drafts, conversation_handoff_host::conversation_handoff_read,

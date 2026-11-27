@@ -4,8 +4,9 @@ import { invalidateBoardClients } from './capability-board-host.ts'
 import { invalidateLibraryClients } from './capability-library-host.ts'
 import { invalidateBoardSelections } from './capability-board-selection.ts'
 import { invalidateHandoffs } from './capability-handoff.ts'
+import { invalidateAgentClients } from './capability-agents.ts'
 async function invalidateCapabilityClients(id: string) {
-  await Promise.all([invalidateBoardClients(id), invalidateLibraryClients(id), invalidateBoardSelections(id), invalidateHandoffs(id)])
+  await Promise.all([invalidateBoardClients(id), invalidateLibraryClients(id), invalidateBoardSelections(id), invalidateHandoffs(id), invalidateAgentClients(id)])
 }
 import { applyPackageStyles, loadPackageModule, removePackageStyles, type PackagePayload } from './package-loader.ts'
 import {

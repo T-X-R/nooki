@@ -234,7 +234,37 @@ export type ConversationHandoffTarget = { kind: 'new' } | { kind: 'conversation'
 export type ConversationHandoffReceipt = { draftId: string; target: ConversationHandoffTarget }
 export type ConversationHandoffResult = { status: 'dismissed' } | { status: 'handedOff'; receipt: ConversationHandoffReceipt }
 
+/** Selected snapshots only; execution policy and credentials belong to Nooki. */
+export type AgentStartInput = {
+  agentId: 'codex'
+  instructions: string
+  sources?: DocumentReference[]
+  outputSchema?: CapabilityJsonSchema
+}
+export type AgentRunSnapshot = Readonly<{
+  id: string
+  agentId: 'codex'
+  status: 'approved' | 'running' | 'unknown' | 'completed' | 'failed' | 'cancelled'
+  /** Restored history is readable but cannot authorize execution or cancellation. */
+  restored: boolean
+  result: Readonly<{ text: string }> | null
+}>
+export type AgentStartResult = { status: 'dismissed' } | { status: 'started'; run: AgentRunSnapshot }
+export type AvailableAgent = Readonly<{ id: 'codex'; name: string }>
+
 export type CapabilityHost = {
+  agents: {
+    /** Returns only adapters ready for this invocation. An empty list is not a successful run. */
+    listAvailable(): Promise<readonly AvailableAgent[]>
+    /** Requires Host review. Retain the exact key/input; an uncertain reply never authorizes replay. */
+    start(input: AgentStartInput, options: IdempotencyOptions): Promise<AgentStartResult>
+    get(id: string): Promise<AgentRunSnapshot>
+    /** Serial fresh snapshots, including an initial read. Unsubscribe never cancels execution. */
+    subscribe(id: string, listener: (run: AgentRunSnapshot) => void, onError: (error: HostServiceError) => void): () => void
+    /** Returns observed state; running/unknown means interruption is not yet confirmed. */
+    cancel(id: string): Promise<AgentRunSnapshot>
+  }
+
   conversations: {
     /** Nooki 0.11.0+: user-reviewed draft offer. Never sends a turn. Retry unchanged on uncertainty. */
     handoff(input: ConversationHandoffInput, options: IdempotencyOptions): Promise<ConversationHandoffResult>

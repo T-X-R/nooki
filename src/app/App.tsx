@@ -35,6 +35,8 @@ import { capabilityBrokerClient } from '../platform/capability-broker-client.ts'
 import { invoke } from '@tauri-apps/api/core'
 import { connectPetNavigation } from '../features/desktop-pet/desktop-pet-navigation.ts'
 
+import { AgentReviewDialog } from '../features/agents/AgentReviewDialog.tsx'
+
 function App() {
   const { t } = useTranslation()
   const { view, theme, language, setView, setTheme } = useWorkbench()
@@ -175,6 +177,7 @@ function App() {
       <LibrarySelectionDialog language={language} />
       <TaskSelectionDialog language={language} />
       <ConversationHandoffDialog language={language} />
+      <AgentReviewDialog language={language} />
       <div className="app-workspace" inert={updates.installing}>
         <Sidebar activeConversationId={activeConversationId} onOpenConversation={(id) => { setConversationTarget(id ?? 'new'); navigate('conversations') }} activeView={view} activeCapabilityId={activeCapabilityId} installed={installedCapabilities.filter((cap) => cap.manifest.id !== LEGACY_REVIEW)} onNavigate={navigate} onOpenCapability={openCapability} />
         <main className="app-main">

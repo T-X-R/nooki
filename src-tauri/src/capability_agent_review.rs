@@ -47,6 +47,22 @@ fn policy_current(intent:&Intent,resolve:impl FnOnce(&str)->Result<ResolvedPolic
     if policy.digest!=intent.policy_digest || Some(policy.component)!=intent.component {return Err("PERMISSION_DENIED: Agent execution policy changed; review a new intent".into());} Ok(())
 }
 pub(crate) fn metadata(run:&runs::Run)->Value {json!({"status":if run.restored {"retained"} else {"approved"},"runId":run.id,"submission":run.submission,"restored":run.restored,"outcome":run.outcome})}
+/// Public projection contains no native/session, approval, policy, or submission identifiers.
+pub(crate) fn snapshot(run:&runs::Run)->Value {
+    let (status,result)=match &run.outcome {
+        Some(runs::Outcome::Completed{text})=>("completed",json!({"text":text})),
+        Some(runs::Outcome::Failed)=>("failed",Value::Null),
+        Some(runs::Outcome::Cancelled)=>("cancelled",Value::Null),
+        None if run.submission==runs::Submission::Approved=>("approved",Value::Null),
+        None if run.native.as_ref().and_then(|native|native.turn_id.as_ref()).is_some()=>("running",Value::Null),
+        None=>("unknown",Value::Null),
+    };
+    json!({"id":run.id,"agentId":run.intent.agent_id,"status":status,"restored":run.restored,"result":result})
+}
+pub(crate) fn public_get(state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->Result<Value,String> {
+    host(caller)?;let scope=scope(state,id,version)?;let root=state.data_dir();
+    Ok(snapshot(&runs::get(root,&scope,run_id,||current(root,&scope))?))
+}
 fn pending(handle:&str,review:&Review)->Value {
     json!({"status":"pending","handle":handle,"requestId":review.request_id,"capabilityId":review.scope.installation.capability_id,
         "version":review.scope.installation.capability_version,"intent":review.intent})

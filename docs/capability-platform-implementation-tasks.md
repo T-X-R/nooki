@@ -23,37 +23,43 @@ implementation; do not relabel deferred tests as passed or add more suffixed pre
 Implement the remaining C06c/C06d/C06e parts together with the C07 behavior and C09 caller needed by
 this flow. Preserve the rest of C07–C09, R01–R15 and T01–T08; the change moves broad tests, not features.
 
-**Current code progress:** the native Host review/controller now connects to a dedicated Codex
-session owner through the existing transport. The same journal retains immutable terminal results;
-observation and cancellation address the bound native turn. Core integration tests exercise an
-approved request through actual Codex, result readback, cancellation, process restart and duplicate
-refusal, using only a local synthetic Responses server. No new standalone probe or task ID is added.
-The native rendezvous alias remains Codex-owned; Host connection resolves it before Unix connect,
-fixing long-path connection and cold-recovery behavior found during this integration.
+**Current code progress:** the public `host.agents` contract now connects through scoped native
+bindings to the existing dedicated Codex execution owner. It includes available/start/get/subscribe/
+cancel, the Host confirmation dialog, frozen request retries, retained text results, and subscription
+cleanup. Public snapshots omit native thread/turn IDs, approval IDs, policy material and submission
+correlation. The exported kit includes these types and documents unavailable behavior. The native
+Host integration test now traverses the same new binding owner for confirmation, dispatch,
+observation, cancellation and completed replay, instead of calling the executor directly.
 
-**Still in this delivery:** resolve and bind the complete native policy/configuration for the product
-launch, serialize lifecycle revocation with native submission, register the Host endpoints, and
-implement the review/status/questions/cancel UI and exported
-SDK, and connect the meeting package to Library publication. The public `host.agents` path is not
-yet available; this backend progress does not complete C06 or the meeting workflow. Codex file-login
-reuse has implementation scaffolding only; the current tests do not certify authenticated operation.
+**Still in this delivery:** resolve/bind the complete native policy, serialize lifecycle revocation
+with submission, deliver and enable the native component, implement Host questions/progress and
+structured results/artifacts, and connect the meeting package to Library save/reopen. The installed
+app currently manages an unavailable Agent owner: `listAvailable()` is empty and new execution
+returns `UNSUPPORTED_SERVICE`. This is explicit unfinished integration, not a replacement adapter or
+a completed C06/C09 workflow. Ordinary chat and legacy `ai.invoke` are never fallback execution.
+File-login reuse remains scaffolding; authenticated model operation has not been certified.
 
-**Core evidence for this code:** 28 ledger tests, 14 Host review tests and 19 existing conversation
-transport tests pass (one existing real-model test remains ignored). Two explicitly enabled native
-integration tests pass in 16.32s, totaling three synthetic requests and zero real-model calls.
-Commands: `cargo test --offline --test capability_agent_runs_test`,
-`cargo test --offline --lib capability_agent_review::tests`,
-`cargo test --offline --test codex_conversations_test`, and, with the pinned component selected by
-`NOOKI_CAPABILITY_NATIVE_BIN`, `cargo test --offline --lib capability_ -- --ignored` in `src-tauri`.
-The initial restricted transport run could not bind Unix sockets; its permitted rerun passes.
-The initial rendezvous/long-path failures were fixed in the actual connection path. Broader tests
-remain deferred under the revised plan. Logs: `/tmp/nooki-agent-execution-*.log` and
-`/tmp/nooki-agent-reviewed-execution.log`. App/platform advances to 0.12.5; public contract 0.12.0 and
-kit 0.11.0 remain unchanged. The experimental Codex component is still not bundled or exposed. Desktop
-build (native release: 39.39s), reinstall and strict deep signature verification pass. Installed
-executable SHA-256: `a3341d9f9b3ec7b4a559f32aa76868608837898422f3fb6c7eec06b405e5e59f`.
-Logs: `/tmp/nooki-agent-execution-desktop-{build,install}.log`. This is an implementation increment
-inside the ongoing delivery; the UI/SDK/package flow and final installed acceptance remain open.
+**Core evidence for this increment:** five SDK tests and two exported-kit tests pass, including an
+independently scaffolded project's type check, check and ZIP pack. Two native binding tests pass
+(unavailable adapter/no fallback, retained scoped result projection and sanitized errors). The
+14 existing review tests pass. The existing real-native integration test, redirected through the
+new Host owner, passes in 14.81s with two local synthetic Responses requests and zero real model
+calls. One focused browser fixture passes dismissal/focus, confirmation, uncertain retry with one
+approval and result return; this is a synthetic Host UI check, not installed-app acceptance.
+Commands: `node --test tests/capability-agents.test.ts tests/developer-kit.test.ts`,
+`cargo test --offline --lib capability_agent_host::tests`,
+`cargo test --offline --lib capability_agent_review::tests`, and the existing ignored
+`capability_agent_execution::tests::reviewed_request_completes_and_cancellation_keeps_the_original_run`
+with `NOOKI_CAPABILITY_NATIVE_BIN`; browser entry: `tests/ui/capability-agent.mjs`.
+Logs: `/tmp/nooki-agent-{sdk-core,host-core,public-native,ui-core}.log`. Previous ledger/input/transport
+and process-recovery evidence remains applicable; broad tests are deferred. App/contract advance to
+0.13.0 and kit to 0.12.0. Desktop build (native release: 36.75s), required reinstall, and strict deep
+signature verification pass; the installed app reports 0.13.0. Installed signed executable SHA-256:
+`d79f7cef480880fdc22e6f2299dc6fd886419a0d849a722bd1248c1e060d6828`.
+Logs: `/tmp/nooki-agent-interface-desktop-{build,install}.log`. The installer re-signs its destination;
+this installed digest is recorded separately from the build bundle. C06/C09 and final acceptance
+remain open.
+
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
 active-path defects immediately. Real-model execution still requires its existing authorization.
@@ -1329,6 +1335,10 @@ component packaging/update rollback and the existing transport/approval/question
 C06c1 completion does not make the public Agent path available.
 
 #### [ ] C06d — Expose observable runs through Host UI and the exported kit
+
+**State:** SDK/native bindings and start-review UI implemented with focused core tests (0.13.0).
+See the active delivery entry above. Runtime questions/progress, enabled component integration and
+installed acceptance remain open; the default app currently advertises no available capability Agent.
 
 **Depends on:** C06c. **Size:** M; split native bindings and UI if required.
 **Deliver:** Typed available-agent/start/get/subscribe/cancel operations, Host-owned start review and

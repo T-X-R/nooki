@@ -53,6 +53,12 @@ host.board.create({ title: 'Test' })
 // @ts-expect-error Packages cannot select the owner of the mutation.
 host.board.create({ title: 'Test', capabilityId: 'foreign' }, { idempotencyKey: 'one' })
 host.conversations.handoff({ title: 'Review', text: 'Please review', sources: [] }, { idempotencyKey: 'handoff' })
+host.agents.start({ agentId: 'codex', instructions: 'Summarize', sources: [] }, { idempotencyKey: 'agent' })
+host.agents.subscribe('run', run => { if (run.status === 'completed') console.log(run.result?.text) }, error => console.log(error.code))
+// @ts-expect-error Native execution policy is not package input.
+host.agents.start({ agentId: 'codex', instructions: 'Summarize', policyDigest: 'private' }, { idempotencyKey: 'agent' })
+// @ts-expect-error A package cannot approve execution.
+host.agents.approve('run')
 // @ts-expect-error Only the Host user can choose a target.
 host.conversations.handoff({ title: 'Review', text: 'Text', target: { kind: 'new' } }, { idempotencyKey: 'handoff' })
 // @ts-expect-error Handoff requires a stable key.

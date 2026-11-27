@@ -4,16 +4,18 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.12.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.13.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
 conversation attachment inputs and reviewed chat handoff. Observable agent-run APIs remain future work. `ai.invoke` is the existing model gateway, not an agent-run handle.
 
-`agents.run` is a separate execution permission with a 0.12.0 minimum platform version. This release
-aligns its manifest declaration with the internal native review controller; it does **not** yet
-provide `host.agents` methods. Do not use private native commands or treat `ai.invoke` as a substitute
-run grant. Agent-dependent packages must wait for the public service and its documented policy.
+`agents.run` is a separate execution permission, declared since 0.12.0. The public Agent
+bindings below require Nooki 0.13.0+. **The distributed app does not yet include an enabled
+capability Codex component:** `listAvailable()` returns an empty list and new execution fails with
+`UNSUPPORTED_SERVICE`. Native policy/lifecycle integration and component delivery remain in progress.
+The bindings are connected to the actual dedicated execution owner in core integration tests; they
+never fall back to ordinary chat, `ai.invoke`, or a synthetic successful run.
 
 | Surface | Desktop Nooki | Portable `preview/host.ts` |
 |---|---|---|
@@ -25,7 +27,56 @@ run grant. Agent-dependent packages must wait for the public service and its doc
 | `board.attachDelivery` | Retain authorized documents on an exact selected task revision, with idempotent replay | `UNSUPPORTED_SERVICE`; no simulated write |
 | `board.requestSelection` | Host-owned approval of exact task revisions for attachment | `UNSUPPORTED_SERVICE`; no simulated approval |
 | `conversations.handoff` | Host-reviewed retained draft, explicit adoption/send in native chat | `UNSUPPORTED_SERVICE`; no simulated approval |
-| Board update/delegation, other chat operations, observable agents, scheduling, binary artifacts, services | Not exported yet | Not exported |
+| `agents` | Reviewed execution bindings and scoped retained snapshots; availability requires an enabled native component | Empty available list; all execution/observation methods return `UNSUPPORTED_SERVICE` |
+| Board update/delegation, other chat operations, scheduling, binary artifacts, services | Not exported yet | Not exported |
+
+### Reviewed Agent runs (bindings in Nooki 0.13.0+)
+
+Declare `agents.run`, require `minPlatformVersion: "0.13.0"`, and check
+`await host.agents.listAvailable()` before offering execution. Only Codex is in scope. Save the exact
+intent and idempotency key in package storage **before** starting, then save the returned run ID:
+
+```ts
+const started = await host.agents.start(
+  { agentId: 'codex', instructions: 'Summarize this meeting.', sources: selectedReferences },
+  { idempotencyKey: savedIntentKey },
+)
+if (started.status === 'started') {
+  await host.storage.set('meeting-run-id', started.run.id)
+  const unsubscribe = host.agents.subscribe(started.run.id, run => {
+    // Render run.status; completed results contain run.result.text.
+    // Save to the Library through documents.publish only on the user's save action.
+  }, error => {
+    // Keep the same run reference when observation is unavailable.
+    console.error(error.code)
+  })
+  // Call unsubscribe when leaving the view; this does not cancel native work.
+}
+```
+
+Nooki displays the instructions, selected source versions and optional `outputSchema` in a Host-owned
+review. Packages cannot supply approvals, policies, credentials, source bodies or native session IDs.
+Sources must be unchanged active Library selection references (up to 50); declare
+`documents.read-selected` when requesting them. Instructions allow up to 20,000 characters, the
+optional schema is an object of at most 16,384 UTF-8 bytes, and the entire serialized request must fit
+63 KiB. Returned text is bounded to 1 MB. The current result is text; schema-aware result validation,
+artifacts and Host questions are still pending implementation.
+
+`start` returns `{ status: 'dismissed' }` when the review is closed, or
+`{ status: 'started', run }` for the retained run. Closing after an uncertain confirmation does not
+prove that nothing started: retain the same key/input and reconcile it unchanged. A repeated start
+returns the same run; pending work is observed, never resubmitted. `get(id)` and
+`subscribe(id, listener, onError)` return fresh scoped snapshots with `id`, `agentId`, `status`,
+`restored`, and `result`. Status is `approved`, `running`, `unknown`, `completed`, `failed`, or
+`cancelled`; only `completed` has `{ text }`. Private correlation and native identifiers are omitted.
+Subscriptions are serial, poll at one second after each read, stop on terminal/restored state or
+revoked authority, and release callbacks on disposal. They never start work.
+
+`cancel(id)` requests interruption and returns the observed snapshot. `running` or `unknown` is not
+proof of cancellation. Imported history is marked `restored` and cannot control execution. Terminal
+results can be read without a currently available component. This release's default unavailable
+component also prevents exposure before remaining native submission/lifecycle integration is done.
+Preview advertises no available Agent and rejects start/get/subscribe/cancel explicitly.
 
 ### Reviewed conversation handoff (Nooki 0.11.0+)
 

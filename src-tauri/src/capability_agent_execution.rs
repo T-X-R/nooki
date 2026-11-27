@@ -115,29 +115,31 @@ mod tests {
         state.install_capability(manifest).unwrap();
         let (url,count,server)=crate::capability_codex::tests::responses().await;
         let executor=Executor::new(Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}},Arc::new(|_,_|{}));
+        let host=crate::capability_agent_host::AgentHost{executor:Some(executor)};
         for (key,cancel) in [("normal",false),("hold-for-cancellation",true)] {
-            let ticket=review::begin(&state,"main",json!({"requestId":key,"capabilityId":"example.meeting","version":"1.0.0","key":key,
-                "proposal":{"instructions":format!("nooki-native-model-probe: {key}"),"sources":[],"agentId":"codex","outputSchema":null}}),|agent|executor.policy(agent)).unwrap();
-            let approved=review::approve(&state,"main",json!({"handle":ticket["handle"]}),|agent|executor.policy(agent)).unwrap();
-            let id=approved["runId"].as_str().unwrap();
-            assert!(executor.start(&state,"package","example.meeting","1.0.0",id).await.is_err());
-            let started=executor.start(&state,"main","example.meeting","1.0.0",id).await.unwrap();assert_eq!(started["runId"],id);
+            let ticket=host.begin(&state,"main",json!({"requestId":key,"capabilityId":"example.meeting","version":"1.0.0","key":key,
+                "proposal":{"instructions":format!("nooki-native-model-probe: {key}"),"sources":[],"agentId":"codex","outputSchema":null}})).unwrap();
+            let approved=host.approve(&state,"main",json!({"handle":ticket["handle"]})).unwrap();
+            let id=approved["id"].as_str().unwrap();
+            let query=json!({"capabilityId":"example.meeting","version":"1.0.0","runId":id});
+            assert!(host.run(&state,"package",query.clone(),"start").await.is_err());
+            let started=host.run(&state,"main",query.clone(),"start").await.unwrap();assert_eq!(started["id"],id);
             if cancel {
                 tokio::time::timeout(Duration::from_secs(20),async {while count.load(Ordering::SeqCst)<2 {tokio::time::sleep(Duration::from_millis(50)).await;}}).await.unwrap();
-                executor.cancel(&state,"main","example.meeting","1.0.0",id).await.unwrap();
+                host.run(&state,"main",query.clone(),"cancel").await.unwrap();
             }
             let completed=tokio::time::timeout(Duration::from_secs(30),async {loop {
-                let value=executor.observe(&state,"main","example.meeting","1.0.0",id).await.unwrap();
-                if !value["outcome"].is_null() {break value;}
+                let value=host.run(&state,"main",query.clone(),"get").await.unwrap();
+                if value["status"]=="completed" || value["status"]=="cancelled" {break value;}
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }}).await.unwrap();
-            assert_eq!(completed["outcome"]["status"],if cancel{"cancelled"}else{"completed"});
-            if !cancel {assert_eq!(completed["outcome"]["text"],"Meeting notes ready");}
-            assert_eq!(executor.start(&state,"main","example.meeting","1.0.0",id).await.unwrap(),completed);
-            assert_eq!(review::get(&state,"main","example.meeting","1.0.0",id).unwrap(),completed);
+            assert_eq!(completed["status"],if cancel{"cancelled"}else{"completed"});
+            if !cancel {assert_eq!(completed["result"]["text"],"Meeting notes ready");}
+            assert_eq!(host.run(&state,"main",query.clone(),"start").await.unwrap(),completed);
+            assert_eq!(review::public_get(&state,"main","example.meeting","1.0.0",id).unwrap(),completed);
         }
         assert_eq!(count.load(Ordering::SeqCst),2,"Each approval dispatched once, including cancellation");
-        for active in executor.sessions.lock().await.values() {active.session.stop_test_process().await;}
-        drop(executor);server.abort();let _=server.await;fs::remove_dir_all(root).unwrap();
+        for active in host.executor.as_ref().unwrap().sessions.lock().await.values() {active.session.stop_test_process().await;}
+        drop(host);server.abort();let _=server.await;fs::remove_dir_all(root).unwrap();
     }
 }
