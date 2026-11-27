@@ -86,6 +86,13 @@ the tested global inventory/resource and plugin-install discovery paths, with ma
 HTTP and install-state controls, while retaining ordinary turns and scoped reload checks. Skills,
 dynamic tools, internal effect callers, managed conflicts and Host policy binding remain open;
 passing these request checks neither completes gate 2 nor changes the pending scope decision.
+The [dynamic/Skills checkpoint](../capability-platform-evidence/C06c-dynamic-skills.md) qualifies
+refusal of new and persisted dynamic-tool declarations on start/resume/fork, with real synthetic
+native callback controls. It also shows Skill body injection outside the selected input/output
+roots despite the named filesystem profile and disabled catalog rendering. Skills must be
+constrained at their native read/injection boundary; display flags are insufficient. Live native
+tool replacement remains unqualified. Managed MCP allowlists must be distinguished from separate
+required-server behavior rather than treated as mandatory launch instructions.
 
 The policy must:
 

@@ -1139,6 +1139,14 @@ state, while completing the same-thread normal turns. Scoped inventory and expli
 15 startup cases, persisted resume and hooks regressions pass. This closes those observed paths
 only; internal callers, Skills/dynamic tools, managed connector conflicts and full Host binding
 remain unqualified. C06c and the native-component scope decision remain open.
+The [dynamic-tool and Skill-context checkpoint](capability-platform-evidence/C06c-dynamic-skills.md)
+refuses nonempty dynamic declarations at common native session admission, including actual persisted
+resume and fork. Matched controls execute synthetic native callbacks; the candidate refuses before
+model dispatch/callback in ordinary read-only and C06a-scoped modes. Skills remain a verified gap:
+an explicit Skill input injects the synthetic home Skill body even with catalog display disabled
+and the named input/output scope selected. Native Skill discovery/read/injection, live dynamic-tool
+replacement and other effect contributors still need qualification. Distinguish managed MCP
+allowlists from the separate required-server setting; allowlisting does not mandate startup.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
