@@ -139,8 +139,12 @@ it is not implemented by the six-file fixed-policy experiment.
 
 The [C06c1 Host implementation](../capability-platform-evidence/C06c-host-binding.md) now pins
 component identity at approval and retains native correlation in that existing journal. Native
-admission/provenance and end-to-end restart verification remain unimplemented; the Host envelope
-alone is not trusted native proof.
+admission/provenance now has a [disposable process qualification](../capability-platform-evidence/C06c-native-run-binding.md):
+22 explicit refusals and same-run restart before/after the first turn pass with local synthetic
+responses. Standard native persistence is required before thread creation acknowledgement;
+preparation-only flushing leaves no recoverable rollout. This component is not integrated with the
+Host launcher and does not yet validate actual input/policy materialization or reconcile uncertain
+turn outcomes. The Host envelope alone is not trusted native proof; C06c2 remains open.
 
 Reuse the existing C06b run journal as the approval/submission authority. A native-only launch
 binding carries the following values from that retained record and the verified component. The

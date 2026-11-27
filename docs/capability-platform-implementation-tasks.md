@@ -1242,6 +1242,15 @@ helper allowances; changed/missing/foreign/restored provenance and fork/import r
 A supplied/echoed JSON digest or dedicated directory is insufficient. Qualify actual native process
 restart and failure paths with local synthetic Responses fixtures before product integration.
 
+**2026-11-27 checkpoint:** [Native run admission and cold recovery](capability-platform-evidence/C06c-native-run-binding.md)
+passes 22 explicit native refusals and two synthetic turns, including restart before the first
+turn and after completion. Matched previous-component controls reproduce missing binding/admission
+and cold-scope restrictions; native helper paths change while legitimate recovery remains usable.
+The complete eleven-file experimental patch replays exactly. A preparation-only persistence attempt
+failed and was corrected to a standard native durability barrier before creation acknowledgement.
+C06c2 remains open: actual Host launch/reconciliation, exact input/policy materialization, write/crash
+faults and bound regression qualification are still required. No component is installed into Nooki.
+
 C06c also retains complete effect-policy qualification, verified native authentication ownership,
 component packaging/update rollback and the existing transport/approval/question/cancellation gates.
 C06c1 completion does not make the public Agent path available.
