@@ -7,7 +7,9 @@ use std::{collections::{BTreeMap, BTreeSet}, fs, io::{Read, Write}, path::Path};
 
 const FILE: &str = "capability-agent-runs.json";
 const MAX_BYTES: usize = 12_000_000;
-const MAX_CONTENT: usize = 8_000_000;
+// Full selected-document allowance plus one maximum UTF-8 instruction, still journal-bounded.
+const MAX_DOCUMENT_CONTENT: usize = 8_000_000;
+const MAX_CONTENT: usize = MAX_DOCUMENT_CONTENT + 20_000 * 4;
 const MAX_RUNS: usize = 256;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -114,9 +116,11 @@ fn validate(ledger: &Ledger) -> Result<(),String> {
                 return Err("RESOURCE_UNAVAILABLE: invalid native Agent identity".into());
             }
         }
-        bytes+=run.intent.instructions.len()+run.documents.iter().map(|d|d.content.as_ref().unwrap().len()).sum::<usize>();
+        let source_bytes=run.documents.iter().map(|d|d.content.as_ref().unwrap().len()).sum::<usize>();
+        if source_bytes>MAX_DOCUMENT_CONTENT {return Err("RESOURCE_LIMIT: selected Agent documents exceed 8 MB".into());}
+        bytes+=run.intent.instructions.len()+source_bytes;
     }
-    if bytes>MAX_CONTENT {return Err("RESOURCE_LIMIT: retained Agent inputs exceed 8 MB".into());} Ok(())
+    if bytes>MAX_CONTENT {return Err("RESOURCE_LIMIT: retained Agent input budget is full".into());} Ok(())
 }
 fn decode(bytes: &[u8]) -> Result<Ledger,String> {
     if bytes.len()>MAX_BYTES {return Err("RESOURCE_LIMIT: Agent run journal exceeds 12 MB".into());}

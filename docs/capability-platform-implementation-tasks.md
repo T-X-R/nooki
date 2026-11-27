@@ -1257,9 +1257,21 @@ content, output schema and alternate context/override fields in the disposable c
 claiming submission. Rejected content can be followed by the correct input without losing its
 single submission. Real Host exports also corrected the native prototype's nested installation
 wire format. The 1.1 MB fixture is retained intact by the Host and explicitly refused by the native
-text limit before claim. Next, materialize the full approved document range into scoped immutable
-files, bind their bytes/paths to the native policy and verify tool reads/restart before integrating
-the actual launcher. Small text delivery does not satisfy the existing 8 MB document contract.
+text limit before claim. The subsequent file checkpoint below addresses that full-size input gap;
+small text delivery alone did not satisfy the existing 8 MB document contract.
+
+**Full-source file checkpoint:** [Native file input](capability-platform-evidence/C06c-file-input.md)
+passes with an actual Host-approved 8,000,000-byte source. The native component materializes and
+verifies its exact read-only JSON, admits only readable/nonwritable input scope, and submits a short
+bound file reference. A real native tool returns the complete file digest/length; chmod, overwrite,
+delete, sibling write, hard link, directory move and unrelated read controls fail while scoped output
+write succeeds. File tampering and recovery refusals, prior input substitutions and bound-run restart
+regressions pass (44 refusals, 12 synthetic turns, no real model calls), including same-length
+content tampering and nonblocking rejection of a substituted FIFO. The Host quota now permits a
+full 8 MB document plus bounded instruction overhead, retaining source, journal and run-count limits.
+C06c2 remains open for actual Host/native ownership, complete policy resolution and outcome/fault
+reconciliation; the experimental component is not bundled. Current dependency audit findings remain
+recorded for the later release gates.
 
 C06c also retains complete effect-policy qualification, verified native authentication ownership,
 component packaging/update rollback and the existing transport/approval/question/cancellation gates.

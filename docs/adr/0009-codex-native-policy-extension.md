@@ -150,9 +150,16 @@ The [approved-input follow-up](../capability-platform-evidence/C06c-approved-inp
 the exact Host-retained input serialization and validates it against native launch bytes and the
 actual first-turn text/schema. Extra context/override fields cannot substitute content, and rejected
 input does not consume submission. This also corrects the prototype to use the Host's existing
-nested installation serialization. The full approved document range still requires scoped-file
-materialization; native text limits are preserved without truncation. Production launch, complete
+nested installation serialization. At that checkpoint, the full document range still required scoped-file
+materialization; the subsequent file checkpoint below addresses that gap without changing native text limits. Production launch, complete
 policy resolution and outcome reconciliation remain open.
+
+The [file-input checkpoint](../capability-platform-evidence/C06c-file-input.md) then preserves a
+full 8 MB approved source in a native-owned read-only file and binds the short first-turn reference.
+Actual native tool reads return its exact digest/length; tested writes, aliases and foreign reads
+are denied while scoped output works. Tampering and changed read/write policy refuse admission.
+This replaces the inline-only size limitation without enlarging Codex's text-input limit. Production
+state ownership, full approved-policy binding and uncertain-outcome reconciliation remain required.
 
 Reuse the existing C06b run journal as the approval/submission authority. A native-only launch
 binding carries the following values from that retained record and the verified component. The

@@ -427,3 +427,23 @@ fn native_launch_input_obeys_authority_and_import_fences() {
     ledger["runs"][&run.id]["restored"]=json!(true);fs::write(path,ledger.to_string()).unwrap();
     assert!(runs::native_launch_input(&f.0,&scope(),&run.id,||Ok(())).is_err());
 }
+
+#[test]
+fn native_launch_input_preserves_full_eight_mb_document_without_truncation() {
+    let f=Fixture::new();let mut input=intent();
+    input.instructions="nooki-native-model-probe: read the complete approved source file".into();
+    if let Ok(sha)=std::env::var("NOOKI_NATIVE_INPUT_COMPONENT_SHA") {input.component.as_mut().unwrap().sha256=sha;}
+    let prefix="Retained body: \u{4f60}\u{597d}\n";let suffix="\nNOOKI_FULL_SOURCE_END 🧰";
+    let body=prefix.to_owned()+&"x".repeat(8_000_000-prefix.len()-suffix.len())+suffix;
+    assert_eq!(body.len(),8_000_000);
+    let doc=SelectedDocument {content:Some(body.clone()),..source()};
+    let run=runs::approve(&f.0,&scope(),"full-input",&input,||Ok(()),||Ok(vec![doc])).unwrap();
+    runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap();
+    let launch=runs::native_launch_input(&f.0,&scope(),&run.id,||Ok(())).unwrap();
+    let material:serde_json::Value=serde_json::from_str(&launch.input_json).unwrap();
+    assert_eq!(material[2][0]["content"],body);
+    if let Ok(path)=std::env::var("NOOKI_NATIVE_FULL_INPUT_FIXTURE") {fs::write(path,serde_json::to_vec(&launch).unwrap()).unwrap();}
+    let other=Fixture::new();let too_large=SelectedDocument {content:Some(body+"x"),..source()};
+    assert!(runs::approve(&other.0,&scope(),"too-large",&input,||Ok(()),||Ok(vec![too_large])).is_err());
+    assert!(!other.0.join("capability-agent-runs.json").exists());
+}
