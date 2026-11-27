@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.12.2"
+version = "0.12.3"
 description = "Nooki, a local-first space for ideas, documents, and capabilities"
 authors = ["you"]
 license = ""

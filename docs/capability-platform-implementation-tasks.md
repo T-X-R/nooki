@@ -1251,6 +1251,16 @@ failed and was corrected to a standard native durability barrier before creation
 C06c2 remains open: actual Host launch/reconciliation, exact input/policy materialization, write/crash
 faults and bound regression qualification are still required. No component is installed into Nooki.
 
+**Approved-input checkpoint:** [Exact input delivery](capability-platform-evidence/C06c-approved-input.md)
+exports immutable input bytes from the actual Host journal and checks launch bytes, first-turn
+content, output schema and alternate context/override fields in the disposable component before
+claiming submission. Rejected content can be followed by the correct input without losing its
+single submission. Real Host exports also corrected the native prototype's nested installation
+wire format. The 1.1 MB fixture is retained intact by the Host and explicitly refused by the native
+text limit before claim. Next, materialize the full approved document range into scoped immutable
+files, bind their bytes/paths to the native policy and verify tool reads/restart before integrating
+the actual launcher. Small text delivery does not satisfy the existing 8 MB document contract.
+
 C06c also retains complete effect-policy qualification, verified native authentication ownership,
 component packaging/update rollback and the existing transport/approval/question/cancellation gates.
 C06c1 completion does not make the public Agent path available.

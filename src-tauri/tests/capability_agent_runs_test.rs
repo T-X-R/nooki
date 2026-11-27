@@ -388,3 +388,42 @@ fn backup_validation_rejects_duplicate_threads_and_invalid_native_metadata() {
         assert!(user_data::validate(&corrupted).is_err());
     }
 }
+
+#[test]
+fn native_launch_input_is_exact_retained_serialization_and_does_not_reclaim() {
+    use sha2::{Digest,Sha256};
+    let f=Fixture::new();let mut input=intent();
+    input.instructions="nooki-native-model-probe: summarize approved Unicode \u{4f1a}\u{8bae} notes".into();
+    if let Ok(sha)=std::env::var("NOOKI_NATIVE_INPUT_COMPONENT_SHA") {input.component.as_mut().unwrap().sha256=sha;}
+    let doc=SelectedDocument {content:Some("Retained body: quoted \"text\", newline\n\u{4f60}\u{597d} 🧰".into()),..source()};
+    let doc=if std::env::var("NOOKI_NATIVE_INPUT_LARGE").as_deref()==Ok("1") {
+        SelectedDocument {content:Some("Retained body: ".to_owned()+&"x".repeat(1_100_000)),..doc}
+    } else {doc};
+    let run=runs::approve(&f.0,&scope(),"native-input",&input,||Ok(()),||Ok(vec![doc])).unwrap();
+    assert!(runs::native_launch_input(&f.0,&scope(),&run.id,||Ok(())).is_err());
+    let run=runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap();
+    let before=fs::read(f.0.join("capability-agent-runs.json")).unwrap();
+    let launch=runs::native_launch_input(&f.0,&scope(),&run.id,||Ok(())).unwrap();
+    assert_eq!(launch.binding,bound(&f,&run));
+    assert_eq!(format!("{:x}",Sha256::digest(launch.input_json.as_bytes())),launch.binding.input_digest);
+    let material:serde_json::Value=serde_json::from_str(&launch.input_json).unwrap();
+    assert_eq!(material,json!(["nooki-agent-input-v1",input.instructions,run.documents,input.output_schema,input.agent_id]));
+    assert_eq!(runs::native_launch_input(&f.0,&scope(),&run.id,||Ok(())).unwrap().input_json,launch.input_json);
+    assert_eq!(fs::read(f.0.join("capability-agent-runs.json")).unwrap(),before);
+    assert!(runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).is_err());
+    if let Ok(path)=std::env::var("NOOKI_NATIVE_INPUT_FIXTURE") {
+        fs::write(path,serde_json::to_vec(&launch).unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn native_launch_input_obeys_authority_and_import_fences() {
+    let f=Fixture::new();let run=claimed(&f,"input");
+    assert!(runs::native_launch_input(&f.0,&scope(),&run.id,||Err("PERMISSION_DENIED: revoked".into())).is_err());
+    let mut other=scope();other.installation.generation="e".repeat(64);
+    assert!(runs::native_launch_input(&f.0,&other,&run.id,||Ok(())).is_err());
+    let path=f.0.join("capability-agent-runs.json");
+    let mut ledger:serde_json::Value=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    ledger["runs"][&run.id]["restored"]=json!(true);fs::write(path,ledger.to_string()).unwrap();
+    assert!(runs::native_launch_input(&f.0,&scope(),&run.id,||Ok(())).is_err());
+}

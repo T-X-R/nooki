@@ -21,8 +21,14 @@ assert.equal(version, 'codex-app-server 0.170.0')
 const hash = createHash('sha256')
 for await (const chunk of createReadStream(binary)) hash.update(chunk)
 const binarySha256 = hash.digest('hex')
+const legacyLaunch=process.argv.includes('--legacy-launch')
+const inputCase=process.argv.find(arg=>arg.startsWith('--input-case='))?.split('=')[1]
+const hostFixture=process.env.NOOKI_NATIVE_INPUT_FIXTURE ? JSON.parse(await readFile(process.env.NOOKI_NATIVE_INPUT_FIXTURE,'utf8')) : null
+const inputJson=hostFixture?.inputJson ?? JSON.stringify(['nooki-agent-input-v1','nooki-native-model-probe: approved-native-turn',[],null,'codex'])
+const approvedMaterial=JSON.parse(inputJson), outputSchema=approvedMaterial[3]
+const approvedInput=[{type:'text',text:inputJson,text_elements:[]}]
 const requests = [], fixtureErrors = [], notifications = [], results = [], mismatches = []
-const responseText = 'NOOKI_SYNTHETIC_MODEL_RESPONSE'
+const responseText = outputSchema ? JSON.stringify({summary:'NOOKI_SYNTHETIC_MODEL_RESPONSE'}) : 'NOOKI_SYNTHETIC_MODEL_RESPONSE'
 const server = createServer(async (request, response) => {
   try {
     assert.equal(request.method, 'POST'); assert.equal(request.url, '/v1/responses')
@@ -31,8 +37,9 @@ const server = createServer(async (request, response) => {
     for await (const chunk of request) chunks.push(chunk)
     const body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
     assert.equal(body.model, 'mock-model')
-    assert(JSON.stringify(body.input).includes('nooki-native-model-probe'))
-    requests.push({ method: request.method, path: request.url, model: body.model, syntheticInputPresent: true })
+    const syntheticInputPresent=JSON.stringify(body.input).includes('nooki-native-model-probe')
+    assert(syntheticInputPresent || inputCase==='omitted','Unexpected fixture input')
+    requests.push({ method: request.method, path: request.url, model: body.model, syntheticInputPresent, approvedInputPresent: JSON.stringify(body.input).includes(JSON.stringify(inputJson)), outputSchema:body.text?.format?.schema??null })
     const id = `synthetic-${requests.length}`
     const events = [
       { type: 'response.created', response: { id } },
@@ -76,19 +83,24 @@ const rpc = (method, params) => new Promise((resolve, reject) => {
   const id = ++sequence, timer = setTimeout(() => { pending.delete(id); reject(new Error(`Timeout: ${method}`)) }, 15000)
   pending.set(id, { resolve, reject, timer }); child.stdin.write(JSON.stringify({ id, method, params }) + '\n')
 })
-const binding = {
+const binding = hostFixture?.binding ?? {
   runId: '1'.repeat(64), approvalId: '2'.repeat(64), clientMessageId: '3'.repeat(64),
-  inputDigest: '4'.repeat(64), policyDigest: '5'.repeat(64),
+  inputDigest: createHash('sha256').update(inputJson).digest('hex'), policyDigest: '5'.repeat(64),
   component: {protocolRevision: 1, sha256: binarySha256},
-  scope: {installation: {capabilityId: 'example.binding', capabilityVersion: '1.0.0', generation: '6'.repeat(64)}, restoreId: null},
+  scope: {installation: {capability_id: 'example.binding', capability_version: '1.0.0', generation: '6'.repeat(64)}, restoreId: null},
 }
+assert.equal(binding.component.sha256,binarySha256,'Host fixture must approve this exact component')
+// Previous prototype used camelCase installation keys; adapt only its historical launch shape.
+const wireBinding=value=>!legacyLaunch||!value?value:{...value,scope:{...value.scope,installation:{
+  capabilityId:value.scope.installation.capability_id,capabilityVersion:value.scope.installation.capability_version,
+  generation:value.scope.installation.generation}}}
 let recovery=false
-async function launch(launchBinding = binding, launchHome = home) {
+async function launch(launchBinding = binding, launchHome = home, launchInputJson = inputJson) {
   const launchedAt = Date.now()
   generation += 1
   const bindingPath = join(root, 'launch-binding.json')
   let file
-  if (launchBinding) { await writeFile(bindingPath, JSON.stringify({binding:launchBinding,recovery}), {mode:0o600}); file=await open(bindingPath,'r') }
+  if (launchBinding) { await writeFile(bindingPath, JSON.stringify({binding:wireBinding(launchBinding),recovery,...(legacyLaunch?{}:{inputJson:launchInputJson})}), {mode:0o600}); file=await open(bindingPath,'r') }
   stderr = ''
   child = spawn(binary, ['--strict-config'], { ...options, cwd,
     env:{...options.env, CODEX_HOME:launchHome, ...(file ? {NOOKI_RUN_BINDING_FD:'3'} : {})},
@@ -125,7 +137,7 @@ async function start() {
 }
 async function completeTurn(threadId, label) {
   const before = requests.length
-  const { turn } = await rpc('turn/start', { threadId, clientUserMessageId: binding.clientMessageId, input: [{ type: 'text', text: `nooki-native-model-probe: ${label}`, text_elements: [] }] })
+  const { turn } = await rpc('turn/start', { threadId, clientUserMessageId: binding.clientMessageId, input: approvedInput, outputSchema })
   const deadline = Date.now() + 15000
   let completion
   while (Date.now() < deadline) {
@@ -152,7 +164,7 @@ async function deniedLaunch(name, value) {
 }
 async function competingOwner() {
   const path=join(root,'competing-launch.json')
-  await writeFile(path,JSON.stringify({binding,recovery:true}),{mode:0o600})
+  await writeFile(path,JSON.stringify({binding:wireBinding(binding),recovery:true,...(legacyLaunch?{}:{inputJson})}),{mode:0o600})
   const file=await open(path,'r')
   const peer=spawn(binary,['--strict-config'],{...options,cwd,
     env:{...options.env,NOOKI_RUN_BINDING_FD:'3'},stdio:['pipe','pipe','pipe',file.fd]})
@@ -178,7 +190,7 @@ async function deniedRequest(name, method, params, accepted) {
   if(!ok)mismatches.push({name,expected:'native binding refusal',actual:refusal??'accepted'})
   if(ok)assert.equal(requests.length,before)
 }
-try {
+async function bindingScenario() {
   await deniedLaunch('missing-launch-binding', null)
   await deniedLaunch('wrong-component', {...binding,component:{...binding.component,sha256:'0'.repeat(64)}})
   await launch()
@@ -197,7 +209,7 @@ try {
   await completeTurn(threadId,'approved-native-turn')
   await deniedRequest('fork', 'thread/fork', {threadId,cwd,ephemeral:false,approvalPolicy:'never',sandbox:'read-only'})
   await deniedRequest('explicit-rollout-import', 'thread/resume', {threadId,path:original.thread.path,cwd,approvalPolicy:'never',sandbox:'read-only'})
-  await deniedRequest('duplicate-submission', 'turn/start', {threadId,clientUserMessageId:binding.clientMessageId,input:[{type:'text',text:'nooki-native-model-probe: duplicate',text_elements:[]}]}, async value=>{
+  await deniedRequest('duplicate-submission', 'turn/start', {threadId,clientUserMessageId:binding.clientMessageId,input:approvedInput,outputSchema}, async value=>{
     const deadline=Date.now()+15000
     while(!notifications.some(m=>m.method==='turn/completed'&&m.params.turn.id===value.turn.id)&&Date.now()<deadline)await new Promise(r=>setTimeout(r,25))
     assert(notifications.some(m=>m.method==='turn/completed'&&m.params.turn.id===value.turn.id&&m.params.turn.status==='completed'));syntheticModelTurns+=1
@@ -223,8 +235,11 @@ try {
     ['changed-input',{inputDigest:'a'.repeat(64)}],['changed-policy',{policyDigest:'a'.repeat(64)}],
     ['changed-client-message',{clientMessageId:'a'.repeat(64)}],
     ['restored-scope',{scope:{...binding.scope,restoreId:'synthetic-restore'}}],
-    ['changed-installation',{scope:{...binding.scope,installation:{...binding.scope.installation,generation:'a'.repeat(64)}}}],
-  ])await deniedLaunch(name,{...binding,...change})
+    ['changed-installation',{scope:{...binding.scope,installation:{...binding.scope.installation,generation:'f'.repeat(64)}}}],
+  ]){
+    assert.notDeepEqual({...binding,...change},binding,'Binding mutation fixture must actually differ: '+name)
+    await deniedLaunch(name,{...binding,...change})
+  }
   await launch()
   const resumedHelpers=results.at(-1).helperDirectories
   assert(originalHelpers.length>0 && resumedHelpers.length>0)
@@ -237,9 +252,9 @@ try {
   assert.equal(resumed.thread.id,threadId)
   assert.equal(resumed.thread.path,original.thread.path)
   const history=await rpc('thread/read',{threadId,includeTurns:true})
-  assert(JSON.stringify(history).includes('approved-native-turn'))
+  assert(JSON.stringify(history).includes(JSON.stringify(inputJson).slice(1,-1)))
   results.push({name:'same-run-cold-resume',threadId,passed:true,retainedInput:true})
-  await deniedRequest('cold-duplicate-submission','turn/start',{threadId,clientUserMessageId:binding.clientMessageId,input:[{type:'text',text:'nooki-native-model-probe: cold duplicate',text_elements:[]}]}, async value=>{
+  await deniedRequest('cold-duplicate-submission','turn/start',{threadId,clientUserMessageId:binding.clientMessageId,input:approvedInput,outputSchema}, async value=>{
     const deadline=Date.now()+15000
     while(!notifications.some(m=>m.method==='turn/completed'&&m.params.turn.id===value.turn.id)&&Date.now()<deadline)await new Promise(r=>setTimeout(r,25))
     assert(notifications.some(m=>m.method==='turn/completed'&&m.params.turn.id===value.turn.id&&m.params.turn.status==='completed'));syntheticModelTurns+=1
@@ -267,11 +282,76 @@ try {
   await stop()
   assert.deepEqual(fixtureErrors,[])
   passed=mismatches.length===0
+}
+async function inputScenario() {
+  if(inputCase==='launch-bytes'){
+    let refusal=null
+    try {await launch(binding,home,inputJson+' ')} catch(error){refusal=error.message}
+    passed=!!refusal?.includes('NOOKI_NATIVE_BINDING_INPUT_MISMATCH')
+    results.push({name:'input-launch-bytes',passed,refusal})
+    if(!passed)mismatches.push({name:'input-launch-bytes',expected:'exact approved byte hash refusal',actual:refusal??'initialized'})
+    return
+  }
+  await launch()
+  const {thread}=await start()
+  const base={threadId:thread.id,clientUserMessageId:binding.clientMessageId,input:approvedInput,outputSchema}
+  const cases={
+    text:{...base,input:[{type:'text',text:inputJson+' changed',text_elements:[]}]},
+    source:{...base,input:[{type:'text',text:inputJson.replace('Retained body','Changed body'),text_elements:[]}]},
+    omitted:{...base,input:[]},
+    extra:{...base,input:[...approvedInput,{type:'text',text:'nooki-native-model-probe: extra instructions',text_elements:[]}]},
+    schema:{...base,outputSchema:{type:'object',properties:{different:{type:'string'}}}},
+    model:{...base,model:'mock-model'},
+    context:{...base,additionalContext:{synthetic:{value:'nooki-native-model-probe: unapproved context',kind:'untrusted'}}},
+  }
+  if(inputCase==='oversize') {
+    assert(inputJson.length>1_048_576,'Oversize case requires an actual large Host fixture')
+    let refusal=null
+    try {await rpc('turn/start',base)} catch(error){refusal=error.message}
+    passed=!!refusal?.includes('NOOKI_NATIVE_BINDING_INPUT_TOO_LARGE')
+    const provenance=JSON.parse(await readFile(join(home,'.nooki-run-provenance.json'),'utf8'))
+    assert.equal(provenance.turnClaimed,false,'Unsupported input must not consume a submission')
+    assert.equal(requests.length,0)
+    results.push({name:'input-oversize',passed,refusal,submissionUnclaimed:true})
+    if(!passed)mismatches.push({name:'input-oversize',expected:'bounded preclaim refusal',actual:refusal??'accepted'})
+    return
+  }
+  if(inputCase==='valid') {
+    await completeTurn(thread.id,'host-approved-input')
+    assert.equal(requests.at(-1).approvedInputPresent,true)
+    assert.deepEqual(requests.at(-1).outputSchema,outputSchema)
+  } else {
+    assert(cases[inputCase],'Unknown input case')
+    assert.notDeepEqual(cases[inputCase],base,'Mutation fixture must actually differ')
+    const before=requests.length
+    let refusal=null,accepted=null
+    try {accepted=await rpc('turn/start',cases[inputCase])} catch(error){refusal=error.message}
+    const expected=['model','context'].includes(inputCase)?'TURN_OVERRIDE_DENIED':'INPUT_MISMATCH'
+    const ok=!!refusal?.includes('NOOKI_NATIVE_BINDING_'+expected)
+    if(accepted){
+      const deadline=Date.now()+15000
+      while(!notifications.some(m=>m.method==='turn/completed'&&m.params.turn.id===accepted.turn.id)&&Date.now()<deadline)await new Promise(r=>setTimeout(r,25))
+      assert(notifications.some(m=>m.method==='turn/completed'&&m.params.turn.id===accepted.turn.id&&m.params.turn.status==='completed'))
+      syntheticModelTurns+=1
+    }
+    results.push({name:'input-'+inputCase,passed:ok,refusal,modelRequests:requests.length-before})
+    if(!ok)mismatches.push({name:'input-'+inputCase,expected,actual:refusal??'accepted'})
+    if(ok){
+      assert.equal(requests.length,before)
+      await completeTurn(thread.id,'approved-input-after-refusal')
+      assert.equal(requests.at(-1).approvedInputPresent,true)
+      assert.deepEqual(requests.at(-1).outputSchema,outputSchema)
+    }
+  }
+  passed=mismatches.length===0
+}
+try {
+  if(inputCase)await inputScenario();else await bindingScenario()
 } catch(error) {
   fixtureErrors.push(error.stack??String(error))
 } finally {
   await stop();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))
-  const receipt={passed:passed&&fixtureErrors.length===0,root,binary,version,binarySha256,results,mismatches,requests,fixtureErrors,syntheticModelTurns,realModelCalls:0}
+  const receipt={inputCase:inputCase??null,legacyLaunch,hostFixture:!!hostFixture,passed:passed&&fixtureErrors.length===0,root,binary,version,binarySha256,results,mismatches,requests,fixtureErrors,syntheticModelTurns,realModelCalls:0}
   const path=join(root,'native-binding-probe.json');await writeFile(path,JSON.stringify(receipt,null,2)+'\n')
   console.log(JSON.stringify(receipt,null,2));console.log('Receipt: '+path)
   if(!receipt.passed)process.exitCode=1

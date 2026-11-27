@@ -46,6 +46,10 @@ pub struct NativeRunBinding {
     pub run_id: String, pub scope: Scope, pub approval_id: String, pub client_message_id: String,
     pub input_digest: String, pub policy_digest: String, pub component: ComponentIdentity,
 }
+/// Native-owner transport material. Contains retained source bodies; never expose or log it.
+#[derive(Clone, Serialize)]
+#[serde(rename_all="camelCase")]
+pub struct NativeLaunchInput {pub binding: NativeRunBinding, pub input_json: String}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct Run {
@@ -209,18 +213,30 @@ pub fn claim_submission(root: &Path, scope: &Scope, id: &str, authorize: impl Fn
     })
 }
 
+fn input_json(run: &Run) -> Result<String,String> {
+    serde_json::to_string(&("nooki-agent-input-v1",&run.intent.instructions,&run.documents,&run.intent.output_schema,&run.intent.agent_id))
+        .map_err(|e|e.to_string())
+}
 fn binding(run: &Run) -> Result<NativeRunBinding,String> {
     if run.restored {return Err("PERMISSION_DENIED: imported Agent history carries no execution authority".into());}
     let Submission::Pending {client_message_id}=&run.submission else {return Err("OUTCOME_UNKNOWN: Agent submission has not been claimed".into());};
     let component=run.intent.component.clone().ok_or("UNSUPPORTED_SERVICE: historical Agent approval has no native component binding")?;
     Ok(NativeRunBinding {run_id:run.id.clone(),scope:run.scope.clone(),approval_id:run.approval_id.clone(),
         client_message_id:client_message_id.clone(),policy_digest:run.intent.policy_digest.clone(),component,
-        input_digest:hash(&("nooki-agent-input-v1",&run.intent.instructions,&run.documents,&run.intent.output_schema,&run.intent.agent_id))?})
+        input_digest:format!("{:x}",Sha256::digest(input_json(run)?.as_bytes()))})
 }
 /// Reconstruct only from the authoritative journal under its existing fences. Reading a binding
 /// does not claim submission again or authorize a resume; the adapter must validate native provenance.
 pub fn native_binding(root: &Path, scope: &Scope, id: &str, authorize: impl FnOnce()->Result<(),String>) -> Result<NativeRunBinding,String> {
     fenced(root,scope,authorize,|| {let ledger=load(root)?;let result=binding(owned(&ledger,scope,id)?)?;confirm(root)?;Ok(result)})
+}
+/// Export exact approved bytes and their binding together under the existing journal fences.
+/// This is not a new dispatch claim. Only the native owner may materialize or submit these bytes.
+pub fn native_launch_input(root: &Path, scope: &Scope, id: &str, authorize: impl FnOnce()->Result<(),String>) -> Result<NativeLaunchInput,String> {
+    fenced(root,scope,authorize,|| {
+        let ledger=load(root)?;let run=owned(&ledger,scope,id)?;
+        let result=NativeLaunchInput {binding:binding(run)?,input_json:input_json(run)?};confirm(root)?;Ok(result)
+    })
 }
 /// Adapter owner only, after checking the actual component's provenance. Record thread creation
 /// and then the observed turn without another dispatch claim. Never replace either identity.

@@ -146,6 +146,14 @@ preparation-only flushing leaves no recoverable rollout. This component is not i
 Host launcher and does not yet validate actual input/policy materialization or reconcile uncertain
 turn outcomes. The Host envelope alone is not trusted native proof; C06c2 remains open.
 
+The [approved-input follow-up](../capability-platform-evidence/C06c-approved-input.md) now exports
+the exact Host-retained input serialization and validates it against native launch bytes and the
+actual first-turn text/schema. Extra context/override fields cannot substitute content, and rejected
+input does not consume submission. This also corrects the prototype to use the Host's existing
+nested installation serialization. The full approved document range still requires scoped-file
+materialization; native text limits are preserved without truncation. Production launch, complete
+policy resolution and outcome reconciliation remain open.
+
 Reuse the existing C06b run journal as the approval/submission authority. A native-only launch
 binding carries the following values from that retained record and the verified component. The
 package-facing SDK does not construct, edit or receive this binding.
