@@ -46,9 +46,13 @@ pub struct NativeIdentity {pub thread_id: String, pub turn_id: Option<String>}
 /// pending until the same native turn can be observed; it is not a retryable failure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag="status", rename_all="camelCase", deny_unknown_fields)]
-pub enum Outcome {Completed {text:String}, Failed, Cancelled}
+pub enum Outcome {Completed {text:String}, Structured {text:String,data:serde_json::Value}, InvalidResult, Failed, Cancelled}
 fn outcome_valid(outcome:&Outcome)->bool {
-    match outcome {Outcome::Completed{text}=>!text.trim().is_empty() && text.len()<=1_000_000,_=>true}
+    match outcome {
+        Outcome::Completed{text}=>!text.trim().is_empty() && text.len()<=1_000_000,
+        Outcome::Structured{text,data}=>!text.trim().is_empty()&&text.len()<=1_000_000&&serde_json::from_str::<serde_json::Value>(text).is_ok_and(|value|value==*data),
+        _=>true,
+    }
 }
 /// Private correlation envelope. Matching this value is necessary, not proof of native provenance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,6 +210,7 @@ pub fn approve_child(root:&Path,scope:&Scope,key:&str,intent:&Intent,parent:Opti
             if &run.intent!=intent || run.parent.as_deref()!=parent {return Err("CONFLICT: Agent run key was used with different intent or parent attempt".into());}
             confirm(root)?;return Ok(run.clone());
         }
+        crate::capability_agent_results::check_schema(intent.output_schema.as_ref())?;
         if intent.component.is_none() {return Err("UNSUPPORTED_SERVICE: verified native component identity is required".into());}
         if ledger.runs.len()>=MAX_RUNS {return Err("RESOURCE_LIMIT: Agent run journal is full; existing runs are retained".into());}
         let run=Run {id:crate::capability_authority::nonce()?,scope:scope.clone(),intent:intent.clone(),documents:capture()?,
@@ -317,11 +322,14 @@ pub fn record_outcome(root:&Path,scope:&Scope,expected:&NativeRunBinding,observe
         if binding(&run)?!=*expected || run.native.as_ref()!=Some(observed) {
             return Err("PERMISSION_DENIED: result does not belong to the bound native turn".into());
         }
+        // Existing text history remains frozen; newly observed results require schema validation.
+        if run.outcome.as_ref()==Some(outcome){confirm(root)?;return Ok(run);}
+        let validated=crate::capability_agent_results::validate(run.intent.output_schema.as_ref(),outcome);
         if let Some(retained)=&run.outcome {
-            if retained!=outcome {return Err("CONFLICT: native Agent result is already final".into());}
+            if retained!=&validated {return Err("CONFLICT: native Agent result is already final".into());}
             confirm(root)?;return Ok(run);
         }
-        run.outcome=Some(outcome.clone());ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
+        run.outcome=Some(validated);ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
     })
 }
 

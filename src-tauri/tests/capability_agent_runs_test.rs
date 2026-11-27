@@ -450,7 +450,7 @@ fn native_launch_input_preserves_full_eight_mb_document_without_truncation() {
 
 #[test]
 fn completed_native_result_survives_reload_and_cannot_be_replaced_or_reexecuted() {
-    let f=Fixture::new();let approved=f.approve("result",&intent()).unwrap();
+    let f=Fixture::new();let approved=f.approve("result",&Intent{output_schema:None,..intent()}).unwrap();
     runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).unwrap();
     let binding=runs::native_binding(&f.0,&scope(),&approved.id,||Ok(())).unwrap();
     let native=runs::NativeIdentity{thread_id:"native-thread".into(),turn_id:Some("native-turn".into())};
@@ -489,4 +489,36 @@ fn cancellation_before_submission_is_durable_and_cannot_cancel_an_uncertain_clai
     runs::claim_submission(&f.0,&scope(),&claimed.id,|_|Ok(())).unwrap();
     assert!(runs::cancel_unsubmitted(&f.0,&scope(),&claimed.id,||Ok(())).unwrap_err().starts_with("OUTCOME_UNKNOWN"));
     assert_eq!(runs::get(&f.0,&scope(),&claimed.id,||Ok(())).unwrap().outcome,None);
+}
+
+#[test]
+fn schema_mismatch_is_a_retained_terminal_failure_not_a_success_or_retry() {
+    let f=Fixture::new();let mut input=intent();input.output_schema=Some(json!({"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"],"additionalProperties":false}));
+    let approved=f.approve("invalid-result",&input).unwrap();runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).unwrap();
+    let binding=runs::native_binding(&f.0,&scope(),&approved.id,||Ok(())).unwrap();
+    let native=runs::NativeIdentity{thread_id:"structured-thread".into(),turn_id:Some("structured-turn".into())};runs::record_native(&f.0,&scope(),&binding,&native,||Ok(())).unwrap();
+    let outcome=runs::Outcome::Completed{text:"{\"summary\":17}".into()};
+    let result=runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Ok(())).unwrap();
+    assert_eq!(json!(result.outcome)["status"],"invalidResult");
+    assert_eq!(json!(runs::get(&f.0,&scope(),&approved.id,||Ok(())).unwrap().outcome),json!(result.outcome));
+    assert!(runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).is_err());
+}
+
+#[test]
+fn structured_result_keeps_validated_data_and_replays_without_reexecution() {
+    let f=Fixture::new();let input=intent();let approved=f.approve("structured-result",&input).unwrap();runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).unwrap();
+    let binding=runs::native_binding(&f.0,&scope(),&approved.id,||Ok(())).unwrap();let native=runs::NativeIdentity{thread_id:"thread-json".into(),turn_id:Some("turn-json".into())};
+    runs::record_native(&f.0,&scope(),&binding,&native,||Ok(())).unwrap();let outcome=runs::Outcome::Completed{text:"{\"summary\":\"Meeting ready\"}".into()};
+    let result=runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Ok(())).unwrap();
+    assert_eq!(json!(result.outcome)["data"],json!({"summary":"Meeting ready"}));
+    assert_eq!(json!(runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Ok(())).unwrap().outcome),json!(result.outcome));
+    assert_eq!(json!(runs::get(&f.0,&scope(),&approved.id,||Ok(())).unwrap().outcome),json!(result.outcome));
+}
+
+#[test]
+fn invalid_and_external_schemas_fail_before_capture() {
+    let f=Fixture::new();for schema in [json!({"type":"not-a-json-type"}),json!({"$ref":"file:///private/unapproved-schema.json"}),json!({"$ref":"https://example.invalid/schema"})] {
+        let input=Intent{output_schema:Some(schema),..intent()};
+        assert!(runs::approve(&f.0,&scope(),"invalid-schema",&input,||Ok(()),||panic!("must not capture sources")).unwrap_err().starts_with("INVALID_INPUT"));
+    }
 }

@@ -7,6 +7,7 @@ test('selected input becomes retained notes; explicit publication, task delivery
  const f=fixture({loseAttachmentReply:true}),meeting=await createMeeting(f.host,'Release planning',[f.source],'en')
  const task=await f.host.tasks.start('summarize',{draftId:meeting.id});await f.settled(task)
  let draft=await readMeeting(f.host,meeting.id);assert.equal(draft.phase,'completed');assert.equal(f.calls.starts,1);assert.equal(f.calls.publishes,0)
+ assert.ok(f.calls.agentInputs[0].input.outputSchema);assert.match(draft.text,/## Summary/);assert.match(draft.text,/Owner: Alex/);assert.ok(!draft.text.includes('\"summary\":'))
  assert.deepEqual(f.calls.agentInputs[0].input.sources,[f.source]);assert.equal((await listMeetings(f.host))[0].runId,draft.runId)
  draft=await publishMeeting(f.host,draft);f.host.documents.open(draft.document);assert.equal(f.publications.size,1);assert.equal(f.calls.opened[0].documentId,draft.document.documentId)
  draft=await createTodo(f.host,draft);await createTodo(f.host,draft);assert.equal(f.calls.creates,1)
@@ -32,4 +33,10 @@ test('pending remote cancellation remains unresolved and does not expose a succe
  f.emitRun({...result.run,cancellationRequested:true})
  const updated=await refreshMeeting(f.host,{...meeting,runId:result.run.id,phase:'running'})
  assert.equal(updated.phase,'unknown');await assert.rejects(publishMeeting(f.host,updated));assert.equal(f.calls.publishes,0)
+})
+test('schema failures never become publishable notes',async()=>{
+ const f=fixture({invalidResult:true}),meeting=await createMeeting(f.host,'Invalid format',[f.source],'en')
+ const task=await f.host.tasks.start('summarize',{draftId:meeting.id});await f.settled(task)
+ const draft=await readMeeting(f.host,meeting.id);assert.equal(draft.phase,'failed');assert.equal(draft.text,'')
+ await assert.rejects(publishMeeting(f.host,draft));assert.equal(f.calls.publishes,0);assert.equal(f.calls.starts,1)
 })

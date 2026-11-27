@@ -44,3 +44,7 @@ remaining structured-result/question/artifact work. Preview never fabricates a r
 Nooki 0.16.0 exposes optional public `run.progress.text` and `run.progress.awaitingInput`.
 Render progress without treating it as a completed result. Direct the user to Nooki's question
 notice when input is needed; never implement package-owned native answers or approval controls.
+
+Nooki 0.17.0 returns validated `run.result.data` for an approved `outputSchema` (JSON Schema 2020-12,
+embedded references only). Preserve the exact schema with the saved intent. A result-format failure
+is terminal `failed` with `run.error.code === 'INVALID_RESULT'`; do not silently retry or publish it.

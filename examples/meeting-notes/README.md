@@ -1,6 +1,6 @@
 # Meeting notes capability
 
-An independent reference package for Nooki 0.16.0 or later. It was scaffolded from the exported
+An independent reference package for Nooki 0.17.0 or later. It was scaffolded from the exported
 workbench capability kit and built outside the Nooki checkout before being preserved here.
 The package imports only its bundled public contract and UI. Nooki supplies React at runtime.
 
@@ -20,7 +20,7 @@ npm run pack
 npm run dev
 ```
 
-The installable archive is `dist/example.meeting-notes-1.1.0.capability.zip`.
+The installable archive is `dist/example.meeting-notes-1.2.0.capability.zip`.
 Importing and installing the archive, approving permissions, and running Codex are separate user
 operations. The Host needs its dedicated Codex component and a supported native login.
 
@@ -43,7 +43,7 @@ port 1431, set `PLAYWRIGHT_MODULE` to an installed Playwright module and run
 
 ## Verification and remaining scope
 
-Type checking, archive validation/build, three focused behavior tests, and the synthetic browser
+Type checking, archive validation/build, four focused behavior tests, and the synthetic browser
 flow pass. These cover retained results, explicit publication, dismissal, cancellation, reopening
 without duplicate Agent calls, and retrying an uncertain attachment with the original persisted
 request. Host tests separately cover observing a claimed run from a later Job attempt without
@@ -52,5 +52,9 @@ reparenting it or adopting an unused approval.
 Installed package behavior and authenticated Codex execution are not yet accepted. Broad theme,
 language, viewport, upgrade/removal and fault matrices belong to consolidated toolbox acceptance.
 Native questions appear in the Nooki Host notice; the package displays public progress and an
-input-needed hint. Structured artifacts and explicit independent Host execution delegation
+input-needed hint. Binary artifacts and explicit independent Host execution delegation
 remain platform work; this package's chat draft handoff does not implement that delegation.
+
+New drafts request validated summary, decisions, action items and open questions. The package renders
+that data as readable notes before explicit saving. Existing drafts retain their text-only request
+format and exact retry intent. Invalid-format results remain failed and cannot be published.

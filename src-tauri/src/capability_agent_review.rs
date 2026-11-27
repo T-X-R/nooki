@@ -51,13 +51,16 @@ pub(crate) fn metadata(run:&runs::Run)->Value {json!({"status":if run.restored {
 pub(crate) fn snapshot(run:&runs::Run)->Value {
     let (status,result)=match &run.outcome {
         Some(runs::Outcome::Completed{text})=>("completed",json!({"text":text})),
-        Some(runs::Outcome::Failed)=>("failed",Value::Null),
+        Some(runs::Outcome::Structured{text,data})=>("completed",json!({"text":text,"data":data})),
+        Some(runs::Outcome::Failed|runs::Outcome::InvalidResult)=>("failed",Value::Null),
         Some(runs::Outcome::Cancelled)=>("cancelled",Value::Null),
         None if run.submission==runs::Submission::Approved=>("approved",Value::Null),
         None if run.native.as_ref().and_then(|native|native.turn_id.as_ref()).is_some()=>("running",Value::Null),
         None=>("unknown",Value::Null),
     };
-    json!({"id":run.id,"agentId":run.intent.agent_id,"status":status,"restored":run.restored,"result":result,"cancellationRequested":run.cancellation_requested})
+    let mut value=json!({"id":run.id,"agentId":run.intent.agent_id,"status":status,"restored":run.restored,"result":result,"cancellationRequested":run.cancellation_requested});
+    if matches!(run.outcome,Some(runs::Outcome::InvalidResult)){value["error"]=json!({"code":"INVALID_RESULT","message":"The Agent result does not match the approved format"});}
+    value
 }
 pub(crate) fn public_get(state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->Result<Value,String> {
     host(caller)?;let scope=scope(state,id,version)?;let root=state.data_dir();
@@ -74,6 +77,7 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl Fn
     if !correlation(&input.request_id) || input.key.trim().is_empty() || input.key.len()>128 || input.key.chars().any(char::is_control)
         || !runs::intent_valid(&input.proposal.bind(ResolvedPolicy {digest:"0".repeat(64),component:runs::ComponentIdentity {protocol_revision:1,sha256:"0".repeat(64)}})) {return Err("INVALID_INPUT: invalid Agent proposal".into());}
     if input.proposal.agent_id!="codex" {return Err("UNSUPPORTED_SERVICE: this Agent has no verified capability execution policy".into());}
+    crate::capability_agent_results::check_schema(input.proposal.output_schema.as_ref())?;
     state.prepare_selection_grant(&input.capability_id,CapabilityPermission::AgentsRun)?;
     let root=state.data_dir();
     let mut reviews=state.agent_reviews.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent reviews unavailable")?;

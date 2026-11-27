@@ -345,4 +345,33 @@ mod tests {
         server.abort();fs::remove_dir_all(root).unwrap();
     }
 
+    #[tokio::test]
+    #[ignore="requires pinned capability Codex; synthetic local Responses only"]
+    async fn native_structured_results_validate_and_do_not_include_commentary() {
+        let binary=PathBuf::from(std::env::var_os("NOOKI_CAPABILITY_NATIVE_BIN").expect("pinned component required"));
+        let component=runs::ComponentIdentity{protocol_revision:2,sha256:format!("{:x}",Sha256::digest(fs::read(&binary).unwrap()))};
+        let root=std::env::temp_dir().join(format!("nooki-structured-{}",crate::capability_authority::nonce().unwrap()));
+        let state=PlatformState::load(root.clone()).unwrap();
+        let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.meeting","name":"Meeting notes","version":"1.0.0","entrypoints":["page"],"permissions":["agents.run"],"minPlatformVersion":"0.12.0"})).unwrap();
+        state.install_capability(manifest).unwrap();let (url,count,server)=crate::capability_codex::tests::responses().await;
+        let executor=Executor::new(Settings{binary,component,questions:true,model:"mock-model".into(),authentication:Authentication::Fixture{url}},Arc::new(|_,_|{}));
+        for invalid in [false,true] {
+            let key=if invalid{"invalid-structured-probe"}else{"structured-probe"};
+            let ticket=review::begin(&state,"main",json!({"requestId":key,"capabilityId":"example.meeting","version":"1.0.0","key":key,"proposal":{"instructions":format!("nooki-native-model-probe: {key}"),"sources":[],"agentId":"codex","outputSchema":{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"],"additionalProperties":false}}}),|agent|executor.policy(agent)).unwrap();
+            let approved=review::approve(&state,"main",json!({"handle":ticket["handle"]}),|agent|executor.policy(agent)).unwrap();let id=approved["runId"].as_str().unwrap();
+            executor.start(&state,"main","example.meeting","1.0.0",id).await.unwrap();
+            let result=tokio::time::timeout(Duration::from_secs(30),async{loop{
+                executor.observe(&state,"main","example.meeting","1.0.0",id).await.unwrap();let result=review::public_get(&state,"main","example.meeting","1.0.0",id).unwrap();
+                if result["status"]=="completed"||result["status"]=="failed"{break result;}tokio::time::sleep(Duration::from_millis(100)).await;
+            }}).await.unwrap();
+            if invalid {assert_eq!(result["error"]["code"],"INVALID_RESULT");assert!(result["result"].is_null());}
+            else {assert_eq!(result["result"]["data"],json!({"summary":"Ready"}));assert!(!result["result"]["text"].as_str().unwrap().contains("Preparing"));}
+            assert_eq!(review::public_get(&state,"main","example.meeting","1.0.0",id).unwrap(),result);
+            executor.start(&state,"main","example.meeting","1.0.0",id).await.unwrap();
+        }
+        assert_eq!(count.load(Ordering::SeqCst),2);
+        for active in executor.sessions.lock().await.values(){active.session.stop_owned_process().await;}
+        server.abort();fs::remove_dir_all(root).unwrap();
+    }
+
 }

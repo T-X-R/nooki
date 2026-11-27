@@ -10,7 +10,8 @@ configuration profile (or the pinned component catalog default). Missing compone
 unsupported providers/credential stores remain unavailable, with no ordinary CLI fallback.
 Host question/answer handling and public progress are integrated in Nooki 0.16.0. New runs enable
 Codex native default-mode questions; retained runs preserve their originally approved configuration.
-Authenticated acceptance, structured artifacts, release distribution/rollback and the complete
+Host schema validation and retained JSON results are integrated in Nooki 0.17.0. Authenticated
+acceptance, binary artifacts, release distribution/rollback and the complete
 meeting workflow remain in the active toolbox delivery. The remaining broad compatibility matrix is final acceptance
 work; incompatible managed configuration is refused, never ignored.
 

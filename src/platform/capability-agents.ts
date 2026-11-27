@@ -1,4 +1,4 @@
-import type {AgentRunSnapshot,AgentStartInput,AgentStartResult,AvailableAgent,CapabilityHost,HostErrorCode,HostServiceError,IdempotencyOptions} from '../../packages/capability-contract/src/index.ts'
+import type {AgentResultData,AgentRunSnapshot,AgentStartInput,AgentStartResult,AvailableAgent,CapabilityHost,HostErrorCode,HostServiceError,IdempotencyOptions} from '../../packages/capability-contract/src/index.ts'
 import type {AgentReviewRequest} from './agent-review.ts'
 const error=(code:HostErrorCode,message:string):HostServiceError=>Object.assign(new Error(message),{code})
 const codes:HostErrorCode[]=['INVALID_INPUT','PERMISSION_DENIED','UNSUPPORTED_SERVICE','CONFLICT','RESOURCE_LIMIT','RESOURCE_BUSY','RESOURCE_UNAVAILABLE','OUTCOME_UNKNOWN','CANCELLED']
@@ -10,13 +10,28 @@ function normalize(cause:unknown,fallback:HostErrorCode):HostServiceError{
   if(cause&&typeof cause==='object'&&'code' in cause&&codes.includes(cause.code as HostErrorCode))return error(cause.code as HostErrorCode,'message' in cause&&typeof cause.message==='string'?cause.message:'Agent request failed')
   return error(fallback,fallback==='OUTCOME_UNKNOWN'?'Outcome unknown; observe this run or retry the same key and input':'Agent service unavailable')
 }
+function resultData(value:unknown,depth=0):AgentResultData{
+  if(depth>128)throw error('RESOURCE_UNAVAILABLE','Agent data exceeds nesting limit')
+  if(value===null||typeof value==='string'||typeof value==='boolean')return value
+  if(typeof value==='number'&&Number.isFinite(value))return value
+  if(Array.isArray(value))return Object.freeze(value.map(item=>resultData(item,depth+1)))
+  if(value&&typeof value==='object'&&[Object.prototype,null].includes(Object.getPrototypeOf(value)))return Object.freeze(Object.fromEntries(Object.entries(value).map(([key,item])=>[key,resultData(item,depth+1)])))
+  throw error('RESOURCE_UNAVAILABLE','Invalid Agent data')
+}
 function snapshot(value:unknown):AgentRunSnapshot{
-  if(!fields(value,['id','agentId','status','restored','result','cancellationRequested','progress'])||!runId(value.id)||value.agentId!=='codex'||typeof value.restored!=='boolean'||typeof value.cancellationRequested!=='boolean'||!['approved','running','unknown','completed','failed','cancelled'].includes(value.status as string))throw error('RESOURCE_UNAVAILABLE','Invalid Agent snapshot')
+  if(!fields(value,['id','agentId','status','restored','result','cancellationRequested','progress','error'])||!runId(value.id)||value.agentId!=='codex'||typeof value.restored!=='boolean'||typeof value.cancellationRequested!=='boolean'||!['approved','running','unknown','completed','failed','cancelled'].includes(value.status as string))throw error('RESOURCE_UNAVAILABLE','Invalid Agent snapshot')
   if(value.status==='completed'){
-    if(!fields(value.result,['text'])||typeof value.result.text!=='string'||!value.result.text.trim()||bytes(value.result.text)>1_000_000)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
+    if(!fields(value.result,['text','data'])||typeof value.result.text!=='string'||!value.result.text.trim()||bytes(value.result.text)>1_000_000)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
   }else if(value.result!==null)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
   if(value.progress!==undefined&&(!fields(value.progress,['text','awaitingInput'])||typeof value.progress.text!=='string'||bytes(value.progress.text)>8000||typeof value.progress.awaitingInput!=='boolean'))throw error('RESOURCE_UNAVAILABLE','Invalid Agent progress')
-  return Object.freeze({... (value.progress?{progress:Object.freeze({...value.progress as {text:string;awaitingInput:boolean}})}:{}),id:value.id,agentId:'codex',status:value.status as AgentRunSnapshot['status'],restored:value.restored,cancellationRequested:value.cancellationRequested,result:value.result===null?null:Object.freeze({text:(value.result as {text:string}).text})})
+  if(value.error!==undefined&&(value.status!=='failed'||!fields(value.error,['code','message'])||value.error.code!=='INVALID_RESULT'||typeof value.error.message!=='string'||bytes(value.error.message)>1000))throw error('RESOURCE_UNAVAILABLE','Invalid Agent failure')
+  let result:AgentRunSnapshot['result']=null
+  if(value.result!==null){
+    const raw=value.result as {text:string;data?:unknown};let data:AgentResultData|undefined
+    if(Object.hasOwn(raw,'data')){data=resultData(raw.data);if(bytes(JSON.stringify(data))>1_000_000)throw error('RESOURCE_UNAVAILABLE','Agent data exceeds result limit')}
+    result=Object.freeze({text:raw.text,...(data!==undefined?{data}:{})})
+  }
+  return Object.freeze({... (value.progress?{progress:Object.freeze({...value.progress as {text:string;awaitingInput:boolean}})}:{}),...(value.error?{error:Object.freeze({...value.error as {code:'INVALID_RESULT';message:string}})}:{}),id:value.id,agentId:'codex',status:value.status as AgentRunSnapshot['status'],restored:value.restored,cancellationRequested:value.cancellationRequested,result})
 }
 function proposal(input:AgentStartInput,options:IdempotencyOptions){
   try{

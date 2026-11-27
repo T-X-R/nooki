@@ -2,7 +2,7 @@
 import {createPreviewHost} from '../../preview/host.ts'
 import {capabilityId,readMeeting,summarize} from '../../meeting.ts'
 import type {AgentRunSnapshot,CapabilityManifest,TaskRecord} from '../../contract/index.ts'
-export function fixture(options:{autoComplete?:boolean;dismissAgent?:boolean;loseAttachmentReply?:boolean}={}){
+export function fixture(options:{autoComplete?:boolean;dismissAgent?:boolean;loseAttachmentReply?:boolean;invalidResult?:boolean}={}){
  const manifest:CapabilityManifest={id:capabilityId,name:'Meeting',version:'1.0.0',minPlatformVersion:'0.15.0',entrypoints:['page','job'],permissions:['storage']}
  const {host,setEnvironment}=createPreviewHost(manifest)
  const calls={starts:0,publishes:0,creates:0,selections:0,attachments:0,handoffs:0,opened:[] as unknown[],agentInputs:[] as unknown[],attachmentInputs:[] as unknown[]}
@@ -18,7 +18,8 @@ export function fixture(options:{autoComplete?:boolean;dismissAgent?:boolean;los
   calls.starts++;calls.agentInputs.push(structuredClone({input,request}))
   const run:AgentRunSnapshot={id:String(calls.starts).padStart(64,'a'),agentId:'codex',status:'running',restored:false,cancellationRequested:false,result:null}
   runByKey.set(request.idempotencyKey,run);runs.set(run.id,run)
-  if(options.autoComplete!==false)setTimeout(()=>emitRun({...run,status:'completed',result:{text:'# Decisions\nShip the prototype.\n\n## Action items\n- Alex: share the draft on Friday.\n\n## Open questions\nBudget not specified.'}}),20)
+  const data={language:input.instructions.includes('Chinese')?'zh':'en',summary:'The prototype is ready.',decisions:['Ship the prototype.'],actions:[{task:'Share the draft',owner:'Alex',due:'Friday'}],openQuestions:['Budget not specified.']}
+  if(options.autoComplete!==false)setTimeout(()=>emitRun(options.invalidResult?{...run,status:'failed',error:{code:'INVALID_RESULT',message:'Result does not match schema'}}:{...run,status:'completed',result:input.outputSchema?{text:JSON.stringify(data),data}:{text:'Meeting notes ready'}}),20)
   return{status:'started',run}
  }
  host.agents.get=async id=>runs.get(id)!

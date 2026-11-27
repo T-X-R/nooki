@@ -251,11 +251,7 @@ impl Session {
         let native=NativeIdentity{thread_id:proof.thread_id.clone(),turn_id:Some(id.into())};
         self.interactions.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent interactions unavailable")?.observe(&native,turn);
         let outcome=match turn["status"].as_str() {
-            Some("completed")=>{
-                let text=turn["items"].as_array().into_iter().flatten().filter(|item|item["type"]=="agentMessage")
-                    .filter_map(|item|item["text"].as_str()).collect::<Vec<_>>().join("\n\n");
-                Some(if text.trim().is_empty(){Outcome::Failed}else{Outcome::Completed{text}})
-            },
+            Some("completed")=>Some(crate::capability_agent_results::final_message(turn)),
             Some("failed")=>Some(Outcome::Failed),Some("interrupted")=>Some(Outcome::Cancelled),
             Some("inProgress")=>None,_=>return Err("OUTCOME_UNKNOWN: native turn status is unknown".into()),
         };
@@ -332,15 +328,21 @@ pub(crate) mod tests {
                 let _=stream.read(&mut buffer).await;continue;
             }
             let asking=request["input"].to_string().contains("ask-user-probe") && !request["input"].as_array().unwrap().iter().any(|i|i["type"]=="function_call_output");
-            let item=if asking {
+            let structured=request["input"].to_string().contains("structured-probe");
+            let item=if structured {
+                assert_eq!(request["text"]["format"]["schema"]["properties"]["summary"]["type"],"string");
+                let text=if request["input"].to_string().contains("invalid-structured-probe"){r#"{"summary":17}"#}else{r#"{"summary":"Ready"}"#};
+                json!({"id":"structured-final","type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":text}]})
+            } else if asking {
                 json!({"id":"question-call","type":"function_call","call_id":"question-one","name":"request_user_input","arguments":json!({"questions":[{"id":"title","header":"Title","question":"Choose the meeting title","options":[{"label":"Release notes","description":"Use the release title"},{"label":"Team notes","description":"Use the team title"}]}]}).to_string()})
             } else {
                 if request["input"].to_string().contains("ask-user-probe"){assert!(request["input"].to_string().contains("Release notes"));}
                 json!({"id":"message-1","type":"message","role":"assistant","content":[{"type":"output_text","text":"Meeting notes ready"}]})
             };
-            let events=[json!({"type":"response.created","response":{"id":"synthetic"}}),
+            let mut events=vec![json!({"type":"response.created","response":{"id":"synthetic"}}),
                 json!({"type":"response.output_item.done","item":item}),
                 json!({"type":"response.completed","response":{"id":"synthetic","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}})];
+            if structured {events.insert(1,json!({"type":"response.output_item.done","item":{"id":"commentary","type":"message","role":"assistant","phase":"commentary","content":[{"type":"output_text","text":"Preparing the structured result"}]}}));}
             let body=events.iter().map(|e|format!("event: {}\ndata: {}\n\n",e["type"].as_str().unwrap(),e)).collect::<String>();
             let response=format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body);
             stream.write_all(response.as_bytes()).await.unwrap();

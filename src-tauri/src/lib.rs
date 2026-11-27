@@ -29,6 +29,7 @@ pub(crate) mod capability_codex;
 pub(crate) mod capability_agent_execution;
 mod capability_agent_host;
 mod capability_agent_interactions;
+mod capability_agent_results;
 mod capability_agent_component;
 pub mod codex_session_source;
 pub mod agent_tools;

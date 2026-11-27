@@ -84,3 +84,11 @@ test('progress contains only public text and a Host question indicator',async()=
  const invalid=createAgentClient({...f.config,invoke:async()=>({...f.run,progress:{text:'Text',awaitingInput:true,nativeThreadId:'private'}})})
  await assert.rejects(invalid.agents.get(id),{code:'RESOURCE_UNAVAILABLE'});await invalid.dispose()
 })
+test('validated result data is copied and deeply frozen; invalid-result failures remain terminal',async()=>{
+ const f=fixture(),data={summary:'Ready',actions:[{task:'Publish',owner:null}]}
+ const client=createAgentClient({...f.config,invoke:async()=>({...f.run,status:'completed',result:{text:JSON.stringify(data),data}})})
+ const result=(await client.agents.get(id)).result!;data.actions[0].task='Changed'
+ assert.deepEqual(result.data,{summary:'Ready',actions:[{task:'Publish',owner:null}]});assert.ok(Object.isFrozen((result.data as any).actions[0]));await client.dispose()
+ const invalid=createAgentClient({...f.config,invoke:async()=>({...f.run,status:'failed',error:{code:'INVALID_RESULT',message:'Result does not match format'}})})
+ assert.equal((await invalid.agents.get(id)).error?.code,'INVALID_RESULT');await invalid.dispose()
+})

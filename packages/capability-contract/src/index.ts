@@ -241,6 +241,7 @@ export type AgentStartInput = {
   sources?: DocumentReference[]
   outputSchema?: CapabilityJsonSchema
 }
+export type AgentResultData = null | boolean | number | string | readonly AgentResultData[] | {readonly [key: string]: AgentResultData}
 export type AgentRunSnapshot = Readonly<{
   id: string
   agentId: 'codex'
@@ -251,7 +252,10 @@ export type AgentRunSnapshot = Readonly<{
   cancellationRequested: boolean
   /** Public assistant progress only. Questions are answered in the Nooki Host UI. */
   progress?: Readonly<{ text: string; awaitingInput: boolean }>
-  result: Readonly<{ text: string }> | null
+  /** Present only for a terminal invalid/oversized result. It does not authorize retry. */
+  error?: Readonly<{ code: 'INVALID_RESULT'; message: string }>
+  /** data is present only after the Host validates the exact approved outputSchema. */
+  result: Readonly<{ text: string; data?: AgentResultData }> | null
 }>
 export type AgentStartResult = { status: 'dismissed' } | { status: 'started'; run: AgentRunSnapshot }
 export type AvailableAgent = Readonly<{ id: 'codex'; name: string }>

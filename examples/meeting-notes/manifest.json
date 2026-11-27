@@ -2,8 +2,8 @@
   "id": "example.meeting-notes",
   "name": "Meeting notes",
   "description": "Turn selected source documents into reviewed notes, saved Library documents and follow-up drafts.",
-  "version": "1.1.0",
-  "minPlatformVersion": "0.16.0",
+  "version": "1.2.0",
+  "minPlatformVersion": "0.17.0",
   "entrypoints": [
     "page",
     "job"

@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.16.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.17.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -60,8 +60,22 @@ review. Packages cannot supply approvals, policies, credentials, source bodies o
 Sources must be unchanged active Library selection references (up to 50); declare
 `documents.read-selected` when requesting them. Instructions allow up to 20,000 characters, the
 optional schema is an object of at most 16,384 UTF-8 bytes, and the entire serialized request must fit
-63 KiB. Returned text is bounded to 1 MB. The current result is text; schema-aware result validation
-and artifacts are still pending implementation.
+63 KiB. Returned text is bounded to 1 MB. Binary artifacts remain pending implementation.
+
+Nooki 0.17.0 validates `outputSchema` before review and the final JSON answer before retaining a
+successful result. Schemas use JSON Schema 2020-12 (omit `$schema` or name that dialect explicitly),
+with embedded references only. HTTP/file retrieval is disabled and unresolved references are rejected.
+Regular expressions use the linear-time engine; unsupported look-around/backreferences and unknown
+formats are rejected. The model provider may impose further schema restrictions. The Host uses the
+pinned [jsonschema validator](https://docs.rs/jsonschema/0.63.2/jsonschema/) with default resolver
+features disabled and offline validation.
+
+A completed structured run has `{ text, data }`: `text` is the final JSON answer and `data` is the
+validated JSON value, copied and deeply frozen by the SDK. Progress/commentary is excluded from the
+final answer. With no schema, the existing `{ text }` shape is unchanged. Invalid JSON, schema mismatch,
+empty or oversized final output becomes terminal `failed` with `error.code: 'INVALID_RESULT'`; it
+has no successful result and is never automatically resubmitted. Retained data survives reopen;
+older text-only history remains readable without retroactive conversion.
 
 `start` returns `{ status: 'dismissed' }` when the review is closed, or
 `{ status: 'started', run }` for the retained run. Closing after an uncertain confirmation does not
@@ -69,7 +83,7 @@ prove that nothing started: retain the same key/input and reconcile it unchanged
 returns the same run; pending work is observed, never resubmitted. `get(id)` and
 `subscribe(id, listener, onError)` return fresh scoped snapshots with `id`, `agentId`, `status`,
 `restored`, and `result`. Status is `approved`, `running`, `unknown`, `completed`, `failed`, or
-`cancelled`; only `completed` has `{ text }`. Private correlation and native identifiers are omitted.
+`cancelled`; only `completed` has `{ text }` (and validated `data` when a schema was requested). Private correlation and native identifiers are omitted.
 Subscriptions are serial, poll at one second after each read, stop on terminal/restored state or
 revoked authority, and release callbacks on disposal. They never start work.
 

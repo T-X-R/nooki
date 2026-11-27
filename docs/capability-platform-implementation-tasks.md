@@ -38,7 +38,8 @@ Job children and recovers retained results. Runs created after that inventory ar
 orphans. Claims lacking native provenance remain uncertain. The previous Job parentage, durable
 cancellation, active-session maintenance and retry refusal are retained.
 
-**Still in this delivery:** structured results/artifacts and remaining lifecycle ownership.
+**Still in this delivery:** retained binary artifacts and remaining lifecycle ownership.
+Validated structured results are implemented in the 0.17.0 increment below.
 Host questions/public progress are implemented in the 0.16.0 increment below. The meeting package's save/reopen flow is implemented below; installed and
 authenticated acceptance remains in the consolidated final pass. The initial component integration supports Codex's OpenAI provider and native file login;
 other credential stores/providers still need integration and acceptance. Optimized release component
@@ -124,6 +125,37 @@ Bundle: 689.40 MiB (development native component). Logs:
 The current result remains text; structured results/artifacts and independent execution handoff are
 next implementation work. Real-login, installed-package, broader reconnect/fault and lifecycle
 acceptance remains in the consolidated final pass; this increment does not close C06–C09.
+
+**Structured result increment (0.17.0): development/core tests complete; final acceptance pending.**
+The Host validates result schemas before review and validates the final native answer against the
+immutable approved schema before retaining success. The pinned JSON Schema 2020-12 validator has
+HTTP/file resolvers disabled, offline references and linear-time patterns. Invalid schema inputs
+capture no sources. A completed structured run retains both final JSON text and validated `data`;
+the SDK copies/freezes that value. Text-only runs and historical completed text remain readable.
+Commentary is progress and is excluded from the final answer. Malformed JSON, schema mismatch and
+empty/oversized output become terminal `failed` with `INVALID_RESULT`, never successful publication
+or automatic execution retry.
+
+Meeting package 1.2.0 requests summary, decisions, owners/dates and open questions, then renders the
+validated data as readable notes for explicit save/open and downstream delivery. Its new drafts
+freeze the structured format; pre-existing drafts retain their original text request for exact
+retry identity. An invalid result never becomes publishable.
+
+Core evidence: the schema-mismatch regression first failed against the previous behavior, then all
+32 execution-journal tests and 21 focused native Agent tests passed. Eight SDK tests, two kit checks
+and four independent meeting tests pass. The actual signed Codex component passes schema forwarding,
+commentary separation, valid/invalid terminal results, retained readback and no-repeat start in
+18.42s, with exactly two local synthetic Responses requests and no authenticated calls. Independent
+package check/pack and the existing synthetic save/open/task/chat/reopen UI flow pass.
+Logs: `/tmp/nooki-structured-{red,ledger,core,sdk,kit,native,package-test,package-pack,ui}.log`.
+App/contract/kit versions: 0.17.0 / 0.16.0 / 0.15.0. Archive:
+`docs/local/meeting-notes/example.meeting-notes-1.2.0.capability.zip` (ignored build artifact).
+Required desktop build (native release: 1m 10s), reinstall and strict deep signature verification
+pass for installed 0.17.0. Executable SHA-256:
+`225c9c1a6bc1871bcb89914396fd02c19e92d179b495f0221b62687bc1b83173`.
+Bundle size: 696.44 MiB. Logs: `/tmp/nooki-structured-desktop-{build,install}.log`.
+Binary artifact retention and independent Host work delegation remain implementation work;
+installed/authenticated and broad lifecycle acceptance remain in the final consolidated pass.
 
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
