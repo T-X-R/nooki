@@ -9,6 +9,28 @@ must pass. S/M are target slice sizes, not duration estimates. File lists identi
 footprint; apply the plan's splitting rule if inspection reveals more work. Each public change also
 updates the canonical contract, exported kit/Skill and its receipt as part of the same delivery.
 
+## Active development — complete the usable toolbox (2026-11-27 revision)
+
+**State: in progress. Scope is unchanged; Codex is the only Agent adapter in this implementation.**
+Follow the [revised execution policy](capability-platform-implementation-plan.md#current-execution-policy--revised-2026-11-27).
+Develop the complete original feature set with focused core tests first. Broader installed regression,
+compatibility, long-run, fault-matrix and install/upgrade/removal acceptance is consolidated after
+functional development. Historical unchecked acceptance stays visible without blocking unrelated
+implementation; do not relabel deferred tests as passed or add more suffixed preparation checkpoints.
+
+**Current functional delivery:** installed meeting package → selected Library sources → Host review
+→ Codex execution and interactions/cancel → visible retained result → saved/reopened Library notes.
+Implement the remaining C06c/C06d/C06e parts together with the C07 behavior and C09 caller needed by
+this flow. Preserve the rest of C07–C09, R01–R15 and T01–T08; the change moves broad tests, not features.
+
+**Next code:** actual Host-owned native launch and durable result reconciliation, wired to the
+review/status/cancel UI and exported SDK/package caller. Reuse existing journal/transport/services.
+**Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
+relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
+active-path defects immediately. Real-model execution still requires its existing authorization.
+**Status reporting:** record `development/core tests complete; final acceptance pending` where
+appropriate. Mark original IDs complete only when their remaining acceptance is actually performed.
+
 ## Preparation: reproducible inputs and early feasibility
 
 ### [x] P00 — Establish baseline fixtures and an isolated desktop profile
@@ -1009,7 +1031,7 @@ starts no Agent turn. Check keyboard/focus/error/layout separately from simulate
 
 ### [ ] C06 — Expose one observable agent-run path
 
-**State:** in progress; split below before implementation. C01/C02 are complete, so this work may
+**State:** in progress as the integrated meeting-notes development above. C01/C02 are complete, so this work may
 proceed independently of C05, whose installed acceptance is now complete. C06 remains a required
 K2 gate. The public API is not exposed until native effect policy, durable identity and Host interaction
 handling are verified together.
@@ -1092,14 +1114,14 @@ dependencies. V-APP build/install and strict signature verification pass.
 **Next-step decision:** [ADR 0008](adr/0008-capability-agent-adapter-selection.md).
 The official 0.172.0 release reproduces the same six configuration limitations. The current
 Codex-first path has no verified complete policy interface. The owner explicitly retained Codex
-priority on 2026-11-26; do not switch to another adapter. Continue qualifying the Codex-native
-startup boundary against the unchanged C06 acceptance bar. Production dispatch remains unavailable.
+priority on 2026-11-26; do not switch to another adapter. Integrate the supported Codex-native path with Host review, results and the package caller; verify
+its relevant boundaries on that assembled path. Production dispatch remains unavailable until then.
 The owner approved the bounded Codex-native component scope on 2026-11-27:
-[ADR 0009](adr/0009-codex-native-policy-extension.md#owner-decision--2026-11-27). Continue private
-run/recovery binding and full policy qualification before integration. Codex retains native model,
+[ADR 0009](adr/0009-codex-native-policy-extension.md#owner-decision--2026-11-27). Continue Host integration and qualify the supported fixed policy on that same delivery. Codex retains native model,
 authentication and execution ownership; the ordinary CLI remains unchanged. No real-model call is
 authorized by this decision. C05c's two archives/four permissions were approved independently in
-the same response. Existing gates and downstream dependencies remain unchanged.
+the same response. Existing safety requirements remain; the 2026-11-27 owner revision combines implementation and
+focused acceptance into the usable workflow rather than adding standalone qualification gates.
 The [materialization review and disposable experiment](capability-platform-evidence/C06c-native-prototype.md)
 identify builder-callback bypasses, later plugin MCP registration and non-strict startup recovery.
 The official CLI reproduced the missing refusal on both thread creation and direct session refresh.
@@ -1239,8 +1261,8 @@ launch/provenance path that agrees with the Host journal before any effect, pers
 before dispatch acknowledgement, and reconciles uncertain creation/start without replaying work.
 **Acceptance:** Same-run restart succeeds with unchanged semantic policy despite native transient
 helper allowances; changed/missing/foreign/restored provenance and fork/import refuse execution.
-A supplied/echoed JSON digest or dedicated directory is insufficient. Qualify actual native process
-restart and failure paths with local synthetic Responses fixtures before product integration.
+A supplied/echoed JSON digest or dedicated directory is insufficient. Use the actual Host/native integration to check restart and uncertain submission; reuse the existing
+synthetic Responses fixture instead of adding another independent process probe.
 
 **2026-11-27 checkpoint:** [Native run admission and cold recovery](capability-platform-evidence/C06c-native-run-binding.md)
 passes 22 explicit native refusals and two synthetic turns, including restart before the first

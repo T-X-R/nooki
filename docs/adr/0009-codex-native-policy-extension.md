@@ -6,6 +6,20 @@
 - Parent decision: [ADR 0008 — retain Codex first](0008-capability-agent-adapter-selection.md)
 - Requirement: [C06 implementation and acceptance](../capability-platform-implementation-tasks.md)
 
+## Development and verification revision — 2026-11-27
+
+The owner retained the full toolbox feature scope and Codex-only adaptation, and requested that
+development/core tests proceed before the broader final verification. Integrate the Host adapter,
+review/status/questions/cancel UI, exported API and meeting package as one functional path. Reuse
+existing synthetic input/sandbox/binding results. Run focused normal-flow, authorization,
+deduplication and relevant recovery checks while developing; defer the broad compatibility/auth,
+long-run and exhaustive fault matrices to the consolidated final acceptance pass.
+The gate list below retains its requirements, but is no longer a series of standalone experiments
+that must all finish before product integration code can be written. Known failures affecting the
+active path still require a fix. No new model client or credential store is introduced, and existing
+real-model execution authorization remains unchanged. This changes test timing, not functionality.
+See the [revised execution policy](../capability-platform-implementation-plan.md#current-execution-policy--revised-2026-11-27).
+
 ## Problem
 
 The audited official CLI paths in Codex 0.170.0 and 0.172.0 start inherited synthetic MCP

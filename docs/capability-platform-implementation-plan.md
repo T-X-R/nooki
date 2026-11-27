@@ -7,6 +7,69 @@
 - Task state and detailed acceptance: [implementation checklist](capability-platform-implementation-tasks.md), the single task-status record
 - Current review: [PR #38](https://github.com/T-X-R/nooki/pull/38)
 
+## Current execution policy — revised 2026-11-27
+
+The owner clarified that **the complete approved toolbox scope is retained, with Codex as the only
+Agent adapter in the current implementation**. The problem is overly detailed verification holding
+back development. Change the timing and granularity of testing, not the promised functionality or
+its authority boundaries. This section supersedes the original sequencing, task-splitting and
+verification-gate timing below. Existing task IDs remain the completion record; no new preparation
+phase or suffixed qualification checkpoints are added.
+
+### Development order
+
+| Order | Complete functional path to implement | Existing task coverage |
+| --- | --- | --- |
+| **1 — in progress** | Package request → Host review → Codex execution → observable progress/questions/cancel → retained result → saved/reopened meeting notes. Reopening observes the same run. | C06c–C06e, the required C07 behavior, and the C09 package caller developed together |
+| 2 | Attach results to existing/new tasks, hand drafts to chat, and explicitly delegate independent Host work that survives package removal. | Remaining C07–C09 |
+| 3 | Versioned packages and isolated runtime, immediate commands and continuing services, transactional update/removal, local music and non-AI game packages. | R01–R06, R10–R12, R14 |
+| 4 | Presentation generation/export, retained binary assets, cross-package selection, editor reopening and headless/chat invocation. | R07–R09, R13, R15 |
+| 5 | Complete exported development Skill/kit and developer workflow, supported compatibility behavior, schedules/weekly reports and legacy migration. | T01–T07 |
+| **6 — consolidated acceptance** | Run the complete assembled toolbox through the remaining desktop, lifecycle, compatibility, fault and upgrade scenarios; fix failures and record final acceptance. | Pending K2–K11 verification, C06e/C09 and reference-package acceptance, T08 |
+
+Reuse the existing journal, Codex transport, selected snapshots, Library publication and document
+views. The immediate engineering work is the actual Host-owned launch and result reconciliation,
+connected to its review/status/cancel UI and exported SDK/package caller in the same functional
+path. Internal commits are allowed; an adapter-only commit or standalone probe is not a completed
+user feature. Keep all original service/lifecycle requirements, including Host questions/approvals,
+structured results, cancellation parentage, independent handoff and retained artifacts.
+
+### Core tests during development
+
+Run focused tests for the behavior being changed, and only the shared regressions it can affect:
+
+- The normal requested flow reaches its real result/storage owner.
+- Missing approval, foreign/revoked input or an invalid installation cannot authorize an effect.
+- A repeated start or lost reply cannot silently create duplicate execution.
+- Where the change involves cancellation, restart or persisted state, verify the relevant state
+  transition and visibility of an uncertain outcome. Never automatically replay uncertain work.
+
+These are checks on the implementation, not a requirement to enumerate every failure combination.
+A confirmed defect in the active path is fixed immediately. Do not defer a known authorization,
+data-loss or duplicate-execution defect merely to finish coding faster. Keep native model/tool/auth
+ownership and the current trusted-only package boundary until the planned isolation is implemented.
+
+### One consolidated acceptance pass after development
+
+Defer the following broader verification to the final assembled implementation: repeated full
+installed-app walkthroughs, compatibility/authentication/platform matrices, long-running/resource
+measurements, exhaustive crash/write-fault permutations, broad containment variants, and the full
+clean-install/upgrade/update/rollback/uninstall suite. Implement the corresponding features in the
+order above; deferring their tests does not remove those features or declare their acceptance passed.
+
+The final pass includes the installed Codex/meeting path and the music, presentation, game, headless
+and scheduled-report workflows from the original plan. Record actual model calls separately from
+synthetic fixtures and honor the existing execution authorization. A fixture is not evidence of a
+real authenticated model run. Other Agent adapters are outside the current Codex-only work.
+
+Existing evidence is reused for unchanged behavior. Do not rerun the historical native probe set,
+full repository suites or documentation/compatibility matrices for each intermediate edit. Maintain
+one compact running result entry per functional delivery instead of one document per experiment.
+Build/reinstall the local app for each completed code delivery as required by the project; do not
+repeat a build solely for unchanged-code reassurance. A feature can be recorded as development/core
+tests complete while final acceptance remains pending. Do not report the whole project complete
+until the consolidated acceptance pass and required delivery steps are finished.
+
 ## 1. Scope and starting point
 
 Implement the approved toolbox design incrementally. Preserve current packages and user data while
@@ -14,8 +77,8 @@ opening shared Host services, introducing independently stoppable package runtim
 developer Skill sufficient for independent development. This plan creates no implementation, API,
 package format, release, or claim that future acceptance tests already pass.
 
-There are 35 parent implementation tasks and 12 verification checkpoints; suffixed subtasks refine
-those deliveries without changing the scope. Use the checklist for the next eligible task. Earlier
+The original inventory has 35 parent tasks and 12 checkpoints. The revised execution policy above
+groups remaining tasks into usable workflows; do not add more suffixed preparation tasks. Earlier
 design review and the baseline's passing tests do not count as implementation completion.
 
 The design specifies behavior; this document specifies sequencing and delivery. Keep product scope
@@ -43,9 +106,9 @@ the proposal explicitly; do not weaken acceptance or silently broaden permission
 The table contains **12 checkpoints, K0–K11**; K0 is the preparation checkpoint, followed by 11
 delivery checkpoints. Use the IDs, not an inferred percentage, when reporting progress.
 
-Default to the table's sequential order. Explicit dependency lists in the checklist additionally
-describe what each task consumes. Passing tests in one task does not waive a pending earlier
-checkpoint. P02 brings design slice 2A's bounded feasibility experiment forward; production runtime
+This table records the original order. Follow the revised execution policy above. Dependency lists in the checklist additionally
+describe what each task consumes. An unmet requirement must remain visible, but it does not prevent implementing the other parts of
+the same end-to-end delivery. P02 brings design slice 2A's bounded feasibility experiment forward; production runtime
 replacement still belongs to phase 2. It prevents phase 1's transport assumptions becoming an
 accidental permanent contract.
 
@@ -60,6 +123,9 @@ flowchart LR
     G2 --> T[T01-T08: development and compatibility]
     T --> G3[K11: phase 3 gate]
 ```
+
+The following are retained acceptance criteria; broader checks are executed in the consolidated final
+pass, rather than repeatedly gating the next development task.
 
 **Phase 1 / K3:** M1 and phase-1 M7 pass using an exported kit and an isolated desktop profile.
 Package-owned child execution cancels correctly; separately authorized host work survives removal.
@@ -98,20 +164,19 @@ the owning paths before modification; repository state may change after this pla
    the evidence receipts. Record the task as in progress with its branch/PR and concrete scope.
 2. Deliver one usable path, including its UI when needed, authority checks, failure behavior, focused
    tests, and corresponding exported SDK/Skill update. Do not implement the rest of a service catalog.
-3. Verify the actual archive on the isolated desktop profile where Host behavior matters. Simulated
-   preview and mocked browser tests are separate evidence, not substitutes for native acceptance.
+3. Run the focused core checks for the changed flow. Retain installed/archive acceptance for the
+   consolidated final pass unless needed to resolve a concrete active-path failure. Simulated
+   preview and mocked browser tests remain separate evidence, not native acceptance.
 4. Apply the repository's delivery workflow: commit, push, keep the active PR open for human review,
    and rebuild/reinstall the local desktop app after each completed verified change. Quit normally
    first and use the existing installer; do not terminate unrelated agent work.
 5. Save the task's evidence receipt and update its checklist status. An unchecked failure or unavailable
    external verification cannot be relabeled passed to clear the next gate.
 
-S and M in the checklist mean small and medium target slices, not time promises. Target about 1–5
-primary implementation/test files. Shared contract/kit/docs updates are mandatory, not a reason to
-leave them behind. If inspection reveals a larger change, split it into suffixed tasks (for example
-`R03a`, `R03b`) **before implementation**, with explicit dependencies and a separately verifiable
-outcome for each. The parent is complete only when every child passes. Do not turn a task into an
-unreviewable runtime rewrite or fake smallness by moving complexity into a new large file.
+S and M are historical sizing hints, not instructions to split an integrated user flow into more
+standalone milestones. Keep edits focused and internally reviewable, but deliver its native, UI,
+SDK and package pieces together. Intermediate commits are allowed; a commit is not a new acceptance
+checkpoint or a reason to rebuild unchanged code. No speculative service catalog is added.
 
 Task IDs do not automatically create new requirements, branches, or PRs. Reuse the existing branch,
 worktree and open PR for this ongoing requirement, as project instructions require. After a human
@@ -138,8 +203,8 @@ claiming its acceptance; the baseline commands below do not by themselves cover 
 New suites introduced by a task must have their exact runnable command added to its receipt. Existing
 UI scripts are browser harnesses; arrange their server and dependencies rather than assuming a
 Playwright installation or treating a harness as native isolation proof. Run V-APP for completed
-changes per project policy. Intermediate checkpoints review focused evidence plus the assembled
-build; phase gates broaden to V-F. Reuse evidence for an unchanged exact revision rather than rerun
+changes per project policy. During development, use focused core evidence plus the build for the completed delivery.
+Broader V-F and installed acceptance are consolidated after functional development, as specified above. Reuse evidence for an unchanged exact revision rather than rerun
 the same suite without a new change or unresolved concern.
 
 The first phase uses one available agent adapter. Record a real-agent run for M1 when that integration
@@ -148,21 +213,24 @@ enter the declared compatibility matrix explicitly; unsupported policy enforceme
 as unsupported, not approximated by a prompt. External dependency failure is unverified/blocked
 evidence, not a pass or a reason to implement another model client.
 
-Each completed task/checkpoint links a compact receipt under `docs/capability-platform-evidence/<ID>.md` (create only
+Each completed user-facing delivery updates a compact receipt under `docs/capability-platform-evidence/<ID>.md` (create only
 when work is performed): commit and PR, host/SDK/package versions, tested platform/profile, exact
 commands and results, acceptance IDs, real versus simulated checks, artifact identity, limitations,
-and next eligible task. Do not put credentials or private source content in these receipts.
+and next implementation step. Distinguish development/core-test completion from pending final acceptance. Do not put credentials or private source content in these receipts.
 
 ## 6. Status and resumption rules
 
 `docs/capability-platform-implementation-tasks.md` is the only status checklist. Use unchecked entries for pending work; add `State:
 in-progress`, `State: blocked`, or `State: review` with a reason and receipt when appropriate. Mark
-checked only when the task's acceptance and delivery contract pass. Record human merge separately
+checked only when the task's acceptance and delivery contract pass. Use `development/core tests complete;
+final acceptance pending` when broader validation is deliberately deferred; that state does not block
+the next development task unless a concrete dependency is still unimplemented or its core test fails. Record human merge separately
 from verified implementation; an open PR is not a failed test and a merged PR is not proof of native
 acceptance. Checkpoints require actual evidence, not merely checked task headings.
 
 At the start of a later chat, read this plan, the checklist, the last relevant receipt and the current
-Git state. Choose the first pending task in order whose dependencies and earlier checkpoints pass.
+Git state. Choose the next incomplete user-facing delivery in the revised order above; implement its missing
+parts together and use the old task IDs to record the specific remaining requirements.
 Carry forward accepted scope and existing work. Do not restart completed tasks, invent progress from
 design prose, or bypass a failed containment/migration gate. Report progress by completed IDs and
 current gate, not a percentage based on unequal task sizes.
@@ -180,7 +248,7 @@ creating automations, tracker issues, or background execution.
 | SDK contract drifts from implementation | P01 establishes portable generation; every service task ships kit changes; T01 hardens consistency checks |
 | Retained file still points into an uninstalled package | R08 atomic dependency retention and R13 independent-reader/uninstall checks |
 | Replacement code reads old data before approval | R06 rejects access before source review; R11 rechecks ordering for migration and rollback fault paths |
-| Actual task exceeds its target scope | Split with suffixed IDs before editing; retain parent dependency and acceptance rather than widen a slice silently |
+| Delivery crosses several layers | Keep one user flow and reviewable commits; do not add independent preparation checkpoints |
 | New services expand beyond the sample consumers | Require an acceptance use for each operation; unused catalog methods stay deferred |
 
 No calendar commitment is made. Estimate remaining effort after P02 and each phase gate using actual
