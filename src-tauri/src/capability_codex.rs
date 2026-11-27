@@ -236,6 +236,27 @@ impl Session {
         };
         Ok(Some((NativeIdentity{thread_id:proof.thread_id,turn_id:Some(id.into())},outcome)))
     }
+    /// Only kill the process group created by this Session; never resolve a PID from package data.
+    #[cfg(unix)]
+    pub(crate) async fn stop_owned_process(&self) {
+        if let Some(mut process)=self.process.lock().await.take() {
+            if matches!(process.try_wait(),Ok(None)) {
+                if let Some(id)=process.id() {
+                    // SAFETY: the unreaped child owns the group established by process_group(0).
+                    unsafe {libc::kill(-(id as i32),libc::SIGKILL);}
+                }
+            }
+            let _=process.wait().await;
+        }
+    }
+    #[cfg(unix)]
+    pub(crate) async fn interrupt_and_stop(&self) {
+        let _=tokio::time::timeout(Duration::from_secs(5),async {
+            if let Some((native,None))=self.observe().await? {self.cancel(&native).await?;}
+            Ok::<(),String>(())
+        }).await;
+        self.stop_owned_process().await;
+    }
     #[cfg(test)]
     pub(crate) async fn stop_test_process(&self) {
         if let Some(mut process)=self.process.lock().await.take() {

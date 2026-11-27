@@ -70,6 +70,7 @@ impl AgentError {
             Some("INVALID_INPUT")=>("INVALID_INPUT","Invalid Agent request"),
             Some("PERMISSION_DENIED")=>("PERMISSION_DENIED","Agent or source access is missing or no longer valid"),
             Some("UNSUPPORTED_SERVICE")=>("UNSUPPORTED_SERVICE","Capability Codex execution is not available"),
+            Some("CANCELLED")=>("CANCELLED","Agent or parent cancellation was requested"),
             Some("CONFLICT")=>("CONFLICT","The approved Agent request changed or cannot perform this operation"),
             Some("RESOURCE_LIMIT")=>("RESOURCE_LIMIT","Agent capacity is exhausted"),
             Some("RESOURCE_BUSY")=>("RESOURCE_BUSY","The Agent owner is busy; retry unchanged"),
@@ -138,7 +139,7 @@ mod tests {
         runs::record_outcome(&root,&scope,&binding,&native,&runs::Outcome::Completed{text:"Retained meeting notes".into()},||Ok(())).unwrap();
         let mut query=context;query["runId"]=json!(run.id);
         let result=host.run(&state,"main",query.clone(),"get").await.unwrap();
-        assert_eq!(result,json!({"id":run.id,"agentId":"codex","status":"completed","restored":false,"result":{"text":"Retained meeting notes"}}));
+        assert_eq!(result,json!({"id":run.id,"agentId":"codex","status":"completed","restored":false,"cancellationRequested":false,"result":{"text":"Retained meeting notes"}}));
         query["capabilityId"]=json!("example.peer");assert!(host.run(&state,"main",query,"get").await.is_err());
         assert!(host.begin(&state,"main",json!({"requestId":"new","capabilityId":"example.meeting","version":"1.0.0","key":"new","proposal":{"agentId":"codex","instructions":"New","sources":[],"outputSchema":null}})).unwrap_err().starts_with("UNSUPPORTED_SERVICE"));
         fs::remove_dir_all(root).unwrap();

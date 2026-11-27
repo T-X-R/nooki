@@ -32,7 +32,43 @@ impl Executor {
         let launch=runs::native_launch_input(state.data_dir(),&run.scope,&run.id,||review::current(state.data_dir(),&run.scope))?;
         let run_id=run.id.clone();let events=self.events.clone();
         let session=Session::open(state.data_dir(),launch,&self.settings,Arc::new(move|event|events(&run_id,event))).await?;
-        let active=Arc::new(Active{session,gate:Mutex::new(())});sessions.insert(run.id.clone(),active.clone());Ok(active)
+        let active=Arc::new(Active{session,gate:Mutex::new(())});sessions.insert(run.id.clone(),active.clone());
+        let weak=Arc::downgrade(&active);let root=state.data_dir().to_path_buf();let retained=run.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                let Some(active)=weak.upgrade() else{break};
+                let _gate=active.gate.lock().await;
+                match Self::maintain(&root,&retained,&active.session).await {
+                    Ok(true)=>{active.session.stop_owned_process().await;break;},
+                    Ok(false)=>(),
+                    Err(error) if error.starts_with("PERMISSION_DENIED")=>{active.session.interrupt_and_stop().await;break;},
+                    Err(_)=>(), // A lost acknowledgement remains pending and is reconciled next time.
+                }
+            }
+        });Ok(active)
+    }
+    #[cfg(unix)]
+    async fn maintain(root:&std::path::Path,retained:&runs::Run,session:&Session)->Result<bool,String> {
+        let mut run=runs::get(root,&retained.scope,&retained.id,||Ok(()))?;
+        if run.restored {return Ok(true);}
+        if run.outcome.is_some() {return Ok(true);}
+        let authority=runs::get(root,&run.scope,&run.id,|| {
+            review::current(root,&run.scope)?;runs::admission(root,&run)?;
+            crate::document_grants::task_documents(root,&run.scope.installation,&run.intent.sources)?;Ok(())
+        });
+        if let Err(error)=authority {
+            if error.starts_with("RESOURCE_BUSY") {return Ok(false);}
+            run=runs::request_cancellation(root,&run.scope,&run.id)?;
+        }
+        let Some((native,outcome))=session.observe().await? else{return Ok(false)};
+        let binding=runs::native_binding(root,&run.scope,&run.id,||Ok(()))?;
+        runs::record_native(root,&run.scope,&binding,&native,||Ok(()))?;
+        if let Some(outcome)=outcome {
+            runs::record_outcome(root,&run.scope,&binding,&native,&outcome,||Ok(()))?;return Ok(true);
+        }
+        if run.cancellation_requested {session.cancel(&native).await?;}
+        Ok(false)
     }
     #[cfg(unix)]
     async fn observed(&self,state:&PlatformState,run:&runs::Run,session:&Session)->Result<runs::Run,String> {
@@ -65,6 +101,7 @@ impl Executor {
             crate::user_data::ensure_restore_complete(root)?;
             let _authority=crate::capability_authority::fence(root)?;
             review::current(root,&run.scope)?;
+            runs::admission(root,&run)?;
             crate::document_grants::task_documents(root,&run.scope.installation,&run.intent.sources)?;
             active.session.submit().await?
         };
@@ -92,6 +129,7 @@ impl Executor {
         if run.submission==runs::Submission::Approved {
             return runs::cancel_unsubmitted(state.data_dir(),&run.scope,run_id,||review::current(state.data_dir(),&run.scope)).map(|run|review::metadata(&run));
         }
+        runs::request_cancellation(state.data_dir(),&run.scope,&run.id)?;
         let active=self.session(state,&run).await?;let _gate=active.gate.lock().await;
         let run=self.observed(state,&run,&active.session).await?;
         if run.outcome.is_none() {
@@ -124,29 +162,41 @@ mod tests {
         let (url,count,server)=crate::capability_codex::tests::responses().await;
         let executor=Executor::new(Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}},Arc::new(|_,_|{}));
         let host=crate::capability_agent_host::AgentHost{executor:Some(executor)};
-        for (key,cancel) in [("normal",false),("hold-for-cancellation",true)] {
-            let ticket=host.begin(&state,"main",json!({"requestId":key,"capabilityId":"example.meeting","version":"1.0.0","key":key,
+        for (index,(key,mode)) in [("normal","normal"),("hold-for-cancellation","direct"),("hold-for-cancellation-parent","parent"),("hold-for-cancellation-revoke","revoke")].into_iter().enumerate() {
+            let cancel=mode!="normal";
+            if mode=="parent" {state.write_tasks(&[json!({"id":"meeting-job","attempt":1,"status":"running","capabilityId":"example.meeting","capabilityVersion":"1.0.0"})]).unwrap();}
+            let ticket=host.begin(&state,"main",json!({"requestId":key,"capabilityId":"example.meeting","version":"1.0.0","key":key,"executionId":if mode=="parent"{Some("meeting-job:1")}else{None},
                 "proposal":{"instructions":format!("nooki-native-model-probe: {key}"),"sources":[],"agentId":"codex","outputSchema":null}})).unwrap();
             let approved=host.approve(&state,"main",json!({"handle":ticket["handle"]})).unwrap();
             let id=approved["id"].as_str().unwrap();
             let query=json!({"capabilityId":"example.meeting","version":"1.0.0","runId":id});
             assert!(host.run(&state,"package",query.clone(),"start").await.is_err());
             let started=host.run(&state,"main",query.clone(),"start").await.unwrap();assert_eq!(started["id"],id);
+            let scope=review::scope(&state,"example.meeting","1.0.0").unwrap();
             if cancel {
-                tokio::time::timeout(Duration::from_secs(20),async {while count.load(Ordering::SeqCst)<2 {tokio::time::sleep(Duration::from_millis(50)).await;}}).await.unwrap();
-                host.run(&state,"main",query.clone(),"cancel").await.unwrap();
+                tokio::time::timeout(Duration::from_secs(20),async {while count.load(Ordering::SeqCst)<index+1 {tokio::time::sleep(Duration::from_millis(50)).await;}}).await.unwrap();
+                match mode {
+                    "parent"=>{assert!(runs::cancel_parent(&root,"meeting-job:1").unwrap());},
+                    "revoke"=>{state.set_capability_enabled("example.meeting",false).unwrap();assert!(host.run(&state,"main",query.clone(),"get").await.is_err());},
+                    _=>{host.run(&state,"main",query.clone(),"cancel").await.unwrap();},
+                }
             }
             let completed=tokio::time::timeout(Duration::from_secs(30),async {loop {
-                let value=host.run(&state,"main",query.clone(),"get").await.unwrap();
+                let value=if mode=="revoke" {review::snapshot(&runs::get(&root,&scope,id,||Ok(())).unwrap())}
+                    else {host.run(&state,"main",query.clone(),"get").await.unwrap()};
                 if value["status"]=="completed" || value["status"]=="cancelled" {break value;}
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }}).await.unwrap();
             assert_eq!(completed["status"],if cancel{"cancelled"}else{"completed"});
             if !cancel {assert_eq!(completed["result"]["text"],"Meeting notes ready");}
-            assert_eq!(host.run(&state,"main",query.clone(),"start").await.unwrap(),completed);
-            assert_eq!(review::public_get(&state,"main","example.meeting","1.0.0",id).unwrap(),completed);
+            assert_eq!(completed["cancellationRequested"],cancel);
+            if mode!="revoke" {
+                assert_eq!(host.run(&state,"main",query.clone(),"start").await.unwrap(),completed);
+                assert_eq!(review::public_get(&state,"main","example.meeting","1.0.0",id).unwrap(),completed);
+            }
+            if mode=="parent" {assert!(!runs::cancel_parent(&root,"meeting-job:1").unwrap());}
         }
-        assert_eq!(count.load(Ordering::SeqCst),2,"Each approval dispatched once, including cancellation");
+        assert_eq!(count.load(Ordering::SeqCst),4,"Each approval dispatched once, including cancellation");
         for active in host.executor.as_ref().unwrap().sessions.lock().await.values() {active.session.stop_test_process().await;}
         drop(host);server.abort();let _=server.await;fs::remove_dir_all(root).unwrap();
     }

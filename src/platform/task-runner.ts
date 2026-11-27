@@ -6,7 +6,8 @@ export type TaskRunnerDependencies = {
   read(): Promise<TaskRecord[]>
   write(records: readonly TaskRecord[]): Promise<void>
   resolve(ownerId: string, job: string): { version: string; definition: TaskJob; ownerKind?: 'platform'; scope?(input: unknown): string }
-  cancelInvocation(id: string): Promise<void>
+  cancelInvocation(id: string): Promise<void | { pending: boolean }>
+  prepareRetry?(id: string): Promise<void>
 }
 
 export function createTaskRunner(dependencies: TaskRunnerDependencies) {
@@ -130,14 +131,15 @@ export function createTaskRunner(dependencies: TaskRunnerDependencies) {
     executions.get(id)?.controller.abort()
     // Cancel the native invocation before returning; a late invocation with
     // the same attempt id is rejected by the native cancellation token.
-    await dependencies.cancelInvocation(`${id}:${record.attempt}`)
-    await commit((current) => current.map((item) => item.id === id && item.attempt === record.attempt && item.status === 'running' ? { ...item, status: 'cancelled', error: null, updatedAt: new Date().toISOString() } : item))
+    const cancellation = await dependencies.cancelInvocation(`${id}:${record.attempt}`)
+    await commit((current) => current.map((item) => item.id === id && item.attempt === record.attempt && item.status === 'running' ? { ...item, status: 'cancelled', error: cancellation?.pending ? 'Agent cancellation is pending confirmation; retry is unavailable until reconciled' : null, updatedAt: new Date().toISOString() } : item))
   }
 
   const restart = async (id: string, reconnect: boolean) => {
     await initialize()
     const record = find(id)
     if (!['failed', 'interrupted', 'cancelled'].includes(record.status)) throw new Error('Only stopped tasks can be retried')
+    await dependencies.prepareRetry?.(`${id}:${record.attempt}`)
     const definition = resolve(record)
     if (reconnect && !definition.recover) throw new Error('This job cannot reconnect to an existing execution')
     const next = { ...record, status: 'running' as const, attempt: record.attempt + 1, error: null }

@@ -5,7 +5,7 @@ configuration/admission boundary; Codex still owns authentication, models, tools
 cancellation. It neither replaces the user's Codex CLI nor adds another model runner.
 
 **Status: development integration.** The application does not enable or bundle this component yet.
-Lifecycle stop propagation, runtime questions, authentication acceptance and component distribution
+Startup recovery of orphaned children, runtime questions, authentication acceptance and component distribution
 remain in the active toolbox delivery. The remaining broad compatibility matrix is final acceptance
 work; incompatible managed configuration is refused, never ignored.
 
@@ -32,7 +32,10 @@ provenance checks continue to apply.
 The Host serializes the final authority check and bounded native submission with the same fences as
 installation changes, document revocation and restore. An uncertain acknowledgement keeps its
 submission claim. Cancellation before a claim is atomic; after a claim, only native observation can
-confirm a terminal result. Complete lifecycle cancellation propagation remains pending.
+confirm a terminal result. Active-session maintenance now persists cancellation requests, observes results independently of
+page subscriptions, and interrupts on parent cancellation or revoked installation/source authority.
+Job parentage comes from Host context and is checked against the persisted task attempt. Restart
+recovery and complete lifecycle acceptance remain pending.
 
 ## Build and focused validation
 

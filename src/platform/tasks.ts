@@ -29,8 +29,11 @@ export const taskRunner = createTaskRunner({
       finally { await releaseCapabilityHost(host) }
     } } }
   },
+  prepareRetry: async (id) => {
+    if (window.__TAURI_INTERNALS__) await invoke('task_prepare_retry', { id })
+  },
   cancelInvocation: async (id) => {
-    if (window.__TAURI_INTERNALS__) await invoke('task_cancel_invocation', { id })
+    if (window.__TAURI_INTERNALS__) return await invoke<{ pending: boolean }>('task_cancel_invocation', { id })
   },
 })
 

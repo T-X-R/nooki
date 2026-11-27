@@ -8,7 +8,7 @@ const input:AgentStartInput={agentId:'codex',instructions:'Summarize selected me
 const options={idempotencyKey:'meeting-one'},id='b'.repeat(64)
 function fixture(){
   const review=createAgentReview(),calls:{command:string;args:any}[]=[]
-  const run:AgentRunSnapshot={id,agentId:'codex',status:'running',restored:false,result:null}
+  const run:AgentRunSnapshot={id,agentId:'codex',status:'running',restored:false,cancellationRequested:false,result:null}
   const config={id:'example.meeting',version:'1.0.0',name:'Meeting',permission:true,desktop:true,assertActive(){},onDispose(){},open:review.open,
     invoke:async(command:string,args:any):Promise<any>=>{
       calls.push({command,args})
@@ -65,4 +65,13 @@ test('cancel reports observed running status; invalidation stops reviews and lat
   const pending=client.agents.start(input,options),cancelled=assert.rejects(pending,{code:'CANCELLED'});await tick();const shown=f.review.getSnapshot()!
   await invalidateAgentClients('example.meeting');await cancelled
   await assert.rejects(shown.confirm(),{code:'CANCELLED'});assert.equal(f.calls.filter(c=>c.command==='capability_agent_approve').length,0)
+})
+
+test('Host Job context binds the native parent; cancellation remains distinct from remote outcome',async()=>{
+  const f=fixture();Object.assign(f.run,{cancellationRequested:true})
+  const client=createAgentClient({...f.config,executionId:'meeting-job:1'})
+  assert.equal((await client.agents.get(id)).cancellationRequested,true)
+  const pending=client.agents.start(input,options);await tick()
+  assert.equal(f.calls.find(c=>c.command==='capability_agent_begin')!.args.request.executionId,'meeting-job:1')
+  f.review.dismiss(f.review.getSnapshot()!);await pending;await client.dispose()
 })

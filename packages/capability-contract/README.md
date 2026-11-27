@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.13.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.14.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -557,3 +557,13 @@ access through **Library → Document access**, including grants whose recipient
 `DocumentReference` carries `kind: "library-document"`, `documentId`, `title`, and optional `grantId`, `snapshotId` and `revision`. A grant ID identifies the retained snapshot. `locator.quote` is reserved for future finer evidence addressing; this release opens the whole source document. `snapshotId` addresses platform-owned conversation evidence independently of capability grants. Use `referenceHref()` and `parseReferenceHref()` from `src/references.ts` for Markdown citations, and `host.documents.open(reference)` to ask Nooki to display a source. Snapshot citations remain readable by the user after the producing or consuming Capability is uninstalled. Do not construct filesystem paths or read another Capability's storage.
 
 Platform Conversations use Codex session APIs directly. Their Library access and task ownership do not add full-library or Codex-session access to CapabilityHost. Existing packages continue to use scoped grants and the platform Model Gateway.
+
+Since Nooki 0.14.0, Agent snapshots include `cancellationRequested`. This records local cancellation
+separately from `status`, which continues to describe the observed native outcome. A cancellation
+request with a running/unknown status still needs reconciliation; do not publish its result as a
+successful Job. A Job-created Host automatically binds Agent starts to that Job's exact attempt;
+packages never supply a parent/owner field. Cancelling the Job persistently cancels its children and
+blocks retry while any prior child has an uncertain outcome. Page disposal only stops subscriptions.
+The native owner observes active sessions without requiring a page subscription and requests
+interruption when installation/source authority or parent lifetime ends. Startup recovery of
+orphaned children and installed component activation remain under implementation.

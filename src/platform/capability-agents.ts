@@ -11,11 +11,11 @@ function normalize(cause:unknown,fallback:HostErrorCode):HostServiceError{
   return error(fallback,fallback==='OUTCOME_UNKNOWN'?'Outcome unknown; observe this run or retry the same key and input':'Agent service unavailable')
 }
 function snapshot(value:unknown):AgentRunSnapshot{
-  if(!fields(value,['id','agentId','status','restored','result'])||!runId(value.id)||value.agentId!=='codex'||typeof value.restored!=='boolean'||!['approved','running','unknown','completed','failed','cancelled'].includes(value.status as string))throw error('RESOURCE_UNAVAILABLE','Invalid Agent snapshot')
+  if(!fields(value,['id','agentId','status','restored','result','cancellationRequested'])||!runId(value.id)||value.agentId!=='codex'||typeof value.restored!=='boolean'||typeof value.cancellationRequested!=='boolean'||!['approved','running','unknown','completed','failed','cancelled'].includes(value.status as string))throw error('RESOURCE_UNAVAILABLE','Invalid Agent snapshot')
   if(value.status==='completed'){
     if(!fields(value.result,['text'])||typeof value.result.text!=='string'||!value.result.text.trim()||bytes(value.result.text)>1_000_000)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
   }else if(value.result!==null)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
-  return Object.freeze({id:value.id,agentId:'codex',status:value.status as AgentRunSnapshot['status'],restored:value.restored,result:value.result===null?null:Object.freeze({text:(value.result as {text:string}).text})})
+  return Object.freeze({id:value.id,agentId:'codex',status:value.status as AgentRunSnapshot['status'],restored:value.restored,cancellationRequested:value.cancellationRequested,result:value.result===null?null:Object.freeze({text:(value.result as {text:string}).text})})
 }
 function proposal(input:AgentStartInput,options:IdempotencyOptions){
   try{
@@ -34,6 +34,7 @@ export async function invalidateAgentClients(id:string){await Promise.all([...cl
 export function createAgentClient(config:{
   id:string;version:string;name:string;permission:boolean;desktop:boolean;assertActive():void;onDispose():void
   invoke(command:string,args:Record<string,unknown>):Promise<unknown>;open(request:AgentReviewRequest):Promise<AgentStartResult>
+  executionId?:string
   captureFocus?():()=>void
 }){
   let closed=false,reviewing=false,controller:AbortController|undefined
@@ -59,7 +60,7 @@ export function createAgentClient(config:{
       const restore=config.captureFocus?.();reviewing=true;controller=new AbortController();let requestId:string|undefined
       try{
         await Promise.all([...requests].map(release));active();requestId=crypto.randomUUID();requests.add(requestId)
-        const begun=await config.invoke('capability_agent_begin',{request:{...context,requestId,...frozen}})
+        const begun=await config.invoke('capability_agent_begin',{request:{...context,requestId,...frozen,...(config.executionId?{executionId:config.executionId}:{})}})
         active()
         if(fields(begun,['status','run'])&&begun.status==='existing'){
           const run=snapshot(begun.run)

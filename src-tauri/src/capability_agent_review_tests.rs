@@ -225,3 +225,24 @@ fn native_reconciliation_records_prior_submission_after_source_revocation_but_no
     assert!(native_binding(&f.state,"example.reader","1.0.0",&run.id).is_err());
     assert!(record_native(&f.state,"example.reader","1.0.0",&binding,&native).is_err());
 }
+
+#[test]
+fn parent_attempt_is_host_bound_and_cancelled_attempt_cannot_be_revived() {
+    let f=Fixture::new();let task=json!({"id":"meeting-job","attempt":1,"status":"running","capabilityId":"example.reader","capabilityVersion":"1.0.0"});
+    f.state.write_tasks(&[task.clone()]).unwrap();
+    let mut input=f.request("parent","parent");input["executionId"]=json!("meeting-job:1");
+    let ticket=begin(&f.state,"main",input.clone(),policy).unwrap();let approved=f.approve(&ticket);
+    let scope=scope(&f.state,"example.reader","1.0.0").unwrap();
+    let run=runs::get(&f.root,&scope,approved["runId"].as_str().unwrap(),||Ok(())).unwrap();
+    assert_eq!(run.parent.as_deref(),Some("meeting-job:1"));
+    assert!(!runs::cancel_parent(&f.root,"meeting-job:1").unwrap());
+    f.state.write_tasks(&[task]).unwrap(); // A stale renderer cannot remove native cancellation.
+    assert!(begin(&f.state,"main",input.clone(),policy).unwrap_err().starts_with("CANCELLED"));
+    assert!(f.claim(&approved).is_err());
+    let run=runs::get(&f.root,&scope,&run.id,||Ok(())).unwrap();
+    assert!(run.cancellation_requested);assert_eq!(run.outcome,Some(runs::Outcome::Cancelled));
+    input["executionId"]=json!("meeting-job:2");
+    assert!(begin(&f.state,"main",input.clone(),policy).unwrap_err().starts_with("PERMISSION_DENIED"));
+    input["capabilityId"]=json!("example.peer");input["executionId"]=json!("meeting-job:1");
+    assert!(begin(&f.state,"main",input,policy).is_err());
+}

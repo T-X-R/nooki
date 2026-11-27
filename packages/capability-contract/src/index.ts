@@ -247,6 +247,8 @@ export type AgentRunSnapshot = Readonly<{
   status: 'approved' | 'running' | 'unknown' | 'completed' | 'failed' | 'cancelled'
   /** Restored history is readable but cannot authorize execution or cancellation. */
   restored: boolean
+  /** Local cancellation is durable; status still describes the observed native outcome. */
+  cancellationRequested: boolean
   result: Readonly<{ text: string }> | null
 }>
 export type AgentStartResult = { status: 'dismissed' } | { status: 'started'; run: AgentRunSnapshot }

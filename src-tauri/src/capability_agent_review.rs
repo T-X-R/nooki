@@ -15,14 +15,14 @@ impl Proposal {
 }
 #[derive(Deserialize)]
 #[serde(rename_all="camelCase",deny_unknown_fields)]
-struct Begin {request_id:String,capability_id:String,version:String,key:String,proposal:Proposal}
+struct Begin {request_id:String,capability_id:String,version:String,key:String,proposal:Proposal,#[serde(default)] execution_id:Option<String>}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Approval {handle:String}
 #[derive(Deserialize)]
 #[serde(rename_all="camelCase",deny_unknown_fields)]
 struct Cancel {request_id:String}
-pub(crate) struct Review {scope:Scope,request_id:String,key:String,intent:Intent,expires_at:Instant}
+pub(crate) struct Review {scope:Scope,request_id:String,key:String,intent:Intent,parent:Option<String>,expires_at:Instant}
 fn host(caller:&str)->Result<(),String> {
     if caller!="main" {return Err("PERMISSION_DENIED: Agent execution requires the Host controller".into());} Ok(())
 }
@@ -57,7 +57,7 @@ pub(crate) fn snapshot(run:&runs::Run)->Value {
         None if run.native.as_ref().and_then(|native|native.turn_id.as_ref()).is_some()=>("running",Value::Null),
         None=>("unknown",Value::Null),
     };
-    json!({"id":run.id,"agentId":run.intent.agent_id,"status":status,"restored":run.restored,"result":result})
+    json!({"id":run.id,"agentId":run.intent.agent_id,"status":status,"restored":run.restored,"result":result,"cancellationRequested":run.cancellation_requested})
 }
 pub(crate) fn public_get(state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->Result<Value,String> {
     host(caller)?;let scope=scope(state,id,version)?;let root=state.data_dir();
@@ -84,13 +84,14 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl Fn
     let installation=context(root,&input.capability_id)?;
     if installation.capability_version!=input.version {return Err("PERMISSION_DENIED: Agent installation changed".into());}
     let scope=Scope {installation,restore_id:crate::user_data::restored_id(root)?};
+    runs::parent_current(root,&scope,input.execution_id.as_deref())?;
     let intent=input.proposal.bind(resolve_policy(&input.proposal.agent_id)?);
     if !runs::intent_valid(&intent) {return Err("UNSUPPORTED_SERVICE: native Agent policy is unavailable".into());}
-    if reviews.values().any(|r|r.request_id==input.request_id && (r.scope!=scope || r.key!=input.key || r.intent!=intent)) {
+    if reviews.values().any(|r|r.request_id==input.request_id && (r.scope!=scope || r.key!=input.key || r.intent!=intent || r.parent!=input.execution_id)) {
         return Err("CONFLICT: Agent review identity changed".into());
     }
     if let Some(run)=runs::lookup(root,&scope,&input.key)? {
-        if run.intent!=intent {return Err("CONFLICT: Agent run key was used with different intent".into());}
+        if run.intent!=intent || run.parent!=input.execution_id {return Err("CONFLICT: Agent run key was used with different intent".into());}
         return Ok(metadata(&run));
     }
     // Reject foreign/revoked selection references before showing a review, then recheck at approval
@@ -100,7 +101,7 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl Fn
     if reviews.len()>=16 {return Err("RESOURCE_LIMIT: close an existing Agent review".into());}
     let handle=crate::capability_authority::nonce()?;
     if reviews.contains_key(&handle) {return Err("RESOURCE_UNAVAILABLE: Agent review identity collision".into());}
-    let review=Review {scope,request_id:input.request_id,key:input.key,intent,expires_at:Instant::now()+Duration::from_secs(15*60)};
+    let review=Review {scope,request_id:input.request_id,key:input.key,intent,parent:input.execution_id,expires_at:Instant::now()+Duration::from_secs(15*60)};
     let result=pending(&handle,&review);reviews.insert(handle,review);Ok(result)
 }
 pub fn approve(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl FnOnce(&str)->Result<ResolvedPolicy,String>)->Result<Value,String> {
@@ -108,7 +109,7 @@ pub fn approve(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl 
     let reviews=state.agent_reviews.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent reviews unavailable")?;
     let review=reviews.get(&input.handle).filter(|r|r.expires_at>Instant::now()).ok_or("PERMISSION_DENIED: Agent review expired or was dismissed")?;
     let root=state.data_dir();
-    let run=runs::approve(root,&review.scope,&review.key,&review.intent,|| {
+    let run=runs::approve_child(root,&review.scope,&review.key,&review.intent,review.parent.as_deref(),|| {
         current(root,&review.scope)?;policy_current(&review.intent,resolve_policy)?;
         if review.expires_at<=Instant::now() {return Err("PERMISSION_DENIED: Agent review expired before authorization".into());} Ok(())
     },|| crate::document_grants::task_documents(root,&review.scope.installation,&review.intent.sources))?;

@@ -142,7 +142,7 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: handoffReview.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true },
     onCommitted: id => window.dispatchEvent(new CustomEvent('workbench:open-handoff', { detail: id })) })
   const agent = createAgentClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('agents.run') === true,
-    desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: agentReview.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
+    desktop: !!window.__TAURI_INTERNALS__, executionId: execution?.id, assertActive, invoke, open: agentReview.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
   const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose(), selection.dispose(), handoff.dispose(), agent.dispose()]) }
   const cancel = () => { void dispose().catch(() => console.warn('Capability invocation release failed')) }
   execution?.signal.addEventListener('abort', cancel, { once: true })

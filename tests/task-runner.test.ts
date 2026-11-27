@@ -155,3 +155,16 @@ test('data maintenance blocks task starts and refuses to replace data while work
   await runner.settled(next)
   assert.equal(runner.getSnapshot().find((r) => r.id === next)?.status, 'completed')
 })
+
+test('pending child cancellation is visible and blocks retry until the same attempt reconciles',async()=>{
+  const gate=deferred<void>();let pending=true,calls=0
+  const runner=createTaskRunner({read:async()=>[],write:async()=>{},
+    resolve:()=>({version:'1.0.0',definition:{run:async()=>{calls++;await gate.promise}}}),
+    cancelInvocation:async()=>({pending}),prepareRetry:async()=>{if(pending)throw new Error('Agent cancellation is pending confirmation')}})
+  const id=await runner.start('example.meeting','notes',{});await new Promise(resolve=>setImmediate(resolve))
+  await runner.cancel(id)
+  assert.match(runner.getSnapshot()[0].error!,/pending confirmation/)
+  await assert.rejects(runner.retry(id),/pending confirmation/);assert.equal(calls,1)
+  pending=false;gate.resolve();await runner.settled(id);await runner.retry(id);await runner.settled(id)
+  assert.equal(calls,2);assert.equal(runner.getSnapshot()[0].attempt,2)
+})

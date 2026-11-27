@@ -564,8 +564,19 @@ async fn task_board_write(board: serde_json::Value, state: tauri::State<'_, Plat
 }
 
 #[tauri::command]
-fn task_cancel_invocation(id: String, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<(), String> {
-  executions.cancel(&id)
+fn task_prepare_retry(webview:tauri::Webview,id:String,state:tauri::State<'_,PlatformState>)->Result<(),String> {
+  if webview.label()!="main" {return Err("PERMISSION_DENIED: Job retry requires the Host".into());}
+  if capability_agent_runs::cancel_parent(state.data_dir(),&id)? {
+    return Err("Agent cancellation is pending confirmation; observe the existing run before retrying".into());
+  } Ok(())
+}
+
+#[tauri::command]
+fn task_cancel_invocation(webview:tauri::Webview,id:String,state:tauri::State<'_,PlatformState>,executions:tauri::State<'_,task_execution::TaskExecutions>)->Result<serde_json::Value,String> {
+  if webview.label()!="main" {return Err("PERMISSION_DENIED: Job cancellation requires the Host".into());}
+  let pending=capability_agent_runs::cancel_parent(state.data_dir(),&id)?;
+  executions.cancel(&id)?;
+  Ok(serde_json::json!({"pending":pending}))
 }
 
 #[tauri::command]
@@ -689,7 +700,7 @@ pub fn run() {
       capability_board_create,
       capability_board_begin, capability_board_release,
       capability_board_attachment_begin, capability_board_attach,
-      task_cancel_invocation,
+      task_cancel_invocation, task_prepare_retry,
       capability_broker_ready,
       capability_broker_respond,
       capability_package_inspect,

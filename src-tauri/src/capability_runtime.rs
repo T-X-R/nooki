@@ -335,6 +335,9 @@ impl PlatformState {
   }
 
   pub fn write_tasks(&self, records: &[serde_json::Value]) -> Result<(), String> {
+    let _data=crate::task_worker::data_lock(&self.data_dir)?.ok_or("RESOURCE_BUSY: Job state is waiting for user data")?;
+    crate::user_data::ensure_restore_complete(&self.data_dir)?;
+    let _authority=crate::capability_authority::fence(&self.data_dir)?;
     persist_json(&self.data_dir.join("tasks.json"), &records)
   }
 

@@ -72,11 +72,15 @@ pub struct Run {
     pub native: Option<NativeIdentity>,
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub outcome: Option<Outcome>,
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub parent: Option<String>,
+    #[serde(default)]
+    pub cancellation_requested: bool,
     request_key: String,
 }
 #[derive(Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Ledger {runs: BTreeMap<String, Run>}
+struct Ledger {runs: BTreeMap<String, Run>, #[serde(default)] cancelled_parents:BTreeSet<String>}
 fn hex(s: &str) -> bool {s.len()==64 && s.bytes().all(|b| b.is_ascii_hexdigit())}
 fn identity(s: &str) -> bool {!s.trim().is_empty() && s.len()<=256 && !s.chars().any(char::is_control)}
 fn key_valid(s: &str) -> bool {identity(s) && s.len()<=128}
@@ -110,10 +114,10 @@ fn documents_match(run: &Run) -> bool {
         .all(|(doc,reference)| &doc.reference==reference && doc.content.is_some() && doc.document_date.len()<=100)
 }
 fn validate(ledger: &Ledger) -> Result<(),String> {
-    if ledger.runs.len()>MAX_RUNS {return Err("RESOURCE_LIMIT: Agent run journal is full".into());}
+    if ledger.runs.len()>MAX_RUNS || ledger.cancelled_parents.len()>4096 || ledger.cancelled_parents.iter().any(|id|!parent_valid(id)) {return Err("RESOURCE_LIMIT: Agent run journal is full".into());}
     let mut keys=BTreeSet::new();let mut approvals=BTreeSet::new();let mut messages=BTreeSet::new();let mut threads=BTreeSet::new();let mut bytes=0usize;
     for (id,run) in &ledger.runs {
-        if id!=&run.id || !hex(id) || !scope_valid(&run.scope) || !intent_valid(&run.intent)
+        if run.parent.as_ref().is_some_and(|id|!parent_valid(id)) || id!=&run.id || !hex(id) || !scope_valid(&run.scope) || !intent_valid(&run.intent)
             || !key_valid(&run.request_key) || !keys.insert(hash(&(&run.scope,&run.request_key))?)
             || !hex(&run.approval_id) || !approvals.insert(&run.approval_id)
             || chrono::DateTime::parse_from_rfc3339(&run.approved_at).is_err() || !documents_match(run) {
@@ -189,17 +193,23 @@ fn fenced<T>(root: &Path, scope: &Scope, authorize: impl FnOnce()->Result<(),Str
 /// Exact retries revalidate authority but do not recapture or change an approved intent.
 pub fn approve(root: &Path, scope: &Scope, key: &str, intent: &Intent,
     authorize: impl FnOnce()->Result<(),String>, capture: impl FnOnce()->Result<Vec<SelectedDocument>,String>) -> Result<Run,String> {
-    if !key_valid(key) || !intent_valid(intent) {return Err("INVALID_INPUT: invalid Agent run intent".into());}
+    approve_child(root,scope,key,intent,None,authorize,capture)
+}
+/// Parent identity comes from the Host's Job context, not AgentStartInput.
+pub fn approve_child(root:&Path,scope:&Scope,key:&str,intent:&Intent,parent:Option<&str>,
+    authorize:impl FnOnce()->Result<(),String>,capture:impl FnOnce()->Result<Vec<SelectedDocument>,String>)->Result<Run,String> {
+    if !key_valid(key) || !intent_valid(intent) || parent.is_some_and(|id|!parent_valid(id)) {return Err("INVALID_INPUT: invalid Agent run intent".into());}
     fenced(root,scope,authorize,|| {
+        parent_current(root,scope,parent)?;
         let mut ledger=load(root)?;
         if let Some(run)=ledger.runs.values().find(|run|&run.scope==scope && run.request_key==key) {
-            if &run.intent!=intent {return Err("CONFLICT: Agent run key was used with different intent".into());}
+            if &run.intent!=intent || run.parent.as_deref()!=parent {return Err("CONFLICT: Agent run key was used with different intent or parent attempt".into());}
             confirm(root)?;return Ok(run.clone());
         }
         if intent.component.is_none() {return Err("UNSUPPORTED_SERVICE: verified native component identity is required".into());}
         if ledger.runs.len()>=MAX_RUNS {return Err("RESOURCE_LIMIT: Agent run journal is full; existing runs are retained".into());}
         let run=Run {id:crate::capability_authority::nonce()?,scope:scope.clone(),intent:intent.clone(),documents:capture()?,
-            approval_id:crate::capability_authority::nonce()?,approved_at:chrono::Local::now().to_rfc3339(),submission:Submission::Approved,restored:false,native:None,outcome:None,request_key:key.into()};
+            approval_id:crate::capability_authority::nonce()?,approved_at:chrono::Local::now().to_rfc3339(),submission:Submission::Approved,restored:false,native:None,outcome:None,parent:parent.map(str::to_owned),cancellation_requested:false,request_key:key.into()};
         if !documents_match(&run) {return Err("PERMISSION_DENIED: captured sources differ from approved Agent input".into());}
         if ledger.runs.contains_key(&run.id) {return Err("RESOURCE_UNAVAILABLE: Agent run identity collision".into());}
         ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
@@ -227,6 +237,7 @@ pub fn claim_submission(root: &Path, scope: &Scope, id: &str, authorize: impl Fn
         authorize(&run)?;
         if run.restored {return Err("PERMISSION_DENIED: imported Agent history carries no execution authority".into());}
         if run.outcome.is_some() {return Err("CONFLICT: terminal Agent work cannot be submitted".into());}
+        admission(root,&run)?;
         if run.submission!=Submission::Approved {return Err("OUTCOME_UNKNOWN: reconcile the existing Agent submission before proceeding".into());}
         if run.intent.component.is_none() {return Err("UNSUPPORTED_SERVICE: historical Agent approval has no native component binding".into());}
         run.submission=Submission::Pending {client_message_id:crate::capability_authority::nonce()?};
@@ -242,7 +253,7 @@ pub fn cancel_unsubmitted(root:&Path,scope:&Scope,id:&str,authorize:impl FnOnce(
         if run.restored {return Err("PERMISSION_DENIED: imported history cannot control execution".into());}
         if run.outcome.is_some() {confirm(root)?;return Ok(run);}
         if run.submission!=Submission::Approved {return Err("OUTCOME_UNKNOWN: reconcile native work before confirming cancellation".into());}
-        run.outcome=Some(Outcome::Cancelled);ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
+        run.cancellation_requested=true;run.outcome=Some(Outcome::Cancelled);ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
     })
 }
 
@@ -273,8 +284,8 @@ pub fn native_launch_input(root: &Path, scope: &Scope, id: &str, authorize: impl
 }
 /// Adapter owner only, after checking the actual component's provenance. Record thread creation
 /// and then the observed turn without another dispatch claim. Never replace either identity.
-/// Current installation authority is required; changed policy/source grants must not prevent
-/// recording an already submitted outcome. This function never authorizes further execution.
+/// Ordinary controls require current authority. Trusted lifecycle cleanup may reconcile an obsolete
+/// installation through the same exact binding, without authorizing another effect or restored run.
 pub fn record_native(root: &Path, scope: &Scope, expected: &NativeRunBinding, observed: &NativeIdentity,
     authorize: impl FnOnce()->Result<(),String>) -> Result<Run,String> {
     if !native_valid(observed) {return Err("INVALID_INPUT: invalid native Agent identity".into());}
@@ -312,4 +323,50 @@ pub fn record_outcome(root:&Path,scope:&Scope,expected:&NativeRunBinding,observe
         }
         run.outcome=Some(outcome.clone());ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
     })
+}
+
+fn parent_valid(id:&str)->bool {
+    id.rsplit_once(':').is_some_and(|(task,attempt)| !task.is_empty() && task.len()<=100
+        && task.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-') && attempt.parse::<u32>().is_ok_and(|n|n>0))
+}
+/// Caller holds lifecycle fences. A cancelled attempt cannot be revived by a stale renderer write.
+pub(crate) fn parent_current(root:&Path,scope:&Scope,parent:Option<&str>)->Result<(),String> {
+    let Some(parent)=parent else{return Ok(())};
+    if !parent_valid(parent) {return Err("INVALID_INPUT: invalid Agent parent attempt".into());}
+    if load(root)?.cancelled_parents.contains(parent) {return Err("CANCELLED: Agent parent attempt is cancelled".into());}
+    let (id,attempt)=parent.rsplit_once(':').unwrap();let attempt=attempt.parse::<u32>().unwrap();
+    let tasks:Vec<serde_json::Value>=serde_json::from_slice(&fs::read(root.join("tasks.json")).map_err(|_|"PERMISSION_DENIED: Agent parent unavailable")?)
+        .map_err(|_|"PERMISSION_DENIED: Agent parent unavailable")?;
+    if !tasks.iter().any(|task|task["id"]==id && task["attempt"]==attempt && task["status"]=="running"
+        && task["capabilityId"]==scope.installation.capability_id && task["capabilityVersion"]==scope.installation.capability_version) {
+        return Err("PERMISSION_DENIED: Agent parent attempt is no longer active".into());
+    } Ok(())
+}
+pub(crate) fn admission(root:&Path,run:&Run)->Result<(),String> {
+    let ledger=load(root)?;let retained=owned(&ledger,&run.scope,&run.id)?;
+    if retained.cancellation_requested {return Err("CANCELLED: Agent cancellation was requested".into());}
+    parent_current(root,&run.scope,run.parent.as_deref())
+}
+/// Trusted lifecycle owner only: revoke effects now, reconcile remote termination separately.
+pub(crate) fn request_cancellation(root:&Path,scope:&Scope,id:&str)->Result<Run,String> {
+    fenced(root,scope,||Ok(()),|| {
+        let mut ledger=load(root)?;let run=ledger.runs.get_mut(id).filter(|r|&r.scope==scope && !r.restored)
+            .ok_or("PERMISSION_DENIED: Agent cancellation scope changed")?;
+        if run.outcome.is_some() || run.cancellation_requested {confirm(root)?;return Ok(run.clone());}
+        run.cancellation_requested=true;
+        if run.submission==Submission::Approved {run.outcome=Some(Outcome::Cancelled);}
+        let result=run.clone();save(root,&ledger)?;Ok(result)
+    })
+}
+pub(crate) fn cancel_parent(root:&Path,parent:&str)->Result<bool,String> {
+    if !parent_valid(parent) {return Err("INVALID_INPUT: invalid Job attempt".into());}
+    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: Agent cancellation is waiting for user data")?;
+    crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;
+    let restore=crate::user_data::restored_id(root)?;let mut ledger=load(root)?;
+    ledger.cancelled_parents.insert(parent.into());let mut pending=false;
+    for run in ledger.runs.values_mut().filter(|r|!r.restored && r.scope.restore_id==restore && r.parent.as_deref()==Some(parent) && r.outcome.is_none()) {
+        run.cancellation_requested=true;
+        if run.submission==Submission::Approved {run.outcome=Some(Outcome::Cancelled);} else {pending=true;}
+    }
+    save(root,&ledger)?;Ok(pending)
 }
