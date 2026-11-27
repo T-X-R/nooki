@@ -1103,6 +1103,11 @@ The [local-model fixture](capability-platform-evidence/C06c-model-fixture.md) co
 disposable configured-MCP feasibility checkpoint: matched controls show clean native turn completion,
 refusal before a disallowed run's MCP/model dispatch, and successful recovery. Only synthetic local
 responses were used. The complete policy qualification and Host adapter integration remain open.
+The [native hooks checkpoint](capability-platform-evidence/C06c-hooks.md) reproduces an additional
+gap in both matched binaries: a trusted `SessionStart` hook executes after a thread re-enables
+hooks, or replaces the whole `features` table while omitting hooks, despite bootstrap disable.
+Explicit per-thread disable works, but is not an immutable native policy. Four runs completed 20
+synthetic local turns with trust/enable/disable controls; hooks confinement remains unqualified.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

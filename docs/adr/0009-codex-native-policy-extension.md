@@ -54,6 +54,12 @@ Startup policy rejection must also remain fatal: native non-strict startup can r
 configuration errors using defaults. The disposable MCP experiment therefore fixes strict startup;
 production qualification must prove no recovery path discards an enforced policy.
 
+The subsequent [hooks checkpoint](../capability-platform-evidence/C06c-hooks.md) confirms that
+bootstrap `features.hooks=false` is also mutable: a thread override can re-enable a trusted
+`SessionStart` hook, and replacing the entire features table while omitting hooks loses the
+disable. The configured-MCP guard has the same behavior as the unmodified control. Ordinary
+feature flags and read-only thread responses cannot serve as the native hook policy boundary.
+
 The policy must:
 
 - bind the approved input/output scope to native filesystem/network permissions;
