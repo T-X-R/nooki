@@ -78,7 +78,7 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl Fn
     let root=state.data_dir();
     let mut reviews=state.agent_reviews.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent reviews unavailable")?;
     reviews.retain(|_,review|review.expires_at>Instant::now());
-    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
+    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: Agent scope is waiting for user data")?;
     crate::user_data::ensure_restore_complete(root)?;
     let _authority=crate::capability_authority::fence(root)?;
     let installation=context(root,&input.capability_id)?;
@@ -120,7 +120,7 @@ pub fn cancel(state:&PlatformState,caller:&str,value:Value)->Result<(),String> {
     state.agent_reviews.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent reviews unavailable")?.retain(|_,r|r.request_id!=input.request_id);Ok(())
 }
 pub(crate) fn scope(state:&PlatformState,id:&str,version:&str)->Result<Scope,String> {
-    let root=state.data_dir();let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
+    let root=state.data_dir();let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: Agent scope is waiting for user data")?;
     crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;
     let installation=context(root,id)?;
     if installation.capability_version!=version {return Err("PERMISSION_DENIED: Agent installation changed".into());}

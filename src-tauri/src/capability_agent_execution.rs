@@ -57,11 +57,17 @@ impl Executor {
         let binding=review::native_binding(state,id,version,run_id)?;
         let thread=active.session.thread().await?;
         review::record_native(state,id,version,&binding,&thread)?;
-        // Lifecycle authority is rechecked immediately before native admission. Revocation never
-        // creates another submission claim; the native owner also claims the exact input once.
-        review::current(state.data_dir(),&run.scope)?;
-        crate::document_grants::task_documents(state.data_dir(),&run.scope.installation,&run.intent.sources)?;
-        let native=active.session.submit().await?;
+        // Hold the same cross-process fences as disable/update, source revocation and restore
+        // through the bounded native admission acknowledgement. There is no check/submit gap.
+        let native={
+            let root=state.data_dir();
+            let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: Agent submission is waiting for user data")?;
+            crate::user_data::ensure_restore_complete(root)?;
+            let _authority=crate::capability_authority::fence(root)?;
+            review::current(root,&run.scope)?;
+            crate::document_grants::task_documents(root,&run.scope.installation,&run.intent.sources)?;
+            active.session.submit().await?
+        };
         Ok(review::metadata(&review::record_native(state,id,version,&binding,&native)?))
     }
     #[cfg(unix)]
@@ -83,7 +89,9 @@ impl Executor {
     pub async fn cancel(&self,state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->Result<Value,String> {
         let run=self.read(state,caller,id,version,run_id)?;
         if run.outcome.is_some() {return Ok(review::metadata(&run));}
-        if run.submission==runs::Submission::Approved {return Err("CONFLICT: this approved request has not started".into());}
+        if run.submission==runs::Submission::Approved {
+            return runs::cancel_unsubmitted(state.data_dir(),&run.scope,run_id,||review::current(state.data_dir(),&run.scope)).map(|run|review::metadata(&run));
+        }
         let active=self.session(state,&run).await?;let _gate=active.gate.lock().await;
         let run=self.observed(state,&run,&active.session).await?;
         if run.outcome.is_none() {
@@ -107,7 +115,7 @@ mod tests {
     #[ignore="requires pinned capability Codex; only local synthetic Responses are used"]
     async fn reviewed_request_completes_and_cancellation_keeps_the_original_run() {
         let binary=PathBuf::from(std::env::var_os("NOOKI_CAPABILITY_NATIVE_BIN").expect("pinned component required"));
-        let component=runs::ComponentIdentity{protocol_revision:1,sha256:format!("{:x}",Sha256::digest(fs::read(&binary).unwrap()))};
+        let component=runs::ComponentIdentity{protocol_revision:2,sha256:format!("{:x}",Sha256::digest(fs::read(&binary).unwrap()))};
         let root=std::env::temp_dir().join(format!("nooki-reviewed-execution-{}",crate::capability_authority::nonce().unwrap()));
         let state=PlatformState::load(root.clone()).unwrap();
         let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.meeting","name":"Meeting notes","version":"1.0.0",

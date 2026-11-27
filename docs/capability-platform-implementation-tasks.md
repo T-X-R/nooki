@@ -23,42 +23,41 @@ implementation; do not relabel deferred tests as passed or add more suffixed pre
 Implement the remaining C06c/C06d/C06e parts together with the C07 behavior and C09 caller needed by
 this flow. Preserve the rest of C07–C09, R01–R15 and T01–T08; the change moves broad tests, not features.
 
-**Current code progress:** the public `host.agents` contract now connects through scoped native
-bindings to the existing dedicated Codex execution owner. It includes available/start/get/subscribe/
-cancel, the Host confirmation dialog, frozen request retries, retained text results, and subscription
-cleanup. Public snapshots omit native thread/turn IDs, approval IDs, policy material and submission
-correlation. The exported kit includes these types and documents unavailable behavior. The native
-Host integration test now traverses the same new binding owner for confirmation, dispatch,
-observation, cancellation and completed replay, instead of calling the executor directly.
+**Current code progress:** the public `host.agents` contract connects scoped native bindings to the
+Codex execution owner, including Host review, frozen retries, retained text results and subscription
+cleanup. The pinned native component now lives in [`native/codex`](../native/codex/README.md) as an
+upstream revision, complete replayable patch and source hashes. Protocol 2 binds the exact Host
+configuration to startup and reload, checks resolved model/provider/permissions, and rejects
+unapproved thread overrides. Historical protocol 1 receipts remain readable but cannot launch the
+new component. The Host holds authority/restore fences through the bounded submission acknowledgement.
+Cancellation before submission is now durable and atomic against the submission claim; an uncertain
+claim still requires native reconciliation. Public snapshots expose none of these private identities.
 
-**Still in this delivery:** resolve/bind the complete native policy, serialize lifecycle revocation
-with submission, deliver and enable the native component, implement Host questions/progress and
-structured results/artifacts, and connect the meeting package to Library save/reopen. The installed
-app currently manages an unavailable Agent owner: `listAvailable()` is empty and new execution
-returns `UNSUPPORTED_SERVICE`. This is explicit unfinished integration, not a replacement adapter or
-a completed C06/C09 workflow. Ordinary chat and legacy `ai.invoke` are never fallback execution.
-File-login reuse remains scaffolding; authenticated model operation has not been certified.
+**Still in this delivery:** propagate lifecycle cancellation through package-owned children, deliver
+and enable the native component, implement Host questions/progress and structured results/artifacts,
+and connect the meeting package to Library save/reopen. The installed app currently manages an
+unavailable Agent owner: `listAvailable()` is empty and new execution returns `UNSUPPORTED_SERVICE`.
+This is explicit unfinished integration, not a completed C06/C09 workflow. Ordinary chat and legacy
+`ai.invoke` are never fallback execution. File-login reuse remains scaffolding; authenticated model
+operation has not been certified. Broad managed-configuration compatibility is deferred; the fixed
+local profile refuses incompatible requirements rather than ignoring them.
 
-**Core evidence for this increment:** five SDK tests and two exported-kit tests pass, including an
-independently scaffolded project's type check, check and ZIP pack. Two native binding tests pass
-(unavailable adapter/no fallback, retained scoped result projection and sanitized errors). The
-14 existing review tests pass. The existing real-native integration test, redirected through the
-new Host owner, passes in 14.81s with two local synthetic Responses requests and zero real model
-calls. One focused browser fixture passes dismissal/focus, confirmation, uncertain retry with one
-approval and result return; this is a synthetic Host UI check, not installed-app acceptance.
-Commands: `node --test tests/capability-agents.test.ts tests/developer-kit.test.ts`,
-`cargo test --offline --lib capability_agent_host::tests`,
-`cargo test --offline --lib capability_agent_review::tests`, and the existing ignored
-`capability_agent_execution::tests::reviewed_request_completes_and_cancellation_keeps_the_original_run`
-with `NOOKI_CAPABILITY_NATIVE_BIN`; browser entry: `tests/ui/capability-agent.mjs`.
-Logs: `/tmp/nooki-agent-{sdk-core,host-core,public-native,ui-core}.log`. Previous ledger/input/transport
-and process-recovery evidence remains applicable; broad tests are deferred. App/contract advance to
-0.13.0 and kit to 0.12.0. Desktop build (native release: 36.75s), required reinstall, and strict deep
-signature verification pass; the installed app reports 0.13.0. Installed signed executable SHA-256:
-`d79f7cef480880fdc22e6f2299dc6fd886419a0d849a722bd1248c1e060d6828`.
-Logs: `/tmp/nooki-agent-interface-desktop-{build,install}.log`. The installer re-signs its destination;
-this installed digest is recorded separately from the build bundle. C06/C09 and final acceptance
-remain open.
+**Core evidence for this increment:** 29 journal tests and two binding tests pass, including durable
+cancellation before dispatch. Two real-native integration tests pass together in 17.41s, exercising
+Host approval, result retention, in-flight cancellation, same-run replay/cold recovery, configuration
+replacement refusal and unapproved instruction refusal. All model requests use local synthetic
+Responses; no authenticated model calls were made. The 12-file native patch replays exactly against
+the pinned upstream archive. Source identity is not a claim of full installed acceptance.
+Commands: `cargo test --offline --test capability_agent_runs_test`,
+`cargo test --offline --lib capability_agent_host::tests`, and
+`NOOKI_CAPABILITY_NATIVE_BIN=<component> cargo test --offline --lib capability_ -- --ignored`.
+Logs: `/tmp/nooki-native-policy-{ledger,host,integration}.log`. Previous SDK/review/UI core evidence
+remains applicable; those unchanged paths were not rerun. App advances to 0.13.1; the public contract
+and kit API versions remain unchanged. Desktop build (native release: 37.69s), required reinstall
+and strict deep signature verification pass. Installed app: 0.13.1; signed executable SHA-256:
+`e8383d89dca3f5ec55cba8d792d977b42db0e331e907b45ff9e006c8f969a4d2`.
+Logs: `/tmp/nooki-native-policy-desktop-{build,install}.log`.
+C06/C09 and final acceptance remain open.
 
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
@@ -1290,6 +1289,13 @@ in the evidence; no unrelated timing fix is claimed.
 Native source/runtime binding and the remaining C06c requirements below are still mandatory.
 
 ##### [ ] C06c2 — Bind the native component before startup and recover the same run
+
+**Current implementation (0.13.1):** Host launch/reconciliation and exact native policy binding are
+implemented and pass the focused real-component tests in the active delivery entry. The durable
+source integration is [`native/codex`](../native/codex/README.md). Historical experiment notes below
+record earlier states; they do not supersede this status. Broad write/crash and bound regression
+matrices remain final acceptance work. Component distribution, authenticated execution and complete
+lifecycle ownership remain active development, so this parent entry stays open.
 
 **Depends on:** C06c1 and the existing native policy qualification. **Deliver:** A verified private
 launch/provenance path that agrees with the Host journal before any effect, persists native identity

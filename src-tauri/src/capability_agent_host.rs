@@ -46,6 +46,10 @@ impl AgentHost {
         let prior=review::public_get(state,caller,&input.capability_id,&input.version,&input.run_id)?;
         if operation=="get" && (prior["restored"]==true || prior["status"]=="approved" || !prior["result"].is_null() || prior["status"]=="failed" || prior["status"]=="cancelled") {return Ok(prior);}
         if prior["restored"]==true {return Err("PERMISSION_DENIED: restored history cannot control execution".into());}
+        if operation=="cancel" && prior["status"]=="approved" {
+            let scope=review::scope(state,&input.capability_id,&input.version)?;
+            return crate::capability_agent_runs::cancel_unsubmitted(state.data_dir(),&scope,&input.run_id,||review::current(state.data_dir(),&scope)).map(|run|review::snapshot(&run));
+        }
         #[cfg(unix)] {
             let owner=self.owner()?;
             match operation {
@@ -122,6 +126,10 @@ mod tests {
         assert!(host.available(&state,"package",context.clone()).unwrap_err().starts_with("PERMISSION_DENIED"));
         let scope=review::scope(&state,"example.meeting","1.0.0").unwrap();
         let intent=runs::Intent{instructions:"Meeting notes".into(),sources:vec![],agent_id:"codex".into(),policy_digest:"a".repeat(64),output_schema:None,component:Some(runs::ComponentIdentity{protocol_revision:1,sha256:"b".repeat(64)})};
+        let unsubmitted=runs::approve(&root,&scope,"cancel-before-start",&intent,||Ok(()),||Ok(vec![])).unwrap();
+        let cancelled=host.run(&state,"main",json!({"capabilityId":"example.meeting","version":"1.0.0","runId":unsubmitted.id}),"cancel").await.unwrap();
+        assert_eq!(cancelled["status"],"cancelled");
+        assert!(runs::claim_submission(&root,&scope,&unsubmitted.id,|_|Ok(())).is_err());
         let run=runs::approve(&root,&scope,"one",&intent,||Ok(()),||Ok(vec![])).unwrap();
         runs::claim_submission(&root,&scope,&run.id,|_|Ok(())).unwrap();
         let binding=runs::native_binding(&root,&scope,&run.id,||Ok(())).unwrap();

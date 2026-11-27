@@ -41,7 +41,8 @@ pub enum Submission {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct NativeIdentity {pub thread_id: String, pub turn_id: Option<String>}
-/// Only a confirmed native terminal turn produces an outcome. A disconnected transport remains
+/// A confirmed native terminal turn, or atomic cancellation before submission, produces an outcome.
+/// A disconnected transport remains
 /// pending until the same native turn can be observed; it is not a retryable failure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag="status", rename_all="camelCase", deny_unknown_fields)]
@@ -79,7 +80,7 @@ struct Ledger {runs: BTreeMap<String, Run>}
 fn hex(s: &str) -> bool {s.len()==64 && s.bytes().all(|b| b.is_ascii_hexdigit())}
 fn identity(s: &str) -> bool {!s.trim().is_empty() && s.len()<=256 && !s.chars().any(char::is_control)}
 fn key_valid(s: &str) -> bool {identity(s) && s.len()<=128}
-fn component_valid(component: &ComponentIdentity) -> bool {component.protocol_revision==1 && hex(&component.sha256)}
+fn component_valid(component: &ComponentIdentity) -> bool {matches!(component.protocol_revision,1|2) && hex(&component.sha256)}
 fn native_valid(native: &NativeIdentity) -> bool {key_valid(&native.thread_id) && native.turn_id.as_ref().is_none_or(|id|key_valid(id))}
 fn hash(value: &impl Serialize) -> Result<String,String> {
     Ok(format!("{:x}",Sha256::digest(serde_json::to_vec(value).map_err(|e|e.to_string())?)))
@@ -127,7 +128,8 @@ fn validate(ledger: &Ledger) -> Result<(),String> {
             }
         }
         if run.outcome.as_ref().is_some_and(|outcome|!outcome_valid(outcome)
-            || run.native.as_ref().and_then(|native|native.turn_id.as_ref()).is_none()) {
+            || (run.native.as_ref().and_then(|native|native.turn_id.as_ref()).is_none()
+                && !(matches!(outcome,Outcome::Cancelled) && run.submission==Submission::Approved && run.native.is_none()))) {
             return Err("RESOURCE_UNAVAILABLE: invalid Agent result".into());
         }
         let source_bytes=run.documents.iter().map(|d|d.content.as_ref().unwrap().len()).sum::<usize>();
@@ -176,7 +178,7 @@ fn save(root: &Path, ledger: &Ledger) -> Result<(),String> {
 fn fenced<T>(root: &Path, scope: &Scope, authorize: impl FnOnce()->Result<(),String>,
     effect: impl FnOnce()->Result<T,String>) -> Result<T,String> {
     if !scope_valid(scope) {return Err("INVALID_INPUT: invalid Agent run scope".into());}
-    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
+    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: Agent journal is waiting for user data")?;
     crate::user_data::ensure_restore_complete(root)?;
     let _authority=crate::capability_authority::fence(root)?;
     if crate::user_data::restored_id(root)?!=scope.restore_id {return Err("PERMISSION_DENIED: Agent run restore scope changed".into());}
@@ -224,10 +226,23 @@ pub fn claim_submission(root: &Path, scope: &Scope, id: &str, authorize: impl Fn
         let mut ledger=load(root)?;let mut run=owned(&ledger,scope,id)?.clone();
         authorize(&run)?;
         if run.restored {return Err("PERMISSION_DENIED: imported Agent history carries no execution authority".into());}
+        if run.outcome.is_some() {return Err("CONFLICT: terminal Agent work cannot be submitted".into());}
         if run.submission!=Submission::Approved {return Err("OUTCOME_UNKNOWN: reconcile the existing Agent submission before proceeding".into());}
         if run.intent.component.is_none() {return Err("UNSUPPORTED_SERVICE: historical Agent approval has no native component binding".into());}
         run.submission=Submission::Pending {client_message_id:crate::capability_authority::nonce()?};
         ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
+    })
+}
+
+/// Cancel an approval that has never acquired a submission claim. Uses the same transaction
+/// as claim_submission, so either cancellation wins or the caller must reconcile native work.
+pub fn cancel_unsubmitted(root:&Path,scope:&Scope,id:&str,authorize:impl FnOnce()->Result<(),String>)->Result<Run,String> {
+    fenced(root,scope,authorize,|| {
+        let mut ledger=load(root)?;let mut run=owned(&ledger,scope,id)?.clone();
+        if run.restored {return Err("PERMISSION_DENIED: imported history cannot control execution".into());}
+        if run.outcome.is_some() {confirm(root)?;return Ok(run);}
+        if run.submission!=Submission::Approved {return Err("OUTCOME_UNKNOWN: reconcile native work before confirming cancellation".into());}
+        run.outcome=Some(Outcome::Cancelled);ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
     })
 }
 

@@ -30,27 +30,28 @@ impl Settings {
         let mut file=File::open(&self.binary).map_err(|_|"UNSUPPORTED_SERVICE: capability Codex component is missing")?;
         let mut hash=Sha256::new();let mut bytes=[0;65536];
         loop {let n=file.read(&mut bytes).map_err(|_|"UNSUPPORTED_SERVICE: capability Codex component cannot be read")?;if n==0 {break;}hash.update(&bytes[..n]);}
-        if format!("{:x}",hash.finalize())!=self.component.sha256 || self.component.protocol_revision!=1 {
+        if format!("{:x}",hash.finalize())!=self.component.sha256 || self.component.protocol_revision!=2 {
             return Err("UNSUPPORTED_SERVICE: capability Codex component differs from its pinned identity".into());
         }
-        let descriptor=json!({"policy":"nooki-codex-local-v1","model":self.model,"authentication":self.authentication,
-            "filesystem":"selected-input-read-only-and-private-output","network":false,
-            "hooks":false,"plugins":false,"mcp":false,"component":self.component});
-        Ok(ResolvedPolicy{digest:digest(descriptor.to_string().as_bytes()),component:self.component.clone()})
+        Ok(ResolvedPolicy{digest:digest(self.policy_json().as_bytes()),component:self.component.clone()})
     }
-    fn config(&self,paths:&Paths)->Result<String,String> {
+    fn policy_json(&self)->String {
+        json!({"policy":"nooki-codex-local-v2","configuration":self.config_template(),
+            "authentication":self.authentication,"component":self.component}).to_string()
+    }
+    fn config_template(&self)->Value {
         let mut filesystem=serde_json::Map::new();
         for (path,access) in [(":minimal","read"),("/private","deny"),("/Users","deny"),("/Volumes","deny"),
             ("/Applications{,/**}","deny"),("/Library/Preferences{,/**}","deny"),("/Library/Filesystems/NetFSPlugins{,/**}","deny"),
             ("/opt/homebrew/lib{,/**}","deny"),("/usr/local/lib{,/**}","deny"),("/private/etc{,/**}","deny"),("/private/var/db{,/**}","deny")] {
             filesystem.insert(path.into(),json!(access));
         }
-        for (path,access) in [(&paths.cwd,"read"),(&paths.input(),"read"),(&paths.output,"write")] {
-            filesystem.insert(path.to_string_lossy().into_owned(),json!(access));
+        for (path,access) in [("$RUN_INPUT","read"),("$APPROVED_INPUT","read"),("$RUN_OUTPUT","write")] {
+            filesystem.insert(path.into(),json!(access));
         }
         #[allow(unused_mut)]
-        let mut config=json!({"model":self.model,"approval_policy":"never","sandbox_mode":"read-only",
-            "cli_auth_credentials_store":"file","features":{"hooks":false,"apps":false,"plugins":false,"mcp_lazy_stdio_startup":false},
+        let mut config=json!({"model":self.model,"approval_policy":"never","default_permissions":"nooki-run","web_search":"disabled",
+            "cli_auth_credentials_store":"file","features":{"hooks":false,"apps":false,"plugins":false,"mcp_lazy_stdio_startup":false,"memories":false},
             "permissions":{"nooki-run":{"filesystem":filesystem,"network":{"enabled":false}}}});
         #[cfg(test)]
         if let Authentication::Fixture{url}=&self.authentication {
@@ -58,7 +59,15 @@ impl Settings {
             config["model_providers"]=json!({"nooki_fixture":{"name":"Nooki synthetic local fixture","base_url":url,
                 "wire_api":"responses","requires_openai_auth":false,"supports_websockets":false,"request_max_retries":0,"stream_max_retries":0}});
         }
-        // TOML serialization preserves paths as keys and never interprets package text as config.
+        config
+    }
+    fn config(&self,paths:&Paths)->Result<String,String> {
+        let mut config=self.config_template();
+        let filesystem=config["permissions"]["nooki-run"]["filesystem"].as_object_mut().unwrap();
+        for (key,path) in [("$RUN_INPUT",paths.cwd.clone()),("$APPROVED_INPUT",paths.input()),("$RUN_OUTPUT",paths.output.clone())] {
+            let access=filesystem.remove(key).unwrap();filesystem.insert(path.to_string_lossy().into_owned(),access);
+        }
+        // The same template is hashed at approval and independently resolved by native startup.
         toml::to_string(&config).map_err(|_|"RESOURCE_UNAVAILABLE: could not encode Codex policy".into())
     }
 }
@@ -155,7 +164,7 @@ impl Session {
     #[cfg(unix)]
     async fn spawn(&self,settings:&Settings,recovery:bool)->Result<(),String> {
         use std::{os::{fd::AsRawFd,unix::process::CommandExt},process::Stdio};
-        let payload=json!({"binding":self.launch.binding,"inputJson":self.launch.input_json,"recovery":recovery});
+        let payload=json!({"binding":self.launch.binding,"inputJson":self.launch.input_json,"recovery":recovery,"policyJson":settings.policy_json()});
         let envelope=self.paths.root.join("launch.pending");write_new(&envelope,&serde_json::to_vec(&payload).map_err(|e|e.to_string())?)?;
         let input=File::open(&envelope).map_err(|_|"RESOURCE_UNAVAILABLE: launch input unavailable")?;
         fs::remove_file(&envelope).map_err(|_|"RESOURCE_UNAVAILABLE: launch input cleanup failed")?;
@@ -166,6 +175,7 @@ impl Session {
             .env("NOOKI_RUN_BINDING_FD","3").env("LANG","en_US.UTF-8")
             .args(["--strict-config","--listen"]).arg(format!("unix://{}",self.paths.socket.display()))
             .current_dir(&self.paths.cwd).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).process_group(0);
+        #[cfg(test)] command.stderr(Stdio::inherit());
         // SAFETY: only async-signal-safe descriptor operations run between fork and exec. The
         // parent keeps input alive through spawn; descriptor 3 is dedicated to this launch.
         unsafe {command.pre_exec(move|| {
@@ -281,7 +291,7 @@ pub(crate) mod tests {
     #[ignore="requires the pinned capability component; synthetic local Responses only"]
     async fn host_launch_retains_result_and_reconnect_never_resubmits() {
         let binary=PathBuf::from(std::env::var_os("NOOKI_CAPABILITY_NATIVE_BIN").expect("pinned native component required"));
-        let component=ComponentIdentity{protocol_revision:1,sha256:digest(&fs::read(&binary).unwrap())};
+        let component=ComponentIdentity{protocol_revision:2,sha256:digest(&fs::read(&binary).unwrap())};
         let root=std::env::temp_dir().join(format!("nooki-host-execution-{}",crate::capability_authority::nonce().unwrap()));fs::create_dir(&root).unwrap();
         let (url,count,server)=responses().await;
         let settings=Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}};
@@ -293,6 +303,13 @@ pub(crate) mod tests {
         runs::claim_submission(&root,&scope,&run.id,|_|Ok(())).unwrap();
         let launch=runs::native_launch_input(&root,&scope,&run.id,||Ok(())).unwrap();
         let session=Session::open(&root,launch.clone(),&settings,Arc::new(|_|{})).await.unwrap();
+        // Configuration replacement after startup and RPC instruction overrides must be refused
+        // before creating provenance or issuing a model request. Restoring the exact policy works.
+        let config_path=session.paths.home.join("config.toml");let original=fs::read_to_string(&config_path).unwrap();
+        fs::write(&config_path,format!("{original}\n[model_providers.unapproved]\nname = \"Extra provider\"\nbase_url = \"http://127.0.0.1:1\"\n")).unwrap();
+        assert!(session.thread().await.is_err());assert_eq!(count.load(Ordering::SeqCst),0);
+        fs::write(&config_path,original).unwrap();
+        assert!(session.client.goal_rpc("thread/start",json!({"cwd":session.paths.cwd,"approvalPolicy":"never","permissions":"nooki-run","baseInstructions":"Unapproved instructions"})).await.is_err());
         let thread=session.thread().await.unwrap();runs::record_native(&root,&scope,&launch.binding,&thread,||Ok(())).unwrap();
         let turn=session.submit().await.unwrap();runs::record_native(&root,&scope,&launch.binding,&turn,||Ok(())).unwrap();
         let (observed,outcome)=tokio::time::timeout(Duration::from_secs(30),async {loop {

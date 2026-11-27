@@ -168,7 +168,7 @@ fn invalid_or_oversized_input_and_corrupt_disk_are_not_replaced() {
     let f=Fixture::new();
     for input in [Intent {instructions:" ".into(),..intent()},Intent {instructions:"x".repeat(20_001),..intent()},
         Intent {sources:vec![reference(),reference()],..intent()},Intent {policy_digest:"unknown".into(),..intent()},
-        Intent {component:Some(runs::ComponentIdentity {protocol_revision:2,sha256:"d".repeat(64)}),..intent()},
+        Intent {component:Some(runs::ComponentIdentity {protocol_revision:3,sha256:"d".repeat(64)}),..intent()},
         Intent {component:Some(runs::ComponentIdentity {protocol_revision:1,sha256:"invalid".into()}),..intent()},
         Intent {output_schema:Some(json!({"description":"x".repeat(16_384)})),..intent()}] {
         assert!(runs::approve(&f.0,&scope(),"one",&input,|| panic!("invalid approval"),|| panic!("invalid capture")).is_err());
@@ -476,4 +476,17 @@ fn foreign_or_unbound_native_results_cannot_complete_a_run() {
     assert!(runs::record_outcome(&f.0,&scope(),&binding,&foreign,&outcome,||Ok(())).is_err());
     assert!(runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Err("PERMISSION_DENIED".into())).is_err());
     assert_eq!(runs::get(&f.0,&scope(),&approved.id,||Ok(())).unwrap().outcome,None);
+}
+
+#[test]
+fn cancellation_before_submission_is_durable_and_cannot_cancel_an_uncertain_claim() {
+    let f=Fixture::new();let run=f.approve("cancel-first",&intent()).unwrap();
+    let cancelled=runs::cancel_unsubmitted(&f.0,&scope(),&run.id,||Ok(())).unwrap();
+    assert_eq!(cancelled.outcome,Some(runs::Outcome::Cancelled));assert!(cancelled.native.is_none());
+    assert!(runs::claim_submission(&f.0,&scope(),&run.id,|_|Ok(())).unwrap_err().starts_with("CONFLICT"));
+    assert_eq!(runs::get(&f.0,&scope(),&run.id,||Ok(())).unwrap().outcome,Some(runs::Outcome::Cancelled));
+    let claimed=f.approve("claimed-first",&intent()).unwrap();
+    runs::claim_submission(&f.0,&scope(),&claimed.id,|_|Ok(())).unwrap();
+    assert!(runs::cancel_unsubmitted(&f.0,&scope(),&claimed.id,||Ok(())).unwrap_err().starts_with("OUTCOME_UNKNOWN"));
+    assert_eq!(runs::get(&f.0,&scope(),&claimed.id,||Ok(())).unwrap().outcome,None);
 }
