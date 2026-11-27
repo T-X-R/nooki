@@ -1169,6 +1169,14 @@ runtime restrictions are weakened. They prove catalog availability/source matchi
 inference gating, not automatic body delivery or local Host binding. The earlier skipped/setup/
 stack-failure runs are retained and excluded. No full native policy or production adapter acceptance
 is closed here.
+The [live-scope guard](capability-platform-evidence/C06c-live-scope.md) now refuses five running-thread
+changes before model dispatch, including same-name profile content changes. Matched controls prove
+actual old-build mutations; unchanged selection and post-refusal continuation retain complete native
+permission snapshots and approved Skill text. The candidate completes 15 normal turns; the final
+matched/regression set totals 58 synthetic turns, with startup, ordinary resume, hooks, connector,
+dynamic and fresh-Skill probes passing. Cold resume/fork still lacks durable approved-run binding.
+Required environments selected at creation and remote/managed transitions remain unqualified;
+prior mutable-environment tests are not claimed rerun on this fixed-scope candidate. C06c remains open.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

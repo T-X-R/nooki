@@ -106,6 +106,11 @@ cannot authorize rebinding an old transcript to a different capability-run scope
 identity and the complete approved policy must remain bound before subsequent dispatch; same-run
 reconciliation must remain available. Required environment Skills have their own pre-inference
 catalog validator and are not a general local `skills.required` configuration field.
+The [live-scope experiment](../capability-platform-evidence/C06c-live-scope.md) constrains the common
+native settings commit: resolved permission/environment changes are refused while unchanged scope
+and continuation retain their original permission snapshots and approved Skill bodies. Same-name
+profile edits are covered. This does not add a durable cold-resume/fork binding or bind native history
+to Host approval/submission identity; complete gate 2 and formal integration remain open.
 
 The policy must:
 
