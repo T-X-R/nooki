@@ -1118,6 +1118,12 @@ non-strict and synthetic managed-requirements controls, plus the existing eight-
 regression. Typed refusals prevent MCP/notify recovery into defaults; repair retains the native
 managed-policy snapshot and refuses malformed managed requirements. Ordinary user-config repair
 remains available. Real MDM/cloud behavior and complete native policy are not certified.
+The [persisted-resume and plugin checkpoint](capability-platform-evidence/C06c-resume-plugin.md)
+verifies native process-restart recovery on the same rollout/thread, three disallowed resume
+configuration refusals and no unexpected model dispatch. Six plugin controls reproduce an open
+gap: plugin MCP starts after installation refresh of an idle loaded thread, before another turn.
+Both old and experimental executables exhibit it. The next enforcement point must cover the
+resolved MCP catalog and refresh error propagation; a base-config or feature-flag check is insufficient.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

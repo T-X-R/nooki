@@ -4,6 +4,10 @@
 - **All 15 scoped startup checks and the existing local-turn regression pass in the new temporary candidate. C06c remains open.**
 - No modified Codex runtime is installed or integrated into Nooki.
 
+Follow-up: [persisted resume and plugin MCP](C06c-resume-plugin.md) adds scoped recovery evidence
+for this binary and reproduces an outstanding plugin-refresh escape. The startup checks below
+retain their original scope and do not establish complete native-policy enforcement.
+
 ## Reproduced gaps and native change
 
 The preceding [hooks/notify candidate](C06c-hooks-guard.md) rejects strict startup correctly, but

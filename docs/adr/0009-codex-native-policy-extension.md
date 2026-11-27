@@ -69,6 +69,11 @@ reproduces non-strict recovery of policy errors and malformed managed requiremen
 refusals plus retaining the native managed-policy snapshot pass the 15 synthetic startup controls
 and the existing local-turn regression. This qualifies the listed startup cases, not real MDM/cloud
 refresh, managed hook execution or the complete Host-bound policy.
+The [resume/plugin checkpoint](../capability-platform-evidence/C06c-resume-plugin.md) verifies scoped
+persisted-thread resume refusals and recovery, but reproduces plugin MCP launch after an idle
+thread is refreshed by plugin installation. Final catalog validation and typed-error propagation
+through refresh/fallback paths are therefore required; initial configuration checks alone remain
+insufficient. No complete gate-2 qualification is claimed.
 
 The policy must:
 
