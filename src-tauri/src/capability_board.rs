@@ -122,6 +122,7 @@ pub(crate) fn prepare_legacy(current: &Value, incoming: &mut Value) -> Result<()
     let object = incoming.as_object_mut().ok_or("Invalid task board")?;
     object.remove("capabilityReceipts"); // Only the native writer owns the retained receipt ledger.
     object.remove("delegationReceipts");
+    object.remove("hostDelegations");
     object.remove("taskGrants");
     object.remove("attachmentReceipts");
     object.remove("revisionSequence");

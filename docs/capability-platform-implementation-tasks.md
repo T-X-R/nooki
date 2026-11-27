@@ -23,6 +23,40 @@ implementation; do not relabel deferred tests as passed or add more suffixed pre
 Implement the remaining C06c/C06d/C06e parts together with the C07 behavior and C09 caller needed by
 this flow. Preserve the rest of C07–C09, R01–R15 and T01–T08; the change moves broad tests, not features.
 
+**Independent Host delegation — 0.18.0 development/core tests:** `board.requestDelegation`
+now connects the public SDK, Host review dialog and the existing native Codex Goal worker. A package
+can propose its unstarted todo or a currently selected todo. Separate execution approval captures
+reviewed source text, approved delivery IDs, provenance and a durable replay receipt in the task-board
+commit. Repeated requests cannot queue a second execution. Pending original package runs are rejected;
+no native run changes parent. Removing the package or original Library document leaves committed
+inputs usable by the independent worker. A paused/busy board retains normal queue behavior.
+
+Meeting notes 1.3.0 adds “Continue with Codex”: retained notes become a complete follow-up task,
+the Host requests approval, and reopening/lost replies reconcile the same delegation. The public
+contract is 0.17.0, exported kit 0.16.0, target app 0.18.0. The independent project and ZIP are built
+outside the checkout at `/tmp/nooki-c09-delivery/meeting-notes`; mirrored source remains in
+`examples/meeting-notes`. No authenticated model run or package installation is claimed.
+
+Core checks: four native delegation tests cover review/commit, exact restart replay, denied/stale
+input, current selected tasks, unresolved source runs and retained input after source/package removal;
+three SDK tests and two exported-kit tests pass. Five meeting-package tests include one follow-up
+execution after a lost reply. Focused Host and package browser flows cover dismissal, source preview,
+confirmation/retry and reopening. These browser fixtures use synthetic responses, not native approvals.
+Logs: `/tmp/nooki-delegation-{rust,sdk-kit,ui,package-ui,board}.log`.
+The 33 directly affected task-board/attachment/revision regressions pass. Desktop build passes
+(native release: 39.66s); the required reinstall and strict deep signature verification pass.
+Installed app: 0.18.0, executable SHA-256:
+`e5b81d576b8f2e5850bbb54fd0156a0520c7c0414434144ea4a097fccf48f395`.
+Build/install logs: `/tmp/nooki-delegation-desktop-{build,install}.log`.
+Archive: `docs/local/meeting-notes/example.meeting-notes-1.3.0.capability.zip` (local, ignored).
+The headless browser and worker regression processes required their normal local process/socket
+permissions; sandbox-only launch failures were rerun successfully with those permissions.
+
+Remaining C08 acceptance: installed/authenticated independent execution and the consolidated lifecycle
+race pass. C09 installed acceptance remains pending. Next development moves into isolated/versioned
+package runtime, commands/services and the music/game packages (R01–R06, R10–R12, R14); the original
+presentation/export, cross-package artifacts, schedules/reports and developer workflow remain in scope.
+
 **Current code progress:** prepared Apple Silicon macOS builds now bundle the pinned Codex component
 and construct the actual Agent execution owner at application startup. The preparation command checks
 pinned patched sources, signs a separate binary and records its digest. Nooki embeds that identity
@@ -92,7 +126,7 @@ Logs: `/tmp/nooki-c09-kit.log`, `/tmp/nooki-c09-desktop-{build,install}.log`.
 The local ZIP is `docs/local/meeting-notes/example.meeting-notes-1.0.0.capability.zip` (ignored build
 artifact). Installing this new package and running a real model still require their applicable
 user authorization. They are deferred to final assembled acceptance rather than adding another
-standalone installation checkpoint now. C08 independent execution delegation and structured artifacts remain implementation work.
+standalone installation checkpoint now. C08 independent execution delegation is implemented in 0.18.0 below; retained binary artifacts remain implementation work.
 Host questions were subsequently implemented in 0.16.0 below. This increment does not close C09.
 
 **Host interaction increment (0.16.0): development/core tests complete; final acceptance pending.**
@@ -1493,6 +1527,10 @@ native agent-run adapter, cancellation tests.
 
 ### [ ] C08 — Commit explicit handoff to independent user-owned host work
 
+**State:** board delegation is implemented and core-tested in 0.18.0 (active delivery above).
+The existing explicit chat draft adoption/send path remains the chat owner. Installed/authenticated
+and consolidated lifecycle acceptance are pending; this task is not marked fully accepted.
+
 **Depends on:** C04, C05, C07.
 **Size:** M; split board and chat wiring if they cannot share a small verifiable delivery.
 **Deliver:** A host decision receipt and durable inputs for user-authorized board delegation/native
@@ -1507,7 +1545,7 @@ package removal without callbacks/private state; handoff versus uninstall has on
 
 **State:** independent text-note package implemented and core-tested in 0.15.1; see the active
 delivery above. Installed/authenticated and removal acceptance is deferred to the consolidated
-pass. Independent Host execution delegation still depends on C08; chat draft handoff is not C08.
+pass. Independent Host execution delegation is implemented with C08 in 0.18.0; chat draft handoff alone is not execution delegation.
 
 **Depends on:** C02, C03, C04, C05, C07, C08. **Size:** M.
 **Deliver:** A minimal reference package using only the exported SDK/Skill: selected text to notes,

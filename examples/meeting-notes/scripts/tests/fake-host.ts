@@ -2,10 +2,10 @@
 import {createPreviewHost} from '../../preview/host.ts'
 import {capabilityId,readMeeting,summarize} from '../../meeting.ts'
 import type {AgentRunSnapshot,CapabilityManifest,TaskRecord} from '../../contract/index.ts'
-export function fixture(options:{autoComplete?:boolean;dismissAgent?:boolean;loseAttachmentReply?:boolean;invalidResult?:boolean}={}){
+export function fixture(options:{autoComplete?:boolean;dismissAgent?:boolean;loseAttachmentReply?:boolean;invalidResult?:boolean;loseDelegationReply?:boolean;dismissDelegation?:boolean}={}){
  const manifest:CapabilityManifest={id:capabilityId,name:'Meeting',version:'1.0.0',minPlatformVersion:'0.15.0',entrypoints:['page','job'],permissions:['storage']}
  const {host,setEnvironment}=createPreviewHost(manifest)
- const calls={starts:0,publishes:0,creates:0,selections:0,attachments:0,handoffs:0,opened:[] as unknown[],agentInputs:[] as unknown[],attachmentInputs:[] as unknown[]}
+ const calls={starts:0,publishes:0,creates:0,selections:0,attachments:0,handoffs:0,delegations:0,delegationInputs:[] as unknown[],todoInputs:[] as unknown[],opened:[] as unknown[],agentInputs:[] as unknown[],attachmentInputs:[] as unknown[]}
  const runByKey=new Map<string,AgentRunSnapshot>(),runs=new Map<string,AgentRunSnapshot>(),listeners=new Map<string,Set<(run:AgentRunSnapshot)=>void>>()
  const publications=new Map<string,unknown>(),todos=new Map<string,unknown>(),attachments=new Map<string,unknown>(),drafts=new Map<string,unknown>()
  const source={kind:'library-document' as const,documentId:'synthetic-transcript',title:'Synthetic project meeting',grantId:'synthetic-grant',revision:'v1'}
@@ -27,13 +27,21 @@ export function fixture(options:{autoComplete?:boolean;dismissAgent?:boolean;los
  host.agents.subscribe=(id,listener)=>{let group=listeners.get(id);if(!group){group=new Set();listeners.set(id,group)}group.add(listener);queueMicrotask(()=>{if(group!.has(listener))listener(runs.get(id)!)});return()=>{group!.delete(listener)}}
  host.documents.publish=async value=>{calls.publishes++;publications.set(value.key,structuredClone(value))}
  host.documents.open=reference=>{calls.opened.push(structuredClone(reference))}
- host.board.create=async(input,request)=>{let receipt=todos.get(request.idempotencyKey);if(!receipt){calls.creates++;receipt={id:'synthetic-todo',revision:1};todos.set(request.idempotencyKey,receipt)}return receipt as {id:string;revision:number}}
+ host.board.create=async(input,request)=>{let receipt=todos.get(request.idempotencyKey);if(!receipt){calls.creates++;calls.todoInputs.push(structuredClone(input));receipt={id:'synthetic-todo',revision:1};todos.set(request.idempotencyKey,receipt)}return receipt as {id:string;revision:number}}
  host.board.requestSelection=async()=>{calls.selections++;return{status:'selected',grant:{id:'synthetic-board-grant',capabilityId,capabilityVersion:'1.0.0',createdAt:'2026-11-27',purpose:'Attach notes',operations:['attachDelivery'],items:[{id:'synthetic-todo',revision:1,title:'Review meeting'}]}}}
  host.board.attachDelivery=async(input,request)=>{
   calls.attachmentInputs.push(structuredClone({input,request}));let receipt=attachments.get(request.idempotencyKey)
   if(!receipt){calls.attachments++;receipt={item:{id:input.item.id,revision:2},deliveryId:'synthetic-delivery'};attachments.set(request.idempotencyKey,receipt)}
   if(options.loseAttachmentReply){options.loseAttachmentReply=false;throw Object.assign(new Error('Synthetic lost reply'),{code:'OUTCOME_UNKNOWN'})}
   return receipt as {item:{id:string;revision:number};deliveryId:string}
+ }
+ const delegated=new Map<string,unknown>()
+ host.board.requestDelegation=async(input,request)=>{
+  calls.delegationInputs.push(structuredClone({input,request}));if(options.dismissDelegation)return{status:'dismissed'}
+  let receipt=delegated.get(request.idempotencyKey)
+  if(!receipt){calls.delegations++;receipt={receiptId:'d'.repeat(64),taskId:input.item.id,engine:'codex'};delegated.set(request.idempotencyKey,receipt)}
+  if(options.loseDelegationReply){options.loseDelegationReply=false;throw Object.assign(new Error('Synthetic lost delegation reply'),{code:'OUTCOME_UNKNOWN'})}
+  return{status:'delegated',receipt:receipt as {receiptId:string;taskId:string;engine:'codex'}}
  }
  host.conversations.handoff=async(input,request)=>{let receipt=drafts.get(request.idempotencyKey);if(!receipt){calls.handoffs++;receipt={draftId:'synthetic-chat-draft',target:{kind:'new'}};drafts.set(request.idempotencyKey,receipt)}return{status:'handedOff',receipt:receipt as {draftId:string;target:{kind:'new'}}}}
  let records:TaskRecord[]=[];const taskListeners=new Set<()=>void>(),controllers=new Map<string,AbortController>(),finished=new Map<string,Promise<void>>()

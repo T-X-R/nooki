@@ -223,6 +223,10 @@ pub fn approve_child(root:&Path,scope:&Scope,key:&str,intent:&Intent,parent:Opti
 fn owned<'a>(ledger: &'a Ledger, scope: &Scope, id: &str) -> Result<&'a Run,String> {
     ledger.runs.get(id).filter(|run|&run.scope==scope).ok_or("PERMISSION_DENIED: Agent run is unavailable for this scope".into())
 }
+// Caller holds the data and authority fences. This verifies provenance without reacquiring them.
+pub(crate) fn completed_for_handoff(root:&Path,scope:&Scope,id:&str)->Result<bool,String> {
+    let ledger=load(root)?;let run=owned(&ledger,scope,id)?;Ok(run.outcome.is_some() && !run.restored)
+}
 pub fn get(root: &Path, scope: &Scope, id: &str, authorize: impl FnOnce()->Result<(),String>) -> Result<Run,String> {
     fenced(root,scope,authorize,|| {let ledger=load(root)?;let run=owned(&ledger,scope,id)?;confirm(root)?;Ok(run.clone())})
 }

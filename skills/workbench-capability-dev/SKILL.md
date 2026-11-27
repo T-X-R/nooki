@@ -17,11 +17,7 @@ Capability packages support a Page, optional jobs, and optional conversation com
 
 For unfamiliar coding tools, reading this file and its references directly is sufficient; no tool-specific commands or MCP connections are required. Resolve relative paths from this skill directory, and keep generated work outside the installed skill.
 
-The 0.12.0 contract recognizes `agents.run` as a separate permission, but `host.agents` is not shipped
-yet. Do not build an Agent-run package against private native review commands or assume `ai.invoke`
-grants run control. Wait for the documented public service; existing non-Agent package APIs remain usable.
-
-For task-board drafts, declare `board.create`, require Nooki 0.4.0+, and use `host.board.create(input, { idempotencyKey })`. Persist one key/input per intent before submission; retry unknown outcomes with that exact pair. Creation never starts work. For selected sources, require Nooki 0.6.0+ and `documents.read-selected`; pass unchanged references from the returned selection. New effects recheck current grant authority; committed exact retries remain metadata-only after revocation. Other board methods are not available yet. The preview rejects creation with `UNSUPPORTED_SERVICE`; verify real behavior using the built archive in desktop Nooki. Do not cache a Host after its page/job ends.
+For task-board drafts, declare `board.create`, require Nooki 0.4.0+, and use `host.board.create(input, { idempotencyKey })`. Persist one key/input per intent before submission; retry unknown outcomes with that exact pair. Creation never starts work. For selected sources, require Nooki 0.6.0+ and `documents.read-selected`; pass unchanged references from the returned selection. New effects recheck current grant authority; committed exact retries remain metadata-only after revocation. Use the separately documented selection, attachment and reviewed delegation methods for additional board operations. The preview rejects creation with `UNSUPPORTED_SERVICE`; verify real behavior using the built archive in desktop Nooki. Do not cache a Host after its page/job ends.
 
 For selected Library inputs, declare `documents.read-selected`, require Nooki 0.5.0+, and call `host.library.requestSelection({ purpose, kinds: ['document'], limit })`. Nooki owns recipient display and user confirmation. Handle explicit dismissal, then read only the returned grant's document IDs through `host.documents.readSelected`. Do not build a package-owned authorization dialog or request arbitrary document IDs. This version supports Markdown documents only; preview and artifact selection return `UNSUPPORTED_SERVICE`. Users revoke future reads in Library → Document access; citations remain readable.
 
@@ -48,3 +44,12 @@ notice when input is needed; never implement package-owned native answers or app
 Nooki 0.17.0 returns validated `run.result.data` for an approved `outputSchema` (JSON Schema 2020-12,
 embedded references only). Preserve the exact schema with the saved intent. A result-format failure
 is terminal `failed` with `run.error.code === 'INVALID_RESULT'`; do not silently retry or publish it.
+
+For independent execution on Nooki 0.18.0+, declare `board.request-delegation`. Prepare a complete
+unstarted todo containing the task and durable inputs, persist its exact reference/key, and call
+`host.board.requestDelegation({ item, sourceRunId? }, { idempotencyKey })`. A current selected task
+also needs `grantId`. Nooki owns the separate execution confirmation. Handle dismissal and persist
+the returned receipt; uncertainty retries the same input/key. Optional `sourceRunId` must already be
+terminal. Never migrate a live package run or assume that draft creation starts execution. The
+independent task uses the existing Codex task-board worker and continues after package removal;
+view progress, questions and cancellation on the task board. Preview explicitly refuses execution.

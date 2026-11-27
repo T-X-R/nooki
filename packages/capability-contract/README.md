@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.17.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.18.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -27,9 +27,42 @@ synthetic-success fallback.
 | `board.create` | Permission-checked durable draft creation with an idempotency key | `UNSUPPORTED_SERVICE`; no simulated success |
 | `board.attachDelivery` | Retain authorized documents on an exact selected task revision, with idempotent replay | `UNSUPPORTED_SERVICE`; no simulated write |
 | `board.requestSelection` | Host-owned approval of exact task revisions for attachment | `UNSUPPORTED_SERVICE`; no simulated approval |
+| `board.requestDelegation` | Host-reviewed independent Codex Goal with retained task inputs and a replay receipt | `UNSUPPORTED_SERVICE`; no simulated approval |
 | `conversations.handoff` | Host-reviewed retained draft, explicit adoption/send in native chat | `UNSUPPORTED_SERVICE`; no simulated approval |
 | `agents` | Reviewed execution bindings and scoped retained snapshots; availability requires an enabled native component | Empty available list; all execution/observation methods return `UNSUPPORTED_SERVICE` |
-| Board update/delegation, other chat operations, scheduling, binary artifacts, services | Not exported yet | Not exported |
+| Board update, other chat operations, scheduling, binary artifacts, services | Not exported yet | Not exported |
+
+### Independent task execution (Nooki 0.18.0+)
+
+Declare `board.request-delegation` and call:
+
+```ts
+const result = await host.board.requestDelegation(
+  { item: createdTodo, sourceRunId: completedRun.id },
+  { idempotencyKey: 'meeting-follow-up' },
+)
+if (result.status === 'delegated') retainReceipt(result.receipt)
+```
+
+`item` is the exact `{ id, revision }` returned by `board.create`. To propose another unstarted
+todo, use a current `board.requestSelection` attachment grant and include its `grantId`; this only
+identifies a task eligible for a new Host review and grants no execution authority. Existing runs,
+archived tasks and already-delegated todos are not targets. Optional `sourceRunId` must identify
+terminal, non-restored work from this installation; it is provenance, never a live-run transfer.
+
+Nooki shows the task text, frozen document bodies and retained deliveries. Only the user's separate
+confirmation queues a native Codex Goal in an independent task workspace with network access,
+workspace/output writes and native on-request approvals. The existing task worker owns execution.
+The response is `{ status: 'delegated', receipt: { receiptId, taskId, engine: 'codex' } }`, or
+`{ status: 'dismissed' }`. A queued receipt is not successful task completion. Open the task board
+to observe, answer or stop it. The queue's pause state and existing active task still apply.
+
+Persist exact input/key before submission. Unknown outcomes retry unchanged, including after reopening;
+a committed receipt never queues a second execution. Task edits or revoked selection before confirmation
+require a fresh review. The commit serializes with package removal; after commitment, task inputs and
+approved attachment IDs remain Host-owned. Later package removal or original-document deletion cannot
+remove those retained inputs. Later attachments do not silently enter this execution. No package code,
+private data directory or live package Agent is required by the independent worker.
 
 ### Reviewed Agent runs (bindings in Nooki 0.13.0+)
 

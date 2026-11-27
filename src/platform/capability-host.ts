@@ -25,6 +25,8 @@ import { libraryPicker } from './library-picker.ts'
 import { createBoardSelectionClient } from './capability-board-selection.ts'
 import { boardPicker } from './board-picker.ts'
 import { createHandoffClient } from './capability-handoff.ts'
+import { createDelegationClient } from './capability-delegation.ts'
+import { delegationReview } from './delegation-review.ts'
 import { handoffReview } from './handoff-review.ts'
 import { createAgentClient } from './capability-agents.ts'
 import { agentReview } from './agent-review.ts'
@@ -138,19 +140,21 @@ export function createCapabilityHost(capabilityId: string, permissions?: Capabil
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: libraryPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
   const selection = createBoardSelectionClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('board.attach-delivery') === true,
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: boardPicker.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
+  const delegation = createDelegationClient({id:capabilityId,version:version??'',name:capabilityName,permission:permissions?.includes('board.request-delegation')===true,
+    desktop:!!window.__TAURI_INTERNALS__,assertActive,invoke,open:delegationReview.open,captureFocus:captureLibraryFocus,onDispose:()=>{closed=true}})
   const handoff = createHandoffClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('conversations.handoff') === true,
     desktop: !!window.__TAURI_INTERNALS__, assertActive, invoke, open: handoffReview.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true },
     onCommitted: id => window.dispatchEvent(new CustomEvent('workbench:open-handoff', { detail: id })) })
   const agent = createAgentClient({ id: capabilityId, version: version ?? '', name: capabilityName, permission: permissions?.includes('agents.run') === true,
     desktop: !!window.__TAURI_INTERNALS__, executionId: execution?.id, assertActive, invoke, open: agentReview.open, captureFocus: captureLibraryFocus, onDispose: () => { closed = true } })
-  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose(), selection.dispose(), handoff.dispose(), agent.dispose()]) }
+  const dispose = async () => { closed = true; await Promise.all([client.dispose(), library.dispose(), selection.dispose(), delegation.dispose(), handoff.dispose(), agent.dispose()]) }
   const cancel = () => { void dispose().catch(() => console.warn('Capability invocation release failed')) }
   execution?.signal.addEventListener('abort', cancel, { once: true })
   const host: CapabilityHost = Object.freeze({
     conversations: handoff.conversations,
     agents: agent.agents,
     library: library.library,
-    board: Object.freeze({ ...client.board, ...selection.board }),
+    board: Object.freeze({ ...client.board, ...selection.board, ...delegation.board }),
     environment: capabilityEnvironment,
     tasks: capabilityTasks(capabilityId),
     storage: createStorage(capabilityId, permissions, assertActive),

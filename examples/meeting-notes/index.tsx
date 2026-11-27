@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react'
 import type {CapabilityManifest,CapabilityModule,CapabilityPageProps,DocumentReference,AgentRunSnapshot} from './contract'
 import {CapabilityPage,PageHeader,Panel,Button,StateMessage} from './ui'
-import {attachMeeting,createMeeting,createTodo,handoffMeeting,listMeetings,publishMeeting,refreshMeeting,summarize,type Meeting} from './meeting'
+import {delegateMeeting,attachMeeting,createMeeting,createTodo,handoffMeeting,listMeetings,publishMeeting,refreshMeeting,summarize,type Meeting} from './meeting'
 import manifestJson from './manifest.json'
 import './style.css'
 const manifest=manifestJson as CapabilityManifest
@@ -55,6 +55,7 @@ function Page({host}:CapabilityPageProps){
    {meeting.document&&<div className="meeting-delivery"><h3>{zh?'继续处理':'Continue from these notes'}</h3><div className="meeting-actions">
     <Button disabled={busy||!!meeting.todo} onClick={()=>void perform(()=>createTodo(host,meeting))}>{meeting.todo?(zh?'待办已创建':'Todo created'):(zh?'创建待办':'Create todo')}</Button>
     <Button disabled={busy||!!meeting.attachment} onClick={()=>void perform(()=>attachMeeting(host,meeting))}>{meeting.attachment?(zh?'已附加到任务':'Attached to task'):meeting.pendingAttachment?(zh?'重试原附件请求':'Retry attachment'):(zh?'附加到任务':'Attach to task')}</Button>
+    <Button disabled={busy||!!meeting.delegation} onClick={()=>void perform(()=>delegateMeeting(host,meeting))}>{meeting.delegation?(zh?'已交给 Codex，请到任务板查看':'Delegated — view on task board'):(zh?'交给 Codex 继续处理':'Continue with Codex')}</Button>
     <Button disabled={busy||!!meeting.handoff} onClick={()=>void perform(()=>handoffMeeting(host,meeting))}>{meeting.handoff?(zh?'已交接聊天草稿':'Chat draft handed off'):(zh?'交接到聊天':'Hand off to chat')}</Button>
    </div><p className="meeting-hint">{zh?'创建待办不会自动执行；聊天内容仍需你确认发送。保存的纪要不依赖此能力包继续存在。':'A todo does not execute automatically, and a chat draft still needs you to send it. Saved notes remain after removing this package.'}</p></div>}
   </>:<><h2>{zh?'从原始记录到可用纪要':'Turn source material into useful notes'}</h2><p className="meeting-hint">{zh?'生成草稿、查看结果、确认保存，然后按需交给任务板或聊天。':'Generate a draft, review it, save it, then pass it to your task board or chat.'}</p></>}</Panel></div>

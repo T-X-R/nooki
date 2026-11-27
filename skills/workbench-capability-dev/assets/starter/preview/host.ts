@@ -16,7 +16,7 @@ export function createPreviewHost(manifest: CapabilityManifest) {
     agents: { listAvailable: async () => [], start: async () => agentUnavailable(), get: async () => agentUnavailable(), cancel: async () => agentUnavailable(), subscribe: () => agentUnavailable() },
     conversations: { handoff: async () => { throw Object.assign(new Error('conversations.handoff requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
     library: { requestSelection: async () => { throw Object.assign(new Error('Library selection requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
-    board: { attachDelivery: async () => { throw Object.assign(new Error('board.attachDelivery requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, requestSelection: async () => { throw Object.assign(new Error('Task selection requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, create: async () => { throw Object.assign(new Error('board.create requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
+    board: { requestDelegation: async () => { throw Object.assign(new Error('Task delegation requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, attachDelivery: async () => { throw Object.assign(new Error('board.attachDelivery requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, requestSelection: async () => { throw Object.assign(new Error('Task selection requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) }, create: async () => { throw Object.assign(new Error('board.create requires desktop Nooki'), { code: 'UNSUPPORTED_SERVICE' }) } },
     environment: {
       getSnapshot: () => environment,
       subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener) } },

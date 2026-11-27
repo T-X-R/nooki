@@ -1,10 +1,10 @@
-import type {AgentRunSnapshot,BoardAttachDeliveryInput,BoardAttachmentResult,BoardItemReference,CapabilityHost,CapabilityTaskContext,ConversationHandoffReceipt,DocumentReference} from './contract/index.ts'
+import type {BoardDelegationInput,BoardDelegationReceipt,AgentRunSnapshot,BoardAttachDeliveryInput,BoardAttachmentResult,BoardItemReference,CapabilityHost,CapabilityTaskContext,ConversationHandoffReceipt,DocumentReference} from './contract/index.ts'
 import {notesSchema,noteText} from './notes.ts'
 import {publicationReference,referenceHref} from './contract/references.ts'
 export const capabilityId='example.meeting-notes'
 export const indexKey='meetings'
 type Host=Omit<CapabilityHost,'tasks'>
-export type Meeting={id:string;title:string;date:string;language:'zh'|'en';sources:DocumentReference[];format?:'structured-v1';phase:'ready'|'requesting'|'running'|'unknown'|'completed'|'cancelled'|'failed';text:string;runId?:string;document?:DocumentReference;todo?:BoardItemReference;attachment?:BoardAttachmentResult;pendingAttachment?:{input:BoardAttachDeliveryInput;key:string};handoff?:ConversationHandoffReceipt}
+export type Meeting={id:string;title:string;date:string;language:'zh'|'en';sources:DocumentReference[];format?:'structured-v1';phase:'ready'|'requesting'|'running'|'unknown'|'completed'|'cancelled'|'failed';text:string;runId?:string;document?:DocumentReference;todo?:BoardItemReference;attachment?:BoardAttachmentResult;pendingAttachment?:{input:BoardAttachDeliveryInput;key:string};handoff?:ConversationHandoffReceipt;delegationInput?:BoardDelegationInput;delegation?:BoardDelegationReceipt}
 export const key=(id:string)=>`meeting-${id}`
 export async function readMeeting(host:Pick<Host,'storage'>,id:string){const value=await host.storage.get<Meeting>(key(id));if(!value||value.id!==id)throw new Error('Meeting draft is unavailable / 纪要草稿不可用');return value}
 export async function writeMeeting(host:Pick<Host,'storage'>,meeting:Meeting){await host.storage.set(key(meeting.id),meeting);return meeting}
@@ -113,4 +113,17 @@ export async function handoffMeeting(host:Host,meeting:Meeting){
   if(meeting.handoff)return meeting
   const result=await host.conversations.handoff({title:meeting.title,text:meeting.text},{idempotencyKey:`${meeting.id}-chat`})
   return result.status==='dismissed'?meeting:writeMeeting(host,{...meeting,handoff:result.receipt})
+}
+
+export async function delegateMeeting(host:Host,meeting:Meeting){
+  meeting=await readMeeting(host,meeting.id)
+  if(!meeting.document||meeting.phase!=='completed'||!meeting.runId)throw new Error('Save completed notes first / 请先保存已完成的纪要')
+  if(meeting.delegation)return meeting
+  if(!meeting.delegationInput){
+    const instruction=meeting.language==='zh'?'根据以下纪要整理一份可执行的跟进计划，保留已明确的负责人和日期，标注待确认事项。将计划保存为 Markdown 成果。不要发送消息或执行外部业务操作。':'Create an actionable follow-up plan from the notes below. Preserve stated owners and dates, and identify unresolved details. Save the plan as a Markdown artifact. Do not send messages or perform external business actions.'
+    const item=await host.board.create({title:meeting.title,description:`${instruction}\n\n${meeting.text}`},{idempotencyKey:`${meeting.id}-follow-up-task`})
+    meeting=await writeMeeting(host,{...meeting,delegationInput:{item,sourceRunId:meeting.runId}})
+  }
+  const result=await host.board.requestDelegation(meeting.delegationInput!,{idempotencyKey:`${meeting.id}-delegate`})
+  return result.status==='dismissed'?meeting:writeMeeting(host,{...meeting,delegation:result.receipt})
 }

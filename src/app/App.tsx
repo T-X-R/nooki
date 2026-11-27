@@ -21,6 +21,7 @@ import { CapabilityErrorBoundary, CapabilityPage } from '../features/capabilitie
 import { LibraryPage } from '../features/library/LibraryPage.tsx'
 import { LibrarySelectionDialog } from '../features/library/LibrarySelectionDialog.tsx'
 import { ConversationHandoffDialog } from '../features/conversation/ConversationHandoffDialog.tsx'
+import { TaskDelegationDialog } from '../features/task-board/TaskDelegationDialog.tsx'
 import { TaskSelectionDialog } from '../features/task-board/TaskSelectionDialog.tsx'
 import { SettingsPage } from '../features/settings/SettingsPage.tsx'
 import { useAppUpdate } from '../features/settings/use-app-update.ts'
@@ -178,6 +179,7 @@ function App() {
       <LibrarySelectionDialog language={language} />
       <TaskSelectionDialog language={language} />
       <ConversationHandoffDialog language={language} />
+      <TaskDelegationDialog language={language} />
       <AgentReviewDialog language={language} />
       <AgentQuestions language={language} />
       <div className="app-workspace" inert={updates.installing}>

@@ -129,7 +129,7 @@ pub(crate) fn check_task_source_selection(saved: &serde_json::Value, requested: 
 }
 
 // Caller holds task-data.lock. Full source identities, unlike ID-only conversation replay, must match.
-pub(crate) fn capture_task(root: &Path, id: &str, sources: &serde_json::Value) -> Result<Vec<SnapshotDocument>, String> {
+fn task_documents(root: &Path, id: &str, sources: &serde_json::Value, persist: bool) -> Result<Vec<SnapshotDocument>, String> {
   crate::user_data::ensure_restore_complete(root)?;
   let sources = task_sources(sources)?;
   let target = path(root, id)?;
@@ -159,8 +159,18 @@ pub(crate) fn capture_task(root: &Path, id: &str, sources: &serde_json::Value) -
     if bytes > 8_000_000 { return Err("Selected documents exceed 8 MB".into()); }
     documents.push(document);
   }
-  if existing.is_none() { save(&target, &documents)?; }
+  if persist && existing.is_none() { save(&target, &documents)?; }
   Ok(documents)
+}
+
+pub(crate) fn capture_task(root:&Path,id:&str,sources:&serde_json::Value)->Result<Vec<SnapshotDocument>,String> { task_documents(root,id,sources,true) }
+pub(crate) fn prepare_task_review(root:&Path,id:&str,sources:&serde_json::Value)->Result<Vec<SnapshotDocument>,String> { task_documents(root,id,sources,false) }
+pub(crate) fn save_task_review(root:&Path,id:&str,documents:&[SnapshotDocument])->Result<(),String> {
+  let target=path(root,id)?;
+  if target.try_exists().map_err(|e|e.to_string())? {
+    if serde_json::to_value(read(root,id)?).map_err(|e|e.to_string())? != serde_json::to_value(documents).map_err(|e|e.to_string())? {return Err("CONFLICT: approved source snapshot changed".into());}
+  } else {save(&target,documents)?;}
+  fs::File::open(target.parent().unwrap()).and_then(|f|f.sync_all()).map_err(|e|e.to_string())
 }
 
 pub fn read(root: &Path, id: &str) -> Result<Vec<SnapshotDocument>, String> {

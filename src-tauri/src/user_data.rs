@@ -98,6 +98,7 @@ pub fn validate(backup: &Backup) -> Result<(), String> {
 pub(crate) fn validate_task_board(board: &serde_json::Value) -> Result<(), String> {
   crate::capability_board::validate(board)?;
   crate::task_delegation::validate(board)?;
+  crate::capability_delegation::validate(board)?;
   crate::task_revisions::validate(board)?;
   crate::task_selection::validate(board)?;
   crate::task_attachments::validate(board)?;

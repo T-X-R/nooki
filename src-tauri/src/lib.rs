@@ -20,6 +20,7 @@ pub mod source_snapshots;
 pub mod document_grants;
 pub mod document_selection;
 pub mod task_selection;
+pub mod capability_delegation;
 pub(crate) mod task_attachments;
 pub mod capability_runtime;
 pub mod capability_authority;
@@ -324,6 +325,26 @@ fn library_document_access(webview: tauri::Webview, request: serde_json::Value, 
 #[tauri::command]
 fn library_revoke_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
   document_selection::revoke(&state, webview.label(), request)
+}
+#[tauri::command]
+async fn capability_delegation_begin(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<serde_json::Value,capability_host::HostError> {
+  let result=capability_delegation::begin(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,false))?;
+  if result["status"]=="committed" {task_worker::request(state.data_dir(),serde_json::json!({"op":"read"})).await.map_err(|e|capability_host::HostError::from_native(&e,true))?;}
+  Ok(result)
+}
+#[tauri::command]
+fn capability_delegation_inspect(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<serde_json::Value,capability_host::HostError> {
+  capability_delegation::inspect(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,false))
+}
+#[tauri::command]
+async fn capability_delegation_commit(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<serde_json::Value,capability_host::HostError> {
+  let receipt=capability_delegation::commit(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,true))?;
+  task_worker::request(state.data_dir(),serde_json::json!({"op":"read"})).await.map_err(|e|capability_host::HostError::from_native(&e,true))?;
+  Ok(receipt)
+}
+#[tauri::command]
+fn capability_delegation_cancel(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<(),capability_host::HostError> {
+  capability_delegation::cancel(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,false))
 }
 #[tauri::command]
 fn board_selection_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
@@ -753,6 +774,7 @@ pub fn run() {
       capability_codex_sessions_read_daily_files,
       capability_documents_publish,
       library_grant_documents,
+      capability_delegation_begin, capability_delegation_inspect, capability_delegation_commit, capability_delegation_cancel,
       board_selection_begin, board_selection_commit, board_selection_cancel,
       board_task_access, board_revoke_task_access,
       library_selection_begin,

@@ -37,6 +37,7 @@ host.library.requestSelection({ purpose: 'Draft actions', kinds: ['document'], l
 // @ts-expect-error Recipient identity belongs to the Host.
 host.library.requestSelection({ purpose: 'Read', kinds: ['document'], capabilityId: 'foreign' })
 host.board.create({ title: 'Test' }, { idempotencyKey: 'one' })
+host.board.requestDelegation({ item: { id: 'task', revision: 1 } }, { idempotencyKey: 'delegate' })
 host.board.requestSelection({ purpose: 'Attach notes', operations: ['attachDelivery'], limit: 1 })
 host.board.attachDelivery({ grantId: 'grant', item: { id: 'task', revision: 1 }, title: 'Notes', documents: [{ kind: 'library-document', documentId: 'doc', title: 'Notes' }] }, { idempotencyKey: 'attach' })
 // @ts-expect-error Attachment is not an acceptance operation.

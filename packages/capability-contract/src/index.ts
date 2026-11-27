@@ -7,7 +7,7 @@ export type AiInvocationResult = {
 }
 
 export type CapabilityEntrypoint = 'page' | 'command' | 'job'
-export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create' | 'board.attach-delivery' | 'conversations.handoff' | 'agents.run'
+export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create' | 'board.attach-delivery' | 'conversations.handoff' | 'agents.run' | 'board.request-delegation'
 export type CapabilityLanguage = 'zh' | 'en'
 export type CapabilityTheme = 'light' | 'dark'
 
@@ -198,6 +198,11 @@ export type LibrarySelectionRequest = {
 export type LibrarySelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: DocumentGrant }
 export type IdempotencyOptions = { idempotencyKey: string }
 /** Native-assigned opaque revision; compare for equality, never infer an edit count. */
+/** Propose a todo created by this package or included in a current Host task selection.
+ * sourceRunId identifies completed package work being handed off; live runs cannot transfer. */
+export type BoardDelegationInput = { item: BoardItemReference; grantId?: string; sourceRunId?: string }
+export type BoardDelegationReceipt = { receiptId: string; taskId: string; engine: 'codex' }
+export type BoardDelegationResult = { status: 'dismissed' } | { status: 'delegated'; receipt: BoardDelegationReceipt }
 export type BoardItemReference = { id: string; revision: number }
 export type BoardSelectionRequest = { purpose: string; operations: ['attachDelivery']; limit?: number }
 /** Metadata only. No task content, execution or acceptance authority is granted. */
@@ -281,6 +286,8 @@ export type CapabilityHost = {
     requestSelection(request: LibrarySelectionRequest): Promise<LibrarySelectionResult>
   }
   board: {
+    /** Opens Host review; only explicit confirmation queues independent user-owned Codex work. */
+    requestDelegation(input: BoardDelegationInput, options: IdempotencyOptions): Promise<BoardDelegationResult>
     /** Nooki 0.8.0+: approve exact task revisions for attaching a delivery. */
     requestSelection(request: BoardSelectionRequest): Promise<BoardSelectionResult>
     /** Nooki 0.9.0+: retain documents on the exact approved task version without accepting/executing. */

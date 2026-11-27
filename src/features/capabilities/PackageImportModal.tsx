@@ -43,6 +43,7 @@ export function PackageImportModal({ language, onClose, onInstalled }: { languag
     'documents.read-selected': zh ? '读取你授权的文档' : 'Read documents you authorize',
     'board.create': zh ? '创建任务板草稿（不会自动执行）' : 'Create task-board drafts (without starting work)',
     'agents.run': zh ? '申请经你批准的 Agent 运行' : 'Request Agent runs for your approval',
+    'board.request-delegation': zh ? '请求你确认后交给 Codex 独立执行' : 'Request your approval for independent Codex execution',
     'conversations.handoff': zh ? '经你审核后保存聊天草稿（不会发送）' : 'Save a chat draft after your review (without sending)',
     'board.attach-delivery': zh ? '请求为你选择的任务附加成果（不会执行或验收）' : 'Request attachment access to tasks you select (without executing or accepting)',
   }

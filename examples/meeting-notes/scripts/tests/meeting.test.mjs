@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {fixture} from './fake-host.ts'
-import {createMeeting,readMeeting,listMeetings,publishMeeting,createTodo,attachMeeting,handoffMeeting,refreshMeeting,summarize} from '../../meeting.ts'
+import {delegateMeeting,createMeeting,readMeeting,listMeetings,publishMeeting,createTodo,attachMeeting,handoffMeeting,refreshMeeting,summarize} from '../../meeting.ts'
 const tick=()=>new Promise(resolve=>setTimeout(resolve,1))
 test('selected input becomes retained notes; explicit publication, task delivery and chat draft replay safely',async()=>{
  const f=fixture({loseAttachmentReply:true}),meeting=await createMeeting(f.host,'Release planning',[f.source],'en')
@@ -39,4 +39,15 @@ test('schema failures never become publishable notes',async()=>{
  const task=await f.host.tasks.start('summarize',{draftId:meeting.id});await f.settled(task)
  const draft=await readMeeting(f.host,meeting.id);assert.equal(draft.phase,'failed');assert.equal(draft.text,'')
  await assert.rejects(publishMeeting(f.host,draft));assert.equal(f.calls.publishes,0);assert.equal(f.calls.starts,1)
+})
+
+test('independent follow-up retains notes and reconciles a lost reply after reopen',async()=>{
+ const f=fixture({loseDelegationReply:true}),meeting=await createMeeting(f.host,'Follow-up',[f.source],'en')
+ const task=await f.host.tasks.start('summarize',{draftId:meeting.id});await f.settled(task)
+ let draft=await publishMeeting(f.host,await readMeeting(f.host,meeting.id))
+ await assert.rejects(delegateMeeting(f.host,draft),{code:'OUTCOME_UNKNOWN'})
+ draft=await delegateMeeting(f.host,draft);await delegateMeeting(f.host,draft)
+ assert.equal(f.calls.creates,1);assert.equal(f.calls.delegations,1);assert.equal(f.calls.starts,1)
+ assert.ok(f.calls.todoInputs[0].description.includes(draft.text));assert.equal(f.calls.delegationInputs[0].input.sourceRunId,draft.runId)
+ assert.deepEqual(f.calls.delegationInputs[0],f.calls.delegationInputs[1]);assert.equal((await readMeeting(f.host,draft.id)).delegation.taskId,draft.delegation.taskId)
 })

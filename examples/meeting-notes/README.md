@@ -1,6 +1,6 @@
 # Meeting notes capability
 
-An independent reference package for Nooki 0.17.0 or later. It was scaffolded from the exported
+An independent reference package for Nooki 0.18.0 or later. It was scaffolded from the exported
 workbench capability kit and built outside the Nooki checkout before being preserved here.
 The package imports only its bundled public contract and UI. Nooki supplies React at runtime.
 
@@ -8,7 +8,10 @@ Select approved Library snapshots, enter a meeting title, and generate notes thr
 Codex Job. The package retains the draft and original run ID. Reopening observes existing work.
 Saving is explicit: save the completed draft to Library, then open it, create a non-running todo,
 attach the saved notes to a selected task, or hand a draft to chat for review. Chat handoff does not
-send a message. Published notes and created tasks are Host-owned records.
+send a message. “Continue with Codex” creates a follow-up todo containing the complete notes and
+requests a separate Host execution review. Confirmation queues independent work on the task board;
+closing/removing this package does not stop it. Reopening or a lost reply reuses the same task/key.
+Published notes and created tasks are Host-owned records.
 
 ## Build and preview
 
@@ -39,7 +42,7 @@ port 1431, set `PLAYWRIGHT_MODULE` to an installed Playwright module and run
 | `agents.run` | Ask the Host to review and execute Codex work |
 | `board.create` | Explicitly create a todo without executing it |
 | `board.attach-delivery` | Attach saved notes to a task selected in the Host picker |
-| `conversations.handoff` | Prepare a reviewed chat draft without sending it |
+| `conversations.handoff`, `board.request-delegation` | Prepare a reviewed chat draft without sending it |
 
 ## Verification and remaining scope
 

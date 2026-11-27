@@ -67,6 +67,8 @@ pub enum CapabilityPermission {
   BoardCreate,
   #[serde(rename = "board.attach-delivery")]
   BoardAttachDelivery,
+  #[serde(rename = "board.request-delegation")]
+  BoardRequestDelegation,
   #[serde(rename = "conversations.handoff")]
   ConversationsHandoff,
   #[serde(rename = "agents.run")]
@@ -113,6 +115,7 @@ pub struct PlatformState {
   settings: RwLock<PlatformSettings>,
   registry: RwLock<CapabilityRegistry>,
   pub(crate) document_selections: std::sync::Mutex<BTreeMap<String, crate::document_selection::Selection>>,
+  pub(crate) delegation_reviews: std::sync::Mutex<BTreeMap<String, crate::capability_delegation::Review>>,
   pub(crate) handoff_selections: std::sync::Mutex<BTreeMap<String, crate::conversation_handoff_selection::Selection>>,
   pub(crate) task_selections: std::sync::Mutex<BTreeMap<String, crate::task_selection::Selection>>,
   pub(crate) agent_reviews: std::sync::Mutex<BTreeMap<String, crate::capability_agent_review::Review>>,
@@ -133,6 +136,7 @@ impl PlatformState {
       registry: RwLock::new(registry),
       document_selections: std::sync::Mutex::new(BTreeMap::new()),
       task_selections: std::sync::Mutex::new(BTreeMap::new()),
+      delegation_reviews: std::sync::Mutex::new(BTreeMap::new()),
       handoff_selections: std::sync::Mutex::new(BTreeMap::new()),
       agent_reviews: std::sync::Mutex::new(BTreeMap::new()),
     })
@@ -536,6 +540,7 @@ impl CapabilityPermission {
       Self::DocumentsPublish => "documents.publish",
       Self::DocumentsReadSelected => "documents.read-selected",
       Self::BoardCreate => "board.create",
+      Self::BoardRequestDelegation => "board.request-delegation",
       Self::BoardAttachDelivery => "board.attach-delivery",
       Self::ConversationsHandoff => "conversations.handoff",
       Self::AgentsRun => "agents.run",
@@ -586,6 +591,9 @@ pub fn validate_manifest(manifest: &CapabilityManifest) -> Result<(), String> {
   let minimum = semver::Version::parse(&manifest.min_platform_version).map_err(|_| "最低平台版本无效")?;
   if manifest.permissions.contains(&CapabilityPermission::BoardAttachDelivery) && minimum < semver::Version::new(0, 8, 0) {
     return Err("board.attach-delivery requires minPlatformVersion 0.8.0 or newer".into());
+  }
+  if manifest.permissions.contains(&CapabilityPermission::BoardRequestDelegation) && minimum < semver::Version::new(0, 18, 0) {
+    return Err("board.request-delegation requires minPlatformVersion 0.18.0 or newer".into());
   }
   if manifest.permissions.contains(&CapabilityPermission::ConversationsHandoff) && minimum < semver::Version::new(0, 11, 0) {
     return Err("conversations.handoff requires minPlatformVersion 0.11.0 or newer".into());
