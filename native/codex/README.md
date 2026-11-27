@@ -4,9 +4,12 @@ This is the pinned native source integration for Nooki capability Agent runs. It
 configuration/admission boundary; Codex still owns authentication, models, tools, sessions and
 cancellation. It neither replaces the user's Codex CLI nor adds another model runner.
 
-**Status: development integration.** The application does not enable or bundle this component yet.
-Startup recovery of orphaned children, runtime questions, authentication acceptance and component distribution
-remain in the active toolbox delivery. The remaining broad compatibility matrix is final acceptance
+**Status: product integration in development.** Prepared Apple Silicon macOS builds now bundle and
+load this component. The Host reuses Codex file authentication and the model from its selected
+configuration profile (or the pinned component catalog default). Missing components/login and
+unsupported providers/credential stores remain unavailable, with no ordinary CLI fallback.
+Runtime questions, authenticated acceptance, release distribution/rollback and the complete meeting
+workflow remain in the active toolbox delivery. The remaining broad compatibility matrix is final acceptance
 work; incompatible managed configuration is refused, never ignored.
 
 `source.json` pins the upstream archive/revision, the complete source patch and each changed file.
@@ -34,8 +37,10 @@ installation changes, document revocation and restore. An uncertain acknowledgem
 submission claim. Cancellation before a claim is atomic; after a claim, only native observation can
 confirm a terminal result. Active-session maintenance now persists cancellation requests, observes results independently of
 page subscriptions, and interrupts on parent cancellation or revoked installation/source authority.
-Job parentage comes from Host context and is checked against the persisted task attempt. Restart
-recovery and complete lifecycle acceptance remain pending.
+Job parentage comes from Host context and is checked against the persisted task attempt. Startup
+captures the pre-existing run inventory, reconciles only retained native provenance and requests
+cancellation of orphaned Job children. It never submits another turn. Restored history and claims
+without native provenance cannot execute. Complete lifecycle acceptance remains pending.
 
 ## Build and focused validation
 
@@ -54,9 +59,32 @@ archive/bindings are supplied through the upstream `RUSTY_V8_ARCHIVE` and
 `RUSTY_V8_SRC_BINDING_PATH` build variables. No compiled binary or dependency cache is committed.
 A distribution build must pin its own actual binary digest; rebuilding is not assumed bit-identical.
 
+## Application packaging
+
+After building the pinned source, stage the component before `npm run desktop:build`:
+
+```sh
+npm run capability:codex:prepare -- /absolute/path/to/codex-app-server /absolute/path/to/patched-codex
+npm run desktop:build
+npm run desktop:install
+```
+
+The preparation command checks the patched source hashes, strips/signs a copy, and records its actual
+binary digest and pinned catalog default. The binary, license copy and generated manifest are ignored
+build artifacts. `build.rs` embeds that manifest in Nooki; runtime loading checks its source pin and
+the actual bundled binary. Missing staging leaves the service unavailable, rather than selecting an
+arbitrary executable. This is a local development distribution; optimized release builds, upstream
+source/dependency release audits, update/rollback and broader platform acceptance remain pending.
+The current development component is large (about 695 MB before app packaging).
+
+The Host reads only Codex configuration for model/profile/provider selection; it does not read or
+copy credential contents. New approvals require the native file login to exist. The component owns
+token reading/refresh through the existing login-file link. Model/profile changes take effect after
+restarting Nooki; already-approved policy does not silently change. Other native authentication
+stores/providers are reported unavailable until their integration is implemented and accepted.
+
 The Nooki integration tests take that actual binary through `NOOKI_CAPABILITY_NATIVE_BIN`, compute
-its identity, approve synthetic input and use a local Responses fixture. They never enable the
-component in the installed application or make authenticated model calls:
+its identity, approve synthetic input and use a local Responses fixture. These tests make no authenticated model calls:
 
 ```sh
 NOOKI_CAPABILITY_NATIVE_BIN=/absolute/path/to/codex-app-server \

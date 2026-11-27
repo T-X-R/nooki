@@ -35,6 +35,22 @@ impl Settings {
         }
         Ok(ResolvedPolicy{digest:digest(self.policy_json().as_bytes()),component:self.component.clone()})
     }
+    /// Recover the approved model from retained configuration, then verify the complete original
+    /// digest. Changing the user's current selection cannot rebind an existing run.
+    pub(crate) fn retained(&self,data:&Path,launch:&NativeLaunchInput)->Result<Self,String> {
+        let paths=Paths::for_run(data,&launch.binding.run_id)?;
+        let mut settings=self.clone();
+        if paths.root.exists() {
+            let config:toml::Value=toml::from_str(&fs::read_to_string(paths.home.join("config.toml"))
+                .map_err(|_|"OUTCOME_UNKNOWN: retained Agent policy unavailable")?)
+                .map_err(|_|"PERMISSION_DENIED: retained Agent policy is invalid")?;
+            settings.model=config.get("model").and_then(|v|v.as_str()).ok_or("PERMISSION_DENIED: retained Agent model missing")?.into();
+        }
+        let policy=settings.policy()?;
+        if policy.digest!=launch.binding.policy_digest || policy.component!=launch.binding.component {
+            return Err("PERMISSION_DENIED: retained Agent policy differs from its approval".into());
+        } Ok(settings)
+    }
     fn policy_json(&self)->String {
         json!({"policy":"nooki-codex-local-v2","configuration":self.config_template(),
             "authentication":self.authentication,"component":self.component}).to_string()

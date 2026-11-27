@@ -30,8 +30,9 @@ For a chat draft, declare `conversations.handoff`, require Nooki 0.11.0+, and ca
 For existing-task approval on Nooki 0.8.0+, declare `board.attach-delivery` and use `host.board.requestSelection` with a purpose and `operations: ["attachDelivery"]`. Handle dismissal; preserve exact granted task revisions and never infer execution/acceptance authority. For Nooki 0.9.0+, use `host.board.attachDelivery` with the selected grant ID, exact `{id, revision}`, and own published or actively selected document references. Persist key and complete input before an effect that needs restart recovery. Retry uncertain outcomes unchanged; viewing retained results never implies acceptance. Consult the bundled contract for source permissions and retention limits.
 
 For Agent execution, require Nooki 0.14.0+ and declare `agents.run`. Use `host.agents.listAvailable()`;
-the currently distributed app advertises no capability Agent until native component integration is
-finished. Handle that empty state explicitly. Persist the exact input/key before `start`, let the
+prepared Nooki 0.15.0 Apple Silicon builds include the dedicated component and reuse Codex file
+login. Missing components/login or unsupported native configuration yield an empty list; handle it
+explicitly. Persist the exact input/key before `start`, let the
 Host obtain confirmation, and retain the returned run ID. Reopen with `get`/`subscribe`; release
 subscriptions on unmount. On uncertainty, reconcile the same request instead of generating another
 key. `cancel` returns observed state, not a promise that interruption already won. Check

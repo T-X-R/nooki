@@ -370,3 +370,11 @@ pub(crate) fn cancel_parent(root:&Path,parent:&str)->Result<bool,String> {
     }
     save(root,&ledger)?;Ok(pending)
 }
+
+/// Native startup recovery inventory; imported or replaced data never resumes execution.
+pub(crate) fn unfinished(root:&Path)->Result<Vec<Run>,String> {
+    let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: Agent recovery is waiting for user data")?;
+    crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;
+    let restore=crate::user_data::restored_id(root)?;
+    Ok(load(root)?.runs.into_values().filter(|r|!r.restored && r.scope.restore_id==restore && r.outcome.is_none()).collect())
+}

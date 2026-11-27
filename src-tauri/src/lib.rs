@@ -28,6 +28,7 @@ pub mod capability_agent_review;
 pub(crate) mod capability_codex;
 pub(crate) mod capability_agent_execution;
 mod capability_agent_host;
+mod capability_agent_component;
 pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
@@ -643,7 +644,36 @@ pub fn run() {
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
-      app.manage(capability_agent_host::AgentHost::default());
+      let agent_owner=app.path().resource_dir().map_err(|e|e.to_string())
+        .and_then(|resources|capability_agent_component::settings(&resources,&codex_home()));
+      let agent_owner=match agent_owner {
+        Ok(settings)=>Some(capability_agent_execution::Executor::new(settings,std::sync::Arc::new(|_,_|{}))),
+        Err(_)=>{log::info!(target:"workbench::capability_agents","bundled Codex component unavailable");None},
+      };
+      app.manage(capability_agent_host::AgentHost{executor:agent_owner});
+      #[cfg(unix)] {
+        // Capture before the renderer can create new Jobs. Periodic recovery must not cancel
+        // children created during this application lifetime.
+        let recovery_ids=capability_agent_runs::unfinished(app.state::<PlatformState>().data_dir())
+          .map(|runs|runs.into_iter().map(|run|run.id).collect::<Vec<_>>());
+        let owner_app=app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+          let Ok(recovery_ids)=recovery_ids else {
+            log::warn!(target:"workbench::capability_agents","Startup recovery inventory unavailable; retained runs require reconciliation");return;
+          };
+          loop {
+            let agents=owner_app.state::<capability_agent_host::AgentHost>();
+            let Some(executor)=&agents.executor else{break};
+            let state=owner_app.state::<PlatformState>();
+            match executor.recover(state.data_dir(),&recovery_ids).await {
+              Ok(false)=>break,
+              Ok(true)=>(),
+              Err(_)=>log::warn!(target:"workbench::capability_agents","Agent recovery pending; retained submissions are not resent"),
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+          }
+        });
+      }
       app.manage(task_execution::TaskExecutions::default());
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);

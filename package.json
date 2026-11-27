@@ -1,7 +1,7 @@
 {
   "name": "nooki",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.15.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,6 +17,7 @@
     "desktop:open": "open src-tauri/target/release/bundle/macos/Nooki.app",
     "desktop:install": "node scripts/install-desktop-app.mjs",
     "desktop:update": "npm run desktop:build && npm run desktop:install",
+    "capability:codex:prepare": "node scripts/prepare-capability-codex.mjs",
     "capability:pack": "node scripts/package-capability.mjs",
     "capability:kit": "node scripts/build-capability-kit.mjs"
   },

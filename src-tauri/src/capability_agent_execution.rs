@@ -18,6 +18,10 @@ impl Executor {
     }
     pub fn policy(&self,agent:&str)->Result<runs::ResolvedPolicy,String> {
         if agent!="codex" {return Err("UNSUPPORTED_SERVICE: this execution owner supports Codex".into());}
+        match &self.settings.authentication {
+            crate::capability_codex::Authentication::CodexFile{path} if !path.is_file()=>return Err("UNSUPPORTED_SERVICE: sign in with Codex file authentication first".into()),
+            _=>(),
+        }
         self.settings.policy()
     }
     fn read(&self,state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->Result<runs::Run,String> {
@@ -26,14 +30,15 @@ impl Executor {
         runs::get(state.data_dir(),&scope,run_id,||review::current(state.data_dir(),&scope))
     }
     #[cfg(unix)]
-    async fn session(&self,state:&PlatformState,run:&runs::Run)->Result<Arc<Active>,String> {
+    async fn session(&self,root:&std::path::Path,run:&runs::Run,require_current:bool)->Result<Arc<Active>,String> {
         let mut sessions=self.sessions.lock().await;
         if let Some(session)=sessions.get(&run.id) {return Ok(session.clone());}
-        let launch=runs::native_launch_input(state.data_dir(),&run.scope,&run.id,||review::current(state.data_dir(),&run.scope))?;
+        let launch=runs::native_launch_input(root,&run.scope,&run.id,||if require_current{review::current(root,&run.scope)}else{Ok(())})?;
         let run_id=run.id.clone();let events=self.events.clone();
-        let session=Session::open(state.data_dir(),launch,&self.settings,Arc::new(move|event|events(&run_id,event))).await?;
+        let settings=self.settings.retained(root,&launch)?;
+        let session=Session::open(root,launch,&settings,Arc::new(move|event|events(&run_id,event))).await?;
         let active=Arc::new(Active{session,gate:Mutex::new(())});sessions.insert(run.id.clone(),active.clone());
-        let weak=Arc::downgrade(&active);let root=state.data_dir().to_path_buf();let retained=run.clone();
+        let weak=Arc::downgrade(&active);let root=root.to_path_buf();let retained=run.clone();
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -47,6 +52,27 @@ impl Executor {
                 }
             }
         });Ok(active)
+    }
+    /// Reattach only to retained native provenance. Recovery never claims or submits a turn.
+    #[cfg(unix)]
+    pub async fn recover(&self,root:&std::path::Path,initial_ids:&[String])->Result<bool,String> {
+        let unfinished:Vec<_>=runs::unfinished(root)?.into_iter().filter(|run|initial_ids.contains(&run.id)).collect();
+        let pending=!unfinished.is_empty();
+        for mut run in unfinished {
+            if self.sessions.lock().await.contains_key(&run.id) {continue;}
+            if !run.cancellation_requested && (run.parent.is_some() || review::current(root,&run.scope).is_err()) {
+                run=runs::request_cancellation(root,&run.scope,&run.id)?;
+            }
+            if run.outcome.is_some() || run.submission==runs::Submission::Approved {continue;}
+            let provenance=root.join("capability-agent-native").join(&run.id).join("codex/.nooki-run-provenance.json");
+            if !provenance.is_file() {continue;}
+            // A failed startup/policy check leaves the original claim uncertain. Other runs can recover.
+            let Ok(active)=self.session(root,&run,false).await else{continue};
+            let _gate=active.gate.lock().await;
+            // Native resume loads the same bound thread; it does not create or replay a turn.
+            if active.session.thread().await.is_err() {continue;}
+            let _=Self::maintain(root,&run,&active.session).await;
+        } Ok(pending)
     }
     #[cfg(unix)]
     async fn maintain(root:&std::path::Path,retained:&runs::Run,session:&Session)->Result<bool,String> {
@@ -89,7 +115,7 @@ impl Executor {
         if prior.outcome.is_some() {return Ok(review::metadata(&prior));}
         if prior.submission!=runs::Submission::Approved {return self.observe(state,caller,id,version,run_id).await;}
         let run=review::claim(state,caller,id,version,run_id,|agent|self.policy(agent))?;
-        let active=self.session(state,&run).await?;let _gate=active.gate.lock().await;
+        let active=self.session(state.data_dir(),&run,true).await?;let _gate=active.gate.lock().await;
         let binding=review::native_binding(state,id,version,run_id)?;
         let thread=active.session.thread().await?;
         review::record_native(state,id,version,&binding,&thread)?;
@@ -115,7 +141,7 @@ impl Executor {
         if run.native.is_none() && !state.data_dir().join("capability-agent-native").join(run_id).join("codex/.nooki-run-provenance.json").is_file() {
             return Ok(review::metadata(&run));
         }
-        let active=self.session(state,&run).await?;let _gate=active.gate.lock().await;
+        let active=self.session(state.data_dir(),&run,true).await?;let _gate=active.gate.lock().await;
         let thread=active.session.thread().await?;
         let binding=review::native_binding(state,id,version,run_id)?;
         review::record_native(state,id,version,&binding,&thread)?;
@@ -130,7 +156,7 @@ impl Executor {
             return runs::cancel_unsubmitted(state.data_dir(),&run.scope,run_id,||review::current(state.data_dir(),&run.scope)).map(|run|review::metadata(&run));
         }
         runs::request_cancellation(state.data_dir(),&run.scope,&run.id)?;
-        let active=self.session(state,&run).await?;let _gate=active.gate.lock().await;
+        let active=self.session(state.data_dir(),&run,true).await?;let _gate=active.gate.lock().await;
         let run=self.observed(state,&run,&active.session).await?;
         if run.outcome.is_none() {
             let native=run.native.as_ref().ok_or("OUTCOME_UNKNOWN: native execution must be reconciled before cancellation")?;
@@ -200,4 +226,55 @@ mod tests {
         for active in host.executor.as_ref().unwrap().sessions.lock().await.values() {active.session.stop_test_process().await;}
         drop(host);server.abort();let _=server.await;fs::remove_dir_all(root).unwrap();
     }
+    #[tokio::test]
+    #[ignore="requires pinned capability Codex; local synthetic Responses only"]
+    async fn startup_recovers_completed_output_and_interrupts_orphaned_children_without_resubmission() {
+        let binary=PathBuf::from(std::env::var_os("NOOKI_CAPABILITY_NATIVE_BIN").expect("pinned component required"));
+        let component=runs::ComponentIdentity{protocol_revision:2,sha256:format!("{:x}",Sha256::digest(fs::read(&binary).unwrap()))};
+        let root=std::env::temp_dir().join(format!("nooki-agent-startup-{}",crate::capability_authority::nonce().unwrap()));
+        let state=PlatformState::load(root.clone()).unwrap();
+        state.install_capability(serde_json::from_value(json!({"id":"example.meeting","name":"Meeting","version":"1.0.0",
+            "entrypoints":["page","job"],"permissions":["agents.run"],"minPlatformVersion":"0.14.0"})).unwrap()).unwrap();
+        let (url,count,server)=crate::capability_codex::tests::responses().await;
+        let settings=Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}};
+        let host=crate::capability_agent_host::AgentHost{executor:Some(Executor::new(settings.clone(),Arc::new(|_,_|{})))};
+        for (key,orphan) in [("cold-completed",false),("hold-for-cancellation-orphan",true)] {
+            if orphan {state.write_tasks(&[json!({"id":"prior-job","attempt":1,"status":"running","capabilityId":"example.meeting","capabilityVersion":"1.0.0"})]).unwrap();}
+            let ticket=host.begin(&state,"main",json!({"requestId":key,"capabilityId":"example.meeting","version":"1.0.0","key":key,
+                "executionId":if orphan{Some("prior-job:1")}else{None},
+                "proposal":{"instructions":format!("nooki-native-model-probe: {key}"),"sources":[],"agentId":"codex","outputSchema":null}})).unwrap();
+            let approved=host.approve(&state,"main",json!({"handle":ticket["handle"]})).unwrap();
+            let id=approved["id"].as_str().unwrap();
+            let run=review::claim(&state,"main","example.meeting","1.0.0",id,|_|settings.policy()).unwrap();
+            let launch=runs::native_launch_input(&root,&run.scope,id,||Ok(())).unwrap();
+            let binding=launch.binding.clone();let session=Session::open(&root,launch,&settings,Arc::new(|_|{})).await.unwrap();
+            let thread=session.thread().await.unwrap();runs::record_native(&root,&run.scope,&binding,&thread,||Ok(())).unwrap();
+            let native=session.submit().await.unwrap();runs::record_native(&root,&run.scope,&binding,&native,||Ok(())).unwrap();
+            let mut current=settings.clone();current.model="newly-selected-model".into();
+            let recovered=Executor::new(current,Arc::new(|_,_|{}));
+            assert!(!recovered.recover(&root,&[]).await.unwrap(),"A later run is not part of the startup inventory");
+            assert!(!runs::get(&root,&run.scope,id,||Ok(())).unwrap().cancellation_requested);
+            if orphan {
+                tokio::time::timeout(Duration::from_secs(20),async{while count.load(Ordering::SeqCst)<2 {tokio::time::sleep(Duration::from_millis(50)).await;}}).await.unwrap();
+            } else {
+                tokio::time::timeout(Duration::from_secs(30),async{loop {
+                    if session.observe().await.unwrap().is_some_and(|(_,outcome)|outcome.is_some()) {break;}
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }}).await.unwrap();
+                session.stop_owned_process().await;
+            }
+            recovered.recover(&root,&[id.into()]).await.unwrap();
+            let finished=tokio::time::timeout(Duration::from_secs(30),async{loop {
+                let run=runs::get(&root,&run.scope,id,||Ok(())).unwrap();if run.outcome.is_some() {break run;}
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }}).await.unwrap();
+            assert_eq!(finished.cancellation_requested,orphan);
+            assert_eq!(finished.outcome,Some(if orphan{runs::Outcome::Cancelled}else{runs::Outcome::Completed{text:"Meeting notes ready".into()}}));
+            session.stop_owned_process().await;
+            for active in recovered.sessions.lock().await.values() {active.session.stop_owned_process().await;}
+        }
+        assert_eq!(count.load(Ordering::SeqCst),2,"Startup recovery never submits another turn");
+        drop(host);server.abort();let _=server.await;fs::remove_dir_all(root).unwrap();
+    }
+
 }

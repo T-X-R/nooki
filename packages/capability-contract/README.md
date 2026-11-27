@@ -4,18 +4,19 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.14.0's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.15.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
-conversation attachment inputs and reviewed chat handoff. Observable agent-run APIs remain future work. `ai.invoke` is the existing model gateway, not an agent-run handle.
+conversation attachment inputs and reviewed chat handoff. Reviewed observable Agent runs are available through the bindings below. `ai.invoke` is the existing model gateway, not an agent-run handle.
 
 `agents.run` is a separate execution permission, declared since 0.12.0. The public Agent
-bindings below require Nooki 0.13.0+. **The distributed app does not yet include an enabled
-capability Codex component:** `listAvailable()` returns an empty list and new execution fails with
-`UNSUPPORTED_SERVICE`. Native policy/lifecycle integration and component delivery remain in progress.
-The bindings are connected to the actual dedicated execution owner in core integration tests; they
-never fall back to ordinary chat, `ai.invoke`, or a synthetic successful run.
+bindings below require Nooki 0.13.0+ (cancellation state requires 0.14.0+). Prepared Nooki 0.15.0
+Apple Silicon builds include the dedicated Codex component and reuse Codex file login. Check
+`listAvailable()` at runtime: missing components/login or unsupported native configuration return
+an empty list, and new execution fails with `UNSUPPORTED_SERVICE`. Authenticated/installed acceptance
+and the complete meeting workflow remain in development. There is no ordinary chat, `ai.invoke`, or
+synthetic-success fallback.
 
 | Surface | Desktop Nooki | Portable `preview/host.ts` |
 |---|---|---|
@@ -565,5 +566,5 @@ successful Job. A Job-created Host automatically binds Agent starts to that Job'
 packages never supply a parent/owner field. Cancelling the Job persistently cancels its children and
 blocks retry while any prior child has an uncertain outcome. Page disposal only stops subscriptions.
 The native owner observes active sessions without requiring a page subscription and requests
-interruption when installation/source authority or parent lifetime ends. Startup recovery of
-orphaned children and installed component activation remain under implementation.
+interruption when installation/source authority or parent lifetime ends. Prepared Nooki 0.15.0 macOS builds include startup reconciliation and component activation.
+Authentication and installed end-to-end acceptance remain pending.

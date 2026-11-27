@@ -23,47 +23,48 @@ implementation; do not relabel deferred tests as passed or add more suffixed pre
 Implement the remaining C06c/C06d/C06e parts together with the C07 behavior and C09 caller needed by
 this flow. Preserve the rest of C07–C09, R01–R15 and T01–T08; the change moves broad tests, not features.
 
-**Current code progress:** the public `host.agents` path includes review, immutable retries,
-retained results, cancellation and observation. Job-created Hosts now carry the exact Host execution
-attempt into native review; native code validates it against persisted task ownership/version/state
-and binds it to the approved run. Durable cancellation markers survive stale renderer task writes.
-Cancelling a Job marks its children before returning. Retry/reconnect cannot start a new attempt
-while an older child is unresolved; ordinary conversation reconnect is not interrupted by this check.
-Snapshots expose `cancellationRequested` separately from the observed native outcome. Pending child
-cancellation is visible in the Job error/status detail rather than reported as a clean stop.
+**Current code progress:** prepared Apple Silicon macOS builds now bundle the pinned Codex component
+and construct the actual Agent execution owner at application startup. The preparation command checks
+pinned patched sources, signs a separate binary and records its digest. Nooki embeds that identity
+at build time and verifies the bundled file before use. Missing components or native file login,
+unsupported providers/credential stores and mismatched identities stay unavailable; no ordinary
+chat/CLI fallback is selected. The Host reads model/profile configuration, while Codex owns credential
+reading and refresh. New model selection takes effect after restart; existing runs recover their
+original model only when the complete approved policy digest still matches.
 
-The native owner now observes active sessions independently of page subscriptions, retains their
-terminal outcomes, and interrupts them when the Job, installation or selected-source authority ends.
-It releases owned native processes after terminal results; invalidated restore/provenance requests
-bounded interruption and stops only the process group it created, without claiming remote success.
-This builds on the pinned protocol-2 policy/source integration in [`native/codex`](../native/codex/README.md).
+Startup captures existing run IDs before the new application lifetime can create work. Periodic
+reconciliation never claims or submits another turn, excludes imported/replaced data, cancels orphaned
+Job children and recovers retained results. Runs created after that inventory are not treated as
+orphans. Claims lacking native provenance remain uncertain. The previous Job parentage, durable
+cancellation, active-session maintenance and retry refusal are retained.
 
-**Still in this delivery:** startup recovery of orphaned children, complete lifecycle ownership,
-deliver/enable the native component, Host questions/progress and structured results/artifacts, and
-the meeting package's Library save/reopen flow. The installed app still has an unavailable Agent
-owner: `listAvailable()` is empty and new execution returns `UNSUPPORTED_SERVICE`. Ordinary chat and
-legacy `ai.invoke` are never fallback execution. Authentication acceptance and broad lifecycle/
-compatibility/fault matrices remain pending. This increment does not close C06/C07/C09.
+**Still in this delivery:** Host questions/progress, structured results/artifacts, the meeting
+package's Library save/reopen flow, remaining lifecycle ownership and installed/authenticated
+acceptance. The initial component integration supports Codex's OpenAI provider and native file login;
+other credential stores/providers still need integration and acceptance. Optimized release component
+builds, source/dependency release audits, update/rollback, expanded platforms and broad fault/lifecycle
+matrices remain pending. The current development component is about 695 MB; it is not an optimized
+release distribution. This increment does not close C06/C07/C09 or the toolbox goal.
 
-**Core evidence for this increment:** 16 SDK/Job runner tests pass, including cancellation state,
-Host-supplied parent context, retry blocking and existing late-result/reconnect behavior. Seventeen
-native review/binding tests pass, including parent binding, obsolete attempt/foreign owner refusal,
-and durable cancellation despite stale task writes. All 29 journal tests pass. The focused native
-integration passes in 32.36s with four synthetic local Responses requests: normal result, direct
-cancellation, parent Job cancellation and package disable. Replays issue no additional requests;
-no authenticated model calls were made. TypeScript checking passes. Commands/logs:
-`node --test tests/capability-agents.test.ts tests/task-runner.test.ts`,
-`cargo test --offline --lib capability_agent_`,
-`cargo test --offline --test capability_agent_runs_test`, and the existing ignored
-`capability_agent_execution::tests` with `NOOKI_CAPABILITY_NATIVE_BIN`;
-`/tmp/nooki-agent-lifecycle-{sdk,core,ledger,native,types}.log`.
-App/contract advance to 0.14.0 and kit to 0.13.0. Both exported-kit checks pass, including an
-independently scaffolded project's type check, package validation and ZIP build. Desktop build
-(native release: 34.61s), required reinstall and strict deep signature verification pass. Installed
-app: 0.14.0; signed executable SHA-256:
-`7291e74f775269d226da01d115a33ba4331aeb6617da21b0e5fcd2ad0f18c1e6`.
-Logs: `/tmp/nooki-agent-lifecycle-kit.log`, `/tmp/nooki-agent-lifecycle-desktop-{build,install}.log`.
-Previous native policy/input/recovery evidence is reused; broad suites are deferred.
+**Core evidence for this increment:** 18 native component/review/binding tests pass. Component tests
+cover source/binary identity, profile selection and unavailable configuration without reading any
+credential contents. The actual staged, signed component passes startup recovery in 21.91s: cold
+recovery of an unretained completed result, interruption of a live orphaned Job child, changed current
+model selection, and exclusion of later runs. Exactly two synthetic local Responses requests occur;
+recovery adds none. No authenticated model calls or personal login inspection were performed.
+Commands: `cargo test --offline --lib capability_agent_` and the existing ignored
+`capability_agent_execution::tests::startup_recovers` with `NOOKI_CAPABILITY_NATIVE_BIN` pointing to
+the staged component. Logs: `/tmp/nooki-component-{core,recovery,stage}.log`.
+App advances to 0.15.0; the public API contract stays at 0.14.0 and kit advances to 0.13.1. Both kit
+checks pass, including independent scaffold/typecheck/validation/ZIP packing. Desktop build (native
+release: 41.49s), required reinstall and strict deep signature verification pass. The installed
+component digest matches the staged/tested binary and embedded distribution identity:
+`5a0d2c0d76437e2a60d39ae63b0ec0aa0c53701a69addcd4e8bf07bd4a73e741`.
+Installed app: 0.15.0; signed executable SHA-256:
+`f071f61dc0e478eb40d330c792f653d83696e434e5dd3e73caaecc5674fcd085`.
+Bundle size: 689.25 MiB (development component, release optimization pending).
+Logs: `/tmp/nooki-component-kit.log`, `/tmp/nooki-component-desktop-{build,install}.log`.
+Previous lifecycle/SDK/input/policy checks are reused; the broader suites are deferred.
 
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
@@ -1349,8 +1350,9 @@ C06c1 completion does not make the public Agent path available.
 #### [ ] C06d — Expose observable runs through Host UI and the exported kit
 
 **State:** SDK/native bindings and start-review UI implemented with focused core tests (0.13.0).
-See the active delivery entry above. Runtime questions/progress, enabled component integration and
-installed acceptance remain open; the default app currently advertises no available capability Agent.
+See the active delivery entry above. Prepared 0.15.0 builds now enable the pinned component when
+its supported native login/configuration is available. Runtime questions/progress and installed
+acceptance remain open.
 
 **Depends on:** C06c. **Size:** M; split native bindings and UI if required.
 **Deliver:** Typed available-agent/start/get/subscribe/cancel operations, Host-owned start review and
@@ -1385,8 +1387,9 @@ No unsolicited sends, duplicate agent runs, synthetic user approvals or private 
 interruption/reconciliation, and unresolved-child retry refusal are implemented with the focused
 core evidence above. `cancellationRequested` records local intent independently of native outcome.
 Parent/installation cancellation passes with the real pinned component and synthetic Responses.
-Startup recovery of orphaned children, remaining runtime ownership and installed lifecycle acceptance
-stay open; this entry is not complete.
+Startup inventory recovery and orphaned-child interruption were added and core-tested in 0.15.0
+(see the active entry). Remaining runtime ownership and installed lifecycle acceptance stay open;
+this entry is not complete.
 
 **Depends on:** C06. **Size:** M.
 **Deliver:** Host-derived parentage between a package Job and its agent child, with revocation and
