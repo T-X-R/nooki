@@ -1,6 +1,6 @@
 # Meeting notes capability
 
-An independent reference package for Nooki 0.15.1 or later. It was scaffolded from the exported
+An independent reference package for Nooki 0.16.0 or later. It was scaffolded from the exported
 workbench capability kit and built outside the Nooki checkout before being preserved here.
 The package imports only its bundled public contract and UI. Nooki supplies React at runtime.
 
@@ -20,7 +20,7 @@ npm run pack
 npm run dev
 ```
 
-The installable archive is `dist/example.meeting-notes-1.0.0.capability.zip`.
+The installable archive is `dist/example.meeting-notes-1.1.0.capability.zip`.
 Importing and installing the archive, approving permissions, and running Codex are separate user
 operations. The Host needs its dedicated Codex component and a supported native login.
 
@@ -51,5 +51,6 @@ reparenting it or adopting an unused approval.
 
 Installed package behavior and authenticated Codex execution are not yet accepted. Broad theme,
 language, viewport, upgrade/removal and fault matrices belong to consolidated toolbox acceptance.
-Interactive Agent questions, structured artifacts, and explicit independent Host execution delegation
+Native questions appear in the Nooki Host notice; the package displays public progress and an
+input-needed hint. Structured artifacts and explicit independent Host execution delegation
 remain platform work; this package's chat draft handoff does not implement that delegation.

@@ -57,7 +57,10 @@ impl AgentHost {
                 "cancel"=>owner.cancel(state,caller,&input.capability_id,&input.version,&input.run_id).await?,
                 _=>owner.observe(state,caller,&input.capability_id,&input.version,&input.run_id).await?,
             };
-            review::public_get(state,caller,&input.capability_id,&input.version,&input.run_id)
+            let mut snapshot=review::public_get(state,caller,&input.capability_id,&input.version,&input.run_id)?;
+            if snapshot["result"].is_null() && snapshot["status"]=="running" {
+                if let Some(progress)=owner.progress(&input.run_id).await {snapshot["progress"]=progress;}
+            }Ok(snapshot)
         }
         #[cfg(not(unix))] {Err("UNSUPPORTED_SERVICE: capability Codex is unavailable on this platform".into())}
     }
@@ -151,4 +154,20 @@ mod tests {
         assert_eq!(error["code"],"OUTCOME_UNKNOWN");assert!(!error.to_string().contains("/private"));
         assert_eq!(serde_json::to_value(AgentError::native(raw.into(),false)).unwrap()["code"],"RESOURCE_UNAVAILABLE");
     }
+}
+
+#[tauri::command]
+pub(crate) async fn capability_agent_questions(webview:tauri::Webview,state:tauri::State<'_,PlatformState>,agents:tauri::State<'_,AgentHost>)->Result<Value,AgentError> {
+    if webview.label()!="main" {return Err(AgentError::native("PERMISSION_DENIED: Host only".into(),false));}
+    #[cfg(unix)] {match &agents.executor {Some(owner)=>owner.questions(&state,webview.label()).await.map_err(|e|AgentError::native(e,false)),None=>Ok(json!([]))}}
+    #[cfg(not(unix))] {Ok(json!([]))}
+}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct AnswerRequest {capability_id:String,version:String,run_id:String,handle:String,answers:Value}
+#[tauri::command]
+pub(crate) async fn capability_agent_answer(webview:tauri::Webview,request:Value,state:tauri::State<'_,PlatformState>,agents:tauri::State<'_,AgentHost>)->Result<(),AgentError> {
+    let input:AnswerRequest=self::request(webview.label(),request).map_err(|e|AgentError::native(e,false))?;
+    #[cfg(unix)] {agents.owner().map_err(|e|AgentError::native(e,false))?.answer(&state,webview.label(),&input.capability_id,&input.version,&input.run_id,&input.handle,&input.answers).await.map_err(|e|AgentError::native(e,true))}
+    #[cfg(not(unix))] {Err(AgentError::native("UNSUPPORTED_SERVICE: unavailable".into(),false))}
 }

@@ -249,6 +249,8 @@ export type AgentRunSnapshot = Readonly<{
   restored: boolean
   /** Local cancellation is durable; status still describes the observed native outcome. */
   cancellationRequested: boolean
+  /** Public assistant progress only. Questions are answered in the Nooki Host UI. */
+  progress?: Readonly<{ text: string; awaitingInput: boolean }>
   result: Readonly<{ text: string }> | null
 }>
 export type AgentStartResult = { status: 'dismissed' } | { status: 'started'; run: AgentRunSnapshot }

@@ -8,8 +8,10 @@ cancellation. It neither replaces the user's Codex CLI nor adds another model ru
 load this component. The Host reuses Codex file authentication and the model from its selected
 configuration profile (or the pinned component catalog default). Missing components/login and
 unsupported providers/credential stores remain unavailable, with no ordinary CLI fallback.
-Runtime questions, authenticated acceptance, release distribution/rollback and the complete meeting
-workflow remain in the active toolbox delivery. The remaining broad compatibility matrix is final acceptance
+Host question/answer handling and public progress are integrated in Nooki 0.16.0. New runs enable
+Codex native default-mode questions; retained runs preserve their originally approved configuration.
+Authenticated acceptance, structured artifacts, release distribution/rollback and the complete
+meeting workflow remain in the active toolbox delivery. The remaining broad compatibility matrix is final acceptance
 work; incompatible managed configuration is refused, never ignored.
 
 `source.json` pins the upstream archive/revision, the complete source patch and each changed file.

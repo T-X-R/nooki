@@ -38,8 +38,8 @@ Job children and recovers retained results. Runs created after that inventory ar
 orphans. Claims lacking native provenance remain uncertain. The previous Job parentage, durable
 cancellation, active-session maintenance and retry refusal are retained.
 
-**Still in this delivery:** Host questions/progress, structured results/artifacts and remaining
-lifecycle ownership. The meeting package's save/reopen flow is implemented below; installed and
+**Still in this delivery:** structured results/artifacts and remaining lifecycle ownership.
+Host questions/public progress are implemented in the 0.16.0 increment below. The meeting package's save/reopen flow is implemented below; installed and
 authenticated acceptance remains in the consolidated final pass. The initial component integration supports Codex's OpenAI provider and native file login;
 other credential stores/providers still need integration and acceptance. Optimized release component
 builds, source/dependency release audits, update/rollback, expanded platforms and broad fault/lifecycle
@@ -91,8 +91,39 @@ Logs: `/tmp/nooki-c09-kit.log`, `/tmp/nooki-c09-desktop-{build,install}.log`.
 The local ZIP is `docs/local/meeting-notes/example.meeting-notes-1.0.0.capability.zip` (ignored build
 artifact). Installing this new package and running a real model still require their applicable
 user authorization. They are deferred to final assembled acceptance rather than adding another
-standalone installation checkpoint now. C08 independent execution delegation, interactive Agent
-questions and structured artifacts remain implementation work. This increment does not close C09.
+standalone installation checkpoint now. C08 independent execution delegation and structured artifacts remain implementation work.
+Host questions were subsequently implemented in 0.16.0 below. This increment does not close C09.
+
+**Host interaction increment (0.16.0): development/core tests complete; final acceptance pending.**
+Codex native questions now appear in a global Host notice with the installed package name. The user
+can choose an answer, enter text, postpone, or stop. Native permission/tool approvals outside the
+approved profile cannot be accepted through this surface. Package APIs receive only bounded public
+assistant progress and an `awaitingInput` hint; they have no answer/approval method. The meeting
+package 1.1.0 displays those updates and points to the Host notice.
+
+Answers are bound to the attached native thread/turn and opaque pending handle. The Host rechecks
+installation, restore, source and parent authority before sending; stale/terminal/cancelled requests
+are rejected. A send is claimed before transport and cannot automatically replay after an uncertain
+reply. Disconnect/resolution invalidates transient handles; native resume supplies current pending
+requests. New approvals enable native default-mode questions in their complete policy digest;
+retained executions recover their original model and question policy unchanged.
+
+Core verification: 20 focused native Agent tests and the retained-policy test pass; the actual signed
+component's synthetic question → Host answer → same-run completion passes in 10.20s with exactly two
+local Responses requests and no authenticated calls. It rejects foreign-window/package answers and
+late answers. Seven SDK tests, two kit checks, three meeting tests, independent package check/pack,
+and the Host dialog's postpone/reopen/answer UI test pass. The fixture is labeled synthetic. Logs:
+`/tmp/nooki-interactions-{core,retained,native,sdk,kit,ui,package-test,package-pack}.log`.
+App/contract/kit versions are 0.16.0 / 0.15.0 / 0.14.0. The independent archive is
+`docs/local/meeting-notes/example.meeting-notes-1.1.0.capability.zip` (ignored build artifact).
+Required desktop build (native release: 39.08s), reinstall and strict deep signature verification
+pass for installed 0.16.0. Executable SHA-256:
+`9c5112b216c2bb0f4d2593fa6366e16903e1bb8e1702d9bb981b317a015f955d`.
+Bundle: 689.40 MiB (development native component). Logs:
+`/tmp/nooki-interactions-desktop-{build,install}.log`.
+The current result remains text; structured results/artifacts and independent execution handoff are
+next implementation work. Real-login, installed-package, broader reconnect/fault and lifecycle
+acceptance remains in the consolidated final pass; this increment does not close C06–C09.
 
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
@@ -1379,8 +1410,8 @@ C06c1 completion does not make the public Agent path available.
 
 **State:** SDK/native bindings and start-review UI implemented with focused core tests (0.13.0).
 See the active delivery entry above. Prepared 0.15.0 builds now enable the pinned component when
-its supported native login/configuration is available. Runtime questions/progress and installed
-acceptance remain open.
+its supported native login/configuration is available. Host questions and public progress are
+implemented/core-tested in 0.16.0 (active delivery above); installed acceptance remains open.
 
 **Depends on:** C06c. **Size:** M; split native bindings and UI if required.
 **Deliver:** Typed available-agent/start/get/subscribe/cancel operations, Host-owned start review and

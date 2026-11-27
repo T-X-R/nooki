@@ -12,6 +12,7 @@ pub(crate) struct Settings {
     pub binary:PathBuf,
     pub component:ComponentIdentity,
     pub model:String,
+    pub questions:bool,
     pub authentication:Authentication,
 }
 #[derive(Clone,Serialize)]
@@ -44,6 +45,7 @@ impl Settings {
             let config:toml::Value=toml::from_str(&fs::read_to_string(paths.home.join("config.toml"))
                 .map_err(|_|"OUTCOME_UNKNOWN: retained Agent policy unavailable")?)
                 .map_err(|_|"PERMISSION_DENIED: retained Agent policy is invalid")?;
+            settings.questions=config.get("features").and_then(|f|f.get("default_mode_request_user_input")).and_then(|v|v.as_bool()).unwrap_or(false);
             settings.model=config.get("model").and_then(|v|v.as_str()).ok_or("PERMISSION_DENIED: retained Agent model missing")?.into();
         }
         let policy=settings.policy()?;
@@ -69,6 +71,7 @@ impl Settings {
         let mut config=json!({"model":self.model,"approval_policy":"never","default_permissions":"nooki-run","web_search":"disabled",
             "cli_auth_credentials_store":"file","features":{"hooks":false,"apps":false,"plugins":false,"mcp_lazy_stdio_startup":false,"memories":false},
             "permissions":{"nooki-run":{"filesystem":filesystem,"network":{"enabled":false}}}});
+        if self.questions {config["features"]["default_mode_request_user_input"]=json!(true);}
         #[cfg(test)]
         if let Authentication::Fixture{url}=&self.authentication {
             config["model_provider"]=json!("nooki_fixture");
@@ -103,7 +106,7 @@ impl Paths {
 struct Provenance {format:u32,binding:crate::capability_agent_runs::NativeRunBinding,thread_id:String,scope_hash:String,turn_claimed:bool}
 /// Only the native execution owner holds this client. All package observations use sanitized
 /// journal snapshots; raw IDs, native requests, paths and credentials never cross the SDK.
-pub(crate) struct Session {paths:Paths,launch:NativeLaunchInput,client:CodexConversations,process:tokio::sync::Mutex<Option<tokio::process::Child>>}
+pub(crate) struct Session {paths:Paths,launch:NativeLaunchInput,client:CodexConversations,process:tokio::sync::Mutex<Option<tokio::process::Child>>,interactions:Arc<std::sync::Mutex<crate::capability_agent_interactions::Interactions>>}
 #[cfg(unix)]
 fn private_directory(path:&Path)->Result<(),String> {
     use std::os::unix::fs::{DirBuilderExt,MetadataExt};
@@ -168,8 +171,12 @@ impl Session {
                 return Err("PERMISSION_DENIED: retained Agent policy or binding changed".into());
             }
         }
-        let client=CodexConversations::for_capability(paths.root.clone(),paths.socket.clone(),sink);
-        let session=Self{paths,launch,client,process:tokio::sync::Mutex::new(None)};
+        let interactions=Arc::new(std::sync::Mutex::new(crate::capability_agent_interactions::Interactions::default()));
+        let received=interactions.clone();
+        let client=CodexConversations::for_capability(paths.root.clone(),paths.socket.clone(),Arc::new(move|event|{
+            if let Ok(mut state)=received.lock(){state.event(event.clone());}sink(event);
+        }));
+        let session=Self{paths,launch,client,process:tokio::sync::Mutex::new(None),interactions};
         if crate::codex_background::connect(&session.paths.socket).await?.is_some() {return Ok(session);}
         let recovery=session.provenance()?.is_some();
         if !fresh && !recovery {return Err("OUTCOME_UNKNOWN: native creation must be reconciled; no work was resent".into());}
@@ -241,6 +248,8 @@ impl Session {
         if turns.is_empty() {return Ok(None);}
         if turns.len()!=1 || !proof.turn_claimed {return Err("PERMISSION_DENIED: native submission history differs".into());}
         let turn=&turns[0];let id=turn["id"].as_str().filter(|id|!id.is_empty()).ok_or("RESOURCE_UNAVAILABLE: native turn identity missing")?;
+        let native=NativeIdentity{thread_id:proof.thread_id.clone(),turn_id:Some(id.into())};
+        self.interactions.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent interactions unavailable")?.observe(&native,turn);
         let outcome=match turn["status"].as_str() {
             Some("completed")=>{
                 let text=turn["items"].as_array().into_iter().flatten().filter(|item|item["type"]=="agentMessage")
@@ -251,6 +260,12 @@ impl Session {
             Some("inProgress")=>None,_=>return Err("OUTCOME_UNKNOWN: native turn status is unknown".into()),
         };
         Ok(Some((NativeIdentity{thread_id:proof.thread_id,turn_id:Some(id.into())},outcome)))
+    }
+    pub fn progress(&self)->Option<Value>{self.interactions.lock().ok().and_then(|s|s.progress())}
+    pub fn questions(&self,native:&NativeIdentity)->Vec<Value>{self.interactions.lock().map(|s|s.questions(native)).unwrap_or_default()}
+    pub async fn answer(&self,native:&NativeIdentity,handle:&str,answers:&Value)->Result<(),String>{
+        let (id,result)=self.interactions.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent interactions unavailable")?.answer(native,handle,answers)?;
+        self.client.goal_reply(id,result).await
     }
     /// Only kill the process group created by this Session; never resolve a PID from package data.
     #[cfg(unix)]
@@ -316,13 +331,35 @@ pub(crate) mod tests {
                 // Keep the actual native request pending until it is interrupted. No model work.
                 let _=stream.read(&mut buffer).await;continue;
             }
+            let asking=request["input"].to_string().contains("ask-user-probe") && !request["input"].as_array().unwrap().iter().any(|i|i["type"]=="function_call_output");
+            let item=if asking {
+                json!({"id":"question-call","type":"function_call","call_id":"question-one","name":"request_user_input","arguments":json!({"questions":[{"id":"title","header":"Title","question":"Choose the meeting title","options":[{"label":"Release notes","description":"Use the release title"},{"label":"Team notes","description":"Use the team title"}]}]}).to_string()})
+            } else {
+                if request["input"].to_string().contains("ask-user-probe"){assert!(request["input"].to_string().contains("Release notes"));}
+                json!({"id":"message-1","type":"message","role":"assistant","content":[{"type":"output_text","text":"Meeting notes ready"}]})
+            };
             let events=[json!({"type":"response.created","response":{"id":"synthetic"}}),
-                json!({"type":"response.output_item.done","item":{"id":"message-1","type":"message","role":"assistant","content":[{"type":"output_text","text":"Meeting notes ready"}]}}),
+                json!({"type":"response.output_item.done","item":item}),
                 json!({"type":"response.completed","response":{"id":"synthetic","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}})];
             let body=events.iter().map(|e|format!("event: {}\ndata: {}\n\n",e["type"].as_str().unwrap(),e)).collect::<String>();
             let response=format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body);
             stream.write_all(response.as_bytes()).await.unwrap();
         }});(url,count,server)
+    }
+    #[test]
+    fn retained_configuration_preserves_the_original_question_policy() {
+        let root=std::env::temp_dir().join(format!("nooki-retained-policy-{}",crate::capability_authority::nonce().unwrap()));fs::create_dir(&root).unwrap();
+        let binary=root.join("component");fs::write(&binary,b"synthetic").unwrap();
+        let mut settings=Settings{binary,component:ComponentIdentity{protocol_revision:2,sha256:digest(b"synthetic")},questions:false,model:"old-model".into(),authentication:Authentication::Fixture{url:"http://127.0.0.1:1".into()}};
+        let policy=settings.policy().unwrap();
+        let scope=runs::Scope{installation:InvocationContext{capability_id:"example.meeting".into(),capability_version:"1.0.0".into(),generation:"a".repeat(64)},restore_id:None};
+        let intent=runs::Intent{instructions:"Retain policy".into(),sources:vec![],agent_id:"codex".into(),policy_digest:policy.digest,component:Some(policy.component),output_schema:None};
+        let run=runs::approve(&root,&scope,"old",&intent,||Ok(()),||Ok(vec![])).unwrap();runs::claim_submission(&root,&scope,&run.id,|_|Ok(())).unwrap();
+        let launch=runs::native_launch_input(&root,&scope,&run.id,||Ok(())).unwrap();let paths=Paths::for_run(&root,&run.id).unwrap();
+        fs::create_dir_all(&paths.home).unwrap();fs::write(paths.home.join("config.toml"),settings.config(&paths).unwrap()).unwrap();
+        settings.questions=true;settings.model="new-model".into();let retained=settings.retained(&root,&launch).unwrap();
+        assert!(!retained.questions);assert_eq!(retained.model,"old-model");assert_eq!(retained.policy().unwrap().digest,intent.policy_digest);
+        fs::remove_dir_all(root).unwrap();
     }
     #[tokio::test]
     #[ignore="requires the pinned capability component; synthetic local Responses only"]
@@ -331,7 +368,7 @@ pub(crate) mod tests {
         let component=ComponentIdentity{protocol_revision:2,sha256:digest(&fs::read(&binary).unwrap())};
         let root=std::env::temp_dir().join(format!("nooki-host-execution-{}",crate::capability_authority::nonce().unwrap()));fs::create_dir(&root).unwrap();
         let (url,count,server)=responses().await;
-        let settings=Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}};
+        let settings=Settings{binary,component,questions:true,model:"mock-model".into(),authentication:Authentication::Fixture{url}};
         let policy=settings.policy().unwrap();
         let scope=runs::Scope{installation:InvocationContext{capability_id:"example.meeting".into(),capability_version:"1.0.0".into(),generation:"a".repeat(64)},restore_id:None};
         let intent=runs::Intent{instructions:"nooki-native-model-probe: summarize synthetic meeting notes".into(),sources:vec![],agent_id:"codex".into(),

@@ -28,6 +28,7 @@ pub mod capability_agent_review;
 pub(crate) mod capability_codex;
 pub(crate) mod capability_agent_execution;
 mod capability_agent_host;
+mod capability_agent_interactions;
 mod capability_agent_component;
 pub mod codex_session_source;
 pub mod agent_tools;
@@ -715,6 +716,7 @@ pub fn run() {
       capability_agent_host::capability_agent_approve, capability_agent_host::capability_agent_dismiss,
       capability_agent_host::capability_agent_start, capability_agent_host::capability_agent_get,
       capability_agent_host::capability_agent_cancel,
+      capability_agent_host::capability_agent_questions, capability_agent_host::capability_agent_answer,
       conversation_handoff_host::conversation_handoff_begin, conversation_handoff_host::conversation_handoff_cancel,
       conversation_handoff_host::conversation_handoff_targets, conversation_handoff_host::conversation_handoff_commit,
       conversation_handoff_host::conversation_handoff_drafts, conversation_handoff_host::conversation_handoff_read,

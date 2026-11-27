@@ -4,7 +4,7 @@ This package is the stable type boundary between Capability Packages and the Noo
 
 ## Shipped contract and portable verification
 
-The exported kit targets Nooki 0.15.1's Host contract and legacy archive format. There is no
+The exported kit targets Nooki 0.16.0's Host contract and legacy archive format. There is no
 separate negotiated Host API version yet; record the kit version from `workbench.json` alongside the
 tested Nooki version. The toolbox design describes future services, not methods available in this kit.
 The canonical types include the current document references, selected snapshots, publications and
@@ -60,8 +60,8 @@ review. Packages cannot supply approvals, policies, credentials, source bodies o
 Sources must be unchanged active Library selection references (up to 50); declare
 `documents.read-selected` when requesting them. Instructions allow up to 20,000 characters, the
 optional schema is an object of at most 16,384 UTF-8 bytes, and the entire serialized request must fit
-63 KiB. Returned text is bounded to 1 MB. The current result is text; schema-aware result validation,
-artifacts and Host questions are still pending implementation.
+63 KiB. Returned text is bounded to 1 MB. The current result is text; schema-aware result validation
+and artifacts are still pending implementation.
 
 `start` returns `{ status: 'dismissed' }` when the review is closed, or
 `{ status: 'started', run }` for the retained run. Closing after an uncertain confirmation does not
@@ -73,10 +73,18 @@ returns the same run; pending work is observed, never resubmitted. `get(id)` and
 Subscriptions are serial, poll at one second after each read, stop on terminal/restored state or
 revoked authority, and release callbacks on disposal. They never start work.
 
+Nooki 0.16.0 adds optional `progress: { text, awaitingInput }` to active snapshots. `text` contains
+up to 2,000 Unicode characters of the latest public assistant message. It is not a completion result
+or raw reasoning/tool output. `awaitingInput` points the user to Nooki's global question notice. The
+Host offers choices/free text, postpone, and stop; package code has no answer or approval method.
+Only an attached, current native question can receive an answer. Answer retries are not automatic,
+and cancellation, revoked sources/installation, terminal runs or stale handles reject late answers.
+Unsupported approval requests offer stopping the run; they cannot expand its approved policy.
+Transient questions/progress are rebuilt from the bound native owner, not imported as authority.
+
 `cancel(id)` requests interruption and returns the observed snapshot. `running` or `unknown` is not
 proof of cancellation. Imported history is marked `restored` and cannot control execution. Terminal
-results can be read without a currently available component. This release's default unavailable
-component also prevents exposure before remaining native submission/lifecycle integration is done.
+results can be read without a currently available component.
 Preview advertises no available Agent and rejects start/get/subscribe/cancel explicitly.
 
 ### Reviewed conversation handoff (Nooki 0.11.0+)

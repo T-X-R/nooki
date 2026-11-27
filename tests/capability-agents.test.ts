@@ -75,3 +75,12 @@ test('Host Job context binds the native parent; cancellation remains distinct fr
   assert.equal(f.calls.find(c=>c.command==='capability_agent_begin')!.args.request.executionId,'meeting-job:1')
   f.review.dismiss(f.review.getSnapshot()!);await pending;await client.dispose()
 })
+test('progress contains only public text and a Host question indicator',async()=>{
+ const f=fixture(),progress={text:'Reading the selected notes',awaitingInput:true}
+ const client=createAgentClient({...f.config,invoke:async()=>({...f.run,progress})})
+ const run=await client.agents.get(id);assert.deepEqual(run.progress,progress);assert.ok(Object.isFrozen(run.progress))
+ progress.text='Changed';assert.equal(run.progress?.text,'Reading the selected notes')
+ await client.dispose()
+ const invalid=createAgentClient({...f.config,invoke:async()=>({...f.run,progress:{text:'Text',awaitingInput:true,nativeThreadId:'private'}})})
+ await assert.rejects(invalid.agents.get(id),{code:'RESOURCE_UNAVAILABLE'});await invalid.dispose()
+})

@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react'
-import type {CapabilityManifest,CapabilityModule,CapabilityPageProps,DocumentReference} from './contract'
+import type {CapabilityManifest,CapabilityModule,CapabilityPageProps,DocumentReference,AgentRunSnapshot} from './contract'
 import {CapabilityPage,PageHeader,Panel,Button,StateMessage} from './ui'
 import {attachMeeting,createMeeting,createTodo,handoffMeeting,listMeetings,publishMeeting,refreshMeeting,summarize,type Meeting} from './meeting'
 import manifestJson from './manifest.json'
@@ -10,11 +10,13 @@ function Page({host}:CapabilityPageProps){
  const tasks=useSyncExternalStore(host.tasks.subscribe,host.tasks.getSnapshot)
  const [meetings,setMeetings]=useState<Meeting[]>([]),[selected,setSelected]=useState(''),[title,setTitle]=useState(''),[sources,setSources]=useState<DocumentReference[]>([])
  const [ready,setReady]=useState(false),[available,setAvailable]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('')
+ const [progress,setProgress]=useState<AgentRunSnapshot['progress']>()
  const locked=useRef(false),mounted=useRef(true),loadEpoch=useRef(0)
  const load=async()=>{const epoch=++loadEpoch.current;const values=await listMeetings(host);if(mounted.current&&epoch===loadEpoch.current){setMeetings(values);setSelected(current=>current||values[0]?.id||'')}}
  useEffect(()=>{mounted.current=true;void Promise.all([load(),host.agents.listAvailable().then(agents=>{if(mounted.current)setAvailable(agents.some(a=>a.id==='codex'))})]).catch(e=>{if(mounted.current)setError(String(e))}).finally(()=>{if(mounted.current)setReady(true)});return()=>{mounted.current=false}},[host])
  useEffect(()=>{void load().catch(e=>{if(mounted.current)setError(String(e))})},[tasks,host])
  const meeting=meetings.find(item=>item.id===selected),job=tasks.find(item=>(item.input as {draftId?:string})?.draftId===selected)
+ useEffect(()=>{setProgress(undefined);if(!meeting?.runId)return;return host.agents.subscribe(meeting.runId,run=>setProgress(run.progress),()=>setProgress(undefined))},[host,meeting?.runId])
  const running=tasks.some(item=>item.status==='running')
  const unresolved=meetings.some(item=>['requesting','running','unknown'].includes(item.phase))
  const perform=async(action:()=>Promise<unknown>)=>{if(locked.current)return;locked.current=true;setBusy(true);setError('');try{await action()}catch(e){if(mounted.current)setError(e instanceof Error?e.message:String(e))}finally{await load().catch(e=>{if(mounted.current)setError(String(e))});locked.current=false;if(mounted.current)setBusy(false)}}
@@ -42,6 +44,8 @@ function Page({host}:CapabilityPageProps){
     {job?.status==='running'&&<Button disabled={busy} onClick={()=>void perform(()=>host.tasks.cancel(job.id))}>{zh?'停止生成':'Stop generation'}</Button>}
     {job&&['failed','interrupted','cancelled'].includes(job.status)&&!['completed','cancelled'].includes(meeting.phase)&&<Button disabled={busy||!available} onClick={()=>void perform(()=>host.tasks.retry(job.id))}>{zh?'恢复原请求':'Recover original request'}</Button>}
    </div></div>
+   {progress?.text&&<p role="status" className="meeting-hint">{progress.text}</p>}
+   {progress?.awaitingInput&&<StateMessage>{zh?'Codex 需要你的回答，请打开 Nooki 的问答提示。':'Codex needs your input. Open the question notice in Nooki.'}</StateMessage>}
    {job?.error&&<StateMessage error>{job.error}</StateMessage>}
    {meeting.text?<pre className="meeting-body">{meeting.text}</pre>:<p className="meeting-hint">{zh?'生成结束后，纪要会显示在这里。离开页面不会重复提交。':'The notes will appear here when ready. Leaving this page does not resubmit work.'}</p>}
    <div className="meeting-actions">

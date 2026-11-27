@@ -1,2 +1,8 @@
 .agent-review-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; font: inherit; line-height: 1.65; }
 .agent-review-revision { display: block; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+
+.agent-question-notice { position: fixed; bottom: 24px; right: 24px; z-index: 100; border: 1px solid var(--line); border-radius: 12px; padding: 12px 18px; background: var(--surface-strong); color: var(--ink); box-shadow: 0 4px 20px #0002; cursor: pointer; }
+.agent-question { border: 0; padding: 12px 0; margin: 0; }
+.agent-question legend { font-weight: 600; }
+.agent-question label { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.agent-question input[type=text], .agent-question input[type=password] { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--bg); color: var(--ink); }

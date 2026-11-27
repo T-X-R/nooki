@@ -36,7 +36,7 @@ fn resolve(resources:&Path,codex_home:&Path,manifest:&str)->Result<Settings,Stri
         return Err("UNSUPPORTED_SERVICE: capability Codex requires the native OpenAI provider and file login".into());
     }
     let model=match selected("model") {Some(v)=>v.as_str().ok_or("UNSUPPORTED_SERVICE: invalid Codex model")?.to_string(),None=>distribution.default_model};
-    let settings=Settings {binary:resources.join("capability-codex/codex-app-server"),model,
+    let settings=Settings {questions:true,binary:resources.join("capability-codex/codex-app-server"),model,
         component:ComponentIdentity{protocol_revision:distribution.protocol_revision,sha256:distribution.sha256},
         authentication:Authentication::CodexFile{path:codex_home.join("auth.json")}};
     settings.policy()?;Ok(settings)

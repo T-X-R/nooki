@@ -11,11 +11,12 @@ function normalize(cause:unknown,fallback:HostErrorCode):HostServiceError{
   return error(fallback,fallback==='OUTCOME_UNKNOWN'?'Outcome unknown; observe this run or retry the same key and input':'Agent service unavailable')
 }
 function snapshot(value:unknown):AgentRunSnapshot{
-  if(!fields(value,['id','agentId','status','restored','result','cancellationRequested'])||!runId(value.id)||value.agentId!=='codex'||typeof value.restored!=='boolean'||typeof value.cancellationRequested!=='boolean'||!['approved','running','unknown','completed','failed','cancelled'].includes(value.status as string))throw error('RESOURCE_UNAVAILABLE','Invalid Agent snapshot')
+  if(!fields(value,['id','agentId','status','restored','result','cancellationRequested','progress'])||!runId(value.id)||value.agentId!=='codex'||typeof value.restored!=='boolean'||typeof value.cancellationRequested!=='boolean'||!['approved','running','unknown','completed','failed','cancelled'].includes(value.status as string))throw error('RESOURCE_UNAVAILABLE','Invalid Agent snapshot')
   if(value.status==='completed'){
     if(!fields(value.result,['text'])||typeof value.result.text!=='string'||!value.result.text.trim()||bytes(value.result.text)>1_000_000)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
   }else if(value.result!==null)throw error('RESOURCE_UNAVAILABLE','Invalid Agent result')
-  return Object.freeze({id:value.id,agentId:'codex',status:value.status as AgentRunSnapshot['status'],restored:value.restored,cancellationRequested:value.cancellationRequested,result:value.result===null?null:Object.freeze({text:(value.result as {text:string}).text})})
+  if(value.progress!==undefined&&(!fields(value.progress,['text','awaitingInput'])||typeof value.progress.text!=='string'||bytes(value.progress.text)>8000||typeof value.progress.awaitingInput!=='boolean'))throw error('RESOURCE_UNAVAILABLE','Invalid Agent progress')
+  return Object.freeze({... (value.progress?{progress:Object.freeze({...value.progress as {text:string;awaitingInput:boolean}})}:{}),id:value.id,agentId:'codex',status:value.status as AgentRunSnapshot['status'],restored:value.restored,cancellationRequested:value.cancellationRequested,result:value.result===null?null:Object.freeze({text:(value.result as {text:string}).text})})
 }
 function proposal(input:AgentStartInput,options:IdempotencyOptions){
   try{

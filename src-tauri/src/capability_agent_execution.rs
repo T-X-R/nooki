@@ -148,6 +148,40 @@ impl Executor {
         let saved=self.observed(state,&run,&active.session).await?;
         Ok(review::metadata(&saved))
     }
+    pub async fn progress(&self,id:&str)->Option<Value> {
+        self.sessions.lock().await.get(id).and_then(|active|active.session.progress())
+    }
+    #[cfg(unix)]
+    pub async fn questions(&self,state:&PlatformState,caller:&str)->Result<Value,String> {
+        if caller!="main" {return Err("PERMISSION_DENIED: questions require the Host".into());}
+        let sessions:Vec<_>=self.sessions.lock().await.iter().map(|(id,active)|(id.clone(),active.clone())).collect();
+        let mut result=Vec::new();let installed=state.list_capabilities()?;
+        for run in runs::unfinished(state.data_dir())? {
+            if run.cancellation_requested||run.restored||review::current(state.data_dir(),&run.scope).is_err()||runs::admission(state.data_dir(),&run).is_err()||crate::document_grants::task_documents(state.data_dir(),&run.scope.installation,&run.intent.sources).is_err(){continue;}
+            let Some(native)=run.native.as_ref() else{continue};
+            let Some((_,active))=sessions.iter().find(|(id,_)|id==&run.id) else{continue};
+            let Some(package)=installed.iter().find(|p|p.manifest.id==run.scope.installation.capability_id) else{continue};
+            for question in active.session.questions(native) {
+                result.push(serde_json::json!({"runId":run.id,"capabilityId":run.scope.installation.capability_id,"version":run.scope.installation.capability_version,
+                    "name":package.manifest.name,"locales":package.manifest.locales,"handle":question["handle"],"answerPending":question["answerPending"],"questions":question["questions"],"unsupported":question["unsupported"]}));
+            }
+        }Ok(Value::Array(result))
+    }
+    #[cfg(unix)]
+    pub async fn answer(&self,state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str,handle:&str,answers:&Value)->Result<(),String> {
+        let run=self.read(state,caller,id,version,run_id)?;
+        let active=self.sessions.lock().await.get(run_id).cloned().ok_or("CONFLICT: native question is no longer attached")?;
+        let _gate=active.gate.lock().await;
+        let run=self.observed(state,&run,&active.session).await?;
+        if run.restored||run.outcome.is_some()||run.cancellation_requested {return Err("CONFLICT: run no longer accepts answers".into());}
+        let root=state.data_dir();
+        let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is busy")?;
+        crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;
+        review::current(root,&run.scope)?;runs::admission(root,&run)?;
+        crate::document_grants::task_documents(root,&run.scope.installation,&run.intent.sources)?;
+        let native=run.native.as_ref().ok_or("CONFLICT: native turn is unavailable")?;
+        active.session.answer(native,handle,answers).await
+    }
     #[cfg(unix)]
     pub async fn cancel(&self,state:&PlatformState,caller:&str,id:&str,version:&str,run_id:&str)->Result<Value,String> {
         let run=self.read(state,caller,id,version,run_id)?;
@@ -186,7 +220,7 @@ mod tests {
             "entrypoints":["page"],"permissions":["agents.run"],"minPlatformVersion":"0.12.0"})).unwrap();
         state.install_capability(manifest).unwrap();
         let (url,count,server)=crate::capability_codex::tests::responses().await;
-        let executor=Executor::new(Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}},Arc::new(|_,_|{}));
+        let executor=Executor::new(Settings{binary,component,questions:true,model:"mock-model".into(),authentication:Authentication::Fixture{url}},Arc::new(|_,_|{}));
         let host=crate::capability_agent_host::AgentHost{executor:Some(executor)};
         for (index,(key,mode)) in [("normal","normal"),("hold-for-cancellation","direct"),("hold-for-cancellation-parent","parent"),("hold-for-cancellation-revoke","revoke")].into_iter().enumerate() {
             let cancel=mode!="normal";
@@ -236,7 +270,7 @@ mod tests {
         state.install_capability(serde_json::from_value(json!({"id":"example.meeting","name":"Meeting","version":"1.0.0",
             "entrypoints":["page","job"],"permissions":["agents.run"],"minPlatformVersion":"0.14.0"})).unwrap()).unwrap();
         let (url,count,server)=crate::capability_codex::tests::responses().await;
-        let settings=Settings{binary,component,model:"mock-model".into(),authentication:Authentication::Fixture{url}};
+        let settings=Settings{binary,component,questions:true,model:"mock-model".into(),authentication:Authentication::Fixture{url}};
         let host=crate::capability_agent_host::AgentHost{executor:Some(Executor::new(settings.clone(),Arc::new(|_,_|{})))};
         for (key,orphan) in [("cold-completed",false),("hold-for-cancellation-orphan",true)] {
             if orphan {state.write_tasks(&[json!({"id":"prior-job","attempt":1,"status":"running","capabilityId":"example.meeting","capabilityVersion":"1.0.0"})]).unwrap();}
@@ -275,6 +309,40 @@ mod tests {
         }
         assert_eq!(count.load(Ordering::SeqCst),2,"Startup recovery never submits another turn");
         drop(host);server.abort();let _=server.await;fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore="requires pinned capability Codex; synthetic local Responses only"]
+    async fn native_question_is_host_answered_and_same_run_finishes() {
+        let binary=PathBuf::from(std::env::var_os("NOOKI_CAPABILITY_NATIVE_BIN").expect("pinned component required"));
+        let component=runs::ComponentIdentity{protocol_revision:2,sha256:format!("{:x}",Sha256::digest(fs::read(&binary).unwrap()))};
+        let root=std::env::temp_dir().join(format!("nooki-question-{}",crate::capability_authority::nonce().unwrap()));
+        let state=PlatformState::load(root.clone()).unwrap();
+        let manifest:CapabilityManifest=serde_json::from_value(json!({"id":"example.meeting","name":"Meeting notes","version":"1.0.0","entrypoints":["page"],"permissions":["agents.run"],"minPlatformVersion":"0.12.0"})).unwrap();
+        state.install_capability(manifest).unwrap();let (url,count,server)=crate::capability_codex::tests::responses().await;
+        let executor=Executor::new(Settings{binary,component,questions:true,model:"mock-model".into(),authentication:Authentication::Fixture{url}},Arc::new(|_,_|{}));
+        let ticket=review::begin(&state,"main",json!({"requestId":"question","capabilityId":"example.meeting","version":"1.0.0","key":"question","proposal":{"instructions":"nooki-native-model-probe: ask-user-probe","sources":[],"agentId":"codex","outputSchema":null}}),|agent|executor.policy(agent)).unwrap();
+        let approved=review::approve(&state,"main",json!({"handle":ticket["handle"]}),|agent|executor.policy(agent)).unwrap();
+        let id=approved["runId"].as_str().unwrap();executor.start(&state,"main","example.meeting","1.0.0",id).await.unwrap();
+        let question=tokio::time::timeout(Duration::from_secs(30),async{loop{
+            let questions=executor.questions(&state,"main").await.unwrap();if let Some(q)=questions.as_array().unwrap().first(){break q.clone();}
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }}).await.unwrap();
+        assert_eq!(question["unsupported"],false);assert_eq!(question["questions"][0]["title"],"Choose the meeting title");
+        let handle=question["handle"].as_str().unwrap();
+        assert!(executor.answer(&state,"pet","example.meeting","1.0.0",id,handle,&json!(["Release notes"])).await.is_err());
+        assert!(executor.answer(&state,"main","example.foreign","1.0.0",id,handle,&json!(["Release notes"])).await.is_err());
+        executor.answer(&state,"main","example.meeting","1.0.0",id,handle,&json!(["Release notes"])).await.unwrap();
+        let result=tokio::time::timeout(Duration::from_secs(30),async{loop{
+            executor.observe(&state,"main","example.meeting","1.0.0",id).await.unwrap();
+            let result=review::public_get(&state,"main","example.meeting","1.0.0",id).unwrap();
+            if result["status"]=="completed"{break result;}tokio::time::sleep(Duration::from_millis(100)).await;
+        }}).await.unwrap();
+        assert_eq!(result["result"]["text"],"Meeting notes ready");assert_eq!(count.load(Ordering::SeqCst),2);
+        assert!(executor.questions(&state,"main").await.unwrap().as_array().unwrap().is_empty());
+        assert!(executor.answer(&state,"main","example.meeting","1.0.0",id,handle,&json!(["Release notes"])).await.is_err());
+        for active in executor.sessions.lock().await.values(){active.session.stop_owned_process().await;}
+        server.abort();fs::remove_dir_all(root).unwrap();
     }
 
 }

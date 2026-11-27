@@ -40,3 +40,7 @@ key. `cancel` returns observed state, not a promise that interruption already wo
 Use the Job-provided `context.host` so the Host binds child runs to the correct attempt. Do not use
 `ai.invoke` or private native commands as a fallback. Read the contract for supported snapshots and
 remaining structured-result/question/artifact work. Preview never fabricates a run or approval.
+
+Nooki 0.16.0 exposes optional public `run.progress.text` and `run.progress.awaitingInput`.
+Render progress without treating it as a completed result. Direct the user to Nooki's question
+notice when input is needed; never implement package-owned native answers or approval controls.
