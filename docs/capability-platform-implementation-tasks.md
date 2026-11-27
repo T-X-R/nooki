@@ -1090,6 +1090,12 @@ The concrete scope proposal for a Codex-native pre-start policy extension is
 [ADR 0009 (pending)](adr/0009-codex-native-policy-extension.md). It preserves Codex priority and native
 model/authentication ownership, but an additional native component would change distribution and
 maintenance scope. No such component or relaxed policy is authorized by the existing checkpoints.
+The [decision package](adr/0009-codex-native-policy-extension.md#concrete-decision-scope-after-qualification)
+now records measured component/build cost, the private run/recovery binding and the exact adoption
+scope for review. Codex priority does not authorize a second native distribution component. The
+next durable binding/integration work needs that scope decision; further partial probes cannot
+substitute for it. C05c remains a separate installation-permission path, and downstream dependencies
+remain unchanged.
 The [materialization review and disposable experiment](capability-platform-evidence/C06c-native-prototype.md)
 identify builder-callback bypasses, later plugin MCP registration and non-strict startup recovery.
 The official CLI reproduced the missing refusal on both thread creation and direct session refresh.

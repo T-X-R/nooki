@@ -129,6 +129,52 @@ managed hooks and provider-specific startup behavior need explicit treatment; pr
 authentication does not automatically certify those execution paths. Incompatible configurations
 must remain visibly unavailable rather than fall back to ordinary conversation execution.
 
+### Proposed private launch and recovery binding
+
+The qualification now makes the missing boundary concrete: native history must belong to one
+Host-approved run before it can be resumed. This proposal extends the native component scope;
+it is not implemented by the six-file fixed-policy experiment.
+
+Reuse the existing C06b run journal as the approval/submission authority. A native-only launch
+binding carries the following values from that retained record and the verified component. The
+package-facing SDK does not construct, edit or receive this binding.
+
+| Binding | Owner and verification |
+| --- | --- |
+| Run and approval identity | Existing Host journal; include installation generation and restore scope |
+| Approved input | Digest of the exact retained instructions, selected document snapshots and output schema |
+| Semantic execution policy | Complete resolved policy/revision, approved Agent/model configuration and scoped input/output locations; not a mutable profile name |
+| Component identity | Supported protocol/policy revision plus verified executable/source identity |
+| Native execution identity | Native thread/turn IDs and the durable client-message submission identity, reconciled with the original run |
+
+Launch one capability-run owner with its own native state scope and bounded input/output
+materialization. Bind admission before native startup effects. Persist sufficient native provenance
+before dispatch so a lost creation/start reply can be reconciled to the original run. A dedicated
+directory or a matching hash alone is not proof: the native provenance and Host-owned journal must
+agree, and package-controlled paths, JSON, copied histories or restore records cannot create authority.
+Prefer native metadata and existing run storage over a second independent approval journal. The
+exact persistence representation must be qualified for crash consistency before it becomes a
+supported protocol; this proposal does not assume a new field is sufficient.
+
+Keep semantic grants separate from native-owned transient helper allowances at materialization.
+Only the verified runtime may construct its current helper allowance. Do not strip paths from old
+snapshots using a name/prefix heuristic, and do not treat an arbitrary caller's matching digest as
+a trusted receipt. This permits a legitimate restart without accepting changed data scope.
+
+| Transition | Required behavior |
+| --- | --- |
+| First start | Accept the retained approved input once under the bound native policy; record native identity before claiming dispatch success |
+| Reconnect/restart | Observe or resume only the same approved run and matching native provenance; do not resubmit an unknown outcome |
+| Changed policy/input/component | Refuse new dispatch; retain the old run and its outcome for reconciliation; a new approved intent starts from its own input |
+| Missing, foreign or restored provenance | No execution authority; retain/read history only through existing Host rules |
+| Fork/import of an unrelated transcript | Unavailable to the capability-run interface; ordinary Codex conversations keep their existing behavior |
+| Cancel | Address only the bound native run; keep local cancellation distinct from confirmed remote termination |
+
+A native provenance change may therefore be needed in addition to the already tested live settings
+check. Maintaining that private extension across Codex upgrades is part of the decision requested
+below. Reusing ordinary conversation execution or silently deleting selected history fragments is
+not an implementation of this binding.
+
 ### Nooki integration
 
 Reuse the existing Codex transport in a dedicated capability-run session owner. Connect verified
@@ -180,6 +226,41 @@ same native startup controls. Existing C06a/C06b work remains retained, with mod
 This avoids a new native artifact and its update burden, but the audited interfaces currently do
 not supply the required boundary. Additional partial probes cannot substitute for that interface.
 
+## Concrete decision scope after qualification
+
+The proposed approval authorizes development and, only after the existing gates pass, integration
+of a separately identified, version-pinned Codex-native component for capability-owned runs. It
+adds responsibility for building, integrity-checking, distributing and updating that component.
+Codex keeps model transport, authentication, session execution, tools, approvals and cancellation;
+Nooki keeps review, retained inputs and native-ID reconciliation through its existing adapter.
+The user's ordinary installed CLI and ordinary Nooki conversations are outside this component's
+replacement scope. No new model client, credential store or scheduler is proposed.
+
+Current evidence is concrete but incomplete:
+
+| Evidence/cost, checked 2026-11-27 | Meaning for adoption |
+| --- | --- |
+| Six runtime files, 108 added/28 removed lines in the current native patch | Current experiment footprint only; durable binding and full policy remain unfinished |
+| Latest matched/regression set: 58 synthetic turns | Startup/live-scope/selected contributor paths qualify; no complete production policy or real-Agent run is certified |
+| macOS arm64 development binary: 715,731,648 bytes (682.6 MiB) | Measured unoptimized artifact, not a release download or installed-size estimate |
+| First recorded guard build: 5m 17s after dependency preparation; latest incremental build: 1m 32s | Measured local build cost; dependency downloads and production CI/release builds are not covered |
+| Pinned source has an Apache-2.0 LICENSE file | Source-license fact only; dependency notices and distribution review remain part of the existing delivery gate |
+| Current Nooki executable: 26,193,696 bytes; version 0.12.0 | The experimental binary is not currently bundled or installed |
+
+The current source/executable identities and exact patch are in the
+[live-scope receipt](../capability-platform-evidence/C06c-live-scope.md). Release size, signing,
+supported operating systems, update rollback, real native authentication continuity and complete
+policy qualification must be measured/proven before adoption. Approval of this scope is not an
+assertion that those gates passed and does not authorize a real-model acceptance run.
+
+If approved, next implement and qualify the private run/recovery binding above, finish complete
+native policy validation, then connect C06b through C06c and complete C06d/C06e in their existing
+order. Keep the additional component unavailable on unsupported/mismatched installations. If the
+scope is declined, retain Codex priority and leave capability-owned execution unavailable until an
+official supported interface meets the same bar. C05c handoff acceptance remains independently
+available once its concrete archives and four permissions are approved. Downstream C07–C09 and
+R/T phases retain their existing dependencies; no gate is skipped to hide this decision.
+
 ## Pending decision
 
 The owner is asked whether to allow the proposed native-policy integration scope or to retain only
@@ -198,3 +279,18 @@ Logs: `/tmp/nooki-c06c-native-extension-desktop-build.log` and
 installer. Application regression tests were not rerun for this documentation-only change;
 existing bundle-size/plugin-timing advisories remain. No production native extension integration or
 production policy qualification is claimed.
+
+### Decision refinement validation — 2026-11-27
+
+The private binding and concrete decision scope above were reviewed against the current C06b
+owners, native history/live-scope findings and implementation dependencies. The actual development
+binary size and native patch footprint were measured again. Both pending C05c archives were
+rehashed and their manifests/entries rechecked; [C05c evidence](../capability-platform-evidence/C05c.md)
+retains the exact identities and permission boundary. No native qualification result is newly
+claimed from this documentation refinement, and no existing acceptance box is changed.
+
+186 local documentation links and diff checks pass. Desktop build (native release: 30.23s),
+installation and strict deep signature verification pass. Nooki remains 0.12.0 with the executable
+identity above. Logs: `/tmp/nooki-c06c-decision-desktop-build.log` and
+`/tmp/nooki-c06c-decision-desktop-install.log`. Application/native suites were not rerun for this
+documentation-only change. Native-component adoption and archive installation remain unapproved.
