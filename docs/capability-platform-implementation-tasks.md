@@ -1131,6 +1131,14 @@ fails the same assertions. Startup, persisted-resume and hooks regressions pass.
 inventory without a thread ID still starts the plugin canary, so the marker does not establish
 process-wide isolation. Threadless discovery/OAuth, managed connector requirements and the other
 effect paths remain open. This is a disposable qualification patch, not a production adapter change.
+The [native control-plane follow-up](capability-platform-evidence/C06c-control-plane.md) refuses
+connector administration before native dispatch/event reservation. Eight request checks pass;
+matched controls reproduce global inventory/resource process launches and eight HTTP discovery
+requests during plugin installation. The candidate produces neither effect nor the new install
+state, while completing the same-thread normal turns. Scoped inventory and explicit MCP reload,
+15 startup cases, persisted resume and hooks regressions pass. This closes those observed paths
+only; internal callers, Skills/dynamic tools, managed connector conflicts and full Host binding
+remain unqualified. C06c and the native-component scope decision remain open.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

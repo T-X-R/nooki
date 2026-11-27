@@ -80,6 +80,12 @@ and inventory paths without changing the publication API. Plugin installation it
 successful. Threadless inventory still starts that same canary, demonstrating that thread exclusion
 is only one part of the effect boundary. Global discovery/OAuth and explicit handling of incompatible
 managed requirements remain required; this experiment does not authorize a production component.
+The [control-plane experiment](../capability-platform-evidence/C06c-control-plane.md) then places
+a fixed native refusal before initialized-request queueing and event-stream reservation. It closes
+the tested global inventory/resource and plugin-install discovery paths, with matched process,
+HTTP and install-state controls, while retaining ordinary turns and scoped reload checks. Skills,
+dynamic tools, internal effect callers, managed conflicts and Host policy binding remain open;
+passing these request checks neither completes gate 2 nor changes the pending scope decision.
 
 The policy must:
 
