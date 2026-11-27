@@ -1,6 +1,7 @@
 # ADR 0009: Codex-native policy extension
 
-- Status: proposed; scope decision pending
+- Status: accepted for bounded development and integration after qualification; gates remain open
+- Scope accepted: 2026-11-27
 - Date: 2026-11-26
 - Parent decision: [ADR 0008 — retain Codex first](0008-capability-agent-adapter-selection.md)
 - Requirement: [C06 implementation and acceptance](../capability-platform-implementation-tasks.md)
@@ -13,10 +14,11 @@ start does not freeze the effective configuration. Source audit and native contr
 in ADR 0008 and its linked receipts. No complete production policy has been certified.
 
 The owner retained Codex priority. Switching adapters, weakening the effect boundary or exposing
-the ordinary conversation runner would not implement that decision. The remaining question is
-whether Nooki may add a Codex-native policy integration beyond the current installed-CLI adapter.
+the ordinary conversation runner would not implement that decision. The owner subsequently approved
+adding a Codex-native policy component beyond the current installed-CLI adapter, subject to the
+qualification gates below.
 
-## Proposed scope
+## Accepted scope
 
 Permit a version-pinned native integration based on the official Codex runtime, with one new
 responsibility: bind the Host-approved execution policy before native startup and enforce it at
@@ -85,7 +87,7 @@ a fixed native refusal before initialized-request queueing and event-stream rese
 the tested global inventory/resource and plugin-install discovery paths, with matched process,
 HTTP and install-state controls, while retaining ordinary turns and scoped reload checks. Skills,
 dynamic tools, internal effect callers, managed conflicts and Host policy binding remain open;
-passing these request checks neither completes gate 2 nor changes the pending scope decision.
+passing these request checks does not complete gate 2 or the remaining integration gates.
 The [dynamic/Skills checkpoint](../capability-platform-evidence/C06c-dynamic-skills.md) qualifies
 refusal of new and persisted dynamic-tool declarations on start/resume/fork, with real synthetic
 native callback controls. It also shows Skill body injection outside the selected input/output
@@ -193,7 +195,8 @@ with a modified Codex artifact by this proposal.
 ## Implementation gates
 
 Disposable synthetic qualification may refine this proposal without adopting a product component.
-Formal integration and distribution remain subject to the pending scope decision. The initial
+The owner approved bounded component development and integration after these gates pass on
+2026-11-27; that authorization does not certify the current experimental artifact. The initial
 [source review and experiment](../capability-platform-evidence/C06c-native-prototype.md) found
 additional loading paths. The 2026-11-27 follow-up built a configured-MCP guard and an unmodified
 control with matched settings: the control reproduced startup, while the guard passed the tested
@@ -228,7 +231,7 @@ not supply the required boundary. Additional partial probes cannot substitute fo
 
 ## Concrete decision scope after qualification
 
-The proposed approval authorizes development and, only after the existing gates pass, integration
+The accepted scope authorizes development and, only after the existing gates pass, integration
 of a separately identified, version-pinned Codex-native component for capability-owned runs. It
 adds responsibility for building, integrity-checking, distributing and updating that component.
 Codex keeps model transport, authentication, session execution, tools, approvals and cancellation;
@@ -253,21 +256,26 @@ supported operating systems, update rollback, real native authentication continu
 policy qualification must be measured/proven before adoption. Approval of this scope is not an
 assertion that those gates passed and does not authorize a real-model acceptance run.
 
-If approved, next implement and qualify the private run/recovery binding above, finish complete
+Next implement and qualify the private run/recovery binding above, finish complete
 native policy validation, then connect C06b through C06c and complete C06d/C06e in their existing
-order. Keep the additional component unavailable on unsupported/mismatched installations. If the
-scope is declined, retain Codex priority and leave capability-owned execution unavailable until an
-official supported interface meets the same bar. C05c handoff acceptance remains independently
-available once its concrete archives and four permissions are approved. Downstream C07–C09 and
-R/T phases retain their existing dependencies; no gate is skipped to hide this decision.
+order. Keep the additional component unavailable on unsupported/mismatched installations. C05c
+handoff acceptance is independently authorized for its two concrete archives and four test
+permissions; it does not authorize sending messages or starting a real Agent. Downstream C07–C09
+and R/T phases retain their existing dependencies; no gate is skipped.
 
-## Pending decision
+## Owner decision — 2026-11-27
 
-The owner is asked whether to allow the proposed native-policy integration scope or to retain only
-the existing official installed-CLI integration. This question concerns distribution/maintenance
-scope, not the already settled Codex priority. No extension, native artifact or application runtime
-change is adopted by this document. C05c installation authorization remains an independent path to
-resume handoff acceptance.
+The owner explicitly allowed introducing the Codex-native component and installing the Handoff
+acceptance packages in response to the consolidated decision request. This accepts the bounded
+scope above: a separately identified, version-pinned component, integrated only after qualification,
+without replacing the ordinary CLI or introducing a model client, credential store or scheduler.
+The additional build/distribution/update responsibility is accepted. Real-model acceptance remains
+outside this approval and requires the separate C06e authorization.
+
+The Handoff Reader/Peer 1.0.0 archive identities and four permissions are recorded in
+[C05c](../capability-platform-evidence/C05c.md). Their isolated synthetic acceptance may proceed;
+no Send action or real Agent execution is included. Neither authorization closes an implementation
+or verification gate by itself.
 
 ## Proposal delivery validation
 
@@ -293,4 +301,5 @@ claimed from this documentation refinement, and no existing acceptance box is ch
 installation and strict deep signature verification pass. Nooki remains 0.12.0 with the executable
 identity above. Logs: `/tmp/nooki-c06c-decision-desktop-build.log` and
 `/tmp/nooki-c06c-decision-desktop-install.log`. Application/native suites were not rerun for this
-documentation-only change. Native-component adoption and archive installation remain unapproved.
+documentation-only change. At that earlier refinement checkpoint, native-component adoption and
+archive installation were not yet approved; the owner decision above supersedes that status.

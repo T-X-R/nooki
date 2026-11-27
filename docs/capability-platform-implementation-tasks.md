@@ -989,8 +989,13 @@ without the producing package. Verify real-component keyboard/focus/error/layout
 
 **State:** in progress; independent Reader/Peer 1.0.0 ZIPs are built from exported kit 0.10.0,
 with separate dependencies and passing check/pack. [Artifact checkpoint](capability-platform-evidence/C05c.md).
-The new handoff permission requires installation approval for these concrete artifacts; actual
-installed acceptance remains pending and C05 stays open.
+The owner approved both concrete archives and all four permissions on 2026-11-27. Both are now
+installed in an isolated 0.12.0 test profile. New-chat adoption, unsent-text preservation, exact replay,
+conflicts, source revocation, independent peer authorization, restart and producer removal now have
+installed evidence. Reader was removed; its original retained source still opens from the Host.
+Four drafts/four receipts and zero Agent turns were verified. Existing targets require a deterministic
+native catalog fixture; remaining UI coverage and generic source-refusal copy are recorded in the
+evidence. C05c/C05 stay open, with no outstanding archive-installation approval.
 
 **Depends on:** C05b. **Size:** S.
 **Deliver:** Independent reader/peer ZIP acceptance using synthetic data and the exported kit.
@@ -1002,7 +1007,7 @@ starts no Agent turn. Check keyboard/focus/error/layout separately from simulate
 ### [ ] C06 — Expose one observable agent-run path
 
 **State:** in progress; split below before implementation. C01/C02 are complete, so this work may
-proceed while C05c waits for its separate archive-installation approval. C05c remains a required K2
+proceed alongside the now-authorized C05c installed acceptance. C05c remains a required K2
 gate. The public API is not exposed until native effect policy, durable identity and Host interaction
 handling are verified together.
 
@@ -1086,16 +1091,12 @@ The official 0.172.0 release reproduces the same six configuration limitations. 
 Codex-first path has no verified complete policy interface. The owner explicitly retained Codex
 priority on 2026-11-26; do not switch to another adapter. Continue qualifying the Codex-native
 startup boundary against the unchanged C06 acceptance bar. Production dispatch remains unavailable.
-The concrete scope proposal for a Codex-native pre-start policy extension is
-[ADR 0009 (pending)](adr/0009-codex-native-policy-extension.md). It preserves Codex priority and native
-model/authentication ownership, but an additional native component would change distribution and
-maintenance scope. No such component or relaxed policy is authorized by the existing checkpoints.
-The [decision package](adr/0009-codex-native-policy-extension.md#concrete-decision-scope-after-qualification)
-now records measured component/build cost, the private run/recovery binding and the exact adoption
-scope for review. Codex priority does not authorize a second native distribution component. The
-next durable binding/integration work needs that scope decision; further partial probes cannot
-substitute for it. C05c remains a separate installation-permission path, and downstream dependencies
-remain unchanged.
+The owner approved the bounded Codex-native component scope on 2026-11-27:
+[ADR 0009](adr/0009-codex-native-policy-extension.md#owner-decision--2026-11-27). Continue private
+run/recovery binding and full policy qualification before integration. Codex retains native model,
+authentication and execution ownership; the ordinary CLI remains unchanged. No real-model call is
+authorized by this decision. C05c's two archives/four permissions were approved independently in
+the same response. Existing gates and downstream dependencies remain unchanged.
 The [materialization review and disposable experiment](capability-platform-evidence/C06c-native-prototype.md)
 identify builder-callback bypasses, later plugin MCP registration and non-strict startup recovery.
 The official CLI reproduced the missing refusal on both thread creation and direct session refresh.
@@ -1144,7 +1145,7 @@ requests during plugin installation. The candidate produces neither effect nor t
 state, while completing the same-thread normal turns. Scoped inventory and explicit MCP reload,
 15 startup cases, persisted resume and hooks regressions pass. This closes those observed paths
 only; internal callers, Skills/dynamic tools, managed connector conflicts and full Host binding
-remain unqualified. C06c and the native-component scope decision remain open.
+remain unqualified. C06c remains open; the later owner decision authorizes bounded component work without certifying it.
 The [dynamic-tool and Skill-context checkpoint](capability-platform-evidence/C06c-dynamic-skills.md)
 refuses nonempty dynamic declarations at common native session admission, including actual persisted
 resume and fork. Matched controls execute synthetic native callbacks; the candidate refuses before
@@ -1160,7 +1161,7 @@ permitted user Skills remain usable. The old binary fails four assertions; the c
 six native turns and all five prior regression probes (29 final synthetic turns including controls
 and preparation). Required Skills, persisted Skill context under narrower grants, remote/internal
 paths and plugin effects remain unqualified. This closes only the tested fresh local-thread gap;
-C06c and native-component integration/distribution approval remain open.
+C06c remains open; the later owner decision approves scope, subject to the unchanged gates.
 The [history/permission transition checkpoint](capability-platform-evidence/C06c-skill-history.md)
 reproduces three remaining gaps: narrowed resume, narrowed fork and live permission replacement all
 retain previously admitted Skill text in model input, even after its synthetic source is removed.
