@@ -91,7 +91,10 @@ with a modified Codex artifact by this proposal.
 Disposable synthetic qualification may refine this proposal without adopting a product component.
 Formal integration and distribution remain subject to the pending scope decision. The initial
 [source review and experiment](../capability-platform-evidence/C06c-native-prototype.md) found
-additional loading paths; it did not produce a qualified experimental executable.
+additional loading paths. The 2026-11-27 follow-up built a configured-MCP guard and an unmodified
+control with matched settings: the control reproduced startup, while the guard passed the tested
+startup/refresh refusals and recovery controls. This is a narrow native result; the full startup
+policy and the first gate's local-model fixture remain unqualified.
 
 1. **Disposable native prototype:** implement the smallest pre-start policy hook against pinned
    official source. Use only synthetic configuration and a local model fixture. Prove ordinary

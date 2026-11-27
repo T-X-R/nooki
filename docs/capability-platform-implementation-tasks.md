@@ -1093,8 +1093,12 @@ maintenance scope. No such component or relaxed policy is authorized by the exis
 The [materialization review and disposable experiment](capability-platform-evidence/C06c-native-prototype.md)
 identify builder-callback bypasses, later plugin MCP registration and non-strict startup recovery.
 The official CLI reproduced the missing refusal on both thread creation and direct session refresh.
-The temporary source guard has not compiled or passed native acceptance; its dependency-fetch build
-was stopped. No C06c acceptance item is closed by that experiment.
+The 2026-11-27 follow-up compiled the temporary guard and an unmodified control under matched build
+conditions. The control reproduced MCP startup; the guard passed clean/disabled positive controls,
+configured-MCP startup refusal, direct session-refresh refusal and strict bootstrap denial.
+This qualifies only that configured-MCP path, not the complete native policy or model dispatch.
+Plugin MCP, Skills/hooks, managed/cloud refresh, resume, credentials and policy mutation remain open;
+no C06c acceptance item is closed by this experiment.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
