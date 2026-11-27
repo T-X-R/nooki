@@ -4,6 +4,10 @@
 - **The hooks isolation gap is reproduced. C06c and ADR 0009 gate 2 remain open.**
 - No application runtime change, native component adoption, personal data or real model service.
 
+Follow-up: the [fixed native refusal experiment](C06c-hooks-guard.md) passes scoped hook/notify
+denials in a new temporary binary. The original matched results below remain valid for their
+identified executables; complete hooks/production policy qualification remains open.
+
 ## Setup and validity controls
 
 The probe is [probe-capability-agent-native-hooks-policy.mjs](../../scripts/probe-capability-agent-native-hooks-policy.mjs):

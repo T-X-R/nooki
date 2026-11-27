@@ -1108,6 +1108,11 @@ gap in both matched binaries: a trusted `SessionStart` hook executes after a thr
 hooks, or replaces the whole `features` table while omitting hooks, despite bootstrap disable.
 Explicit per-thread disable works, but is not an immutable native policy. Four runs completed 20
 synthetic local turns with trust/enable/disable controls; hooks confinement remains unqualified.
+The subsequent [fixed native refusal experiment](capability-platform-evidence/C06c-hooks-guard.md)
+passes five hook/notify request refusals, two strict-startup refusals, configured-MCP regression and
+three normal/recovery turns. Native trust preparation and the prior MCP-only failure control confirm
+the synthetic commands are executable. A committed qualification patch preserves the source delta;
+no modified runtime is installed. Complete native-policy qualification and Host binding remain open.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

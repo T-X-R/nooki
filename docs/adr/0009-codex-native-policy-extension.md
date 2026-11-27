@@ -59,6 +59,11 @@ bootstrap `features.hooks=false` is also mutable: a thread override can re-enabl
 `SessionStart` hook, and replacing the entire features table while omitting hooks loses the
 disable. The configured-MCP guard has the same behavior as the unmodified control. Ordinary
 feature flags and read-only thread responses cannot serve as the native hook policy boundary.
+The [fixed refusal follow-up](../capability-platform-evidence/C06c-hooks-guard.md) demonstrates
+that a check after managed-feature resolution rejects the tested enable/reload paths and the
+independent legacy `notify` command while preserving ordinary local turns. This narrows the
+feasibility uncertainty, but does not qualify managed/plugin execution, non-strict recovery,
+resume or a Host-bound production policy. The committed patch is a qualification fixture only.
 
 The policy must:
 
