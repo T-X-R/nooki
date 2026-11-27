@@ -1,7 +1,7 @@
 # C06c: Native configuration materialization review and MCP experiment
 
 - Initial review: 2026-11-26; native build and matched controls: 2026-11-27, following `64ef1f0`.
-- **Configured-MCP controls pass; C06c and the complete prototype gate remain incomplete.**
+- **Configured-MCP controls pass; C06c remains incomplete.**
   Codex remains the first adapter, on the existing feature branch and PR #38.
 - No Nooki runtime/dependency change, native component adoption, real credentials or model calls.
 
@@ -127,8 +127,9 @@ the lockfile comparison. A process check after both runs found no remaining buil
 
 This establishes only the tested configured-MCP path. Plugin MCP, Skills, hooks, managed/cloud
 refresh, retained-session resume, credentials, permission mutation, non-strict recovery and
-model/tool execution remain unqualified. The first ADR gate's local-model fixture is also still
-outstanding. `productionPolicyCertified` remains false; no C06c acceptance item is marked complete.
+model/tool execution remain unqualified. The subsequent [local-model fixture](C06c-model-fixture.md)
+completes the first ADR gate's narrow feasibility checkpoint, without qualifying a complete native
+policy. `productionPolicyCertified` remains false; no C06c acceptance item is marked complete.
 Formal native-component integration and distribution remain subject to the pending ADR 0009 scope
 decision.
 

@@ -1099,6 +1099,10 @@ configured-MCP startup refusal, direct session-refresh refusal and strict bootst
 This qualifies only that configured-MCP path, not the complete native policy or model dispatch.
 Plugin MCP, Skills/hooks, managed/cloud refresh, resume, credentials and policy mutation remain open;
 no C06c acceptance item is closed by this experiment.
+The [local-model fixture](capability-platform-evidence/C06c-model-fixture.md) completes ADR 0009's
+disposable configured-MCP feasibility checkpoint: matched controls show clean native turn completion,
+refusal before a disallowed run's MCP/model dispatch, and successful recovery. Only synthetic local
+responses were used. The complete policy qualification and Host adapter integration remain open.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

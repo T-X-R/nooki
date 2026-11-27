@@ -93,10 +93,14 @@ Formal integration and distribution remain subject to the pending scope decision
 [source review and experiment](../capability-platform-evidence/C06c-native-prototype.md) found
 additional loading paths. The 2026-11-27 follow-up built a configured-MCP guard and an unmodified
 control with matched settings: the control reproduced startup, while the guard passed the tested
-startup/refresh refusals and recovery controls. This is a narrow native result; the full startup
-policy and the first gate's local-model fixture remain unqualified.
+startup/refresh refusals and recovery controls. The subsequent
+[local-model fixture](../capability-platform-evidence/C06c-model-fixture.md) also passes: clean and
+recovery turns complete through Codex's native transport, while the rejected configuration starts
+neither the MCP canary nor another model request. This satisfies the first gate's narrow feasibility
+checkpoint; it does not qualify the complete startup policy in gate 2.
 
-1. **Disposable native prototype:** implement the smallest pre-start policy hook against pinned
+1. **Disposable native prototype — configured-MCP/local-model feasibility verified 2026-11-27:**
+   implement the smallest pre-start policy hook against pinned
    official source. Use only synthetic configuration and a local model fixture. Prove ordinary
    control cases work before interpreting denials. No personal credentials or real model calls.
 2. **Complete native policy qualification:** test configuration additions between read/start,
