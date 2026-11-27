@@ -1,4 +1,4 @@
-import {useState,useSyncExternalStore} from 'react'
+import {useEffect,useRef,useState,useSyncExternalStore} from 'react'
 import {handoffReview,type HandoffReviewRequest,type HandoffTargets} from '../../platform/handoff-review.ts'
 import {LibraryDialog} from '../library/LibraryDialogs.tsx'
 import '../library/library-selection.css'
@@ -7,7 +7,9 @@ function Review({request,zh}:{request:HandoffReviewRequest;zh:boolean}){
   const [mode,setMode]=useState<'new'|'conversation'>('new'),[selected,setSelected]=useState('')
   const [page,setPage]=useState<HandoffTargets>({data:[],nextCursor:null,partial:false}),[loaded,setLoaded]=useState(false)
   const [loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[approved,setApproved]=useState(false),[error,setError]=useState('')
-  const [query,setQuery]=useState('')
+  const [query,setQuery]=useState(''),[permissionDenied,setPermissionDenied]=useState(false)
+  const cancelButton=useRef<HTMLButtonElement>(null)
+  useEffect(()=>{if(permissionDenied)cancelButton.current?.focus()},[permissionDenied])
   const load=async(cursor?:string)=>{
     setLoading(true);setError('')
     try{const next=await request.targets(cursor);if(request.signal.aborted)return
@@ -18,7 +20,11 @@ function Review({request,zh}:{request:HandoffReviewRequest;zh:boolean}){
   const confirm=async()=>{setApproved(true);setBusy(true);setError('');try{
     const receipt=await request.confirm(mode==='new'?{kind:'new'}:{kind:'conversation',id:selected})
     handoffReview.complete(request,{status:'handedOff',receipt})
-  }catch(cause){if(!request.signal.aborted)setError(cause instanceof Error?cause.message:String(cause))}finally{setBusy(false)}}
+  }catch(cause){if(!request.signal.aborted){
+    const denied=!!cause&&typeof cause==='object'&&'code' in cause&&cause.code==='PERMISSION_DENIED'
+    setPermissionDenied(denied)
+    setError(denied?(zh?'当前能力或资料授权不可用。请取消，检查授权后重新发起交接。':'Capability or source access is unavailable. Cancel, check access, and request a new review.'):(cause instanceof Error?cause.message:String(cause)))
+  }}finally{setBusy(false)}}
   return <LibraryDialog title={zh?'将草稿交给聊天':'Hand draft to chat'} busy={busy} onClose={()=>handoffReview.dismiss(request)} className="library-selection-dialog">
     <div className="library-selection-recipient"><strong>{request.name}</strong><small>{request.capabilityId} · {request.version}</small></div>
     <h3>{request.draft.title}</h3><pre className="handoff-text">{request.draft.text}</pre>
@@ -39,8 +45,8 @@ function Review({request,zh}:{request:HandoffReviewRequest;zh:boolean}){
       {!approved&&<button className="quiet-button" disabled={loading||busy} onClick={()=>void load(page.nextCursor??undefined)}>{page.nextCursor?(zh?'加载更多':'Load more'):(zh?'刷新聊天列表':'Refresh conversations')}</button>}
     </>}
     {error&&<p role="alert" className="library-error">{error}</p>}
-    {approved&&error&&<p className="modal-copy">{zh?'重试使用同一草稿和目标。若要修改，请取消后重新发起。':'Retry keeps the same draft and destination. Cancel and start again to change them.'}</p>}
-    <footer className="modal-footer"><button className="secondary-button" disabled={busy} onClick={()=>handoffReview.dismiss(request)}>{zh?'取消':'Cancel'}</button><button className="primary-button" disabled={busy||(mode==='conversation'&&!selected)} onClick={()=>void confirm()}>{busy?(zh?'正在保存…':'Saving…'):approved?(zh?'重试保存':'Retry save'):(zh?'保存并打开草稿':'Save and open draft')}</button></footer>
+    {approved&&error&&!permissionDenied&&<p className="modal-copy">{zh?'重试使用同一草稿和目标。若要修改，请取消后重新发起。':'Retry keeps the same draft and destination. Cancel and start again to change them.'}</p>}
+    <footer className="modal-footer"><button ref={cancelButton} className="secondary-button" disabled={busy} onClick={()=>handoffReview.dismiss(request)}>{zh?'取消':'Cancel'}</button>{!permissionDenied&&<button className="primary-button" disabled={busy||(mode==='conversation'&&!selected)} onClick={()=>void confirm()}>{busy?(zh?'正在保存…':'Saving…'):approved?(zh?'重试保存':'Retry save'):(zh?'保存并打开草稿':'Save and open draft')}</button>}</footer>
   </LibraryDialog>
 }
 export function ConversationHandoffDialog({language}:{language:'zh'|'en'}){

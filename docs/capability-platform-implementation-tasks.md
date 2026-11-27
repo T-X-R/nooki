@@ -854,11 +854,12 @@ selection, dismissal, attachment, replay/conflict, user-edit refusal, revoke, re
 delivery after package removal. Record native state plus keyboard/focus/layout evidence separately
 from simulated preview checks. Close C04c and C04 only after all child acceptance passes.
 
-### [ ] C05 — Hand selected context to a native conversation draft
+### [x] C05 — Hand selected context to a native conversation draft
 
-**State:** in progress on the existing branch and PR #38. Inspection found that composer drafts are
-renderer-local and native conversation creation can connect to an Agent. Split the work below before
-implementation: persist an offered draft first; opening it must not create/send an Agent turn.
+**State:** complete on 2026-11-27 on the existing branch and PR #38. Native offers/receipts,
+public review and composer adoption, and independent installed acceptance are complete.
+[Final installed evidence](capability-platform-evidence/C05c-catalog.md). Opening an offer preserves
+unsent text and does not start an Agent turn.
 
 **Depends on:** C02. **Size:** M.
 **Deliver:** Idempotent handoff returning a conversation/draft receipt with authorized input references.
@@ -985,17 +986,19 @@ without the producing package. Verify real-component keyboard/focus/error/layout
    [Evidence](capability-platform-evidence/C05b2b-ui.md) distinguishes component fixtures from the
    remaining C05c installed acceptance and records unrelated regression findings.
 
-#### [ ] C05c — Verify independent handoff archives and installed behavior
+#### [x] C05c — Verify independent handoff archives and installed behavior
 
-**State:** in progress; independent Reader/Peer 1.0.0 ZIPs are built from exported kit 0.10.0,
-with separate dependencies and passing check/pack. [Artifact checkpoint](capability-platform-evidence/C05c.md).
-The owner approved both concrete archives and all four permissions on 2026-11-27. Both are now
-installed in an isolated 0.12.0 test profile. New-chat adoption, unsent-text preservation, exact replay,
-conflicts, source revocation, independent peer authorization, restart and producer removal now have
-installed evidence. Reader was removed; its original retained source still opens from the Host.
-Four drafts/four receipts and zero Agent turns were verified. Existing targets require a deterministic
-native catalog fixture; remaining UI coverage and generic source-refusal copy are recorded in the
-evidence. C05c/C05 stay open, with no outstanding archive-installation approval.
+**State:** complete on 2026-11-27. Independent Reader/Peer 1.0.0 ZIPs built from exported kit
+0.10.0 passed check/pack and the owner authorized both concrete archives/four permissions.
+[Initial installed evidence](capability-platform-evidence/C05c.md) covers new-chat adoption,
+unsent-text preservation, replay/conflicts, source refusal/revocation, independent authorization,
+restart and Reader removal with retained original text. [Final installed follow-up](capability-platform-evidence/C05c-catalog.md)
+covers ordinary-chat adoption, task-owned exclusion, disappearance after selection, loading and
+localized layout. A 0.12.1 UI fix now guides definitive permission refusals to fresh review instead
+of an unchanged retry. Actual WKWebView confirmation/cancellation, 208 JavaScript tests, the full
+handoff component suite, build/install and strict signing pass. Final native state has five
+approved drafts/five receipts, unchanged original sources and zero Agent turns. Reader remains
+removed and Peer installed. C05 closes; real Agent execution is still outside this acceptance.
 
 **Depends on:** C05b. **Size:** S.
 **Deliver:** Independent reader/peer ZIP acceptance using synthetic data and the exported kit.
@@ -1007,8 +1010,8 @@ starts no Agent turn. Check keyboard/focus/error/layout separately from simulate
 ### [ ] C06 — Expose one observable agent-run path
 
 **State:** in progress; split below before implementation. C01/C02 are complete, so this work may
-proceed alongside the now-authorized C05c installed acceptance. C05c remains a required K2
-gate. The public API is not exposed until native effect policy, durable identity and Host interaction
+proceed independently of C05, whose installed acceptance is now complete. C06 remains a required
+K2 gate. The public API is not exposed until native effect policy, durable identity and Host interaction
 handling are verified together.
 
 **Depends on:** C01, C02. **Size:** M.

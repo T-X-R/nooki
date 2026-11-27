@@ -51,3 +51,23 @@ Use only synthetic documents in an isolated desktop profile. Building does not a
 Verify keyboard/focus, loading/error, Chinese/English, light/dark and narrow/wide layouts in the
 actual Host controls. C05c/C05 stay open until the required installed behavior is evidenced; a
 successful build or portable preview cannot close them.
+
+## Native catalog and loading fixture
+
+With the isolated app stopped, run `python3 seed-catalog.py <test-profile-root>` once. It validates
+an isolated-profile marker and refuses existing catalog/board files. It seeds three unstarted local
+session records: ordinary, disappearing and task-owned. The task board is paused. This uses the
+Host's existing local-catalog format; it does not start Pi or change the Codex adapter priority.
+Launch the installed app with `scripts/desktop-profile.mjs`. Never press Send or run the task.
+The Host picker must include the ordinary/disappearing records and exclude the task-owned record.
+To test a stale selection, select the disappearing record, atomically set only that synthetic
+record's `archived` field to `true`, then confirm. It must refuse without committing or retargeting.
+Cancel and reopen to verify the record is no longer selectable.
+
+For a deterministic loading observation, keep the review in New chat mode and run
+`python3 delay-catalog.py <test-profile-root>` in another terminal. After `READY`, choose Existing
+chat. The script temporarily substitutes a FIFO for this exact synthetic catalog, delaying the
+real native read. Observe loading and disabled refresh/save, then create
+`<test-profile-root>/release-catalog-read` to release it. The script restores identical catalog
+bytes on release or after 60 seconds and prints their SHA-256. Let it finish; do not kill it or run
+other catalog writers while it holds the read. This fixture changes no production API or Agent guard.

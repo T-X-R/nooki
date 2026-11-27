@@ -24,6 +24,7 @@ await page.addInitScript(()=>{
   if(command==='conversation_handoff_cancel')return;
   if(command==='conversation_handoff_targets')return{data:args.request.cursor?[{id:'chat',title:'Existing chat'}]:[{id:'other',title:'Other chat'}],nextCursor:args.request.cursor?null:'second',partial:qa.partial};
   if(command==='conversation_handoff_commit'){
+   if(qa.denyCommit)throw {code:'PERMISSION_DENIED',message:'Handoff approval is missing or no longer valid'};
    if(qa.delayCommit)await new Promise(resolve=>{qa.releaseCommit=resolve});
    const pending=qa.pending[args.request.handle];const receipt=qa.receipts[pending.key]??{draftId:Object.keys(qa.receipts).length.toString(16).padStart(64,'a'),target:args.request.target};
    qa.receipts[pending.key]=receipt;qa.drafts[receipt.draftId]={id:receipt.draftId,title:pending.draft.title,text:pending.draft.text,target:receipt.target,documents:[{reference:source,documentDate:'2026-11-26',content:'Original retained text'}],capabilityId:'example.reader',capabilityVersion:'1.0.0',createdAt:'2026-11-26T00:00:00Z'};
@@ -66,6 +67,22 @@ try{
  await page.evaluate(()=>{window.qa.missing=true});await page.getByRole('button',{name:'能力包草稿',exact:true}).click();await page.getByRole('dialog').getByRole('button').filter({hasText:'Review notes'}).last().click();await page.getByRole('dialog').getByRole('alert').waitFor();assert.match(await page.getByRole('dialog').getByRole('alert').innerText(),/removed/);await page.keyboard.press('Escape');await page.evaluate(()=>{window.qa.missing=false});
  // Persisted offers stay available independently of their producer; this is a fixture, not native uninstall proof.
  await page.evaluate(()=>{window.qa.enabled=false});await page.getByRole('button',{name:'能力包草稿',exact:true}).click();await page.getByRole('dialog').getByRole('button').filter({hasText:'Review notes'}).first().click();await page.getByRole('region',{name:'待采用的草稿'}).waitFor();await page.evaluate(()=>{window.qa.enabled=true});
+ // Definitive permission refusal requires fresh review, not an unchanged-save retry.
+ for(const lang of ['zh','en']){
+  if(lang==='en')await page.getByRole('button',{name:'Language',exact:true}).click();
+  const before=await page.evaluate(()=>Object.keys(window.qa.drafts).length);
+  await page.evaluate(()=>{window.qa.denyCommit=true});
+  await page.getByRole('button',{name:'Request handoff',exact:true}).click();
+  await page.getByRole('button',{name:lang==='zh'?'保存并打开草稿':'Save and open draft',exact:true}).click();
+  const dialog=page.getByRole('dialog');await dialog.getByRole('alert').waitFor();
+  assert.equal(await dialog.getByRole('alert').innerText(),lang==='zh'?'当前能力或资料授权不可用。请取消，检查授权后重新发起交接。':'Capability or source access is unavailable. Cancel, check access, and request a new review.');
+  assert.equal(await dialog.getByRole('button',{name:lang==='zh'?'重试保存':'Retry save',exact:true}).count(),0);
+  const cancel=dialog.getByRole('button',{name:lang==='zh'?'取消':'Cancel',exact:true});
+  assert.equal(await cancel.evaluate(el=>el===document.activeElement),true);
+  await cancel.click();await page.evaluate(()=>{window.qa.denyCommit=false});
+  assert.equal(await page.evaluate(()=>Object.keys(window.qa.drafts).length),before);
+ }
+ await page.getByRole('button',{name:'Language',exact:true}).click();
  for(const lang of ['zh','en']){
   if(lang==='en')await page.getByRole('button',{name:'Language',exact:true}).click();
   for(const theme of ['light','dark']){
