@@ -4,6 +4,10 @@
 - **The scoped native refusal checks pass; complete policy qualification and C06c remain open.**
 - No Nooki runtime/dependency change or installation of a modified Codex component.
 
+Follow-up: [startup-policy qualification](C06c-startup-policy.md) closes the observed non-strict
+fallback cases in a later temporary binary. The strict-startup results below retain their original
+artifact scope; complete native-policy qualification remains open.
+
 ## Native change and reproducibility
 
 The [configuration characterization](C06c-hooks.md) established that ordinary feature flags are

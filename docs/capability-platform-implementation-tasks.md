@@ -1113,6 +1113,11 @@ passes five hook/notify request refusals, two strict-startup refusals, configure
 three normal/recovery turns. Native trust preparation and the prior MCP-only failure control confirm
 the synthetic commands are executable. A committed qualification patch preserves the source delta;
 no modified runtime is installed. Complete native-policy qualification and Host binding remain open.
+The [startup-policy follow-up](capability-platform-evidence/C06c-startup-policy.md) passes 15 strict/
+non-strict and synthetic managed-requirements controls, plus the existing eight-turn local fixture
+regression. Typed refusals prevent MCP/notify recovery into defaults; repair retains the native
+managed-policy snapshot and refuses malformed managed requirements. Ordinary user-config repair
+remains available. Real MDM/cloud behavior and complete native policy are not certified.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

@@ -64,6 +64,11 @@ that a check after managed-feature resolution rejects the tested enable/reload p
 independent legacy `notify` command while preserving ordinary local turns. This narrows the
 feasibility uncertainty, but does not qualify managed/plugin execution, non-strict recovery,
 resume or a Host-bound production policy. The committed patch is a qualification fixture only.
+The [startup-policy experiment](../capability-platform-evidence/C06c-startup-policy.md) subsequently
+reproduces non-strict recovery of policy errors and malformed managed requirements. Typed fatal
+refusals plus retaining the native managed-policy snapshot pass the 15 synthetic startup controls
+and the existing local-turn regression. This qualifies the listed startup cases, not real MDM/cloud
+refresh, managed hook execution or the complete Host-bound policy.
 
 The policy must:
 
