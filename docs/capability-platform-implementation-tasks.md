@@ -4,8 +4,8 @@ Execution rules, verification codes and code-owner map: [implementation plan](ca
 Behavior and M1–M8 acceptance definitions: [approved design](capability-platform-design.md).
 
 Implementation is underway. Checked entries require linked evidence; writing a plan does not
-complete a task. Default order is top to bottom; explicit dependencies and intervening checkpoints
-must pass. S/M are target slice sizes, not duration estimates. File lists identify the initial
+complete a task. The revised execution policy below controls development order and deferred acceptance; original
+dependencies still identify integration requirements. S/M are target slice sizes, not duration estimates. File lists identify the initial
 footprint; apply the plan's splitting rule if inspection reveals more work. Each public change also
 updates the canonical contract, exported kit/Skill and its receipt as part of the same delivery.
 
@@ -38,9 +38,9 @@ Job children and recovers retained results. Runs created after that inventory ar
 orphans. Claims lacking native provenance remain uncertain. The previous Job parentage, durable
 cancellation, active-session maintenance and retry refusal are retained.
 
-**Still in this delivery:** Host questions/progress, structured results/artifacts, the meeting
-package's Library save/reopen flow, remaining lifecycle ownership and installed/authenticated
-acceptance. The initial component integration supports Codex's OpenAI provider and native file login;
+**Still in this delivery:** Host questions/progress, structured results/artifacts and remaining
+lifecycle ownership. The meeting package's save/reopen flow is implemented below; installed and
+authenticated acceptance remains in the consolidated final pass. The initial component integration supports Codex's OpenAI provider and native file login;
 other credential stores/providers still need integration and acceptance. Optimized release component
 builds, source/dependency release audits, update/rollback, expanded platforms and broad fault/lifecycle
 matrices remain pending. The current development component is about 695 MB; it is not an optimized
@@ -65,6 +65,34 @@ Installed app: 0.15.0; signed executable SHA-256:
 Bundle size: 689.25 MiB (development component, release optimization pending).
 Logs: `/tmp/nooki-component-kit.log`, `/tmp/nooki-component-desktop-{build,install}.log`.
 Previous lifecycle/SDK/input/policy checks are reused; the broader suites are deferred.
+
+**Meeting package increment (0.15.1): development/core tests complete; final acceptance pending.**
+The independent [meeting-notes project](../examples/meeting-notes/README.md) was scaffolded from
+exported kit 0.13.2 and built outside the checkout before preserving its sources. It implements
+approved Library input → reviewed Codex Job → retained draft → explicit Library save/open → todo
+creation / selected-task attachment / reviewed chat draft. Page reopen observes the same run;
+uncertain attachment retries reuse the exact persisted selection and idempotency key. Nothing
+publishes, executes a todo, or sends a chat message automatically. Seven permissions are declared
+in its manifest. The archive requires Nooki 0.15.1; the public contract remains 0.14.0.
+
+The Host now lets a later Job attempt observe its prior claimed/terminal run after a lost response,
+without reparenting it, dispatching again, or adopting another attempt's unused approval. The 16
+focused review tests pass. Package typecheck, three behavior tests, archive build/validation, and
+one synthetic browser flow pass (including cancellation, retained results, lost attachment reply
+and reopening without another Agent request). The browser fixture is explicitly labeled synthetic;
+it is not evidence of native installation, grants or authenticated model execution. Logs:
+`/tmp/nooki-c09-{review,check,core,pack,ui}.log`; screenshot: `/tmp/nooki-c09-ui.png`.
+
+Both kit checks pass. Required desktop build (native release: 37.95s), reinstall and strict deep
+signature verification pass for installed Nooki 0.15.1. Installed executable SHA-256:
+`723c9291c451b7b919f9a68f023a4c8bd604c2d7a9c08335abdc4c61814984a6`.
+Logs: `/tmp/nooki-c09-kit.log`, `/tmp/nooki-c09-desktop-{build,install}.log`.
+
+The local ZIP is `docs/local/meeting-notes/example.meeting-notes-1.0.0.capability.zip` (ignored build
+artifact). Installing this new package and running a real model still require their applicable
+user authorization. They are deferred to final assembled acceptance rather than adding another
+standalone installation checkpoint now. C08 independent execution delegation, interactive Agent
+questions and structured artifacts remain implementation work. This increment does not close C09.
 
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
@@ -1413,6 +1441,10 @@ package removal without callbacks/private state; handoff versus uninstall has on
 **Verification:** V-B/V-A and V-N: compare package child cancellation against independent host continuation.
 
 ### [ ] C09 — Build and verify the independent meeting-notes package
+
+**State:** independent text-note package implemented and core-tested in 0.15.1; see the active
+delivery above. Installed/authenticated and removal acceptance is deferred to the consolidated
+pass. Independent Host execution delegation still depends on C08; chat draft handoff is not C08.
 
 **Depends on:** C02, C03, C04, C05, C07, C08. **Size:** M.
 **Deliver:** A minimal reference package using only the exported SDK/Skill: selected text to notes,

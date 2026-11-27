@@ -91,7 +91,11 @@ pub fn begin(state:&PlatformState,caller:&str,value:Value,resolve_policy:impl Fn
         return Err("CONFLICT: Agent review identity changed".into());
     }
     if let Some(run)=runs::lookup(root,&scope,&input.key)? {
-        if run.intent!=intent || run.parent!=input.execution_id {return Err("CONFLICT: Agent run key was used with different intent".into());}
+        // A retry may observe its prior attempt's immutable run. It cannot adopt an unused
+        // approval or change the original parent, and the SDK never dispatches a claimed run.
+        if run.intent!=intent || (run.parent!=input.execution_id && run.submission==runs::Submission::Approved && run.outcome.is_none()) {
+            return Err("CONFLICT: Agent run key was used with different intent or an active approval owner".into());
+        }
         return Ok(metadata(&run));
     }
     // Reject foreign/revoked selection references before showing a review, then recheck at approval

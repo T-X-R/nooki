@@ -246,3 +246,17 @@ fn parent_attempt_is_host_bound_and_cancelled_attempt_cannot_be_revived() {
     input["capabilityId"]=json!("example.peer");input["executionId"]=json!("meeting-job:1");
     assert!(begin(&f.state,"main",input,policy).is_err());
 }
+
+#[test]
+fn job_retry_observes_claimed_original_run_without_reparenting_or_new_approval() {
+    let f=Fixture::new();let mut task=json!({"id":"meeting-job","attempt":1,"status":"running","capabilityId":"example.reader","capabilityVersion":"1.0.0"});
+    f.state.write_tasks(&[task.clone()]).unwrap();let mut input=f.request("first","retry-key");input["executionId"]=json!("meeting-job:1");
+    let ticket=begin(&f.state,"main",input.clone(),policy).unwrap();let approval=f.approve(&ticket);
+    task["attempt"]=json!(2);f.state.write_tasks(&[task.clone()]).unwrap();input["requestId"]=json!("second");input["executionId"]=json!("meeting-job:2");
+    assert!(begin(&f.state,"main",input.clone(),policy).unwrap_err().starts_with("CONFLICT"));
+    task["attempt"]=json!(1);f.state.write_tasks(&[task.clone()]).unwrap();let claimed=f.claim(&approval).unwrap();
+    task["attempt"]=json!(2);f.state.write_tasks(&[task]).unwrap();let replay=begin(&f.state,"main",input,policy).unwrap();
+    assert_eq!(replay["runId"],approval["runId"]);assert!(replay.get("handle").is_none());
+    let retained=runs::get(&f.root,&claimed.scope,&claimed.id,||Ok(())).unwrap();
+    assert_eq!(retained.parent.as_deref(),Some("meeting-job:1"));assert_eq!(retained.submission,claimed.submission);
+}
