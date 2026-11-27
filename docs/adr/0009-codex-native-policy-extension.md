@@ -99,6 +99,13 @@ metadata reuse, and refuses unscoped client Skill inventory. Matched local fixtu
 Skills while excluding unapproved metadata/body across thread caches and a symlink. Required Skills,
 persisted context, remote environments and internal/plugin effect paths remain unqualified. This
 qualification result does not approve formal native integration or complete gate 2.
+The [history transition probe](../capability-platform-evidence/C06c-skill-history.md) confirms that
+narrowing native permissions does not remove previously admitted Skill text from resumed, forked
+or live history, including after source removal. This is normal retained-context behavior, but it
+cannot authorize rebinding an old transcript to a different capability-run scope. Native run/history
+identity and the complete approved policy must remain bound before subsequent dispatch; same-run
+reconciliation must remain available. Required environment Skills have their own pre-inference
+catalog validator and are not a general local `skills.required` configuration field.
 
 The policy must:
 

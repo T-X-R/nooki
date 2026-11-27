@@ -1155,6 +1155,20 @@ six native turns and all five prior regression probes (29 final synthetic turns 
 and preparation). Required Skills, persisted Skill context under narrower grants, remote/internal
 paths and plugin effects remain unqualified. This closes only the tested fresh local-thread gap;
 C06c and native-component integration/distribution approval remain open.
+The [history/permission transition checkpoint](capability-platform-evidence/C06c-skill-history.md)
+reproduces three remaining gaps: narrowed resume, narrowed fork and live permission replacement all
+retain previously admitted Skill text in model input, even after its synthetic source is removed.
+Ten native turns confirm both the fresh-read denial and original-grant resume controls, with exact
+persisted permission checks. The diagnostic probe deliberately fails those three scope assertions.
+C06c must bind native history to the immutable approved run and reject changed-policy reuse before
+new dispatch while preserving same-run reconciliation; filtering known Skill text is insufficient.
+Required environment Skills use a separate native pre-inference validator, not a guessed local
+configuration field. All five provider-backed native required-Skill cases pass after explicitly
+disabling hooks in their temporary test config and using a 16 MiB test stack; no assertions or
+runtime restrictions are weakened. They prove catalog availability/source matching and negative
+inference gating, not automatic body delivery or local Host binding. The earlier skipped/setup/
+stack-failure runs are retained and excluded. No full native policy or production adapter acceptance
+is closed here.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current
