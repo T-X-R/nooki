@@ -23,8 +23,37 @@ implementation; do not relabel deferred tests as passed or add more suffixed pre
 Implement the remaining C06c/C06d/C06e parts together with the C07 behavior and C09 caller needed by
 this flow. Preserve the rest of C07–C09, R01–R15 and T01–T08; the change moves broad tests, not features.
 
-**Next code:** actual Host-owned native launch and durable result reconciliation, wired to the
-review/status/cancel UI and exported SDK/package caller. Reuse existing journal/transport/services.
+**Current code progress:** the native Host review/controller now connects to a dedicated Codex
+session owner through the existing transport. The same journal retains immutable terminal results;
+observation and cancellation address the bound native turn. Core integration tests exercise an
+approved request through actual Codex, result readback, cancellation, process restart and duplicate
+refusal, using only a local synthetic Responses server. No new standalone probe or task ID is added.
+The native rendezvous alias remains Codex-owned; Host connection resolves it before Unix connect,
+fixing long-path connection and cold-recovery behavior found during this integration.
+
+**Still in this delivery:** resolve and bind the complete native policy/configuration for the product
+launch, serialize lifecycle revocation with native submission, register the Host endpoints, and
+implement the review/status/questions/cancel UI and exported
+SDK, and connect the meeting package to Library publication. The public `host.agents` path is not
+yet available; this backend progress does not complete C06 or the meeting workflow. Codex file-login
+reuse has implementation scaffolding only; the current tests do not certify authenticated operation.
+
+**Core evidence for this code:** 28 ledger tests, 14 Host review tests and 19 existing conversation
+transport tests pass (one existing real-model test remains ignored). Two explicitly enabled native
+integration tests pass in 16.32s, totaling three synthetic requests and zero real-model calls.
+Commands: `cargo test --offline --test capability_agent_runs_test`,
+`cargo test --offline --lib capability_agent_review::tests`,
+`cargo test --offline --test codex_conversations_test`, and, with the pinned component selected by
+`NOOKI_CAPABILITY_NATIVE_BIN`, `cargo test --offline --lib capability_ -- --ignored` in `src-tauri`.
+The initial restricted transport run could not bind Unix sockets; its permitted rerun passes.
+The initial rendezvous/long-path failures were fixed in the actual connection path. Broader tests
+remain deferred under the revised plan. Logs: `/tmp/nooki-agent-execution-*.log` and
+`/tmp/nooki-agent-reviewed-execution.log`. App/platform advances to 0.12.5; public contract 0.12.0 and
+kit 0.11.0 remain unchanged. The experimental Codex component is still not bundled or exposed. Desktop
+build (native release: 39.39s), reinstall and strict deep signature verification pass. Installed
+executable SHA-256: `a3341d9f9b3ec7b4a559f32aa76868608837898422f3fb6c7eec06b405e5e59f`.
+Logs: `/tmp/nooki-agent-execution-desktop-{build,install}.log`. This is an implementation increment
+inside the ongoing delivery; the UI/SDK/package flow and final installed acceptance remain open.
 **Core checks:** normal result/save flow, denied authority/source access, no duplicate dispatch, and
 relevant cancellation/restart state. Reuse existing input/sandbox/binding evidence. Fix concrete
 active-path defects immediately. Real-model execution still requires its existing authorization.

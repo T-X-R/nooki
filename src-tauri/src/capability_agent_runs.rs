@@ -41,6 +41,14 @@ pub enum Submission {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
 pub struct NativeIdentity {pub thread_id: String, pub turn_id: Option<String>}
+/// Only a confirmed native terminal turn produces an outcome. A disconnected transport remains
+/// pending until the same native turn can be observed; it is not a retryable failure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag="status", rename_all="camelCase", deny_unknown_fields)]
+pub enum Outcome {Completed {text:String}, Failed, Cancelled}
+fn outcome_valid(outcome:&Outcome)->bool {
+    match outcome {Outcome::Completed{text}=>!text.trim().is_empty() && text.len()<=1_000_000,_=>true}
+}
 /// Private correlation envelope. Matching this value is necessary, not proof of native provenance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all="camelCase", deny_unknown_fields)]
@@ -61,6 +69,8 @@ pub struct Run {
     pub restored: bool,
     #[serde(default, skip_serializing_if="Option::is_none")]
     pub native: Option<NativeIdentity>,
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub outcome: Option<Outcome>,
     request_key: String,
 }
 #[derive(Default, Serialize, Deserialize)]
@@ -115,6 +125,10 @@ fn validate(ledger: &Ledger) -> Result<(),String> {
             if !native_valid(native) || run.intent.component.is_none() || run.submission==Submission::Approved || !threads.insert(&native.thread_id) {
                 return Err("RESOURCE_UNAVAILABLE: invalid native Agent identity".into());
             }
+        }
+        if run.outcome.as_ref().is_some_and(|outcome|!outcome_valid(outcome)
+            || run.native.as_ref().and_then(|native|native.turn_id.as_ref()).is_none()) {
+            return Err("RESOURCE_UNAVAILABLE: invalid Agent result".into());
         }
         let source_bytes=run.documents.iter().map(|d|d.content.as_ref().unwrap().len()).sum::<usize>();
         if source_bytes>MAX_DOCUMENT_CONTENT {return Err("RESOURCE_LIMIT: selected Agent documents exceed 8 MB".into());}
@@ -183,7 +197,7 @@ pub fn approve(root: &Path, scope: &Scope, key: &str, intent: &Intent,
         if intent.component.is_none() {return Err("UNSUPPORTED_SERVICE: verified native component identity is required".into());}
         if ledger.runs.len()>=MAX_RUNS {return Err("RESOURCE_LIMIT: Agent run journal is full; existing runs are retained".into());}
         let run=Run {id:crate::capability_authority::nonce()?,scope:scope.clone(),intent:intent.clone(),documents:capture()?,
-            approval_id:crate::capability_authority::nonce()?,approved_at:chrono::Local::now().to_rfc3339(),submission:Submission::Approved,restored:false,native:None,request_key:key.into()};
+            approval_id:crate::capability_authority::nonce()?,approved_at:chrono::Local::now().to_rfc3339(),submission:Submission::Approved,restored:false,native:None,outcome:None,request_key:key.into()};
         if !documents_match(&run) {return Err("PERMISSION_DENIED: captured sources differ from approved Agent input".into());}
         if ledger.runs.contains_key(&run.id) {return Err("RESOURCE_UNAVAILABLE: Agent run identity collision".into());}
         ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
@@ -262,5 +276,25 @@ pub fn record_native(root: &Path, scope: &Scope, expected: &NativeRunBinding, ob
             if current.turn_id.is_some() || observed.turn_id.is_none() {confirm(root)?;return Ok(run);}
         }
         run.native=Some(observed.clone());ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
+    })
+}
+
+/// Retain a result from the adapter's already-bound native turn. No source is recaptured and no
+/// submission is retried. Replayed notifications/readback are idempotent; terminal results freeze.
+pub fn record_outcome(root:&Path,scope:&Scope,expected:&NativeRunBinding,observed:&NativeIdentity,
+    outcome:&Outcome,authorize:impl FnOnce()->Result<(),String>)->Result<Run,String> {
+    if observed.turn_id.is_none() || !native_valid(observed) || !outcome_valid(outcome) {
+        return Err("INVALID_INPUT: invalid native Agent result".into());
+    }
+    fenced(root,scope,authorize,|| {
+        let mut ledger=load(root)?;let mut run=owned(&ledger,scope,&expected.run_id)?.clone();
+        if binding(&run)?!=*expected || run.native.as_ref()!=Some(observed) {
+            return Err("PERMISSION_DENIED: result does not belong to the bound native turn".into());
+        }
+        if let Some(retained)=&run.outcome {
+            if retained!=outcome {return Err("CONFLICT: native Agent result is already final".into());}
+            confirm(root)?;return Ok(run);
+        }
+        run.outcome=Some(outcome.clone());ledger.runs.insert(run.id.clone(),run.clone());save(root,&ledger)?;Ok(run)
     })
 }

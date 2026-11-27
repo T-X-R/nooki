@@ -37,7 +37,7 @@ fn correlation(id:&str)->bool {!id.is_empty() && id.len()<=100 && id.bytes().all
 fn context(root:&Path,id:&str)->Result<crate::capability_authority::InvocationContext,String> {
     crate::capability_runtime::selection_context(root,id,CapabilityPermission::AgentsRun)
 }
-fn current(root:&Path,scope:&Scope)->Result<(),String> {
+pub(crate) fn current(root:&Path,scope:&Scope)->Result<(),String> {
     if context(root,&scope.installation.capability_id)?!=scope.installation || crate::user_data::restored_id(root)?!=scope.restore_id {
         return Err("PERMISSION_DENIED: Agent installation or restore scope changed".into());
     } Ok(())
@@ -46,7 +46,7 @@ fn policy_current(intent:&Intent,resolve:impl FnOnce(&str)->Result<ResolvedPolic
     let policy=resolve(&intent.agent_id)?;
     if policy.digest!=intent.policy_digest || Some(policy.component)!=intent.component {return Err("PERMISSION_DENIED: Agent execution policy changed; review a new intent".into());} Ok(())
 }
-fn metadata(run:&runs::Run)->Value {json!({"status":if run.restored {"retained"} else {"approved"},"runId":run.id,"submission":run.submission,"restored":run.restored})}
+pub(crate) fn metadata(run:&runs::Run)->Value {json!({"status":if run.restored {"retained"} else {"approved"},"runId":run.id,"submission":run.submission,"restored":run.restored,"outcome":run.outcome})}
 fn pending(handle:&str,review:&Review)->Value {
     json!({"status":"pending","handle":handle,"requestId":review.request_id,"capabilityId":review.scope.installation.capability_id,
         "version":review.scope.installation.capability_version,"intent":review.intent})
@@ -103,7 +103,7 @@ pub fn cancel(state:&PlatformState,caller:&str,value:Value)->Result<(),String> {
     if !correlation(&input.request_id) {return Err("INVALID_INPUT: invalid Agent review identity".into());}
     state.agent_reviews.lock().map_err(|_|"RESOURCE_UNAVAILABLE: Agent reviews unavailable")?.retain(|_,r|r.request_id!=input.request_id);Ok(())
 }
-fn scope(state:&PlatformState,id:&str,version:&str)->Result<Scope,String> {
+pub(crate) fn scope(state:&PlatformState,id:&str,version:&str)->Result<Scope,String> {
     let root=state.data_dir();let _data=crate::task_worker::data_lock(root)?.ok_or("RESOURCE_BUSY: user data is changing")?;
     crate::user_data::ensure_restore_complete(root)?;let _authority=crate::capability_authority::fence(root)?;
     let installation=context(root,id)?;

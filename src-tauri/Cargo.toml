@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.12.4"
+version = "0.12.5"
 description = "Nooki, a local-first space for ideas, documents, and capabilities"
 authors = ["you"]
 license = ""
@@ -53,3 +53,7 @@ objc2 = "=0.6.4"
 objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "WKPreferences", "WKWebViewConfiguration", "WKWebsiteDataStore", "WKURLSchemeHandler", "WKURLSchemeTask", "WKWebView", "WKUserContentController"] }
 objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSObject", "NSString", "NSData", "NSDictionary", "NSURL", "NSURLRequest", "NSURLResponse", "NSStream"] }
 percent-encoding = "=2.3.2"
+
+# Capability component admission hashes a large native executable; keep debug UI/tests responsive.
+[profile.dev.package.sha2]
+opt-level = 3

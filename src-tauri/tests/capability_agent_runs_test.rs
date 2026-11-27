@@ -447,3 +447,33 @@ fn native_launch_input_preserves_full_eight_mb_document_without_truncation() {
     assert!(runs::approve(&other.0,&scope(),"too-large",&input,||Ok(()),||Ok(vec![too_large])).is_err());
     assert!(!other.0.join("capability-agent-runs.json").exists());
 }
+
+#[test]
+fn completed_native_result_survives_reload_and_cannot_be_replaced_or_reexecuted() {
+    let f=Fixture::new();let approved=f.approve("result",&intent()).unwrap();
+    runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).unwrap();
+    let binding=runs::native_binding(&f.0,&scope(),&approved.id,||Ok(())).unwrap();
+    let native=runs::NativeIdentity{thread_id:"native-thread".into(),turn_id:Some("native-turn".into())};
+    runs::record_native(&f.0,&scope(),&binding,&native,||Ok(())).unwrap();
+    let outcome=runs::Outcome::Completed{text:"Meeting notes ready".into()};
+    runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Ok(())).unwrap();
+    assert_eq!(runs::get(&f.0,&scope(),&approved.id,||Ok(())).unwrap().outcome,Some(outcome.clone()));
+    runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Ok(())).unwrap();
+    assert!(runs::record_outcome(&f.0,&scope(),&binding,&native,&runs::Outcome::Cancelled,||Ok(())).is_err());
+    assert!(runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).is_err());
+}
+
+#[test]
+fn foreign_or_unbound_native_results_cannot_complete_a_run() {
+    let f=Fixture::new();let approved=f.approve("result",&intent()).unwrap();
+    runs::claim_submission(&f.0,&scope(),&approved.id,|_|Ok(())).unwrap();
+    let binding=runs::native_binding(&f.0,&scope(),&approved.id,||Ok(())).unwrap();
+    let native=runs::NativeIdentity{thread_id:"native-thread".into(),turn_id:Some("native-turn".into())};
+    let outcome=runs::Outcome::Completed{text:"Meeting notes ready".into()};
+    assert!(runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Ok(())).is_err());
+    runs::record_native(&f.0,&scope(),&binding,&native,||Ok(())).unwrap();
+    let foreign=runs::NativeIdentity{turn_id:Some("foreign-turn".into()),..native.clone()};
+    assert!(runs::record_outcome(&f.0,&scope(),&binding,&foreign,&outcome,||Ok(())).is_err());
+    assert!(runs::record_outcome(&f.0,&scope(),&binding,&native,&outcome,||Err("PERMISSION_DENIED".into())).is_err());
+    assert_eq!(runs::get(&f.0,&scope(),&approved.id,||Ok(())).unwrap().outcome,None);
+}

@@ -7,8 +7,15 @@ type LocalStream = tokio::net::TcpStream;
 pub type Connection = WebSocketStream<LocalStream>;
 
 #[cfg(unix)]
-async fn connect(socket: &Path) -> Result<Option<Connection>, String> {
-  let stream = match LocalStream::connect(socket).await {
+pub(crate) async fn connect(socket: &Path) -> Result<Option<Connection>, String> {
+  // Native Codex publishes a rendezvous symlink when the state path exceeds Unix sockaddr
+  // limits. Resolve that native alias before connecting; Codex owns stale-alias replacement.
+  let endpoint=match socket.canonicalize() {
+    Ok(path)=>path,
+    Err(error) if error.kind()==std::io::ErrorKind::NotFound=>return Ok(None),
+    Err(error)=>return Err(format!("Could not resolve Codex endpoint: {error}")),
+  };
+  let stream = match LocalStream::connect(endpoint).await {
     Ok(stream) => stream,
     Err(error) if matches!(error.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused) => return Ok(None),
     Err(error) => return Err(format!("Could not connect to Codex: {error}")),
@@ -16,6 +23,11 @@ async fn connect(socket: &Path) -> Result<Option<Connection>, String> {
   let (connection, _) = tokio::time::timeout(std::time::Duration::from_secs(5), client_async("ws://localhost/", stream)).await
     .map_err(|_| "Codex socket handshake timed out")?.map_err(|e| format!("Codex socket handshake failed: {e}"))?;
   Ok(Some(connection))
+}
+
+#[cfg(not(unix))]
+pub(crate) async fn connect(_socket: &Path) -> Result<Option<Connection>, String> {
+  Err("Dedicated Codex connections currently require Unix socket support".into())
 }
 
 // The CLI worker outlives UI connections. The private socket carries WebSocket messages.
