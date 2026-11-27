@@ -1147,6 +1147,14 @@ an explicit Skill input injects the synthetic home Skill body even with catalog 
 and the named input/output scope selected. Native Skill discovery/read/injection, live dynamic-tool
 replacement and other effect contributors still need qualification. Distinguish managed MCP
 allowlists from the separate required-server setting; allowlisting does not mandate startup.
+The [local Skill authority experiment](capability-platform-evidence/C06c-skills-policy.md) now
+passes matched approved/denied discovery and body-read controls, cross-thread permission-cache
+checks, a symlink escape check and unscoped inventory refusal. Approved repository and explicitly
+permitted user Skills remain usable. The old binary fails four assertions; the candidate passes
+six native turns and all five prior regression probes (29 final synthetic turns including controls
+and preparation). Required Skills, persisted Skill context under narrower grants, remote/internal
+paths and plugin effects remain unqualified. This closes only the tested fresh local-thread gap;
+C06c and native-component integration/distribution approval remain open.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

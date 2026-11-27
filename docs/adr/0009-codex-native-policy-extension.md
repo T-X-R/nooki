@@ -93,6 +93,12 @@ roots despite the named filesystem profile and disabled catalog rendering. Skill
 constrained at their native read/injection boundary; display flags are insufficient. Live native
 tool replacement remains unqualified. Managed MCP allowlists must be distinguished from separate
 required-server behavior rather than treated as mandatory launch instructions.
+The [local Skill authority follow-up](../capability-platform-evidence/C06c-skills-policy.md) then
+reuses current native filesystem access for discovery and body reads, avoids pre-authority plugin
+metadata reuse, and refuses unscoped client Skill inventory. Matched local fixtures retain approved
+Skills while excluding unapproved metadata/body across thread caches and a symlink. Required Skills,
+persisted context, remote environments and internal/plugin effect paths remain unqualified. This
+qualification result does not approve formal native integration or complete gate 2.
 
 The policy must:
 
