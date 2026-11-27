@@ -109,7 +109,10 @@ pub fn prepare(root: &Path, thread: &str, request: &str, inputs: &DocumentInputs
   if let Some(id) = &inputs.snapshot_id {
     for doc in source_snapshots::read(root, id)? {
       let id = doc.reference["documentId"].as_str().ok_or("Invalid Library reference")?;
-      incoming.insert(format!("document-{}.md", &digest(id)[..16]), WorkingDocument { name: doc.reference["title"].as_str().unwrap_or("Document").into(), content: doc.content, source: Some(doc.reference) });
+      // An offered historical version must coexist with an earlier editable copy of the same ID.
+      let filename=if let Some(handoff)=doc.reference["handoffId"].as_str() {format!("handoff-{}.md",&digest(&format!("{handoff}/{id}"))[..16])}
+        else {format!("document-{}.md",&digest(id)[..16])};
+      incoming.insert(filename, WorkingDocument { name: doc.reference["title"].as_str().unwrap_or("Document").into(), content: doc.content, source: Some(doc.reference) });
     }
   }
   for upload in &inputs.uploads {

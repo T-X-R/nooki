@@ -1,0 +1,22 @@
+{
+  "upstream": "https://github.com/openai/codex",
+  "revision": "29eb79e9866b3262a777fdf8195c1b9e63684c91",
+  "version": "0.170.0",
+  "protocolRevision": 2,
+  "sourceArchiveSha256": "af62862cf5eb25b0ef0c45d2a964b1337a31b502c0627257d8339f582d431c60",
+  "patchSha256": "2127461c8b75f75d61c3dac9e72bbc10341e70de013bbd864cc18e321b19da0b",
+  "files": {
+    "codex-rs/core/src/config/mod.rs": "e498009358d843782dc9a52038ebb0857d1964716d6d61a9352153e2ecf2c23b",
+    "codex-rs/app-server/src/config_manager.rs": "2f65b49e18d50a923179ec34bb6c638144c74f29480331cae5e2d8457c694592",
+    "codex-rs/core/src/session/session.rs": "946761edf1a80f51927da060e6d40fcd537f11a8a17d17570bd4ef587fcd38ee",
+    "codex-rs/app-server/src/message_processor.rs": "b8fbd5e91d40b54c1c7fa29160769e3fc49dcf5fc9fa146ce5edcd71ace85b13",
+    "codex-rs/ext/skills/src/host_service.rs": "6d469bb56b64754f7d83d2d29dfda70602ea3521a2a925474ca13b6c0c5d9657",
+    "codex-rs/ext/skills/src/host_outcome.rs": "e89269dccca4423c8e2d278815f9b5fb5eee0ab1307c3fbdc77127206688a63d",
+    "codex-rs/core/src/lib.rs": "c8324d118c96cfafca4052e2812066d9f5630c4552365483ac240576fa381ba9",
+    "codex-rs/core/Cargo.toml": "1ec2b6e7b7f33fd362e487243367b56cacc32592679d6c4fa07b4f8149dc40a6",
+    "codex-rs/app-server/src/main.rs": "efbf115e6e4f4b6dcec196c86cd9b7d09339858ed445583fbcc6fec598d4d91c",
+    "codex-rs/core/src/nooki_run_binding.rs": "3f0d19772744c0f491156f310c186306a71a9db6d0f4ad1ac566e965cccf9ae8",
+    "codex-rs/Cargo.lock": "6374d7d97c680f96d76a639c108c3e96a1b3331716f790ac5486a40e58cd4c7a",
+    "codex-rs/core/src/config/auth_keyring.rs": "71887649f8c05c53c17e782139a9fe87fc05ddb656832d42be730b70a27f4c7c"
+  }
+}

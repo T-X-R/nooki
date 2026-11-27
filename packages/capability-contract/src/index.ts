@@ -6,8 +6,8 @@ export type AiInvocationResult = {
   output: string
 }
 
-export type CapabilityEntrypoint = 'page' | 'command' | 'widget' | 'job'
-export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected'
+export type CapabilityEntrypoint = 'page' | 'command' | 'job'
+export type CapabilityPermission = 'storage' | 'activity.read' | 'activity.write' | 'ai.invoke' | 'codex.sessions.read' | 'documents.publish' | 'documents.read-selected' | 'board.create' | 'board.attach-delivery' | 'conversations.handoff' | 'agents.run' | 'board.request-delegation'
 export type CapabilityLanguage = 'zh' | 'en'
 export type CapabilityTheme = 'light' | 'dark'
 
@@ -163,6 +163,7 @@ export type DocumentGrant = {
   capabilityId: string
   capabilityVersion: string
   createdAt: string
+  purpose?: string
   documents: Omit<SelectedDocument, 'content'>[]
 }
 
@@ -184,7 +185,116 @@ export type DocumentPublication = {
   content: string
 }
 
+export type HostErrorCode = 'INVALID_INPUT' | 'PERMISSION_DENIED' | 'UNSUPPORTED_SERVICE' | 'CONFLICT' | 'RESOURCE_LIMIT' | 'RESOURCE_BUSY' | 'RESOURCE_UNAVAILABLE' | 'OUTCOME_UNKNOWN' | 'CANCELLED'
+export type HostServiceError = Error & { readonly code: HostErrorCode }
+export type LibrarySelectionRequest = {
+  purpose: string
+  /** This release supports document snapshots. Artifact requests fail explicitly. */
+  kinds: ('document' | 'artifact')[]
+  /** Document snapshots use text/markdown. Unsupported filters fail explicitly. */
+  mediaTypes?: string[]
+  limit?: number
+}
+export type LibrarySelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: DocumentGrant }
+export type IdempotencyOptions = { idempotencyKey: string }
+/** Native-assigned opaque revision; compare for equality, never infer an edit count. */
+/** Propose a todo created by this package or included in a current Host task selection.
+ * sourceRunId identifies completed package work being handed off; live runs cannot transfer. */
+export type BoardDelegationInput = { item: BoardItemReference; grantId?: string; sourceRunId?: string }
+export type BoardDelegationReceipt = { receiptId: string; taskId: string; engine: 'codex' }
+export type BoardDelegationResult = { status: 'dismissed' } | { status: 'delegated'; receipt: BoardDelegationReceipt }
+export type BoardItemReference = { id: string; revision: number }
+export type BoardSelectionRequest = { purpose: string; operations: ['attachDelivery']; limit?: number }
+/** Metadata only. No task content, execution or acceptance authority is granted. */
+export type BoardGrant = {
+  id: string
+  capabilityId: string
+  capabilityVersion: string
+  createdAt: string
+  purpose: string
+  operations: ['attachDelivery']
+  items: (BoardItemReference & { title: string })[]
+}
+export type BoardSelectionResult = { status: 'dismissed' } | { status: 'selected'; grant: BoardGrant }
+export type BoardDeliveryDocumentReference = Omit<DocumentReference, 'snapshotId' | 'locator'>
+export type BoardAttachDeliveryInput = {
+  grantId: string
+  item: BoardItemReference
+  title: string
+  /** Own published documents or exact references from an active document selection; at most 50. */
+  documents: BoardDeliveryDocumentReference[]
+}
+export type BoardAttachmentResult = { item: BoardItemReference; deliveryId: string }
+export type BoardCreateInput = {
+  title: string
+  description?: string
+  /** Nooki 0.6.0+: unchanged references from this package's active document selection (at most 50).
+   * New creation requires current read-selected authority; exact committed replay does not reread sources.
+   * Task/conversation snapshot IDs and locators are not accepted as creation inputs. */
+  sources?: DocumentReference[]
+}
+
+export type ConversationHandoffInput = { title: string; text: string; sources?: DocumentReference[] }
+export type ConversationHandoffTarget = { kind: 'new' } | { kind: 'conversation'; id: string }
+export type ConversationHandoffReceipt = { draftId: string; target: ConversationHandoffTarget }
+export type ConversationHandoffResult = { status: 'dismissed' } | { status: 'handedOff'; receipt: ConversationHandoffReceipt }
+
+/** Selected snapshots only; execution policy and credentials belong to Nooki. */
+export type AgentStartInput = {
+  agentId: 'codex'
+  instructions: string
+  sources?: DocumentReference[]
+  outputSchema?: CapabilityJsonSchema
+}
+export type AgentResultData = null | boolean | number | string | readonly AgentResultData[] | {readonly [key: string]: AgentResultData}
+export type AgentRunSnapshot = Readonly<{
+  id: string
+  agentId: 'codex'
+  status: 'approved' | 'running' | 'unknown' | 'completed' | 'failed' | 'cancelled'
+  /** Restored history is readable but cannot authorize execution or cancellation. */
+  restored: boolean
+  /** Local cancellation is durable; status still describes the observed native outcome. */
+  cancellationRequested: boolean
+  /** Public assistant progress only. Questions are answered in the Nooki Host UI. */
+  progress?: Readonly<{ text: string; awaitingInput: boolean }>
+  /** Present only for a terminal invalid/oversized result. It does not authorize retry. */
+  error?: Readonly<{ code: 'INVALID_RESULT'; message: string }>
+  /** data is present only after the Host validates the exact approved outputSchema. */
+  result: Readonly<{ text: string; data?: AgentResultData }> | null
+}>
+export type AgentStartResult = { status: 'dismissed' } | { status: 'started'; run: AgentRunSnapshot }
+export type AvailableAgent = Readonly<{ id: 'codex'; name: string }>
+
 export type CapabilityHost = {
+  agents: {
+    /** Returns only adapters ready for this invocation. An empty list is not a successful run. */
+    listAvailable(): Promise<readonly AvailableAgent[]>
+    /** Requires Host review. Retain the exact key/input; an uncertain reply never authorizes replay. */
+    start(input: AgentStartInput, options: IdempotencyOptions): Promise<AgentStartResult>
+    get(id: string): Promise<AgentRunSnapshot>
+    /** Serial fresh snapshots, including an initial read. Unsubscribe never cancels execution. */
+    subscribe(id: string, listener: (run: AgentRunSnapshot) => void, onError: (error: HostServiceError) => void): () => void
+    /** Returns observed state; running/unknown means interruption is not yet confirmed. */
+    cancel(id: string): Promise<AgentRunSnapshot>
+  }
+
+  conversations: {
+    /** Nooki 0.11.0+: user-reviewed draft offer. Never sends a turn. Retry unchanged on uncertainty. */
+    handoff(input: ConversationHandoffInput, options: IdempotencyOptions): Promise<ConversationHandoffResult>
+  }
+  library: {
+    requestSelection(request: LibrarySelectionRequest): Promise<LibrarySelectionResult>
+  }
+  board: {
+    /** Opens Host review; only explicit confirmation queues independent user-owned Codex work. */
+    requestDelegation(input: BoardDelegationInput, options: IdempotencyOptions): Promise<BoardDelegationResult>
+    /** Nooki 0.8.0+: approve exact task revisions for attaching a delivery. */
+    requestSelection(request: BoardSelectionRequest): Promise<BoardSelectionResult>
+    /** Nooki 0.9.0+: retain documents on the exact approved task version without accepting/executing. */
+    attachDelivery(input: BoardAttachDeliveryInput, options: IdempotencyOptions): Promise<BoardAttachmentResult>
+    /** Creates a draft item, never delegates work. Retry an uncertain outcome with the same key/input. */
+    create(input: BoardCreateInput, options: IdempotencyOptions): Promise<BoardItemReference>
+  }
   tasks: CapabilityTasks
   environment: {
     getSnapshot(): CapabilityEnvironment

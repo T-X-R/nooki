@@ -1,0 +1,31 @@
+{
+  "id": "example.meeting-notes",
+  "name": "Meeting notes",
+  "description": "Turn selected source documents into reviewed notes, saved Library documents and follow-up drafts.",
+  "version": "1.3.0",
+  "minPlatformVersion": "0.18.0",
+  "entrypoints": [
+    "page",
+    "job"
+  ],
+  "permissions": [
+    "storage",
+    "documents.read-selected",
+    "documents.publish",
+    "agents.run",
+    "board.create",
+    "board.attach-delivery",
+    "conversations.handoff",
+    "board.request-delegation"
+  ],
+  "locales": {
+    "zh": {
+      "name": "会议纪要",
+      "description": "选择资料生成纪要，确认后保存，并交接给任务板或聊天。"
+    },
+    "en": {
+      "name": "Meeting notes",
+      "description": "Generate notes from selected sources, save them, and hand them to your task board or chat."
+    }
+  }
+}

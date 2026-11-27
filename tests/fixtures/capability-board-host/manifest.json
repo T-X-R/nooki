@@ -1,0 +1,24 @@
+{
+  "id": "org.example.board-acceptance",
+  "name": "Board Host Acceptance",
+  "description": "Synthetic public Host verification",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.4.0",
+  "entrypoints": [
+    "page",
+    "job"
+  ],
+  "permissions": [
+    "board.create"
+  ],
+  "locales": {
+    "en": {
+      "name": "Board Host Acceptance",
+      "description": "Synthetic public Host verification"
+    },
+    "zh": {
+      "name": "任务板 Host 验证",
+      "description": "仅使用公开接口的合成验证"
+    }
+  }
+}

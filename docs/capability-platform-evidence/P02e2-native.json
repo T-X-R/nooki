@@ -1,0 +1,1891 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 389,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 389,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 389,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 432,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 530,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 531,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 531,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 532,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 541,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 542,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 542,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 542,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 550,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 551,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 551,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": null,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": true,
+        "peerConnectionEnabled": true,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 551,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 575,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 576,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 576,
+    "value": {
+      "enginePolicy": {
+        "available": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": false
+      }
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 579,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 1156,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 1157,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 1157,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1206,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1217,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1469,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1979,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 2983,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 18309,
+    "value": {
+      "playbackStart": {
+        "fulfilled": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 18310,
+    "value": {
+      "playback": {
+        "currentTime": 0.14008929184637964,
+        "ended": false,
+        "focused": true,
+        "networkState": 1,
+        "paused": false,
+        "readyState": 4
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 21416,
+    "value": {
+      "action": "receive",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 65536,
+        "peakInFlight": 1,
+        "rejected": 0
+      },
+      "ticks": {
+        "probe-a": 78,
+        "probe-b": 17,
+        "probe-control": 76,
+        "probe-shell": 78
+      },
+      "views": [
+        "probe-a",
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21418,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21418,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21420,
+    "value": {
+      "bodyBytes": 32800,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21421,
+    "value": {
+      "bodyBytes": 32800,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21424,
+    "value": {
+      "bodyBytes": 36,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21426,
+    "value": {
+      "bodyBytes": 36,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21427,
+    "value": {
+      "bodyBytes": 58,
+      "command": "plugin:window|set_title",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21433,
+    "value": {
+      "bodyBytes": 58,
+      "command": "plugin:window|set_title",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21434,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_host_secret",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21435,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_host_secret",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21439,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21441,
+    "value": {
+      "reason": "request body too large",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21444,
+    "value": {
+      "reason": "resource method not allowed",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21446,
+    "value": {
+      "reason": "resource method not allowed",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21447,
+    "value": {
+      "reason": "resource method not allowed",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21449,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21449,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21450,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21450,
+    "value": {
+      "reason": "request metadata too large",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21451,
+    "value": {
+      "reason": "invalid JSON request",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21451,
+    "value": {
+      "reason": "invalid JSON request",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21452,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21452,
+    "value": {
+      "receiveBoundary": "abandoned-response"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21453,
+    "value": {
+      "bodyBytes": 2,
+      "command": "probe_identity",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21453,
+    "value": {
+      "receiveBoundary": "abandoned-response"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 21508,
+    "value": {
+      "receiveBoundary": "cancelled"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 21508,
+    "value": {
+      "receiveBoundary": "cancelled"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 23457,
+    "value": {
+      "receiveBoundary": "late-response-discarded"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 23459,
+    "value": {
+      "receiveBoundary": "late-response-discarded"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24916,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24918,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24920,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24922,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24924,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24925,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24927,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24928,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 24930,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25112,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25114,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25116,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25117,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25118,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25120,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25122,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25124,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 25126,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 25680,
+    "value": {
+      "reason": "receive rate exceeded; retry later",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26033,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26035,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26036,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26038,
+    "value": {
+      "bodyBytes": 23,
+      "command": "probe_load",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26039,
+    "value": {
+      "reason": "caller busy",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26040,
+    "value": {
+      "reason": "caller busy",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 26066,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 36,
+        "callers": {
+          "probe-a": 4
+        },
+        "inFlight": 4,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 262144,
+        "callers": {
+          "probe-a": 4
+        },
+        "inFlight": 4,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 2
+      },
+      "ticks": {
+        "probe-a": 82,
+        "probe-b": 21,
+        "probe-control": 81,
+        "probe-shell": 83
+      },
+      "views": [
+        "probe-a",
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26106,
+    "value": {
+      "reason": "caller busy",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26405,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26408,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26410,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26412,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26414,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26416,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 26418,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 26679,
+    "value": {
+      "reason": "caller busy",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 27610,
+    "value": {
+      "reason": "byte budget exceeded",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 27679,
+    "value": {
+      "reason": "caller busy",
+      "receiveBoundary": "rejected-before-dispatch"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 29041,
+    "value": {
+      "bodyBytes": 41,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 29045,
+    "value": {
+      "abandoned": {
+        "fulfilled": true,
+        "value": {
+          "body": "request abandoned by dispatcher",
+          "status": 400
+        }
+      },
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+          "status": 200
+        }
+      },
+      "assetPost": {
+        "fulfilled": true,
+        "value": {
+          "body": "resource method not allowed",
+          "status": 413
+        }
+      },
+      "burst": [
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        }
+      ],
+      "cancelled": {
+        "error": "AbortError: Fetch is aborted",
+        "fulfilled": false
+      },
+      "coreWindow": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "echo": {
+        "fulfilled": true,
+        "value": true
+      },
+      "hostCommand": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "identity": {
+        "view": "probe-b",
+        "window": "probe-workspace"
+      },
+      "largeHeader": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "load": [
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        },
+        {
+          "error": "byte budget exceeded",
+          "fulfilled": false
+        }
+      ],
+      "longUrl": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "malformed": {
+        "fulfilled": true,
+        "value": {
+          "body": "invalid JSON request",
+          "status": 413
+        }
+      },
+      "nativeHandler": "undefined",
+      "otherProtocol": {
+        "fulfilled": true,
+        "value": {
+          "body": "resource method not allowed",
+          "status": 413
+        }
+      },
+      "oversized": {
+        "error": "request body too large",
+        "fulfilled": false
+      },
+      "receiveProbe": true,
+      "recovery": {
+        "fulfilled": true,
+        "value": "recovered"
+      },
+      "spoof": {
+        "error": "host operation refused",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30542,
+    "value": {
+      "bodyBytes": 41,
+      "command": "probe_rpc",
+      "receiveBoundary": "bounded-decode"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 30549,
+    "value": {
+      "abandoned": {
+        "fulfilled": true,
+        "value": {
+          "body": "request abandoned by dispatcher",
+          "status": 400
+        }
+      },
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+          "status": 200
+        }
+      },
+      "assetPost": {
+        "fulfilled": true,
+        "value": {
+          "body": "resource method not allowed",
+          "status": 413
+        }
+      },
+      "burst": [
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#479\"/></svg>",
+            "status": 200
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "body": "receive rate exceeded; retry later",
+            "status": 413
+          }
+        }
+      ],
+      "cancelled": {
+        "error": "AbortError: Fetch is aborted",
+        "fulfilled": false
+      },
+      "coreWindow": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "echo": {
+        "fulfilled": true,
+        "value": true
+      },
+      "hostCommand": {
+        "error": "host operation refused",
+        "fulfilled": false
+      },
+      "identity": {
+        "view": "probe-a",
+        "window": "probe-workspace"
+      },
+      "largeHeader": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "load": [
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "fulfilled": true,
+          "value": {
+            "bytes": 9,
+            "checksum": 987
+          }
+        },
+        {
+          "error": "caller busy",
+          "fulfilled": false
+        },
+        {
+          "error": "caller busy",
+          "fulfilled": false
+        }
+      ],
+      "longUrl": {
+        "fulfilled": true,
+        "value": {
+          "body": "request metadata too large",
+          "status": 413
+        }
+      },
+      "malformed": {
+        "fulfilled": true,
+        "value": {
+          "body": "invalid JSON request",
+          "status": 413
+        }
+      },
+      "nativeHandler": "undefined",
+      "otherProtocol": {
+        "error": "TypeError: Load failed",
+        "fulfilled": false
+      },
+      "oversized": {
+        "error": "request body too large",
+        "fulfilled": false
+      },
+      "receiveProbe": true,
+      "recovery": {
+        "fulfilled": true,
+        "value": "recovered"
+      },
+      "spoof": {
+        "error": "host operation refused",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 43023,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 13
+      },
+      "ticks": {
+        "probe-a": 97,
+        "probe-b": 36,
+        "probe-control": 97,
+        "probe-shell": 100
+      },
+      "views": [
+        "probe-a",
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 43025,
+    "value": {
+      "playback": {
+        "currentTime": 24.744392249974503,
+        "ended": false,
+        "focused": false,
+        "networkState": 1,
+        "paused": false,
+        "readyState": 4
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 46014,
+    "value": {
+      "action": "show-a",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 13
+      },
+      "ticks": {
+        "probe-a": 100,
+        "probe-b": 39,
+        "probe-control": 100,
+        "probe-shell": 103
+      },
+      "views": [
+        "probe-a",
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 50024,
+    "value": {
+      "currentSrc": "nookiprobe://localhost/tone.wav",
+      "mediaReleased": true,
+      "networkState": 0,
+      "paused": true,
+      "readyState": 0,
+      "srcAttribute": null,
+      "stoppedAdvancing": true
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 53625,
+    "value": {
+      "action": "busy",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 13
+      },
+      "ticks": {
+        "probe-a": 107,
+        "probe-b": 47,
+        "probe-control": 108,
+        "probe-shell": 110
+      },
+      "views": [
+        "probe-a",
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 53627,
+    "value": {
+      "infiniteLoopStarted": true
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 65877,
+    "value": {
+      "action": "stop",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 13
+      },
+      "ticks": {
+        "probe-a": 108,
+        "probe-b": 59,
+        "probe-control": 120,
+        "probe-shell": 122
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 69226,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 13
+      },
+      "ticks": {
+        "probe-a": 108,
+        "probe-b": 62,
+        "probe-control": 131,
+        "probe-shell": 133
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 75698,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 36,
+        "peakInFlight": 4,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "receiving": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 4,
+        "rejected": 13
+      },
+      "ticks": {
+        "probe-a": 108,
+        "probe-b": 88,
+        "probe-control": 157,
+        "probe-shell": 159
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-unavailable",
+        "probe-shell"
+      ]
+    }
+  }
+]

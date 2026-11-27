@@ -1,0 +1,38 @@
+{
+  "productName": "Nooki Runtime Probe",
+  "version": "0.0.0",
+  "identifier": "com.personal.workbench.runtime-probe",
+  "build": {
+    "frontendDist": "assets"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "probe-shell-only",
+          "description": "Positive control scoped to the shell view, never its containing window",
+          "local": true,
+          "remote": {
+            "urls": [
+              "nookiprobe://localhost/*"
+            ]
+          },
+          "webviews": [
+            "probe-shell"
+          ],
+          "permissions": [
+            "core:window:allow-set-title"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../../icons/icon.png"
+    ]
+  }
+}

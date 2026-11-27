@@ -1,0 +1,13 @@
+{
+  "id": "org.example.sourced-peer",
+  "name": "Sourced board peer",
+  "description": "Independent public Host source-ownership control",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.6.0",
+  "entrypoints": ["page"],
+  "permissions": ["storage", "documents.publish", "documents.read-selected", "board.create"],
+  "locales": {
+    "zh": { "name": "来源待办验证 peer", "description": "独立接收者权限对照" },
+    "en": { "name": "Sourced board peer", "description": "Independent source-ownership control" }
+  }
+}

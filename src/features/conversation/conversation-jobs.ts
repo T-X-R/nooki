@@ -22,7 +22,13 @@ export const respond: TaskJob = {
     if (!input.threadId || !input.message.trim() || !Array.isArray(input.documentIds) || input.documentIds.length > 50) throw new Error('Invalid conversation input')
     if (attachmentDocumentIds(input.folders ?? []).some(id => !input.documentIds.includes(id))) throw new Error('Folder sources are incomplete')
     validateAttachments(input.uploads ?? [], input.documentIds.length)
+    if (input.handoffId !== undefined && (!/^[a-f0-9]{64}$/.test(input.handoffId) || input.boardTask)) throw new Error('Invalid conversation handoff input')
     const documents = await step('sources', async (): Promise<SelectedDocument[]> => {
+      if (input.handoffId !== undefined) {
+        signal.throwIfAborted()
+        if (!window.__TAURI_INTERNALS__) throw new Error('Conversation handoff requires desktop Nooki')
+        return invoke('conversation_handoff_sources', { request: { draftId: input.handoffId, snapshotId: input.snapshotId, documentIds: input.documentIds } })
+      }
       if (window.__TAURI_INTERNALS__) return invoke('library_capture_sources', { id: input.snapshotId, ids: input.documentIds })
       const key = `workbench-source-snapshot:${input.snapshotId}`
       const saved = localStorage.getItem(key)
@@ -30,6 +36,7 @@ export const respond: TaskJob = {
       const sources = await Promise.all(input.documentIds.map(async (id) => { const doc = await readLibraryDocument(id); return { reference: { kind: 'library-document' as const, documentId: id, title: doc.title, snapshotId: input.snapshotId, revision: doc.updatedAt }, documentDate: doc.documentDate, content: doc.content } }))
       localStorage.setItem(key, JSON.stringify(sources)); return sources
     })
+    validateAttachments(input.uploads ?? [], documents.length)
     // Board sessions cannot read files with tools, so their captured source text travels inline.
     const context = libraryContext(documents, !input.boardTask) + folderAttachmentContext(input.folders ?? [])
     if (new TextEncoder().encode(context + input.message).length > 100_000) throw new Error('引用资料过长，请减少资料后重新发送 / Message and references exceed 100 KB')

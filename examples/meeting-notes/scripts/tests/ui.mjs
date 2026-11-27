@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict'
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright')
+const browser=await chromium.launch({headless:true,channel:'chrome'})
+try{
+ const page=await browser.newPage({viewport:{width:1200,height:1000}}),errors=[]
+ page.on('pageerror',error=>errors.push(error.message))
+ await page.goto(`${process.env.UI_BASE_URL||'http://127.0.0.1:1431'}/preview/acceptance.html`)
+ await page.getByLabel('会议标题').fill('项目例会纪要')
+ await page.getByRole('button',{name:'选择资料',exact:true}).click()
+ await page.getByRole('button',{name:'生成纪要',exact:true}).click()
+ await page.getByRole('button',{name:'保存到资料库',exact:true}).click()
+ await page.getByRole('button',{name:'打开纪要',exact:true}).click()
+ await page.getByRole('button',{name:'创建待办',exact:true}).click()
+ await page.getByRole('button',{name:'附加到任务',exact:true}).click()
+ await page.getByRole('button',{name:'重试原附件请求',exact:true}).click()
+ await page.getByRole('button',{name:'交接到聊天',exact:true}).click()
+ await page.getByRole('button',{name:'交给 Codex 继续处理',exact:true}).click()
+ await page.getByRole('button',{name:'Reopen package',exact:true}).click()
+ await page.getByRole('button',{name:'打开纪要',exact:true}).click()
+ assert.equal(await page.getByRole('button',{name:'已保存到资料库',exact:true}).isDisabled(),true)
+ const calls=await page.evaluate(()=>window.qa.calls)
+ assert.equal(calls.starts,1);assert.equal(calls.publishes,1);assert.equal(calls.creates,2);assert.equal(calls.delegations,1);assert.equal(calls.attachments,1);assert.equal(calls.selections,1);assert.equal(calls.handoffs,1);assert.equal(calls.opened.length,2)
+ assert.deepEqual(calls.attachmentInputs[0],calls.attachmentInputs[1]);assert.deepEqual(errors,[])
+ await page.screenshot({path:process.env.UI_SCREENSHOT||'/tmp/nooki-c09-ui.png',fullPage:true})
+ console.log('Synthetic UI flow passed: select, generate, save/open, create todo, uncertain attachment retry, chat draft and reopen; no duplicate Agent call.')
+}finally{await browser.close()}

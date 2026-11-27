@@ -1,4 +1,5 @@
 import { LibraryHistoryPanel } from './LibraryHistoryPanel.tsx'
+import { LibraryAccessDialog } from './LibraryAccessDialog.tsx'
 import { captureFolderAttachment, attachmentDocumentIds, type LibrarySelection } from '../conversation/library-folder-attachments.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -53,6 +54,7 @@ export function LibraryPage({ organization, organizationError, installed, target
   const [contentMatches, setContentMatches] = useState<Set<string>>(new Set())
   const [searchError, setSearchError] = useState<string | null>(null)
   const [grantIds, setGrantIds] = useState<string[]>([])
+  const [accessOpen, setAccessOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [creation, setCreation] = useState<LibraryCreation | null>(null)
   const [renaming, setRenaming] = useState<{ id: string; surface: 'directory' | 'content' } | null>(null)
@@ -184,7 +186,8 @@ export function LibraryPage({ organization, organizationError, installed, target
     return <nav className="library-breadcrumbs" aria-label={zh ? '当前位置' : 'Current location'}><button onClick={() => openFolder('')}>{rootName}</button>{parts.map(part => <span key={part.id}><ChevronRightIcon /><button onClick={() => openFolder(part.id)}>{part.name}</button></span>)}{selectedId && <><ChevronRightIcon /><span className="library-breadcrumb-document">{source?.reference.title ?? currentDocument?.title ?? '…'}</span></>}</nav>
   }
   return <div className="content-column library-page library-folder-page">
-    <header className="library-shell-heading" onMouseDown={startWindowDrag}><div className="library-shell-title"><h1>{zh ? '资料库' : 'Library'}</h1><span>{documents.length} {zh ? '篇资料' : 'documents'}</span></div><div className="library-shell-location">{breadcrumbs()}<div className="library-location-actions">{currentDocument && !sourceTarget && <LibraryMenu label={zh ? '文档更多操作' : 'More document actions'} icon={<DotsHorizontalIcon />}><button role="menuitem" onClick={() => { void exportCurrentDocument() }}>{zh ? '导出 Markdown' : 'Export Markdown'}</button><button role="menuitem" onClick={() => void showHistory(currentDocument.id)}>{zh ? '版本历史' : 'Version history'}</button></LibraryMenu>}<button className="topbar-search" aria-label={`${t('searchWorkbench')} (⌘ K)`} onClick={onOpenCommand}><MagnifyingGlassIcon /><kbd>⌘ K</kbd></button></div></div></header>
+    {accessOpen && <LibraryAccessDialog language={language} names={installedNames} onClose={() => setAccessOpen(false)} />}
+    <header className="library-shell-heading" onMouseDown={startWindowDrag}><div className="library-shell-title"><h1>{zh ? '资料库' : 'Library'}</h1><span>{documents.length} {zh ? '篇资料' : 'documents'}</span></div><div className="library-shell-location">{breadcrumbs()}<div className="library-location-actions">{!!window.__TAURI_INTERNALS__ && <button className="quiet-button" onClick={() => setAccessOpen(true)}>{zh ? '资料授权' : 'Document access'}</button>}{currentDocument && !sourceTarget && <LibraryMenu label={zh ? '文档更多操作' : 'More document actions'} icon={<DotsHorizontalIcon />}><button role="menuitem" onClick={() => { void exportCurrentDocument() }}>{zh ? '导出 Markdown' : 'Export Markdown'}</button><button role="menuitem" onClick={() => void showHistory(currentDocument.id)}>{zh ? '版本历史' : 'Version history'}</button></LibraryMenu>}<button className="topbar-search" aria-label={`${t('searchWorkbench')} (⌘ K)`} onClick={onOpenCommand}><MagnifyingGlassIcon /><kbd>⌘ K</kbd></button></div></div></header>
     <LibraryManager language={language} creation={creation} onCloseCreation={() => setCreation(null)} onOpen={(id, destination) => { openDocument(id); setFolderId(destination ?? ''); setCollapsed(new Set()) }} refresh={refreshLibrary} />
     <div className="library-feedback" aria-live="polite">{(error || organizationError || searchError || feedback) && <p role={error || organizationError || searchError || feedback?.error ? 'alert' : 'status'}>{error || organizationError || searchError || feedback?.text}</p>}</div>
     {deleteIds && <DeleteDocumentsDialog ids={deleteIds} language={language} onClose={() => setDeleteIds(null)} onDeleted={() => { setSelectedId(null); refreshLibrary() }} />}

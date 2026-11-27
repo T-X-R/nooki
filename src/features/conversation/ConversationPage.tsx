@@ -1,3 +1,4 @@
+import { ConversationHandoffs, HandoffOffer, type HandoffDraft } from './ConversationHandoffs.tsx'
 import { taskBoard, goalCommand } from '../task-board/task-board.ts'
 import { ConversationGoalRequests } from './ConversationGoalRequests.tsx'
 import { ConversationTaskCard } from './ConversationTaskCard.tsx'
@@ -29,7 +30,7 @@ import { capabilityInvocationStore } from './capability-invocations.ts'
 
 // UI drafts only; the selected agent's native session is the authority for session history and messages.
 const openingGreetings = createGreetingRotation()
-const drafts = new Map<string, { text: string; ids: string[]; folders: FolderAttachment[]; uploads: ConversationAttachment[] }>()
+const drafts = new Map<string, { text: string; ids: string[]; folders: FolderAttachment[]; uploads: ConversationAttachment[]; handoff?: { id: string; title: string } }>()
 let currentSession: string | null = null
 function ConversationMarkdown({ text, onDocument, zh }: { text: string; onDocument(ref: DocumentReference): void; zh: boolean }) {
   return <Markdown remarkPlugins={[remarkGfm]} components={{ pre: ({ children }) => <CopyableCodeBlock zh={zh}>{children}</CopyableCodeBlock>, a: ({ href, children }) => {
@@ -55,7 +56,7 @@ function TurnProcess({ turn, zh, children }: { turn: ConversationTurn; zh: boole
   </details>
 }
 
-export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument, onTask }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void; onTask(id: string): void }) {
+export function ConversationPage({ onSelected, language, selectedAgent, incomingSelection, onConsumed, targetId, onTargetConsumed, onDocument, onTask, incomingHandoffId, onHandoffConsumed }: { onSelected(id: string | null): void; language: 'zh' | 'en'; selectedAgent: string; incomingSelection: LibrarySelection; onConsumed(): void; targetId: string | null; onTargetConsumed(): void; onDocument(ref: DocumentReference): void; onTask(id: string): void; incomingHandoffId?: string | null; onHandoffConsumed?(): void }) {
   const zh = language === 'zh'
   const board = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
   const tasks = useSyncExternalStore(taskRunner.subscribe, taskRunner.getSnapshot, taskRunner.getSnapshot)
@@ -66,6 +67,8 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const [ids, setIds] = useState<string[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.ids ?? [])
   const [folders, setFolders] = useState<FolderAttachment[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.folders ?? [])
   const [uploads, setUploads] = useState<ConversationAttachment[]>(() => drafts.get(targetId ?? currentSession ?? 'new')?.uploads ?? [])
+  const [handoff, setHandoff] = useState<{ id: string; title: string } | undefined>(() => drafts.get(targetId ?? currentSession ?? 'new')?.handoff)
+  const [offer, setOffer] = useState<HandoffDraft | null>(null)
   const uploadInput = useRef<HTMLInputElement>(null)
   const [greeting, setGreeting] = useState<(typeof conversationGreetings)[number] | null>(null)
   const handledNewOpening = useRef(false)
@@ -108,8 +111,8 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const legacy = tasks.filter((t) => t.capabilityId === LEGACY_REVIEW && t.job === 'generate' && t.status === 'completed')
   const act = async (action: () => Promise<unknown>) => { setBusy(true); setError(null); try { await action() } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   const select = (id: string | null) => {
-    drafts.set(selected ?? 'new', { text, ids, folders, uploads }); currentSession = id; setSelected(id); setMention(null)
-    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setFolders(draft?.folders ?? []); setUploads(draft?.uploads ?? []); setPicker(false); setShowLegacy(false); setError(null); setHistoryError(null); follow.current = true
+    drafts.set(selected ?? 'new', { text, ids, folders, uploads, handoff }); currentSession = id; setSelected(id); setMention(null)
+    const draft = drafts.get(id ?? 'new'); setText(draft?.text ?? ''); setIds(draft?.ids ?? []); setFolders(draft?.folders ?? []); setUploads(draft?.uploads ?? []); setHandoff(draft?.handoff); setOffer(null); setPicker(false); setShowLegacy(false); setError(null); setHistoryError(null); follow.current = true
   }
   useEffect(() => {
     let current = true
@@ -131,7 +134,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     }
   }, [incomingSelection])
   useEffect(() => { onSelected(selected) }, [selected, onSelected])
-  useEffect(() => { drafts.set(selected ?? 'new', { text, ids, folders, uploads }) }, [selected, text, ids, folders, uploads])
+  useEffect(() => { drafts.set(selected ?? 'new', { text, ids, folders, uploads, handoff }) }, [selected, text, ids, folders, uploads, handoff])
   useEffect(() => {
     const fresh = targetId === 'new' && !handledNewOpening.current
     handledNewOpening.current = targetId === 'new'
@@ -180,6 +183,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
   const chooseSkill = (skill: PoolSkill) => { if (mention) editComposer(applySkillMention(text, mention, skill)) }
   const send = () => void act(async () => {
     if (!text.trim() || busy || taskInputDisabled) return
+    if (handoff && boardTask) throw new Error(zh ? '能力包草稿只能发送到普通聊天。' : 'Capability drafts can only be sent to ordinary conversations.')
     if (boardTask) {
       if (!goalTask && (ids.length || folders.length || uploads.length)) throw new Error(zh ? '旧任务仅支持文字反馈；新任务可引用资料。' : 'Legacy tasks accept text feedback only; new tasks support references.')
       validateAttachments(uploads, new Set([...ids, ...attachmentDocumentIds(folders)]).size)
@@ -201,17 +205,17 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     const attachedUploads = [...uploads]
     const selectedSkills = attached
     setPreparing({ threadId: selected, message, documentIds, folders: attachedFolders, uploads: attachedUploads }); follow.current = true
-    setText(''); setIds([]); setFolders([]); setUploads([]); setMention(null); setPicker(false)
+    setText(''); setIds([]); setFolders([]); setUploads([]); setHandoff(undefined); setOffer(null); setMention(null); setPicker(false)
     let id = selected
     try {
       if (!id) { const created = await conversationClient.create(); id = created.id; currentSession = id; setSelected(id); setPreparing((value) => value ? { ...value, threadId: id } : value) }
-      const input: ConversationInput = { threadId: id, message, documentIds, folders: attachedFolders, uploads: attachedUploads, skills: selectedSkills, snapshotId: crypto.randomUUID() }
+      const input: ConversationInput = { threadId: id, message, documentIds, folders: attachedFolders, uploads: attachedUploads, skills: selectedSkills, snapshotId: crypto.randomUUID(), handoffId: handoff?.id }
       await taskRunner.start(CONVERSATION_OWNER, 'respond', input)
       drafts.delete('new'); openingGreetings.clearDraft(); follow.current = true
     } catch (error) {
-      const draft = { text, ids: [...ids], folders: attachedFolders, uploads: attachedUploads }
+      const draft = { text, ids: [...ids], folders: attachedFolders, uploads: attachedUploads, handoff }
       drafts.set(id ?? 'new', draft)
-      if (currentSession === id || (selected === id && currentSession === null)) { setText(text); setIds([...ids]); setFolders(attachedFolders); setUploads(attachedUploads) }
+      if (currentSession === id || (selected === id && currentSession === null)) { setText(text); setIds([...ids]); setFolders(attachedFolders); setUploads(attachedUploads); setHandoff(handoff) }
       throw error
     } finally { setPreparing(null) }
   })
@@ -258,6 +262,13 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
     <header className="conversation-toolbar">
       {selected && <span className="conversation-thread-title">{thread?.name || thread?.preview}</span>}
       <span className="conversation-runtime">{conversationRuntimeName(thread, selectedAgent)}</span>
+      <ConversationHandoffs zh={zh} incomingId={incomingHandoffId} onConsumed={onHandoffConsumed} onOpen={draft => {
+        const target = draft.target
+        if (target.kind === 'conversation' && board.cards.some(card => card.threadId === target.id)) throw new Error(zh ? '任务执行会话不能接收草稿。' : 'Task execution conversations cannot receive drafts.')
+        const id = draft.target.kind === 'new' ? null : draft.target.id
+        if (id !== selected) select(id)
+        setOffer(draft)
+      }} />
       {!!legacy.length && <button className="quiet-button" onClick={() => setShowLegacy(!showLegacy)}>{zh ? '以前的回顾草稿' : 'Previous review drafts'}</button>}
       {selected && <button className="icon-button" aria-label={zh ? '刷新对话' : 'Refresh conversation'} onClick={() => void act(() => conversationClient.read(selected))}><ReloadIcon /></button>}
     </header>
@@ -283,6 +294,10 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
           {goalTask && <ConversationGoalRequests task={goalTask} zh={zh} busy={busy} act={act} />}
         </div>
         <div className="conversation-composer-area">
+          {offer && <HandoffOffer draft={offer} zh={zh} adopted={handoff?.id === offer.id}
+            disabled={busy || !!preparing || !!boardTask || (!!handoff && handoff.id !== offer.id) || offer.documents.some(doc => [...ids, ...attachmentDocumentIds(folders)].includes(doc.reference.documentId))}
+            onClose={() => setOffer(null)} onAdopt={() => { setText(current => current ? `${current}\n\n${offer.text}` : offer.text); setHandoff({ id: offer.id, title: offer.title }); composer.current?.focus() }} />}
+
           {goalTask?.error && <p className="conversation-error" role="alert">{goalTask.error}</p>}
           {!goalTask && boardTask?.status === 'done' && <p className="conversation-recovery">{zh ? '任务已验收，执行会话保留在这里。' : 'This task has been accepted. Its conversation remains here.'}</p>}
           {goalTask?.restored && <p className="conversation-recovery">{zh ? '此任务来自备份，请先在任务详情恢复执行。' : 'This task was restored from a backup. Resume it from its task details first.'}</p>}
@@ -293,6 +308,7 @@ export function ConversationPage({ onSelected, language, selectedAgent, incoming
           {stopped && stopped.id === latestResponseTask?.id && !running && <div className="conversation-recovery"><span>{taskHint(stopped)}</span><button className="quiet-button" disabled={busy} onClick={() => void act(() => taskRunner.reconnect(stopped.id))}><ReloadIcon />{zh ? '重新连接' : 'Reconnect'}</button></div>}
           {picker && <section className="conversation-picker"><header><label><MagnifyingGlassIcon /><input autoFocus placeholder={zh ? '搜索标题、正文或来源' : 'Search titles, content or sources'} value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className="icon-button" aria-label={zh ? '关闭资料选择' : 'Close document picker'} onClick={() => setPicker(false)}><Cross2Icon /></button></header><div className="conversation-picker-list">{filtered.map((doc) => <label key={doc.id}><input type="checkbox" checked={ids.includes(doc.id)} disabled={!ids.includes(doc.id) && new Set([...ids, ...attachmentDocumentIds(folders)]).size + uploads.length >= 50} onChange={() => setIds((current) => current.includes(doc.id) ? current.filter((id) => id !== doc.id) : [...current, doc.id])} /><FileTextIcon /><span><strong>{doc.title}</strong><small>{doc.collectionName} · {doc.documentDate}</small></span></label>)}{!filtered.length && <p>{zh ? '没有找到资料。' : 'No documents found.'}</p>}</div></section>}
           <form className="conversation-composer" onSubmit={(event) => { event.preventDefault(); send() }}>
+            {handoff && <div className="conversation-attachments"><span><span className="conversation-upload-name"><FileTextIcon />{handoff.title} · {zh ? '保留资料' : 'retained sources'}</span><button type="button" aria-label={zh ? '移除草稿资料' : 'Remove draft sources'} onClick={() => setHandoff(undefined)}><Cross2Icon /></button></span></div>}
             {!!folders.length && <div className="conversation-attachments conversation-folder-attachments">{folders.map(folder => <span key={folder.id}><span className="conversation-folder-name"><FolderIcon />{folder.name}<small>{attachmentDocumentIds([folder]).length} {zh ? '篇资料' : 'documents'}</small></span><button type="button" aria-label={`${zh ? '移除文件夹' : 'Remove folder'} ${folder.name}`} onClick={() => setFolders(current => current.filter(item => item.id !== folder.id))}><Cross2Icon /></button></span>)}</div>}
             {!!ids.length && <div className="conversation-attachments">{ids.map((id) => <span key={id}><button type="button" onClick={() => onDocument({ kind: 'library-document', documentId: id, title: documents.find((d) => d.id === id)?.title ?? id })}><FileTextIcon />{documents.find((d) => d.id === id)?.title ?? id}</button><button type="button" aria-label={`${zh ? '移除引用' : 'Remove reference'} ${documents.find((d) => d.id === id)?.title ?? id}`} onClick={() => setIds((current) => current.filter((value) => value !== id))}><Cross2Icon /></button></span>)}</div>}
             {!!uploads.length && <div className="conversation-attachments">{uploads.map((file) => <span key={file.id}><span className="conversation-upload-name"><FileTextIcon />{file.name}</span><button type="button" aria-label={`${zh ? '移除附件' : 'Remove attachment'} ${file.name}`} onClick={() => setUploads((current) => current.filter((value) => value.id !== file.id))}><Cross2Icon /></button></span>)}</div>}

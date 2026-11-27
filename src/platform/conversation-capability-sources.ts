@@ -13,10 +13,21 @@ export function currentConversationSources(records: readonly TaskRecord[], conte
   const input = record.input as ConversationInput
   if (input.threadId !== context.threadId || !Array.isArray(input.documentIds) || !Array.isArray(input.uploads ?? [])) throw new Error('Conversation source context is invalid')
   const captured = record.checkpoints.sources
-  if (!Array.isArray(captured) || captured.length !== input.documentIds.length) throw new Error('Conversation sources are not captured yet')
+  if (!Array.isArray(captured) || captured.length > 50) throw new Error('Conversation sources are not captured yet')
   const documents = captured as SelectedDocument[]
-  if (documents.some((document, index) => document?.reference?.documentId !== input.documentIds[index]
-    || document.reference.snapshotId !== input.snapshotId || typeof document.content !== 'string')) throw new Error('Conversation snapshot does not match this turn')
+  if (documents.some(document => !document?.reference || document.reference.snapshotId !== input.snapshotId || typeof document.content !== 'string')) throw new Error('Conversation snapshot does not match this turn')
+  if (input.handoffId !== undefined) {
+    const additional = new Set(input.documentIds), seen = new Set<string>()
+    if (!/^[a-f0-9]{64}$/.test(input.handoffId) || additional.size !== input.documentIds.length) throw new Error('Invalid conversation handoff sources')
+    for (const document of documents) {
+      const ref = document.reference as typeof document.reference & { handoffId?: string }
+      if (seen.has(ref.documentId) || (ref.handoffId === undefined ? !additional.delete(ref.documentId) : ref.handoffId !== input.handoffId)) throw new Error('Conversation handoff snapshot does not match this turn')
+      seen.add(ref.documentId)
+    }
+    if (additional.size) throw new Error('Conversation handoff sources are incomplete')
+  } else if (documents.length !== input.documentIds.length || documents.some((document,index) => document.reference.documentId !== input.documentIds[index])) {
+    throw new Error('Conversation snapshot does not match this turn')
+  }
   const uploads = input.uploads ?? []
   if (uploads.some((attachment) => !attachment || typeof attachment.name !== 'string' || typeof attachment.content !== 'string')) throw new Error('Conversation uploads are invalid')
   return [

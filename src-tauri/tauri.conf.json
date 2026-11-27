@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Nooki",
-  "version": "0.3.2",
+  "version": "0.18.0",
   "identifier": "com.personal.workbench",
   "build": {
     "frontendDist": "../dist",
@@ -32,6 +32,7 @@
   },
   "bundle": {
     "active": true,
+    "resources": { "resources/capability-codex/": "capability-codex/" },
     "targets": "all",
     "icon": [
       "icons/32x32.png",

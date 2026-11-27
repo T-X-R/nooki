@@ -3,6 +3,10 @@
 - Status: accepted
 - Date: 2026-09-18
 
+> Product scope and package runtime boundaries are partially superseded by
+> [ADR 0006](0006-capabilities-as-the-product-core.md). The original decision is retained below
+> for context; implementation migration is described in the [capability platform design](../capability-platform-design.md).
+
 ## Context
 
 Nooki started as a host for installed capabilities. It then grew three things that pull in three

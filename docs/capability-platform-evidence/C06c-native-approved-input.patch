@@ -1,0 +1,411 @@
+--- a/codex-rs/core/src/config/mod.rs
++++ b/codex-rs/core/src/config/mod.rs
+@@ -632,0 +633,9 @@
++// Disposable native policy errors must not enter app-server configuration repair.
++#[derive(Debug, thiserror::Error)]
++pub enum NookiPrototypePolicyRejection {
++    #[error("NOOKI_PROTOTYPE_MCP_DENIED")]
++    Mcp,
++    #[error("NOOKI_PROTOTYPE_HOOKS_DENIED")]
++    Hooks,
++}
++
+@@ -690,0 +700 @@
++    pub nooki_semantic_permissions: serde_json::Value,
+@@ -3345,0 +3356,8 @@
++        // Disposable Nooki experiment: MCP configuration only, not a complete execution policy.
++        // This fixed guard also covers callers that bypass ConfigBuilder::build_with_validation.
++        if cfg.mcp_servers.values().any(|server| server.enabled) {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::PermissionDenied,
++                NookiPrototypePolicyRejection::Mcp,
++            ));
++        }
+@@ -3563,0 +3582,12 @@
++        // Disposable fixed policy: refuse hooks and legacy notify after managed resolution.
++        // Ordinary thread configuration cannot opt this executable out of the check.
++        if features.enabled(Feature::CodexHooks)
++            || cfg.notify.as_ref().is_some_and(|argv| {
++                argv.first().is_some_and(|program| !program.is_empty())
++            })
++        {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::PermissionDenied,
++                NookiPrototypePolicyRejection::Hooks,
++            ));
++        }
+@@ -4441,0 +4472 @@
++        let mut semantic_readable_roots = Vec::new();
+@@ -4443 +4474,2 @@
+-            helper_readable_roots.push(memories_root);
++            helper_readable_roots.push(memories_root.clone());
++            semantic_readable_roots.push(memories_root);
+@@ -4464,0 +4497,8 @@
++        // Capture actual semantic grants before native transient helper allowances are added.
++        // Never remove old paths by name/prefix when comparing a resumed session.
++        let semantic_filesystem=effective_file_system_sandbox_policy.clone()
++            .with_additional_readable_roots(resolved_cwd.as_path(), &semantic_readable_roots);
++        let semantic_profile=PermissionProfile::from_runtime_permissions_with_enforcement(
++            effective_permission_profile.enforcement(), &semantic_filesystem, effective_network_sandbox_policy);
++        let nooki_semantic_permissions=serde_json::json!({"profile":semantic_profile,
++            "active":active_permission_profile,"roots":profile_workspace_roots});
+@@ -4569,0 +4610 @@
++            nooki_semantic_permissions,
+--- a/codex-rs/app-server/src/config_manager.rs
++++ b/codex-rs/app-server/src/config_manager.rs
+@@ -449,0 +450,3 @@
++                    || error.get_ref().is_some_and(|cause| {
++                        cause.is::<codex_core::config::NookiPrototypePolicyRejection>()
++                    })
+@@ -469,2 +472,2 @@
+-        loader_overrides.ignore_managed_requirements |=
+-            self.refresh_local_network_policy().await.is_err();
++        // Disposable policy: repair user configuration without discarding managed constraints.
++        let policy_load = self.refresh_application_network_policy().await?;
+@@ -476 +479 @@
+-            .cloud_config_bundle(CloudConfigBundleLoader::default())
++            .cloud_config_bundle(policy_load.cloud_config.clone())
+@@ -478,0 +482 @@
++        self.check_application_policy_load(&policy_load)?;
+--- a/codex-rs/core/src/session/session.rs
++++ b/codex-rs/core/src/session/session.rs
+@@ -605,0 +606,20 @@
++        // Disposable fixed scope: validate the complete proposed state before committing it.
++        // Profile names alone do not detect edited profile contents or changed environments.
++        if next_configuration.permission_profile_state.snapshot()
++            != self.permission_profile_state.snapshot()
++            || next_configuration.runtime_workspace_roots != self.runtime_workspace_roots
++            || next_configuration.legacy_fallback_cwd != self.legacy_fallback_cwd
++            || next_environments != current_environments
++            || next_configuration.step_settings.approval_policy.value()
++                != self.step_settings.approval_policy.value()
++            || next_configuration.step_settings.approvals_reviewer
++                != self.step_settings.approvals_reviewer
++            || next_configuration.windows_sandbox_level != self.windows_sandbox_level
++        {
++            return Err(ConstraintError::InvalidValue {
++                field_name: "permission_scope",
++                candidate: "NOOKI_PROTOTYPE_SCOPE_IMMUTABLE".to_string(),
++                allowed: "the original native session scope".to_string(),
++                requirement_source: codex_config::RequirementSource::Unknown,
++            });
++        }
+@@ -887,0 +908,17 @@
++        if config.ephemeral || !matches!(&initial_history, InitialHistory::New | InitialHistory::Resumed(_)) {
++            return Err(anyhow::anyhow!("NOOKI_NATIVE_BINDING_HISTORY_MODE_DENIED"));
++        }
++        // Disposable fixed policy: request and persisted declarations are equally untrusted.
++        if !session_configuration.dynamic_tools.is_empty()
++            || initial_history
++                .get_dynamic_tools()
++                .is_some_and(|tools| !tools.is_empty())
++        {
++            return Err(CodexErr::InvalidRequest(
++                "NOOKI_PROTOTYPE_DYNAMIC_TOOLS_DENIED".to_string(),
++            )
++            .into());
++        }
++        // Disposable qualification binary: exclude MCP from every native thread,
++        // including resume and plugin-triggered refresh, using the native marker.
++        thread_extension_init.insert(crate::mcp::McpServersDisabled);
+@@ -1002,0 +1040,20 @@
++        crate::nooki_run_binding::admit(config.codex_home.as_path(), &thread_id.to_string(),
++            matches!(&initial_history, InitialHistory::Resumed(_)), &serde_json::json!({
++                "permissions":config.nooki_semantic_permissions,
++                "cwd":session_configuration.legacy_fallback_cwd,
++                "roots":session_configuration.runtime_workspace_roots,
++                "approval":session_configuration.step_settings.approval_policy.value(),
++                "reviewer":session_configuration.step_settings.approvals_reviewer,
++                "model":session_configuration.step_settings.collaboration_mode.model(),
++                "provider":config.model_provider,
++                "baseInstructions":session_configuration.base_instructions,
++                "developerInstructions":session_configuration.developer_instructions,
++                "shellEnvironment":{
++                    "inherit":session_configuration.shell_environment_policy.inherit,
++                    "set":session_configuration.shell_environment_policy.r#set,
++                    "useProfile":session_configuration.shell_environment_policy.use_profile,
++                    "ignoreDefaultExcludes":session_configuration.shell_environment_policy.ignore_default_excludes,
++                    "exclude":format!("{:?}",session_configuration.shell_environment_policy.exclude),
++                    "includeOnly":format!("{:?}",session_configuration.shell_environment_policy.include_only),
++                },
++            })).map_err(anyhow::Error::msg)?;
+@@ -2083,0 +2141,3 @@
++            // A reported bound thread must be readable after a process restart, even before its first turn.
++            sess.try_ensure_rollout_materialized(PersistContext::Standard).await?;
++            sess.flush_rollout().await?;
+--- a/codex-rs/app-server/src/message_processor.rs
++++ b/codex-rs/app-server/src/message_processor.rs
+@@ -1047,0 +1048,30 @@
++        // Dedicated bound-run owner: forbid alternate history/admission paths before queueing.
++        use codex_core::nooki_run_binding as binding;
++        let binding_check=match &codex_request {
++            ClientRequest::ThreadStart { .. }=>binding::check_new(),
++            ClientRequest::ThreadResume {params,..} if params.history.is_none() && params.path.is_none()=>binding::check_thread(&params.thread_id),
++            ClientRequest::ThreadRead {params,..}=>binding::check_thread(&params.thread_id),
++            ClientRequest::ThreadUnsubscribe {params,..}=>binding::check_thread(&params.thread_id),
++            ClientRequest::TurnStart {params,..}=>serde_json::to_value(params)
++                .map_err(|_|"NOOKI_NATIVE_BINDING_INPUT_MISMATCH".to_owned())
++                .and_then(|submission|binding::claim_turn(&params.thread_id,params.client_user_message_id.as_deref(),&submission)),
++            ClientRequest::TurnInterrupt {params,..}=>binding::check_thread(&params.thread_id),
++            _=>Err("NOOKI_NATIVE_BINDING_METHOD_DENIED".into()),
++        };
++        binding_check.map_err(invalid_request)?;
++
++        // Disposable fixed policy: refuse connector administration before dispatch
++        // or event-stream reservation can discover or start a connection.
++        let method = codex_request.method_name();
++        let global_inventory = matches!(
++            &codex_request,
++            ClientRequest::McpServerStatusList { params, .. } if params.thread_id.is_none()
++        );
++        if global_inventory
++            || ["mcpServer/", "plugin/", "marketplace/", "app/", "skills/"]
++                .iter()
++                .any(|prefix| method.starts_with(prefix))
++        {
++            return Err(invalid_request("NOOKI_PROTOTYPE_CONTROL_PLANE_DENIED"));
++        }
++
+--- a/codex-rs/ext/skills/src/host_service.rs
++++ b/codex-rs/ext/skills/src/host_service.rs
+@@ -235,2 +235,5 @@
+-        // User and plugin roots retain host authority independently of the selected executor.
+-        let host = FileSystemEnvironmentAccessor::unrestricted(&LOCAL_FS);
++        // Disposable local Skill policy: use the selected environment's captured permissions.
++        // with_environment_id sets implicit_repository_skills only for the local environment.
++        let Some(host) = repository.filter(|_| input.implicit_repository_skills) else {
++            return HostSkillsSnapshot::new(Arc::new(SkillLoadOutcome::default()));
++        };
+@@ -242 +245 @@
+-                &host,
++                host,
+@@ -446 +449,2 @@
+-            input.plugin_skill_snapshots.as_ref(),
++            // Parsed plugin metadata does not carry the current filesystem grant.
++            None,
+--- a/codex-rs/ext/skills/src/host_outcome.rs
++++ b/codex-rs/ext/skills/src/host_outcome.rs
+@@ -10,2 +9,0 @@
+-use codex_exec_server::FileSystemEnvironmentAccessor;
+-use codex_exec_server::LOCAL_FS;
+@@ -13 +10,0 @@
+-use codex_protocol::protocol::SkillScope;
+@@ -156,18 +153,15 @@
+-        let host = FileSystemEnvironmentAccessor::unrestricted(&LOCAL_FS);
+-        let access: &dyn EnvironmentAccess = match skill.scope {
+-            SkillScope::Repo => self
+-                .file_system_for_skill(skill)
+-                .and_then(|source| {
+-                    accessors
+-                        .iter()
+-                        .copied()
+-                        .find(|access| source.same_file_system(&access.cache_key()))
+-                })
+-                .ok_or_else(|| {
+-                    io::Error::new(
+-                        io::ErrorKind::PermissionDenied,
+-                        "skill discovery filesystem is unavailable for this callback",
+-                    )
+-                })?,
+-            SkillScope::User | SkillScope::System | SkillScope::Admin => &host,
+-        };
++        // Discovery and cached metadata cannot grant an unsandboxed body read.
++        let access = self
++            .file_system_for_skill(skill)
++            .and_then(|source| {
++                accessors
++                    .iter()
++                    .copied()
++                    .find(|access| source.same_file_system(&access.cache_key()))
++            })
++            .ok_or_else(|| {
++                io::Error::new(
++                    io::ErrorKind::PermissionDenied,
++                    "skill discovery filesystem is unavailable for this callback",
++                )
++            })?;
+--- a/codex-rs/core/src/lib.rs
++++ b/codex-rs/core/src/lib.rs
+@@ -91,0 +92 @@
++pub mod nooki_run_binding;
+--- a/codex-rs/core/Cargo.toml
++++ b/codex-rs/core/Cargo.toml
+@@ -113,0 +114 @@
++sha2 = { workspace = true }
+--- a/codex-rs/app-server/src/main.rs
++++ b/codex-rs/app-server/src/main.rs
+@@ -15,0 +16,2 @@
++use sha2::{Digest, Sha256};
++use std::io::Read;
+@@ -97,0 +100,8 @@
++        if std::env::var("NOOKI_RUN_BINDING_FD").as_deref()!=Ok("3") {
++            anyhow::bail!("NOOKI_NATIVE_BINDING_REQUIRED");
++        }
++        let mut executable = std::fs::File::open(std::env::current_exe()?)?;
++        let mut digest = Sha256::new();
++        let mut buffer = [0u8; 65536];
++        loop {let count=executable.read(&mut buffer)?;if count==0 {break;}digest.update(&buffer[..count]);}
++        codex_core::nooki_run_binding::initialize(&format!("{:x}",digest.finalize())).map_err(anyhow::Error::msg)?;
+--- /dev/null
++++ b/codex-rs/core/src/nooki_run_binding.rs
+@@ -0,0 +1,156 @@
++//! Disposable native qualification boundary, not an approval authority or public protocol.
++//! The trusted launcher supplies the Host journal binding through an inherited read descriptor.
++//! Native provenance is private runtime state; importing a transcript never creates this receipt.
++use serde::{Deserialize, Serialize};
++use serde_json::Value;
++use sha2::{Digest, Sha256};
++use std::{fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, sync::{Mutex, OnceLock}};
++#[cfg(unix)]
++use std::os::{fd::{AsRawFd, FromRawFd}, unix::fs::OpenOptionsExt};
++
++const PROVENANCE: &str = ".nooki-run-provenance.json";
++const LIMIT: u64 = 32_000_000;
++struct Owner {home: PathBuf, binding: Value, input_json: String, output_schema: Value, recovery: bool, _lock: File}
++static OWNER: OnceLock<Mutex<Owner>> = OnceLock::new();
++#[derive(Deserialize)]
++#[serde(rename_all="camelCase", deny_unknown_fields)]
++struct Launch {binding: Value, input_json: String, recovery: bool}
++#[derive(Serialize, Deserialize)]
++#[serde(rename_all="camelCase", deny_unknown_fields)]
++struct Provenance {format: u32, binding: Value, thread_id: String, scope_hash: String, turn_claimed: bool}
++fn error(reason: &str) -> String {format!("NOOKI_NATIVE_BINDING_{reason}")}
++fn hex(value: &Value) -> bool {value.as_str().is_some_and(|s|s.len()==64 && s.bytes().all(|b|b.is_ascii_hexdigit()))}
++fn keys(value: &Value, names: &[&str]) -> bool {value.as_object().is_some_and(|m|m.len()==names.len() && names.iter().all(|n|m.contains_key(*n)))}
++fn text(value: &Value) -> bool {value.as_str().is_some_and(|s|!s.is_empty() && s.len()<=256 && !s.chars().any(char::is_control))}
++fn valid_binding(value: &Value, executable_sha256: &str) -> bool {
++    keys(value,&["runId","scope","approvalId","clientMessageId","inputDigest","policyDigest","component"])
++        && ["runId","approvalId","clientMessageId","inputDigest","policyDigest"].iter().all(|name|hex(&value[*name]))
++        && keys(&value["component"],&["protocolRevision","sha256"])
++        && value["component"]["protocolRevision"]==1 && value["component"]["sha256"]==executable_sha256
++        && keys(&value["scope"],&["installation","restoreId"])
++        && (value["scope"]["restoreId"].is_null() || text(&value["scope"]["restoreId"]))
++        && keys(&value["scope"]["installation"],&["capability_id","capability_version","generation"])
++        && text(&value["scope"]["installation"]["capability_id"]) && text(&value["scope"]["installation"]["capability_version"])
++        && hex(&value["scope"]["installation"]["generation"])
++}
++#[cfg(unix)]
++fn private_file(path: &Path, write: bool) -> Result<File,String> {
++    let mut options=OpenOptions::new();options.read(true).custom_flags(libc::O_NOFOLLOW);
++    if write {options.write(true).create(true).mode(0o600);}
++    options.open(path).map_err(|_|error("STATE_UNAVAILABLE"))
++}
++fn load(owner: &Owner) -> Result<Option<Provenance>,String> {
++    let path=owner.home.join(PROVENANCE);
++    // symlink_metadata also sees dangling symlinks, which must not be treated as fresh state.
++    match fs::symlink_metadata(&path) {
++        Err(e) if e.kind()==std::io::ErrorKind::NotFound=>return Ok(None),
++        Err(_)=>return Err(error("STATE_UNAVAILABLE")),
++        Ok(meta) if !meta.is_file()=>return Err(error("STATE_UNAVAILABLE")),
++        _=>(),
++    }
++    let file=private_file(&path,false)?;let mut bytes=Vec::new();
++    (&file).take(LIMIT+1).read_to_end(&mut bytes).map_err(|_|error("STATE_UNAVAILABLE"))?;
++    if bytes.len()>LIMIT as usize {return Err(error("STATE_UNAVAILABLE"));}
++    let record:Provenance=serde_json::from_slice(&bytes).map_err(|_|error("STATE_UNAVAILABLE"))?;
++    if record.format!=1 || record.binding!=owner.binding || record.thread_id.is_empty() || record.thread_id.len()>128
++        || !hex(&Value::String(record.scope_hash.clone())) {return Err(error("PROVENANCE_MISMATCH"));}
++    file.sync_all().and_then(|_|File::open(&owner.home)?.sync_all()).map_err(|_|error("DURABILITY_UNKNOWN"))?;
++    Ok(Some(record))
++}
++fn save(owner: &Owner, record: &Provenance) -> Result<(),String> {
++    let pending=owner.home.join(".nooki-run-provenance.pending");
++    let mut file=OpenOptions::new().write(true).create_new(true).mode(0o600).custom_flags(libc::O_NOFOLLOW)
++        .open(&pending).map_err(|_|error("DURABILITY_UNKNOWN"))?;
++    let bytes=serde_json::to_vec(record).map_err(|_|error("STATE_UNAVAILABLE"))?;
++    file.write_all(&bytes).and_then(|_|file.sync_all()).map_err(|_|error("DURABILITY_UNKNOWN"))?;
++    fs::rename(&pending,owner.home.join(PROVENANCE)).and_then(|_|File::open(&owner.home)?.sync_all())
++        .map_err(|_|error("DURABILITY_UNKNOWN"))
++}
++fn with_owner<T>(f:impl FnOnce(&Owner)->Result<T,String>)->Result<T,String> {
++    let owner=OWNER.get().ok_or_else(||error("REQUIRED"))?.lock().map_err(|_|error("STATE_UNAVAILABLE"))?;
++    f(&owner)
++}
++/// Called after argument parsing but before native configuration/plugin/auth/session startup.
++#[cfg(unix)]
++pub fn initialize(executable_sha256: &str) -> Result<(),String> {
++    if std::env::var("NOOKI_RUN_BINDING_FD").as_deref()!=Ok("3") {return Err(error("REQUIRED"));}
++    // Duplicate only the explicit launch descriptor, mark it close-on-exec, and consume our copy.
++    // SAFETY: fcntl validates descriptor 3 and creates a fresh descriptor owned by this File.
++    let fd=unsafe {libc::fcntl(3,libc::F_DUPFD_CLOEXEC,4)};
++    if fd<0 {return Err(error("REQUIRED"));}
++    let file=unsafe {File::from_raw_fd(fd)};
++    let flags=unsafe {libc::fcntl(3,libc::F_GETFD)};
++    if flags<0 || unsafe {libc::fcntl(3,libc::F_SETFD,flags|libc::FD_CLOEXEC)}<0 {return Err(error("REQUIRED"));}
++    let mut bytes=Vec::new();file.take(LIMIT+1).read_to_end(&mut bytes).map_err(|_|error("INVALID_LAUNCH"))?;
++    if bytes.len()>LIMIT as usize {return Err(error("INVALID_LAUNCH"));}
++    let Launch {binding,input_json,recovery}=serde_json::from_slice(&bytes).map_err(|_|error("INVALID_LAUNCH"))?;
++    if !valid_binding(&binding,executable_sha256) {return Err(error("INVALID_LAUNCH"));}
++    // Hash the exact Host serialization; reparsing/reordering JSON must not change approved bytes.
++    if format!("{:x}",Sha256::digest(input_json.as_bytes()))!=binding["inputDigest"].as_str().unwrap_or("") {
++        return Err(error("INPUT_MISMATCH"));
++    }
++    let material:Value=serde_json::from_str(&input_json).map_err(|_|error("INPUT_MISMATCH"))?;
++    let valid=material.as_array().is_some_and(|parts|parts.len()==5 && parts[0]=="nooki-agent-input-v1"
++        && parts[1].as_str().is_some_and(|s|!s.trim().is_empty()) && parts[2].is_array()
++        && (parts[3].is_null() || parts[3].is_object()) && text(&parts[4]));
++    if !valid {return Err(error("INPUT_MISMATCH"));}
++    let output_schema=material[3].clone();
++    let home=std::env::var_os("CODEX_HOME").map(PathBuf::from).filter(|p|p.is_absolute())
++        .ok_or_else(||error("HOME_REQUIRED"))?.canonicalize().map_err(|_|error("HOME_REQUIRED"))?;
++    let lock=private_file(&home.join(".nooki-run-owner.lock"),true)?;
++    // SAFETY: the owned file is kept open for the process lifetime.
++    if unsafe {libc::flock(lock.as_raw_fd(),libc::LOCK_EX|libc::LOCK_NB)}!=0 {return Err(error("OWNER_BUSY"));}
++    let owner=Owner {home,binding,input_json,output_schema,recovery,_lock:lock};
++    match (owner.recovery,load(&owner)?.is_some()) {
++        (true,false)=>return Err(error("PROVENANCE_MISSING")),
++        (false,true)=>return Err(error("ALREADY_CREATED")),
++        _=>(),
++    }
++    OWNER.set(Mutex::new(owner)).map_err(|_|error("ALREADY_INITIALIZED"))
++}
++#[cfg(not(unix))]
++pub fn initialize(_: &str)->Result<(),String> {Err(error("UNSUPPORTED_PLATFORM"))}
++
++/// Called before session persistence, shell discovery or any session startup effect.
++pub fn admit(home: &Path, thread: &str, resumed: bool, scope: &Value) -> Result<(),String> {
++    with_owner(|owner| {
++        if home.canonicalize().map_err(|_|error("HOME_REQUIRED"))?!=owner.home {return Err(error("HOME_MISMATCH"));}
++        let mut scope=scope.clone();scope.sort_all_objects();
++        let scope_hash=format!("{:x}",Sha256::digest(serde_json::to_vec(&scope).map_err(|_|error("STATE_UNAVAILABLE"))?));
++        match load(owner)? {
++            Some(record) if resumed && record.thread_id==thread && record.scope_hash==scope_hash=>Ok(()),
++            Some(_)=>Err(error("SCOPE_OR_THREAD_MISMATCH")),
++            None if resumed || owner.recovery=>Err(error("PROVENANCE_MISSING")),
++            None=>save(owner,&Provenance {format:1,binding:owner.binding.clone(),thread_id:thread.into(),scope_hash,turn_claimed:false}),
++        }
++    })
++}
++pub fn check_new()->Result<(),String> {
++    with_owner(|owner|if !owner.recovery && load(owner)?.is_none() {Ok(())} else {Err(error("ALREADY_CREATED"))})
++}
++pub fn check_thread(thread: &str)->Result<(),String> {
++    with_owner(|owner|match load(owner)? {Some(record) if record.thread_id==thread=>Ok(()),_=>Err(error("FOREIGN_THREAD"))})
++}
++pub fn claim_turn(thread: &str, client_message_id: Option<&str>, submission: &Value)->Result<(),String> {
++    with_owner(|owner| {
++        let mut record=load(owner)?.ok_or_else(||error("PROVENANCE_MISSING"))?;
++        if record.thread_id!=thread || client_message_id!=owner.binding["clientMessageId"].as_str() {return Err(error("SUBMISSION_MISMATCH"));}
++        let params=submission.as_object().ok_or_else(||error("INPUT_MISMATCH"))?;
++        if params.iter().any(|(name,value)|!value.is_null()
++            && !["threadId","clientUserMessageId","input","outputSchema"].contains(&name.as_str())) {
++            return Err(error("TURN_OVERRIDE_DENIED"));
++        }
++        let expected=serde_json::json!([{"type":"text","text":owner.input_json,"text_elements":[]}]);
++        if submission["input"]!=expected || submission["outputSchema"]!=owner.output_schema {
++            return Err(error("INPUT_MISMATCH"));
++        }
++        // Preserve the native transport's message limit without burning the approved submission.
++        // Larger retained sources require the scoped-file materialization path before integration.
++        if owner.input_json.chars().count()>codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS {
++            return Err(error("INPUT_TOO_LARGE"));
++        }
++        if record.turn_claimed {return Err(error("SUBMISSION_OUTCOME_UNKNOWN"));}
++        // Claim durably before native turn admission. An uncertain/invalid submission never retries.
++        record.turn_claimed=true;save(owner,&record)
++    })
++}
+--- a/codex-rs/Cargo.lock
++++ b/codex-rs/Cargo.lock
+@@ -3129,0 +3130 @@
++ "sha2 0.10.9",

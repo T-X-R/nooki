@@ -3,11 +3,23 @@
   "name": "Quick notes",
   "description": "A small place to keep a note.",
   "version": "1.0.0",
-  "minPlatformVersion": "0.3.0",
-  "entrypoints": ["page", "job", "command"],
-  "permissions": ["storage"],
+  "minPlatformVersion": "0.6.0",
+  "entrypoints": [
+    "page",
+    "job",
+    "command"
+  ],
+  "permissions": [
+    "storage"
+  ],
   "locales": {
-    "zh": { "name": "随手记", "description": "保存一段自己的记录。" },
-    "en": { "name": "Quick notes", "description": "A small place to keep a note." }
+    "zh": {
+      "name": "随手记",
+      "description": "保存一段自己的记录。"
+    },
+    "en": {
+      "name": "Quick notes",
+      "description": "A small place to keep a note."
+    }
   }
 }

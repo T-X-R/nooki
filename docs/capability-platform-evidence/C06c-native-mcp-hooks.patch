@@ -1,0 +1,36 @@
+--- a/codex-rs/core/src/config/mod.rs
++++ b/codex-rs/core/src/config/mod.rs
+@@ -3343,6 +3343,14 @@
+         config_layer_stack: ConfigLayerStack,
+     ) -> std::io::Result<Self> {
+         config_layer_stack.validate_project_mitm_profiles()?;
++        // Disposable Nooki experiment: MCP configuration only, not a complete execution policy.
++        // This fixed guard also covers callers that bypass ConfigBuilder::build_with_validation.
++        if cfg.mcp_servers.values().any(|server| server.enabled) {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::PermissionDenied,
++                "NOOKI_PROTOTYPE_MCP_DENIED",
++            ));
++        }
+         // Keep the large config-construction future off small test thread stacks.
+         Box::pin(async move {
+         if cfg.experimental_thread_store_endpoint.is_some() {
+@@ -3561,6 +3569,18 @@
+             feature_requirements,
+             &mut startup_warnings,
+         )?;
++        // Disposable fixed policy: refuse hooks and legacy notify after managed resolution.
++        // Ordinary thread configuration cannot opt this executable out of the check.
++        if features.enabled(Feature::CodexHooks)
++            || cfg.notify.as_ref().is_some_and(|argv| {
++                argv.first().is_some_and(|program| !program.is_empty())
++            })
++        {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::PermissionDenied,
++                "NOOKI_PROTOTYPE_HOOKS_DENIED",
++            ));
++        }
+         if let Some(FeatureToml::Config(guardian)) = cfg
+             .features
+             .as_ref()

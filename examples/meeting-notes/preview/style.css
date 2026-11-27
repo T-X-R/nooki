@@ -1,0 +1,5 @@
+body { margin: 0; background: var(--bg); color: var(--ink); }
+.preview-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 22px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.preview-toolbar span { margin-right: auto; color: var(--ink-muted); }
+.preview-toolbar button { padding: 6px 12px; background: var(--surface-strong); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.preview-content { min-height: calc(100vh - 60px); margin: auto; background: var(--surface); }

@@ -1,0 +1,728 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 384,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 384,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 1071,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 1072,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 1114,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 1115,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1120,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1127,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 124144,
+    "value": {
+      "action": "run",
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 288,
+        "probe-b": 288,
+        "probe-control": 289,
+        "probe-shell": 199
+      },
+      "windows": [
+        "probe-b",
+        "probe-a",
+        "probe-control",
+        "probe-shell"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 124146,
+    "value": {
+      "diagnosticWebProcessId": 47257
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 124147,
+    "value": {
+      "diagnosticWebProcessId": 47258
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 124147,
+    "value": {
+      "diagnosticWebProcessId": 47249
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124148,
+    "value": {
+      "diagnosticWebProcessId": 47259
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 124201,
+    "value": {
+      "popupDenied": true
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 124202,
+    "value": {
+      "popupDenied": true
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 124204,
+    "value": {
+      "popupDenied": true
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124205,
+    "value": {
+      "bytes": 331,
+      "positiveControl": false,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124214,
+    "value": {
+      "popupDenied": true
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124216,
+    "value": {
+      "bytes": 450,
+      "positiveControl": false,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124218,
+    "value": {
+      "bytes": 548,
+      "positiveControl": false,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124221,
+    "value": {
+      "bytes": 452,
+      "positiveControl": false,
+      "received": "tcp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124277,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 124290,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 124290,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 124290,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 124524,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 124542,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 124543,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 124543,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 125029,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 125042,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 125043,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 125046,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 126034,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 126046,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 126048,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 126052,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 127997,
+    "value": {
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "height": 16,
+          "width": 16
+        }
+      },
+      "beacon": {
+        "fulfilled": true,
+        "value": true
+      },
+      "coreWindowCommand": {
+        "error": "window.set_title not allowed. Permissions associated with this command: core:window:allow-set-title",
+        "fulfilled": false
+      },
+      "crossPackageAsset": {
+        "fulfilled": true,
+        "value": 403
+      },
+      "fetch": {
+        "error": "TypeError: Load failed",
+        "fulfilled": false
+      },
+      "hostStorage": null,
+      "initialMarker": null,
+      "ipc": [
+        {
+          "bytes": 0,
+          "elapsedMs": 3,
+          "exact": true
+        },
+        {
+          "bytes": 1024,
+          "elapsedMs": 0,
+          "exact": true
+        },
+        {
+          "bytes": 65536,
+          "elapsedMs": 7,
+          "exact": true
+        }
+      ],
+      "markerAfterPeerWrites": "probe-a",
+      "media": {
+        "fulfilled": true,
+        "value": {
+          "duration": 0.125
+        }
+      },
+      "openerAbsent": true,
+      "oversizedMessage": {
+        "error": "message budget exceeded",
+        "fulfilled": false
+      },
+      "parentIsSelf": true,
+      "popupAbsent": true,
+      "protectedHostCommand": {
+        "error": "host-only operation",
+        "fulfilled": false
+      },
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      },
+      "spoofedCaller": {
+        "error": "caller mismatch",
+        "fulfilled": false
+      },
+      "unguardedAppCommand": {
+        "fulfilled": true,
+        "value": "synthetic-unguarded-sentinel"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "websocket": {
+        "error": "SecurityError: The operation is insecure.",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 128001,
+    "value": {
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "height": 16,
+          "width": 16
+        }
+      },
+      "beacon": {
+        "fulfilled": true,
+        "value": true
+      },
+      "coreWindowCommand": {
+        "error": "window.set_title not allowed. Permissions associated with this command: core:window:allow-set-title",
+        "fulfilled": false
+      },
+      "crossPackageAsset": {
+        "fulfilled": true,
+        "value": 403
+      },
+      "fetch": {
+        "fulfilled": true,
+        "value": "sent"
+      },
+      "hostStorage": null,
+      "initialMarker": null,
+      "ipc": [
+        {
+          "bytes": 0,
+          "elapsedMs": 3,
+          "exact": true
+        },
+        {
+          "bytes": 1024,
+          "elapsedMs": 0,
+          "exact": true
+        },
+        {
+          "bytes": 65536,
+          "elapsedMs": 4,
+          "exact": true
+        }
+      ],
+      "markerAfterPeerWrites": "probe-control",
+      "media": {
+        "fulfilled": true,
+        "value": {
+          "duration": 0.125
+        }
+      },
+      "openerAbsent": true,
+      "oversizedMessage": {
+        "error": "message budget exceeded",
+        "fulfilled": false
+      },
+      "parentIsSelf": true,
+      "popupAbsent": true,
+      "protectedHostCommand": {
+        "error": "host-only operation",
+        "fulfilled": false
+      },
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      },
+      "spoofedCaller": {
+        "error": "caller mismatch",
+        "fulfilled": false
+      },
+      "unguardedAppCommand": {
+        "fulfilled": true,
+        "value": "synthetic-unguarded-sentinel"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "websocket": {
+        "fulfilled": true,
+        "value": "created"
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 128004,
+    "value": {
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "height": 16,
+          "width": 16
+        }
+      },
+      "beacon": {
+        "fulfilled": true,
+        "value": true
+      },
+      "coreWindowCommand": {
+        "error": "window.set_title not allowed. Permissions associated with this command: core:window:allow-set-title",
+        "fulfilled": false
+      },
+      "crossPackageAsset": {
+        "fulfilled": true,
+        "value": 403
+      },
+      "fetch": {
+        "error": "TypeError: Load failed",
+        "fulfilled": false
+      },
+      "hostStorage": null,
+      "initialMarker": null,
+      "ipc": [
+        {
+          "bytes": 0,
+          "elapsedMs": 1,
+          "exact": true
+        },
+        {
+          "bytes": 1024,
+          "elapsedMs": 3,
+          "exact": true
+        },
+        {
+          "bytes": 65536,
+          "elapsedMs": 2,
+          "exact": true
+        }
+      ],
+      "markerAfterPeerWrites": "probe-b",
+      "media": {
+        "fulfilled": true,
+        "value": {
+          "duration": 0.125
+        }
+      },
+      "openerAbsent": true,
+      "oversizedMessage": {
+        "error": "message budget exceeded",
+        "fulfilled": false
+      },
+      "parentIsSelf": true,
+      "popupAbsent": true,
+      "protectedHostCommand": {
+        "error": "host-only operation",
+        "fulfilled": false
+      },
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      },
+      "spoofedCaller": {
+        "error": "caller mismatch",
+        "fulfilled": false
+      },
+      "unguardedAppCommand": {
+        "fulfilled": true,
+        "value": "synthetic-unguarded-sentinel"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "websocket": {
+        "error": "SecurityError: The operation is insecure.",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 128006,
+    "value": {
+      "asset": {
+        "fulfilled": true,
+        "value": {
+          "height": 16,
+          "width": 16
+        }
+      },
+      "beacon": {
+        "fulfilled": true,
+        "value": true
+      },
+      "coreWindowCommand": {
+        "error": "window.set_title not allowed. Permissions associated with this command: core:window:allow-set-title",
+        "fulfilled": false
+      },
+      "crossPackageAsset": {
+        "fulfilled": true,
+        "value": 403
+      },
+      "fetch": {
+        "error": "TypeError: Load failed",
+        "fulfilled": false
+      },
+      "hostStorage": "synthetic-host-storage",
+      "initialMarker": null,
+      "ipc": [
+        {
+          "bytes": 0,
+          "elapsedMs": 2,
+          "exact": true
+        },
+        {
+          "bytes": 1024,
+          "elapsedMs": 2.000000000014552,
+          "exact": true
+        },
+        {
+          "bytes": 65536,
+          "elapsedMs": 3.999999999985448,
+          "exact": true
+        }
+      ],
+      "markerAfterPeerWrites": "probe-shell",
+      "media": {
+        "fulfilled": true,
+        "value": {
+          "duration": 0.125
+        }
+      },
+      "openerAbsent": true,
+      "oversizedMessage": {
+        "error": "message budget exceeded",
+        "fulfilled": false
+      },
+      "parentIsSelf": true,
+      "popupAbsent": true,
+      "protectedHostCommand": {
+        "fulfilled": true,
+        "value": "synthetic-host-sentinel"
+      },
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      },
+      "spoofedCaller": {
+        "error": "caller mismatch",
+        "fulfilled": false
+      },
+      "unguardedAppCommand": {
+        "fulfilled": true,
+        "value": "synthetic-unguarded-sentinel"
+      },
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      "websocket": {
+        "error": "SecurityError: The operation is insecure.",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 148971,
+    "value": {
+      "action": "busy",
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 378,
+        "probe-b": 378,
+        "probe-control": 379,
+        "probe-shell": 289
+      },
+      "windows": [
+        "probe-control",
+        "probe-b",
+        "probe-shell",
+        "probe-a"
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 148975,
+    "value": {
+      "infiniteLoopStarted": true
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 172306,
+    "value": {
+      "action": "stop",
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 378,
+        "probe-b": 401,
+        "probe-control": 402,
+        "probe-shell": 312
+      },
+      "windows": [
+        "probe-shell",
+        "probe-b",
+        "probe-a",
+        "probe-control"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 176938,
+    "value": {
+      "action": "status",
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 378,
+        "probe-b": 406,
+        "probe-control": 407,
+        "probe-shell": 317
+      },
+      "windows": [
+        "probe-b",
+        "probe-shell",
+        "probe-control"
+      ]
+    }
+  }
+]

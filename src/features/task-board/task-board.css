@@ -90,9 +90,11 @@
 .task-board-references { display: grid; gap: 0; margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .task-board-reference-file { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 9px 0; }
 .task-board-reference-type { display: grid; place-items: center; flex: none; width: 23px; height: 27px; border: 1px solid var(--line); border-radius: 4px; color: var(--accent-strong); background: var(--surface); font: 8px ui-monospace, monospace; }
-.task-board-reference-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; }
-.task-board-references button { display: grid; place-items: center; flex: none; padding: 7px; border: 0; border-radius: 6px; color: var(--ink-soft); background: transparent; }
-.task-board-references button:hover { color: var(--negative); background: var(--surface); }
+.task-board-reference-name { flex: 1; min-width: 0; padding: 7px 0; border: 0; border-radius: 4px; text-align: left; background: transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; }
+.task-board-reference-name:hover { color: var(--accent-strong); text-decoration: underline; }
+.task-board-reference-name:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.task-board-reference-remove { display: grid; place-items: center; flex: none; padding: 7px; border: 0; border-radius: 6px; color: var(--ink-soft); background: transparent; }
+.task-board-reference-remove:hover { color: var(--negative); background: var(--surface); }
 .task-board-references button svg { width: 12px; height: 12px; }
 .task-board-editor-tools { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: 10px; }
 .task-board-reference-trigger { display: inline-flex; align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: 6px; color: var(--ink-muted); background: transparent; font-size: 11px; }
@@ -120,3 +122,16 @@
 .task-board-workspace { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 0; font-size: 12px; line-height: 1.8; }
 .task-board-workspace dt { color: var(--ink-soft); }
 .task-board-workspace dd { margin: 0; color: var(--ink-muted); overflow-wrap: anywhere; }
+.task-board-heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.task-deliveries { margin-top: 1.5rem; overflow-wrap: anywhere; }
+.task-deliveries-note, .task-delivery-meta { color: var(--ink-muted); font-size: .75rem; line-height: 1.6; }
+.task-deliveries article { padding: 1rem 0; border-top: 1px solid var(--line); }
+.task-deliveries h4 { margin: 0 0 .5rem; font-size: .875rem; }
+.task-delivery-document { margin-top: .75rem; }
+.task-delivery-document summary { cursor: pointer; line-height: 1.6; }
+.task-delivery-document summary small { display: block; color: var(--ink-muted); }
+.task-delivery-content { padding: .75rem 0; line-height: 1.8; font-size: .875rem; overflow-wrap: anywhere; }
+.task-delivery-content pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-delivery-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.task-delivery-content :is(th, td) { border: 1px solid var(--line); padding: .5rem; }
+.task-delivery-content :is(p, ul, ol, pre, blockquote) { margin-bottom: .75rem; }

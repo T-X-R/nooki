@@ -1,0 +1,42 @@
+{
+  "platformVersion": "0.7.0",
+  "binary": "/Applications/Nooki.app/Contents/MacOS/app",
+  "profile": "/private/tmp/nooki-profile-TtQBCm",
+  "checks": {
+    "readOnlyMigration": true,
+    "forgedVersionsIgnored": true,
+    "unrelatedTaskStable": true,
+    "precommitFailureUnchanged": true,
+    "retryAdvancesOnce": true,
+    "restartDeleteRecreateNoReuse": true,
+    "nativeGoalTransitionAdvances": true,
+    "agentRuntimeAbsent": true,
+    "workersExitedCleanly": true
+  },
+  "finalBoard": {
+    "cards": [
+      {
+        "description": "No personal data or agent execution",
+        "id": "first",
+        "revision": 5,
+        "status": "todo",
+        "title": "Synthetic revision check"
+      },
+      {
+        "createdAt": 1795490079493,
+        "cwd": "",
+        "description": "Queue paused",
+        "engine": "goals",
+        "id": "synthetic-goal",
+        "intent": "stop",
+        "queuedAt": 1795490079493,
+        "revision": 8,
+        "sources": [],
+        "status": "stopped",
+        "title": "Do not execute"
+      }
+    ],
+    "paused": true,
+    "revisionSequence": 8
+  }
+}

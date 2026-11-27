@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { CapabilityTasks, TaskRecord } from '../../packages/capability-contract/src/index.ts'
 import { createTaskRunner } from './task-runner.ts'
-import { createCapabilityHost } from './capability-host.ts'
+import { createCapabilityHost, releaseCapabilityHost } from './capability-host.ts'
 // Layering exception: platform reaches into a feature here. Conversations are the one
 // built-in job owner, and they are wired in directly instead of through a registry.
 // Installed capabilities resolve through `capability-runtime` below and stay decoupled.
@@ -23,12 +23,17 @@ export const taskRunner = createTaskRunner({
     const module = getCapabilityModule(capabilityId)
     if (!installed?.enabled || !module) throw new Error('Capability is not installed or enabled')
     if (!module.manifest.entrypoints.includes('job') || !module.jobs?.[job]) throw new Error('Capability job not found')
-    return { version: module.manifest.version, definition: { run: (input, context) => module.jobs![job].run(input, {
-      ...context, host: createCapabilityHost(capabilityId, module.manifest.permissions, module.manifest.name, { id: context.executionId, signal: context.signal }),
-    }) } }
+    return { version: module.manifest.version, definition: { run: async (input, context) => {
+      const host = createCapabilityHost(capabilityId, module.manifest.permissions, module.manifest.name, { id: context.executionId, signal: context.signal })
+      try { return await module.jobs![job].run(input, { ...context, host }) }
+      finally { await releaseCapabilityHost(host) }
+    } } }
+  },
+  prepareRetry: async (id) => {
+    if (window.__TAURI_INTERNALS__) await invoke('task_prepare_retry', { id })
   },
   cancelInvocation: async (id) => {
-    if (window.__TAURI_INTERNALS__) await invoke('task_cancel_invocation', { id })
+    if (window.__TAURI_INTERNALS__) return await invoke<{ pending: boolean }>('task_cancel_invocation', { id })
   },
 })
 

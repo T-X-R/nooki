@@ -261,15 +261,18 @@ pub fn revision(doc: &LibraryDocument) -> String {
   format!("{:x}", Sha256::digest(serde_json::to_vec(&(&doc.id, &doc.title, &doc.content, &doc.updated_at)).expect("document strings serialize")))
 }
 pub fn publish_document(root: &Path, source: &str, name: &str, input: DocumentPublication) -> Result<LibraryDocumentMetadata, String> {
+  let _fence = library_management::fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   publish_unlocked(root, source, name, input)
 }
 pub fn list_documents(root: &Path) -> Result<Vec<LibraryDocumentMetadata>, String> {
+  let _fence = library_management::fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   library_management::organization(root)?;
   list_unlocked(root)
 }
 pub fn read_document(root: &Path, id: &str) -> Result<LibraryDocument, String> {
+  let _fence = library_management::fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   library_management::organization(root)?;
   read_unlocked(root, id)

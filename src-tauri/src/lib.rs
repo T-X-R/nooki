@@ -1,4 +1,9 @@
 pub mod task_goals;
+pub(crate) mod task_revisions;
+pub(crate) mod task_delegation;
+pub(crate) mod capability_board;
+pub mod capability_host;
+pub mod app_profile;
 mod app_update;
 mod desktop_pet;
 pub mod task_worker;
@@ -6,11 +11,27 @@ pub mod codex_conversations;
 mod codex_background;
 pub mod conversation_documents;
 pub mod conversation_host;
+pub mod conversation_handoffs;
+pub mod conversation_handoff_selection;
+pub mod conversation_handoff_host;
 pub mod conversation_instructions;
 pub mod conversation_skills;
 pub mod source_snapshots;
 pub mod document_grants;
+pub mod document_selection;
+pub mod task_selection;
+pub mod capability_delegation;
+pub(crate) mod task_attachments;
 pub mod capability_runtime;
+pub mod capability_authority;
+pub mod capability_agent_runs;
+pub mod capability_agent_review;
+pub(crate) mod capability_codex;
+pub(crate) mod capability_agent_execution;
+mod capability_agent_host;
+mod capability_agent_interactions;
+mod capability_agent_results;
+mod capability_agent_component;
 pub mod codex_session_source;
 pub mod agent_tools;
 pub mod document_library;
@@ -286,6 +307,66 @@ fn library_grant_documents(capability_id: String, ids: Vec<String>, id: String, 
   state.grant_documents(&capability_id, ids, &id)
 }
 #[tauri::command]
+fn library_selection_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, document_selection::SelectionError> {
+  document_selection::begin(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_selection_commit(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<document_grants::DocumentGrant, document_selection::SelectionError> {
+  document_selection::commit(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_selection_cancel(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
+  document_selection::cancel(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentAccess>, document_selection::SelectionError> {
+  document_selection::accesses(&state, webview.label(), request)
+}
+#[tauri::command]
+fn library_revoke_document_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), document_selection::SelectionError> {
+  document_selection::revoke(&state, webview.label(), request)
+}
+#[tauri::command]
+async fn capability_delegation_begin(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<serde_json::Value,capability_host::HostError> {
+  let result=capability_delegation::begin(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,false))?;
+  if result["status"]=="committed" {task_worker::request(state.data_dir(),serde_json::json!({"op":"read"})).await.map_err(|e|capability_host::HostError::from_native(&e,true))?;}
+  Ok(result)
+}
+#[tauri::command]
+fn capability_delegation_inspect(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<serde_json::Value,capability_host::HostError> {
+  capability_delegation::inspect(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,false))
+}
+#[tauri::command]
+async fn capability_delegation_commit(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<serde_json::Value,capability_host::HostError> {
+  let receipt=capability_delegation::commit(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,true))?;
+  task_worker::request(state.data_dir(),serde_json::json!({"op":"read"})).await.map_err(|e|capability_host::HostError::from_native(&e,true))?;
+  Ok(receipt)
+}
+#[tauri::command]
+fn capability_delegation_cancel(webview:tauri::Webview,request:serde_json::Value,state:tauri::State<'_,PlatformState>)->Result<(),capability_host::HostError> {
+  capability_delegation::cancel(&state,webview.label(),request).map_err(|e|capability_host::HostError::from_native(&e,false))
+}
+#[tauri::command]
+fn board_selection_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  task_selection::begin(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, false))
+}
+#[tauri::command]
+fn board_selection_commit(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  task_selection::commit(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, true))
+}
+#[tauri::command]
+fn board_selection_cancel(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  task_selection::cancel(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, false))
+}
+#[tauri::command]
+fn board_task_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  task_selection::accesses(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, false))
+}
+#[tauri::command]
+fn board_revoke_task_access(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  task_selection::revoke(&state, webview.label(), request).map_err(|e| capability_host::HostError::from_native(&e, true))
+}
+#[tauri::command]
 fn capability_document_grants(capability_id: String, state: tauri::State<'_, PlatformState>) -> Result<Vec<document_grants::DocumentGrant>, String> {
   state.document_grants(&capability_id)
 }
@@ -468,7 +549,32 @@ async fn task_board_choose_directory(window: tauri::WebviewWindow) -> Result<Opt
 
 #[tauri::command]
 async fn task_board_command(request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, String> {
-  task_worker::request(state.data_dir(), request).await
+  task_worker::renderer_request(state.data_dir(), request).await
+}
+
+#[tauri::command]
+async fn capability_board_create(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  capability_host::board_create(&state, webview.label(), request).await
+}
+
+#[tauri::command]
+fn capability_board_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<String, capability_host::HostError> {
+  capability_host::board_begin(&state, webview.label(), request)
+}
+
+#[tauri::command]
+fn capability_board_release(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<(), capability_host::HostError> {
+  capability_host::board_release(&state, webview.label(), request)
+}
+
+#[tauri::command]
+fn capability_board_attachment_begin(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<String, capability_host::HostError> {
+  capability_host::board_attachment_begin(&state, webview.label(), request)
+}
+
+#[tauri::command]
+async fn capability_board_attach(webview: tauri::Webview, request: serde_json::Value, state: tauri::State<'_, PlatformState>) -> Result<serde_json::Value, capability_host::HostError> {
+  capability_host::board_attach(&state, webview.label(), request).await
 }
 
 #[tauri::command]
@@ -482,8 +588,19 @@ async fn task_board_write(board: serde_json::Value, state: tauri::State<'_, Plat
 }
 
 #[tauri::command]
-fn task_cancel_invocation(id: String, executions: tauri::State<'_, task_execution::TaskExecutions>) -> Result<(), String> {
-  executions.cancel(&id)
+fn task_prepare_retry(webview:tauri::Webview,id:String,state:tauri::State<'_,PlatformState>)->Result<(),String> {
+  if webview.label()!="main" {return Err("PERMISSION_DENIED: Job retry requires the Host".into());}
+  if capability_agent_runs::cancel_parent(state.data_dir(),&id)? {
+    return Err("Agent cancellation is pending confirmation; observe the existing run before retrying".into());
+  } Ok(())
+}
+
+#[tauri::command]
+fn task_cancel_invocation(webview:tauri::Webview,id:String,state:tauri::State<'_,PlatformState>,executions:tauri::State<'_,task_execution::TaskExecutions>)->Result<serde_json::Value,String> {
+  if webview.label()!="main" {return Err("PERMISSION_DENIED: Job cancellation requires the Host".into());}
+  let pending=capability_agent_runs::cancel_parent(state.data_dir(),&id)?;
+  executions.cancel(&id)?;
+  Ok(serde_json::json!({"pending":pending}))
 }
 
 #[tauri::command]
@@ -519,6 +636,9 @@ fn capability_package_rollback(id: String, expected_version: String, state: taur
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  let mut context = tauri::generate_context!();
+  app_profile::configure(context.config_mut(), |key| std::env::var_os(key))
+    .expect("invalid desktop test profile");
   tauri::Builder::default()
     .setup(|app| {
       app_update::setup(app)?;
@@ -547,10 +667,45 @@ pub fn run() {
       let platform_state = PlatformState::load(data_dir)
         .map_err(std::io::Error::other)?;
       app.manage(platform_state);
+      let agent_owner=app.path().resource_dir().map_err(|e|e.to_string())
+        .and_then(|resources|capability_agent_component::settings(&resources,&codex_home()));
+      let agent_owner=match agent_owner {
+        Ok(settings)=>Some(capability_agent_execution::Executor::new(settings,std::sync::Arc::new(|_,_|{}))),
+        Err(_)=>{log::info!(target:"workbench::capability_agents","bundled Codex component unavailable");None},
+      };
+      app.manage(capability_agent_host::AgentHost{executor:agent_owner});
+      #[cfg(unix)] {
+        // Capture before the renderer can create new Jobs. Periodic recovery must not cancel
+        // children created during this application lifetime.
+        let recovery_ids=capability_agent_runs::unfinished(app.state::<PlatformState>().data_dir())
+          .map(|runs|runs.into_iter().map(|run|run.id).collect::<Vec<_>>());
+        let owner_app=app.handle().clone();
+        tauri::async_runtime::spawn(async move {
+          let Ok(recovery_ids)=recovery_ids else {
+            log::warn!(target:"workbench::capability_agents","Startup recovery inventory unavailable; retained runs require reconciliation");return;
+          };
+          loop {
+            let agents=owner_app.state::<capability_agent_host::AgentHost>();
+            let Some(executor)=&agents.executor else{break};
+            let state=owner_app.state::<PlatformState>();
+            match executor.recover(state.data_dir(),&recovery_ids).await {
+              Ok(false)=>break,
+              Ok(true)=>(),
+              Err(_)=>log::warn!(target:"workbench::capability_agents","Agent recovery pending; retained submissions are not resent"),
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+          }
+        });
+      }
       app.manage(task_execution::TaskExecutions::default());
       app.manage(developer_integration::DeveloperIntegration::from_environment().map_err(std::io::Error::other)?);
       app.manage(skill_pool::SkillPool::from_environment(app.path().app_data_dir()?).map_err(std::io::Error::other)?);
       desktop_pet::initialize(app.handle(), app.path().app_data_dir()?).map_err(std::io::Error::other)?;
+      for window in &app.config().app.windows {
+        if !window.create && window.data_store_identifier.is_some() {
+          app_profile::create_window(app.handle(), window)?;
+        }
+      }
       Ok(())
     })
     .on_window_event(|window, event| {
@@ -579,6 +734,15 @@ pub fn run() {
       skill_pool::skill_pool_delete,
       skill_pool::skill_pool_add_tool,
       skill_pool::skill_pool_remove_tool,
+      capability_agent_host::capability_agent_available, capability_agent_host::capability_agent_begin,
+      capability_agent_host::capability_agent_approve, capability_agent_host::capability_agent_dismiss,
+      capability_agent_host::capability_agent_start, capability_agent_host::capability_agent_get,
+      capability_agent_host::capability_agent_cancel,
+      capability_agent_host::capability_agent_questions, capability_agent_host::capability_agent_answer,
+      conversation_handoff_host::conversation_handoff_begin, conversation_handoff_host::conversation_handoff_cancel,
+      conversation_handoff_host::conversation_handoff_targets, conversation_handoff_host::conversation_handoff_commit,
+      conversation_handoff_host::conversation_handoff_drafts, conversation_handoff_host::conversation_handoff_read,
+      conversation_handoff_host::conversation_handoff_sources,
       conversation_list, conversation_change, conversation_create, conversation_create_board_thread, conversation_read, conversation_answer_question, conversation_reconnect, conversation_run, conversation_publish,
       library_capture_sources, library_read_snapshot,
       library_management::library_organization, library_management::library_change,
@@ -587,7 +751,10 @@ pub fn run() {
       tasks_read,
       tasks_write,
       task_board_read, task_board_write, task_board_command, task_board_choose_directory,
-      task_cancel_invocation,
+      capability_board_create,
+      capability_board_begin, capability_board_release,
+      capability_board_attachment_begin, capability_board_attach,
+      task_cancel_invocation, task_prepare_retry,
       capability_broker_ready,
       capability_broker_respond,
       capability_package_inspect,
@@ -607,6 +774,14 @@ pub fn run() {
       capability_codex_sessions_read_daily_files,
       capability_documents_publish,
       library_grant_documents,
+      capability_delegation_begin, capability_delegation_inspect, capability_delegation_commit, capability_delegation_cancel,
+      board_selection_begin, board_selection_commit, board_selection_cancel,
+      board_task_access, board_revoke_task_access,
+      library_selection_begin,
+      library_selection_commit,
+      library_selection_cancel,
+      library_document_access,
+      library_revoke_document_access,
       capability_document_grants,
       capability_read_selected_document,
       library_read_source,
@@ -614,7 +789,7 @@ pub fn run() {
       library_list_documents,
       library_read_document,
     ])
-    .build(tauri::generate_context!())
+    .build(context)
     .expect("error while building tauri application")
     .run(|app, event| {
       #[cfg(target_os = "macos")]

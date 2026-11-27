@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-26",
+  "sourceBase": "dbcc59479531e73de4e311eee1342f815f0ccafb",
+  "source": "C04b2 receipt commit",
+  "binary": "/Applications/Nooki.app/Contents/MacOS/app",
+  "version": "0.7.0",
+  "sha256": "869429b89153e5bc3ce86ad2cea5a345f5bfb7df62c0ca68980229e34e09f940",
+  "strictSignatureVerified": true,
+  "testCommand": "NOOKI_ATTACHMENT_TEST_BINARY=/Applications/Nooki.app/Contents/MacOS/app cargo test --manifest-path src-tauri/Cargo.toml --test task_attachment_test",
+  "suite": { "passed": 16, "failed": 0, "ignored": 0 },
+  "installedWorkerTests": [
+    "actual_host_adapter_replays_concurrent_calls_and_lost_replies_across_restart",
+    "queued_attachment_rechecks_authority_after_revocation_before_the_effect",
+    "source_publication_in_another_process_waits_until_attachment_save_finishes"
+  ],
+  "sourceRaceActions": ["publish", "edit", "delete"],
+  "fixtureSetup": "Native Rust controllers create synthetic task/document grants and invocations in disposable isolated roots.",
+  "otherTests": "The other test entries run against the current Rust library; one is the child-process publisher helper.",
+  "observed": {
+    "duplicateConcurrentEffect": false,
+    "lostFirstReplyRecoveredAfterRestart": true,
+    "queuedRevokedInvocationDenied": true,
+    "publicationEditDeleteBlockedUntilSaveFinishes": true,
+    "failedSaveBoardUnchanged": true
+  },
+  "publicUiVerified": false,
+  "liveAgentUsed": false,
+  "personalDataUsed": false,
+  "log": "/tmp/nooki-c04b2-installed.log"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "org.example.conversation-handoff-peer",
+  "name": "Handoff Peer",
+  "description": "Synthetic public conversation-handoff acceptance. No Agent execution.",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.11.0",
+  "entrypoints": [
+    "page"
+  ],
+  "permissions": [
+    "storage",
+    "documents.publish",
+    "documents.read-selected",
+    "conversations.handoff"
+  ],
+  "locales": {
+    "en": {
+      "name": "Handoff Peer",
+      "description": "Synthetic chat draft acceptance."
+    },
+    "zh": {
+      "name": "交接对照验收",
+      "description": "合成资料与聊天草稿验收，不执行 Agent。"
+    }
+  }
+}

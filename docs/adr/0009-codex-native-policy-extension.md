@@ -1,0 +1,343 @@
+# ADR 0009: Codex-native policy extension
+
+- Status: accepted for bounded development and integration after qualification; gates remain open
+- Scope accepted: 2026-11-27
+- Date: 2026-11-26
+- Parent decision: [ADR 0008 — retain Codex first](0008-capability-agent-adapter-selection.md)
+- Requirement: [C06 implementation and acceptance](../capability-platform-implementation-tasks.md)
+
+## Development and verification revision — 2026-11-27
+
+The owner retained the full toolbox feature scope and Codex-only adaptation, and requested that
+development/core tests proceed before the broader final verification. Integrate the Host adapter,
+review/status/questions/cancel UI, exported API and meeting package as one functional path. Reuse
+existing synthetic input/sandbox/binding results. Run focused normal-flow, authorization,
+deduplication and relevant recovery checks while developing; defer the broad compatibility/auth,
+long-run and exhaustive fault matrices to the consolidated final acceptance pass.
+The gate list below retains its requirements, but is no longer a series of standalone experiments
+that must all finish before product integration code can be written. Known failures affecting the
+active path still require a fix. No new model client or credential store is introduced, and existing
+real-model execution authorization remains unchanged. This changes test timing, not functionality.
+See the [revised execution policy](../capability-platform-implementation-plan.md#current-execution-policy--revised-2026-11-27).
+
+## Problem
+
+The audited official CLI paths in Codex 0.170.0 and 0.172.0 start inherited synthetic MCP
+processes despite the tested disable configurations. A configuration read followed by a thread
+start does not freeze the effective configuration. Source audit and native controls are recorded
+in ADR 0008 and its linked receipts. No complete production policy has been certified.
+
+The owner retained Codex priority. Switching adapters, weakening the effect boundary or exposing
+the ordinary conversation runner would not implement that decision. The owner subsequently approved
+adding a Codex-native policy component beyond the current installed-CLI adapter, subject to the
+qualification gates below.
+
+## Accepted scope
+
+Permit a version-pinned native integration based on the official Codex runtime, with one new
+responsibility: bind the Host-approved execution policy before native startup and enforce it at
+every configuration reload/resume. Prefer an upstream-supported interface when available. If a
+separate controlled Codex executable is needed, qualify it as an additional native component;
+do not replace the user's installed CLI or silently maintain a vendor fork.
+
+Codex continues to own models, authentication, sessions, tools, approvals and cancellation. Nooki
+continues to own the existing review/journal, installation authority and routing through its native
+adapter. No new model HTTP client, credential store, Agent loop or scheduler is introduced.
+
+### Native extension boundary
+
+The prototype starts from the audited official `ConfigBuilder`/`ConfigManager` configuration path
+and `run_main_with_transport_options` entry point. Public library loader overrides alone are
+insufficient: user/project exclusions do not eliminate managed/cloud configuration. The extension
+must inspect and constrain the final native effective configuration before constructing anything
+that can launch a connector, hook, plugin, helper or tool. It must cover startup as well as later
+configuration refreshes; validating only `thread/start` responses is too late.
+
+The Host selects a fixed policy through a native-only launch interface. Package JSON and ordinary
+app-server configuration writes cannot replace or disable it. The prototype must prove that this
+policy survives every configuration-loading path; the source integration point is not presumed
+adequate until tested.
+
+The source review of pinned 0.170.0 found that `ConfigBuilder::build_with_validation` is not
+a universal enforcement point: `Config::rebuild_with_session_layers` calls
+`load_config_with_layer_stack` directly. The app-server uses that path for retained sessions,
+configuration refresh and thread-scoped MCP status requests. Validation must cover the common
+materialization path and every later effect-producing path, rather than rely on the optional
+builder callback. Moreover, `to_mcp_config_with_loaded_plugins` registers plugin and additional
+servers after materialization; checking only `ConfigToml.mcp_servers` cannot establish a complete
+MCP policy. These are source findings, not proof that the proposed full extension is feasible.
+Startup policy rejection must also remain fatal: native non-strict startup can recover from
+configuration errors using defaults. The disposable MCP experiment therefore fixes strict startup;
+production qualification must prove no recovery path discards an enforced policy.
+
+The subsequent [hooks checkpoint](../capability-platform-evidence/C06c-hooks.md) confirms that
+bootstrap `features.hooks=false` is also mutable: a thread override can re-enable a trusted
+`SessionStart` hook, and replacing the entire features table while omitting hooks loses the
+disable. The configured-MCP guard has the same behavior as the unmodified control. Ordinary
+feature flags and read-only thread responses cannot serve as the native hook policy boundary.
+The [fixed refusal follow-up](../capability-platform-evidence/C06c-hooks-guard.md) demonstrates
+that a check after managed-feature resolution rejects the tested enable/reload paths and the
+independent legacy `notify` command while preserving ordinary local turns. This narrows the
+feasibility uncertainty, but does not qualify managed/plugin execution, non-strict recovery,
+resume or a Host-bound production policy. The committed patch is a qualification fixture only.
+The [startup-policy experiment](../capability-platform-evidence/C06c-startup-policy.md) subsequently
+reproduces non-strict recovery of policy errors and malformed managed requirements. Typed fatal
+refusals plus retaining the native managed-policy snapshot pass the 15 synthetic startup controls
+and the existing local-turn regression. This qualifies the listed startup cases, not real MDM/cloud
+refresh, managed hook execution or the complete Host-bound policy.
+The [resume/plugin checkpoint](../capability-platform-evidence/C06c-resume-plugin.md) verifies scoped
+persisted-thread resume refusals and recovery, but reproduces plugin MCP launch after an idle
+thread is refreshed by plugin installation. Final catalog validation and typed-error propagation
+through refresh/fallback paths are therefore required; initial configuration checks alone remain
+insufficient. No complete gate-2 qualification is claimed.
+The [thread-MCP follow-up](../capability-platform-evidence/C06c-thread-mcp.md) reuses the native
+`McpServersDisabled` marker to exclude installed-plugin MCP from tested thread startup, refresh
+and inventory paths without changing the publication API. Plugin installation itself remains
+successful. Threadless inventory still starts that same canary, demonstrating that thread exclusion
+is only one part of the effect boundary. Global discovery/OAuth and explicit handling of incompatible
+managed requirements remain required; this experiment does not authorize a production component.
+The [control-plane experiment](../capability-platform-evidence/C06c-control-plane.md) then places
+a fixed native refusal before initialized-request queueing and event-stream reservation. It closes
+the tested global inventory/resource and plugin-install discovery paths, with matched process,
+HTTP and install-state controls, while retaining ordinary turns and scoped reload checks. Skills,
+dynamic tools, internal effect callers, managed conflicts and Host policy binding remain open;
+passing these request checks does not complete gate 2 or the remaining integration gates.
+The [dynamic/Skills checkpoint](../capability-platform-evidence/C06c-dynamic-skills.md) qualifies
+refusal of new and persisted dynamic-tool declarations on start/resume/fork, with real synthetic
+native callback controls. It also shows Skill body injection outside the selected input/output
+roots despite the named filesystem profile and disabled catalog rendering. Skills must be
+constrained at their native read/injection boundary; display flags are insufficient. Live native
+tool replacement remains unqualified. Managed MCP allowlists must be distinguished from separate
+required-server behavior rather than treated as mandatory launch instructions.
+The [local Skill authority follow-up](../capability-platform-evidence/C06c-skills-policy.md) then
+reuses current native filesystem access for discovery and body reads, avoids pre-authority plugin
+metadata reuse, and refuses unscoped client Skill inventory. Matched local fixtures retain approved
+Skills while excluding unapproved metadata/body across thread caches and a symlink. Required Skills,
+persisted context, remote environments and internal/plugin effect paths remain unqualified. This
+qualification result does not approve formal native integration or complete gate 2.
+The [history transition probe](../capability-platform-evidence/C06c-skill-history.md) confirms that
+narrowing native permissions does not remove previously admitted Skill text from resumed, forked
+or live history, including after source removal. This is normal retained-context behavior, but it
+cannot authorize rebinding an old transcript to a different capability-run scope. Native run/history
+identity and the complete approved policy must remain bound before subsequent dispatch; same-run
+reconciliation must remain available. Required environment Skills have their own pre-inference
+catalog validator and are not a general local `skills.required` configuration field.
+The [live-scope experiment](../capability-platform-evidence/C06c-live-scope.md) constrains the common
+native settings commit: resolved permission/environment changes are refused while unchanged scope
+and continuation retain their original permission snapshots and approved Skill bodies. Same-name
+profile edits are covered. This does not add a durable cold-resume/fork binding or bind native history
+to Host approval/submission identity; complete gate 2 and formal integration remain open.
+
+The policy must:
+
+- bind the approved input/output scope to native filesystem/network permissions;
+- exclude unrelated MCP servers, Skills, hooks, dynamic tools and other effect-producing features;
+- preserve native managed requirements, refusing incompatible requirements explicitly;
+- retain Codex-owned authentication while preventing credentials or configuration contents from
+  entering the capability SDK, review payloads or Nooki operational logs;
+- reject an unsupported runtime/protocol/policy revision before model or tool startup;
+- remain fixed across thread start, resume, permission updates and background configuration reload;
+- provide a native policy receipt tied to the actual component/configuration and run identity for
+  the existing C06b approval/submission checks.
+
+Authority cannot be established from a caller-supplied digest or feature name. Credential helpers,
+managed hooks and provider-specific startup behavior need explicit treatment; preserving native
+authentication does not automatically certify those execution paths. Incompatible configurations
+must remain visibly unavailable rather than fall back to ordinary conversation execution.
+
+### Proposed private launch and recovery binding
+
+The qualification now makes the missing boundary concrete: native history must belong to one
+Host-approved run before it can be resumed. This proposal extends the native component scope;
+it is not implemented by the six-file fixed-policy experiment.
+
+The [C06c1 Host implementation](../capability-platform-evidence/C06c-host-binding.md) now pins
+component identity at approval and retains native correlation in that existing journal. Native
+admission/provenance now has a [disposable process qualification](../capability-platform-evidence/C06c-native-run-binding.md):
+22 explicit refusals and same-run restart before/after the first turn pass with local synthetic
+responses. Standard native persistence is required before thread creation acknowledgement;
+preparation-only flushing leaves no recoverable rollout. This component is not integrated with the
+Host launcher and does not yet validate actual input/policy materialization or reconcile uncertain
+turn outcomes. The Host envelope alone is not trusted native proof; C06c2 remains open.
+
+The [approved-input follow-up](../capability-platform-evidence/C06c-approved-input.md) now exports
+the exact Host-retained input serialization and validates it against native launch bytes and the
+actual first-turn text/schema. Extra context/override fields cannot substitute content, and rejected
+input does not consume submission. This also corrects the prototype to use the Host's existing
+nested installation serialization. At that checkpoint, the full document range still required scoped-file
+materialization; the subsequent file checkpoint below addresses that gap without changing native text limits. Production launch, complete
+policy resolution and outcome reconciliation remain open.
+
+The [file-input checkpoint](../capability-platform-evidence/C06c-file-input.md) then preserves a
+full 8 MB approved source in a native-owned read-only file and binds the short first-turn reference.
+Actual native tool reads return its exact digest/length; tested writes, aliases and foreign reads
+are denied while scoped output works. Tampering and changed read/write policy refuse admission.
+This replaces the inline-only size limitation without enlarging Codex's text-input limit. Production
+state ownership, full approved-policy binding and uncertain-outcome reconciliation remain required.
+
+Reuse the existing C06b run journal as the approval/submission authority. A native-only launch
+binding carries the following values from that retained record and the verified component. The
+package-facing SDK does not construct, edit or receive this binding.
+
+| Binding | Owner and verification |
+| --- | --- |
+| Run and approval identity | Existing Host journal; include installation generation and restore scope |
+| Approved input | Digest of the exact retained instructions, selected document snapshots and output schema |
+| Semantic execution policy | Complete resolved policy/revision, approved Agent/model configuration and scoped input/output locations; not a mutable profile name |
+| Component identity | Supported protocol/policy revision plus verified executable/source identity |
+| Native execution identity | Native thread/turn IDs and the durable client-message submission identity, reconciled with the original run |
+
+Launch one capability-run owner with its own native state scope and bounded input/output
+materialization. Bind admission before native startup effects. Persist sufficient native provenance
+before dispatch so a lost creation/start reply can be reconciled to the original run. A dedicated
+directory or a matching hash alone is not proof: the native provenance and Host-owned journal must
+agree, and package-controlled paths, JSON, copied histories or restore records cannot create authority.
+Prefer native metadata and existing run storage over a second independent approval journal. The
+exact persistence representation must be qualified for crash consistency before it becomes a
+supported protocol; this proposal does not assume a new field is sufficient.
+
+Keep semantic grants separate from native-owned transient helper allowances at materialization.
+Only the verified runtime may construct its current helper allowance. Do not strip paths from old
+snapshots using a name/prefix heuristic, and do not treat an arbitrary caller's matching digest as
+a trusted receipt. This permits a legitimate restart without accepting changed data scope.
+
+| Transition | Required behavior |
+| --- | --- |
+| First start | Accept the retained approved input once under the bound native policy; record native identity before claiming dispatch success |
+| Reconnect/restart | Observe or resume only the same approved run and matching native provenance; do not resubmit an unknown outcome |
+| Changed policy/input/component | Refuse new dispatch; retain the old run and its outcome for reconciliation; a new approved intent starts from its own input |
+| Missing, foreign or restored provenance | No execution authority; retain/read history only through existing Host rules |
+| Fork/import of an unrelated transcript | Unavailable to the capability-run interface; ordinary Codex conversations keep their existing behavior |
+| Cancel | Address only the bound native run; keep local cancellation distinct from confirmed remote termination |
+
+A native provenance change may therefore be needed in addition to the already tested live settings
+check. Maintaining that private extension across Codex upgrades is part of the decision requested
+below. Reusing ordinary conversation execution or silently deleting selected history fragments is
+not an implementation of this binding.
+
+### Nooki integration
+
+Reuse the existing Codex transport in a dedicated capability-run session owner. Connect verified
+policy receipts to `capability_agent_review.rs` and `capability_agent_runs.rs`; keep their native
+lifecycle fences, immutable inputs, durable submission identity and unknown-outcome behavior.
+The package-facing API remains absent until policy, dispatch/reconciliation and Host interactions
+pass together. C06d/C06e retain their original exported-kit and installed acceptance obligations.
+
+Any additional native artifact must have an explicit source/version pin, reproducible build and
+integrity check, supported-platform matrix, distribution/license review and failure behavior. Its
+size and build/update cost must be measured before production adoption. The audited official
+0.172.0 arm64 executable is about 305 MB uncompressed; that is context for the potential cost,
+not a size prediction for the proposed component. Nooki's current installed app is not replaced
+with a modified Codex artifact by this proposal.
+
+## Implementation gates
+
+Disposable synthetic qualification may refine this proposal without adopting a product component.
+The owner approved bounded component development and integration after these gates pass on
+2026-11-27; that authorization does not certify the current experimental artifact. The initial
+[source review and experiment](../capability-platform-evidence/C06c-native-prototype.md) found
+additional loading paths. The 2026-11-27 follow-up built a configured-MCP guard and an unmodified
+control with matched settings: the control reproduced startup, while the guard passed the tested
+startup/refresh refusals and recovery controls. The subsequent
+[local-model fixture](../capability-platform-evidence/C06c-model-fixture.md) also passes: clean and
+recovery turns complete through Codex's native transport, while the rejected configuration starts
+neither the MCP canary nor another model request. This satisfies the first gate's narrow feasibility
+checkpoint; it does not qualify the complete startup policy in gate 2.
+
+1. **Disposable native prototype — configured-MCP/local-model feasibility verified 2026-11-27:**
+   implement the smallest pre-start policy hook against pinned
+   official source. Use only synthetic configuration and a local model fixture. Prove ordinary
+   control cases work before interpreting denials. No personal credentials or real model calls.
+2. **Complete native policy qualification:** test configuration additions between read/start,
+   managed/cloud refresh, resume, hook/plugin/Skill startup, denied source access, protected output
+   paths and policy mutation. Unknown paths or conflicting managed requirements must refuse work.
+   Confirm native authentication ownership separately; do not infer OAuth behavior from fake keys.
+3. **Existing adapter integration:** bind the qualified policy to the C06b review and journal,
+   implement native identity/reconciliation/cancellation, then expose C06d's Host interaction/SDK.
+4. **Delivery acceptance:** finish C06e's independent archive and explicitly authorized real-Agent
+   run, update the compatibility evidence, and validate the installed Nooki artifact.
+
+Each gate must produce authoritative evidence. The first gate may discover that a safe small
+extension is infeasible; that outcome does not authorize a larger replacement Agent runtime.
+
+## Alternative: retain only official installed CLI integration
+
+Keep the current implementation boundary and wait for a supported Codex interface that passes the
+same native startup controls. Existing C06a/C06b work remains retained, with model dispatch unavailable.
+This avoids a new native artifact and its update burden, but the audited interfaces currently do
+not supply the required boundary. Additional partial probes cannot substitute for that interface.
+
+## Concrete decision scope after qualification
+
+The accepted scope authorizes development and, only after the existing gates pass, integration
+of a separately identified, version-pinned Codex-native component for capability-owned runs. It
+adds responsibility for building, integrity-checking, distributing and updating that component.
+Codex keeps model transport, authentication, session execution, tools, approvals and cancellation;
+Nooki keeps review, retained inputs and native-ID reconciliation through its existing adapter.
+The user's ordinary installed CLI and ordinary Nooki conversations are outside this component's
+replacement scope. No new model client, credential store or scheduler is proposed.
+
+Current evidence is concrete but incomplete:
+
+| Evidence/cost, checked 2026-11-27 | Meaning for adoption |
+| --- | --- |
+| Six runtime files, 108 added/28 removed lines in the current native patch | Current experiment footprint only; durable binding and full policy remain unfinished |
+| Latest matched/regression set: 58 synthetic turns | Startup/live-scope/selected contributor paths qualify; no complete production policy or real-Agent run is certified |
+| macOS arm64 development binary: 715,731,648 bytes (682.6 MiB) | Measured unoptimized artifact, not a release download or installed-size estimate |
+| First recorded guard build: 5m 17s after dependency preparation; latest incremental build: 1m 32s | Measured local build cost; dependency downloads and production CI/release builds are not covered |
+| Pinned source has an Apache-2.0 LICENSE file | Source-license fact only; dependency notices and distribution review remain part of the existing delivery gate |
+| Current Nooki executable: 26,193,696 bytes; version 0.12.0 | The experimental binary is not currently bundled or installed |
+
+The current source/executable identities and exact patch are in the
+[live-scope receipt](../capability-platform-evidence/C06c-live-scope.md). Release size, signing,
+supported operating systems, update rollback, real native authentication continuity and complete
+policy qualification must be measured/proven before adoption. Approval of this scope is not an
+assertion that those gates passed and does not authorize a real-model acceptance run.
+
+Next implement and qualify the private run/recovery binding above, finish complete
+native policy validation, then connect C06b through C06c and complete C06d/C06e in their existing
+order. Keep the additional component unavailable on unsupported/mismatched installations. C05c
+handoff acceptance is independently authorized for its two concrete archives and four test
+permissions; it does not authorize sending messages or starting a real Agent. Downstream C07–C09
+and R/T phases retain their existing dependencies; no gate is skipped.
+
+## Owner decision — 2026-11-27
+
+The owner explicitly allowed introducing the Codex-native component and installing the Handoff
+acceptance packages in response to the consolidated decision request. This accepts the bounded
+scope above: a separately identified, version-pinned component, integrated only after qualification,
+without replacing the ordinary CLI or introducing a model client, credential store or scheduler.
+The additional build/distribution/update responsibility is accepted. Real-model acceptance remains
+outside this approval and requires the separate C06e authorization.
+
+The Handoff Reader/Peer 1.0.0 archive identities and four permissions are recorded in
+[C05c](../capability-platform-evidence/C05c.md). Their isolated synthetic acceptance may proceed;
+no Send action or real Agent execution is included. Neither authorization closes an implementation
+or verification gate by itself.
+
+## Proposal delivery validation
+
+Local documentation links and `git diff --check` pass. Desktop build/install and strict deep
+codesign verification pass; installed Nooki remains 0.12.0 with unchanged executable SHA-256
+`9ff4839694024f84c86cf3652f24cfe35bdab2f0511ebdb5fc325c6a7eae3a91`.
+Logs: `/tmp/nooki-c06c-native-extension-desktop-build.log` and
+`/tmp/nooki-c06c-native-extension-desktop-install.log`. Existing task workers were handed off by the
+installer. Application regression tests were not rerun for this documentation-only change;
+existing bundle-size/plugin-timing advisories remain. No production native extension integration or
+production policy qualification is claimed.
+
+### Decision refinement validation — 2026-11-27
+
+The private binding and concrete decision scope above were reviewed against the current C06b
+owners, native history/live-scope findings and implementation dependencies. The actual development
+binary size and native patch footprint were measured again. Both pending C05c archives were
+rehashed and their manifests/entries rechecked; [C05c evidence](../capability-platform-evidence/C05c.md)
+retains the exact identities and permission boundary. No native qualification result is newly
+claimed from this documentation refinement, and no existing acceptance box is changed.
+
+186 local documentation links and diff checks pass. Desktop build (native release: 30.23s),
+installation and strict deep signature verification pass. Nooki remains 0.12.0 with the executable
+identity above. Logs: `/tmp/nooki-c06c-decision-desktop-build.log` and
+`/tmp/nooki-c06c-decision-desktop-install.log`. Application/native suites were not rerun for this
+documentation-only change. At that earlier refinement checkpoint, native-component adoption and
+archive installation were not yet approved; the owner decision above supersedes that status.

@@ -1,8 +1,14 @@
 import type { ConversationArtifact } from '../conversation/conversation-documents.ts'
+import type { DocumentReference } from '../../../packages/capability-contract/src/index.ts'
 
 export type BoardAuthorization = { snapshotId: string; documentIds: string[] }
-export type BoardSource = { id: string; title: string }
+export type BoardSource = { id: string; title: string; reference?: DocumentReference }
 export type BoardDelivery = { text: string; artifacts: ConversationArtifact[]; question?: boolean }
+export type AttachedDelivery = {
+  id: string; title: string; createdAt: string
+  provenance: { type: 'capability'; capabilityId: string; capabilityVersion: string }
+  documents: { reference: DocumentReference; documentDate: string; content: string }[]
+}
 
 export type BoardStatus = 'todo' | 'queued' | 'running' | 'question' | 'review' | 'stopped' | 'done' | 'paused' | 'pausing' | 'stopping' | 'blocked' | 'usageLimited' | 'budgetLimited'
 
@@ -27,6 +33,7 @@ export type BoardCard = {
   runId?: string
   followUp?: string
   delivery?: BoardDelivery
+  attachedDeliveries?: AttachedDelivery[]
   error?: string
 }
 
@@ -41,7 +48,7 @@ function draftContent(title: string, description: string, sources: BoardSource[]
   title = title.trim()
   description = description.trim()
   if (!title || title.length > 120 || description.length > 20_000) throw new Error('Invalid task title or description')
-  const references = [...new Map(sources.map(source => [source.id, { ...source }])).values()]
+  const references = [...new Map(sources.map(source => [source.id, structuredClone(source)])).values()]
   if (references.length > 50) throw new Error('Too many task references')
   return { title, description, sources: references.length ? references : undefined }
 }

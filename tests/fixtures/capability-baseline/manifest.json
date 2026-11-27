@@ -1,0 +1,9 @@
+{
+  "id": "org.nooki.baseline",
+  "version": "1.0.0",
+  "name": "Profile baseline",
+  "description": "Synthetic storage and retained-document fixture. No agent or network calls.",
+  "entrypoints": ["page"],
+  "permissions": ["storage", "documents.publish"],
+  "minPlatformVersion": "0.3.2"
+}

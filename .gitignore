@@ -9,3 +9,7 @@ src-tauri/target/
 /AGENTS.md
 /tasks/plan.md
 /tasks/todo.md
+
+/src-tauri/resources/capability-codex/codex-app-server
+/src-tauri/resources/capability-codex/component.json
+/src-tauri/resources/capability-codex/LICENSE

@@ -9,10 +9,47 @@ Deliver an independent React capability project and a `.capability.zip` for the 
 
 1. Read [the contract](references/contract.md) and [UI guidance](references/ui.md). The bundled `kit.json` identifies the kit and target Nooki versions. Use the bundled types as the interface source of truth.
 2. For a new package, run `node scripts/create-capability.mjs <new-project-directory> <reverse.domain.id>` from this skill directory. The destination must not exist. This copies the starter, types, UI, and build tools; development then needs no Nooki checkout. For an existing package, preserve its identity and user changes.
-3. Implement the requested behavior in that project. The starter's `package.json` declares its environment and scripts. Use `npm install`, then `npm run dev` for preview. Preview uses simulated data; AI and native sources are unavailable there. Use the platform's task runner for long work, declared Host permissions for side effects, and explicit capability commands for operations conversations may call.
-4. Run `npm run check` and `npm run pack`. Verify the actual page in light/dark themes, Chinese/English, and wide/narrow windows. Check empty, loading, error, and successful states relevant to the feature. Fix failures before reporting the package as built.
+3. Implement the requested behavior in that project. The starter's `package.json` declares its environment and scripts. Use `npm install`, then `npm run dev` for preview. The deterministic `preview/host.ts` simulates only permission-checked JSON storage and language/theme; each instance starts empty and reloading clears preview data. All other Host operations explicitly fail as unavailable, including task observation and grant listing. Reuse this factory in local package tests; the contract shows an example. Use the platform's task runner for long work, declared Host permissions for side effects, and explicit capability commands for operations conversations may call. Test desktop-only flows with the actual archive, not successful stubs.
+4. Run `npm run check` and `npm run pack` (Python 3 is required for ZIP creation). Verify the actual page in light/dark themes, Chinese/English, and wide/narrow windows. Check empty, loading, error, and successful states relevant to the feature. Fix failures before reporting the package as built.
 5. Deliver the source directory, generated archive path, requested permissions, and what was verified. Desktop installation and real Host behavior must be reported separately from browser preview. The user imports the archive and clicks Install in Nooki; producing the package does not authorize installing it.
 
 Capability packages support a Page, optional jobs, and optional conversation commands backed by those jobs. Never expose all jobs automatically: each command needs schemas, an effect, and a confirmation policy. For one-sentence use with this turn's attachments, add `acceptsConversationSources: true` to the command and request `documents.read-selected`; the job then receives Nooki-owned `input.conversationSources` without a separate Library grant. Do not put that reserved field in the agent input schema or ask the agent for attachment IDs. Read the contract for confirmation and citation rules. Nooki supplies React and the JSX runtime. Keep module initialization free of business side effects, scope CSS to the capability root, and use CapabilityHost instead of importing Nooki internals, Tauri, credentials, or another capability's private storage. Packages run trusted code in the same environment as Nooki; checks are not an untrusted-code sandbox.
 
 For unfamiliar coding tools, reading this file and its references directly is sufficient; no tool-specific commands or MCP connections are required. Resolve relative paths from this skill directory, and keep generated work outside the installed skill.
+
+For task-board drafts, declare `board.create`, require Nooki 0.4.0+, and use `host.board.create(input, { idempotencyKey })`. Persist one key/input per intent before submission; retry unknown outcomes with that exact pair. Creation never starts work. For selected sources, require Nooki 0.6.0+ and `documents.read-selected`; pass unchanged references from the returned selection. New effects recheck current grant authority; committed exact retries remain metadata-only after revocation. Use the separately documented selection, attachment and reviewed delegation methods for additional board operations. The preview rejects creation with `UNSUPPORTED_SERVICE`; verify real behavior using the built archive in desktop Nooki. Do not cache a Host after its page/job ends.
+
+For selected Library inputs, declare `documents.read-selected`, require Nooki 0.5.0+, and call `host.library.requestSelection({ purpose, kinds: ['document'], limit })`. Nooki owns recipient display and user confirmation. Handle explicit dismissal, then read only the returned grant's document IDs through `host.documents.readSelected`. Do not build a package-owned authorization dialog or request arbitrary document IDs. This version supports Markdown documents only; preview and artifact selection return `UNSUPPORTED_SERVICE`. Users revoke future reads in Library → Document access; citations remain readable.
+
+For a chat draft, declare `conversations.handoff`, require Nooki 0.11.0+, and call `host.conversations.handoff({ title, text, sources }, { idempotencyKey })`. Sources are optional; when present they must be unchanged active Library-selection references. The Host user chooses the target and approves sharing. Handle dismissal; persist the exact key/input and retry uncertainty unchanged. The result is a retained draft receipt, not permission to read history or send. Nooki preserves unsent composer work, requires explicit adoption/send, and retains offers after package removal. A committed replay returns metadata without navigating again. Preview returns `UNSUPPORTED_SERVICE`; never call private native commands or simulate approval.
+
+For existing-task approval on Nooki 0.8.0+, declare `board.attach-delivery` and use `host.board.requestSelection` with a purpose and `operations: ["attachDelivery"]`. Handle dismissal; preserve exact granted task revisions and never infer execution/acceptance authority. For Nooki 0.9.0+, use `host.board.attachDelivery` with the selected grant ID, exact `{id, revision}`, and own published or actively selected document references. Persist key and complete input before an effect that needs restart recovery. Retry uncertain outcomes unchanged; viewing retained results never implies acceptance. Consult the bundled contract for source permissions and retention limits.
+
+For Agent execution, require Nooki 0.14.0+ and declare `agents.run`. Use `host.agents.listAvailable()`;
+prepared Nooki 0.15.0 Apple Silicon builds include the dedicated component and reuse Codex file
+login. Missing components/login or unsupported native configuration yield an empty list; handle it
+explicitly. Persist the exact input/key before `start`, let the
+Host obtain confirmation, and retain the returned run ID. Reopen with `get`/`subscribe`; release
+subscriptions on unmount. On uncertainty, reconcile the same request instead of generating another
+key. `cancel` returns observed state, not a promise that interruption already won. Check
+`cancellationRequested` independently from `status`; do not publish a cancelled Job's result.
+Use the Job-provided `context.host` so the Host binds child runs to the correct attempt. Do not use
+`ai.invoke` or private native commands as a fallback. Read the contract for supported snapshots and
+remaining structured-result/question/artifact work. Preview never fabricates a run or approval.
+
+Nooki 0.16.0 exposes optional public `run.progress.text` and `run.progress.awaitingInput`.
+Render progress without treating it as a completed result. Direct the user to Nooki's question
+notice when input is needed; never implement package-owned native answers or approval controls.
+
+Nooki 0.17.0 returns validated `run.result.data` for an approved `outputSchema` (JSON Schema 2020-12,
+embedded references only). Preserve the exact schema with the saved intent. A result-format failure
+is terminal `failed` with `run.error.code === 'INVALID_RESULT'`; do not silently retry or publish it.
+
+For independent execution on Nooki 0.18.0+, declare `board.request-delegation`. Prepare a complete
+unstarted todo containing the task and durable inputs, persist its exact reference/key, and call
+`host.board.requestDelegation({ item, sourceRunId? }, { idempotencyKey })`. A current selected task
+also needs `grantId`. Nooki owns the separate execution confirmation. Handle dismissal and persist
+the returned receipt; uncertainty retries the same input/key. Optional `sourceRunId` must already be
+terminal. Never migrate a live package run or assume that draft creation starts execution. The
+independent task uses the existing Codex task-board worker and continues after package removal;
+view progress, questions and cancellation on the task board. Preview explicitly refuses execution.

@@ -27,6 +27,12 @@ export function goalCommand(request: Record<string, unknown>) {
 }
 export const taskBoard = {
   ...localBoard,
+  async delegateDraft(id: string) {
+    const card = localBoard.snapshot().cards.find(card => card.id === id)
+    if (!card || card.status !== 'todo') throw new Error('Only todo tasks can be delegated')
+    const expected = structuredClone({ title: card.title, description: card.description, sources: card.sources ?? [] })
+    await goalCommand({ op: 'delegate', id, snapshotId: crypto.randomUUID(), expected })
+  },
   async add(title: string, description: string, sources: import('./task-board-store.ts').BoardSource[] = [], cwd = '') {
     if (!native()) return localBoard.add(title, description, sources)
     const id = crypto.randomUUID()

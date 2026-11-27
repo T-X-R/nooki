@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-24",
+  "testedSource": "517a32b655c5e4436823831cca80484b50995d2c",
+  "profile": "/private/tmp/nooki-profile-5dTf40",
+  "comparisonBaseline": "C03c-native-state.json",
+  "unchanged": {
+    "boardCardsAndReceipts": true,
+    "documentGrant": true,
+    "revocationMarker": true,
+    "currentDocument": true
+  },
+  "counts": {
+    "boardCards": 1,
+    "createReceipts": 1,
+    "documentGrants": 1,
+    "nativeTasks": 0
+  },
+  "keyboard": {
+    "pickerSearchInitialFocus": true,
+    "pickerTabToCheckbox": true,
+    "pickerEscapeRestoresKeyboardTrigger": true,
+    "managerCloseInitialFocus": true,
+    "managerEscapeRestoresKeyboardTrigger": true
+  },
+  "minimumWindow": {
+    "logicalWidth": 980,
+    "logicalHeight": 680,
+    "screenshotWidth": 1960,
+    "screenshotHeight": 1360,
+    "observedPairs": [
+      "zh-light",
+      "en-dark"
+    ],
+    "dialogs": [
+      "document-picker",
+      "document-access"
+    ]
+  },
+  "normalQuitExitCode": 0
+}

@@ -4,6 +4,21 @@ use serde::{Deserialize, Serialize};
 use std::{collections::{BTreeMap, BTreeSet}, fs, path::Path, sync::Mutex};
 
 pub static DATA_LOCK: Mutex<()> = Mutex::new(());
+
+// Order: task-data (when needed) -> authority (when needed) -> library file lock -> DATA_LOCK.
+// The worker and desktop are different processes; the mutex alone cannot protect publication.
+pub(crate) fn fence(root: &Path) -> Result<Option<fs::File>, String> {
+  #[cfg(unix)] {
+    fs::create_dir_all(root).map_err(|e| e.to_string())?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+      if let Some(file) = crate::task_worker::file_lock(&root.join("library-data.lock"))? { return Ok(Some(file)); }
+      if std::time::Instant::now() >= deadline { return Err("RESOURCE_BUSY: library data is changing; retry later".into()); }
+      std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+  }
+  #[cfg(not(unix))] { let _ = root; Ok(None) }
+}
 const STATE_FILE: &str = "library-organization.json";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -125,6 +140,7 @@ pub(crate) fn prune_history(root: &Path, id: &str, current_revision: &str) -> Re
   Ok(())
 }
 pub fn history(root: &Path, id: &str) -> Result<Vec<LibraryDocument>, String> {
+  let _fence = fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   organization(root)?;
   let current = document_library::read_unlocked(root, id)?;
@@ -160,6 +176,7 @@ fn destination(state: &Organization, topic_id: Option<String>, mut section: Libr
   Ok((topic, section))
 }
 pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocumentMetadata>, String> {
+  let _fence = fence(root)?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   let mut state = organization(root)?;
   match change {
@@ -280,6 +297,7 @@ pub fn change(root: &Path, change: LibraryChange) -> Result<Option<LibraryDocume
 
 #[tauri::command]
 pub fn library_organization(state: tauri::State<'_, crate::capability_runtime::PlatformState>) -> Result<Organization, String> {
+  let _fence = fence(state.data_dir())?;
   let _guard = DATA_LOCK.lock().map_err(|_| "Library unavailable")?;
   organization(state.data_dir())
 }

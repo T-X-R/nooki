@@ -1,0 +1,852 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 352,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 352,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 352,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 408,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 638,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 639,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 639,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 639,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 645,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 645,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 645,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 645,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": 0,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": false,
+        "peerConnectionEnabled": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 652,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 652,
+    "value": {
+      "enginePolicy": {
+        "allowedNetworkHostCount": null,
+        "available": true,
+        "dnsPrefetchEnabled": false,
+        "loadsNetworkSubresources": true,
+        "peerConnectionEnabled": true,
+        "persistentStore": false,
+        "readyForPackageNavigation": true
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 652,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 653,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 678,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "tcp",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 678,
+    "value": {
+      "bytes": 34,
+      "positiveControl": true,
+      "received": "preconnect",
+      "route": "/receiver-control"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 678,
+    "value": {
+      "bytes": 16,
+      "positiveControl": true,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-unavailable",
+    "elapsedMs": 679,
+    "value": {
+      "enginePolicy": {
+        "available": false,
+        "persistentStore": false,
+        "readyForPackageNavigation": false
+      }
+    }
+  },
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 1326,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 1326,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 1327,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "error": "ReferenceError: Can't find variable: RTCPeerConnection",
+        "fulfilled": false
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1364,
+    "value": {
+      "packageScriptStarted": true,
+      "rtc": {
+        "fulfilled": true,
+        "value": "ICE gathering started; inspect native UDP receiver, not this return value"
+      }
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1389,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 1639,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 2145,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 3147,
+    "value": {
+      "bytes": 20,
+      "positiveControl": false,
+      "received": "udp"
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 155478,
+    "value": {
+      "action": "load",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 0,
+        "peakInFlight": 0,
+        "rejected": 0
+      },
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 184,
+        "probe-b": 21,
+        "probe-control": 166,
+        "probe-shell": 183
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-a",
+        "probe-shell",
+        "probe-unavailable"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 160919,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 262144,
+        "callers": {
+          "probe-a": 4
+        },
+        "inFlight": 4,
+        "peakBytes": 262144,
+        "peakInFlight": 6,
+        "rejected": 26
+      },
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 189,
+        "probe-b": 25,
+        "probe-control": 172,
+        "probe-shell": 189
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-a",
+        "probe-shell",
+        "probe-unavailable"
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 165236,
+    "value": {
+      "action": "show-b",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 6,
+        "rejected": 38
+      },
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 193,
+        "probe-b": 29,
+        "probe-control": 176,
+        "probe-shell": 193
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-a",
+        "probe-shell",
+        "probe-unavailable"
+      ]
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 170172,
+    "value": {
+      "failure": {
+        "error": "synthetic operation failed",
+        "fulfilled": false
+      },
+      "loadProbe": true,
+      "recovery": {
+        "fulfilled": true,
+        "value": {
+          "bytes": 9,
+          "checksum": 959
+        }
+      },
+      "rounds": [
+        {
+          "bytes": 1,
+          "elapsedMs": 2005,
+          "outcomes": [
+            {
+              "accepted": true,
+              "elapsedMs": 2005,
+              "exact": true
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "host busy"
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2004,
+              "exact": true
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "host busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "host busy"
+            }
+          ]
+        },
+        {
+          "bytes": 65536,
+          "elapsedMs": 26,
+          "outcomes": [
+            {
+              "accepted": false,
+              "elapsedMs": 26,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 26,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 24,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 18,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 16.999999999970896,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 16.999999999970896,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 13,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 13,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 13,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8,
+              "error": "byte budget exceeded"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8,
+              "error": "byte budget exceeded"
+            }
+          ]
+        },
+        {
+          "bytes": 65537,
+          "elapsedMs": 11,
+          "outcomes": [
+            {
+              "accepted": false,
+              "elapsedMs": 11,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8.999999999970896,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8.999999999970896,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8.999999999970896,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 7,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 7,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 7,
+              "error": "request too large"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 171317,
+    "value": {
+      "failure": {
+        "error": "synthetic operation failed",
+        "fulfilled": false
+      },
+      "loadProbe": true,
+      "recovery": {
+        "fulfilled": true,
+        "value": {
+          "bytes": 9,
+          "checksum": 959
+        }
+      },
+      "rounds": [
+        {
+          "bytes": 1,
+          "elapsedMs": 2005,
+          "outcomes": [
+            {
+              "accepted": true,
+              "elapsedMs": 2005,
+              "exact": true
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2004,
+              "exact": true
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2003,
+              "exact": true
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2004,
+              "exact": true
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 3,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 4,
+              "error": "caller busy"
+            }
+          ]
+        },
+        {
+          "bytes": 65536,
+          "elapsedMs": 2011,
+          "outcomes": [
+            {
+              "accepted": true,
+              "elapsedMs": 2010,
+              "exact": true
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2010,
+              "exact": true
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2010,
+              "exact": true
+            },
+            {
+              "accepted": true,
+              "elapsedMs": 2009,
+              "exact": true
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 13,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 12,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 12,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 11,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 11,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "caller busy"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 9,
+              "error": "caller busy"
+            }
+          ]
+        },
+        {
+          "bytes": 65537,
+          "elapsedMs": 18,
+          "outcomes": [
+            {
+              "accepted": false,
+              "elapsedMs": 13,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 12,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 15,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 16,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 15,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 11,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 11,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 10,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 9,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 8,
+              "error": "request too large"
+            },
+            {
+              "accepted": false,
+              "elapsedMs": 7,
+              "error": "request too large"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "caller": "native",
+    "elapsedMs": 172558,
+    "value": {
+      "action": "status",
+      "admission": {
+        "bytes": 0,
+        "callers": {},
+        "inFlight": 0,
+        "peakBytes": 262144,
+        "peakInFlight": 6,
+        "rejected": 38
+      },
+      "elapsedMs": 0,
+      "ticks": {
+        "probe-a": 201,
+        "probe-b": 38,
+        "probe-control": 183,
+        "probe-shell": 204
+      },
+      "views": [
+        "probe-control",
+        "probe-b",
+        "probe-a",
+        "probe-shell",
+        "probe-unavailable"
+      ]
+    }
+  }
+]

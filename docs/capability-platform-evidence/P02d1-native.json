@@ -1,0 +1,29 @@
+{
+  "archive": {
+    "compressedBoundaryBytes": 33554432,
+    "compressedBytesFor64MiB": 65662,
+    "expandedBytes": 67108864,
+    "maxEntries": 256,
+    "maxEntryBytes": 16777216
+  },
+  "elapsedMs": 4206,
+  "private": {
+    "itemBytes": 262144,
+    "maxItems": 256,
+    "rejectionPreservedBytes": true,
+    "stagingCountsOldBytes": true,
+    "totalBytes": 16777216
+  },
+  "transfer": {
+    "audioBytes": 960044,
+    "cancelledStagingRemoved": true,
+    "chunkBytes": 65536,
+    "finalUsage": [
+      4,
+      76457516
+    ],
+    "itemBytes": 67108864,
+    "maxItems": 4,
+    "totalBytes": 134217728
+  }
+}

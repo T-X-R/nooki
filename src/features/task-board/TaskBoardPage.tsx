@@ -6,9 +6,11 @@ import type { Language } from '../../shared/i18n.ts'
 import { taskBoard, goalCommand } from './task-board.ts'
 import { TaskDescriptionInput } from './TaskDescriptionInput.tsx'
 import { TaskReferences } from './TaskReferences.tsx'
+import { TaskDeliveries } from './TaskDeliveries.tsx'
 import type { BoardSource, BoardStatus } from './task-board-store.ts'
 import agentCat from '../../assets/nooki-agent-cat.png'
 import './task-board.css'
+import { TaskAccessDialog } from './TaskAccessDialog.tsx'
 
 const columns: { key: string; zh: string; en: string; hint: [string, string]; empty: [string, string]; statuses: BoardStatus[] }[] = [
   { key: 'todo', zh: '待办', en: 'To do', hint: ['想法与下一步', 'Ideas and next steps'], empty: ['等待新的待办', 'Waiting for your next idea'], statuses: ['todo', 'queued'] },
@@ -19,6 +21,7 @@ const columns: { key: string; zh: string; en: string; hint: [string, string]; em
 
 export function TaskBoardPage({ language, toolbar, agentAvailable, onConversation, targetId, onTargetConsumed }: { language: Language; toolbar: ReactNode; agentAvailable: boolean; onConversation(id: string): void; targetId: string | null; onTargetConsumed(): void }) {
   const zh = language === 'zh'
+  const [accessOpen, setAccessOpen] = useState(false)
   const [today, setToday] = useState(() => new Date())
   const state = useSyncExternalStore(taskBoard.subscribe, taskBoard.snapshot)
   const [ready, setReady] = useState(false)
@@ -146,7 +149,8 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
   }
 
   const statusBadge = (status: BoardStatus) => <span className={`task-board-status ${status}`}>{statuses[status]}</span>
-  return <div className="task-board" ref={board} onKeyDown={event => { if (event.key === 'Escape' && open && !event.nativeEvent.isComposing) { event.preventDefault(); close() } }}>
+  return <div className="task-board" ref={board} onKeyDown={event => { if (event.key === 'Escape' && open && !accessOpen && !event.nativeEvent.isComposing) { event.preventDefault(); close() } }}>
+    {accessOpen && <TaskAccessDialog language={language} onClose={() => setAccessOpen(false)} />}
     <div className="task-board-content" ref={content} onClick={event => {
       if (open && event.target instanceof Element && !event.target.closest('button, a, input, textarea, select, label, summary')) close()
     }}>
@@ -157,7 +161,10 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
             <time className="task-board-date" dateTime={dateStamp} aria-label={dateLabel}><span>{shortDate}</span><span>{weekday}</span></time>
             <h1>{zh ? '任务板' : 'Task board'}</h1>
           </div>
-          <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
+          <div className="task-board-heading-actions">
+            {!!window.__TAURI_INTERNALS__ && <button className="secondary-button" onClick={() => setAccessOpen(true)}>{zh ? '任务授权' : 'Task access'}</button>}
+            <button className="primary-button task-board-add" disabled={!ready} onClick={event => create(event.currentTarget)}><PlusIcon />{zh ? '新建任务' : 'New task'}</button>
+          </div>
         </header>
         <div className="task-board-agent">
           <span><span className={`task-board-agent-avatar ${agentAvailable ? 'available' : ''}`} aria-hidden="true"><img src={agentCat} alt="" /></span><strong>Nooki Agent</strong><span role="status">{agentStatus}{queueStatus}</span></span>
@@ -238,17 +245,18 @@ export function TaskBoardPage({ language, toolbar, agentAvailable, onConversatio
               <div className="task-board-detail-meta">{card.createdAt !== undefined && <time dateTime={new Date(card.createdAt).toISOString()}>{zh ? `${fullDate.format(card.createdAt)}创建` : `Created ${fullDate.format(card.createdAt)}`}</time>}{statusBadge(card.status)}</div>
             </div>
             {card.description && <p className="task-board-text task-board-detail-description">{card.description}</p>}
-            <TaskReferences zh={zh} sources={card.sources ?? []} />
+            <TaskReferences zh={zh} sources={card.sources ?? []} snapshotId={card.authorization?.snapshotId ?? (card.engine === 'goals' ? card.id : undefined)} />
             {card.error && <p className="task-board-error" role="alert">{card.error}</p>}
             {error && <p className="task-board-error" role="alert">{error}</p>}
           </div>
           {card.engine === 'goals' && <dl className="task-goal-workspace task-board-workspace"><dt>{zh ? '工作目录' : 'Workspace'}</dt><dd>{card.execution?.cwd || card.cwd || (zh ? '接单时创建独立任务目录' : 'A dedicated workspace will be created on pickup')}</dd></dl>}
+          <TaskDeliveries deliveries={card.attachedDeliveries ?? []} zh={zh} />
         </div>
         {(card.threadId || card.status !== 'done') && <footer>
           {card.threadId && <button className="text-button task-board-conversation" onClick={() => onConversation(card.threadId!)}>{zh ? '打开执行会话' : 'Open conversation'}<ArrowTopRightIcon /></button>}
           {card.status === 'todo' && <>
             <button className="text-button task-board-complete" disabled={busy} onClick={() => void act(() => taskBoard.complete(card.id))}>{zh ? '标记完成' : 'Mark done'}</button>
-            <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id, card.sources?.map(source => source.id) ?? []))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
+            <button className="primary-button" disabled={busy || !agentAvailable} onClick={() => void act(() => taskBoardAgent.delegate(card.id))}>{zh ? '交给 Agent' : 'Delegate to Agent'}</button>
           </>}
           {card.engine === 'goals' && ['running', 'queued', 'question'].includes(card.status) && <button className="secondary-button" disabled={busy} title={zh ? '本轮完成后暂停，不中断当前工作' : 'Pause after the current turn'} onClick={() => void act(() => goalCommand({ op: 'pause', id: card.id }))}>{zh ? '暂停续跑' : 'Pause continuation'}</button>}
           {['running', 'question', 'pausing', 'stopping'].includes(card.status) && <button className="secondary-button" disabled={busy} onClick={() => void act(() => taskBoardAgent.stop(card.id))}>{zh ? '停止执行' : 'Stop execution'}</button>}

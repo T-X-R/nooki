@@ -22,6 +22,7 @@ pub struct CodexConversations {
   capability_bridge: Option<Arc<CapabilityBridge>>,
   capability_threads: Mutex<HashSet<String>>,
   goal_requests: bool,
+  native_endpoint: Option<PathBuf>,
 }
 struct Client {
   connection: AsyncMutex<SplitSink<crate::codex_background::Connection, Message>>,
@@ -75,7 +76,13 @@ impl CodexConversations {
   pub fn new(binary: String, root: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self {
     let capability_threads = std::fs::read(root.join("capability-tool-threads.json")).ok()
       .and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
-    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads), goal_requests: false }
+    Self { binary, root, client: AsyncMutex::new(None), sink, capability_bridge: None, capability_threads: Mutex::new(capability_threads), goal_requests: false, native_endpoint: None }
+  }
+  // A capability owner starts its bound native component itself. This connection must never
+  // fall back to launching an ordinary conversation process or attach the capability bridge.
+  pub(crate) fn for_capability(root: PathBuf, endpoint: PathBuf, sink: Arc<dyn Fn(Value) + Send + Sync>) -> Self {
+    let mut client=Self::new(String::new(),root,sink);
+    client.native_endpoint=Some(endpoint);client.goal_requests=true;client
   }
   // Only the dedicated task worker owns this transport and answers its native requests.
   pub(crate) fn with_goal_requests(mut self) -> Self { self.goal_requests = true; self }
@@ -105,8 +112,12 @@ impl CodexConversations {
   async fn connect(&self) -> Result<Arc<Client>, String> {
     let mut current = self.client.lock().await;
     if let Some(client) = current.as_ref().filter(|c| c.alive.load(Ordering::Relaxed)) { return Ok(client.clone()); }
-    std::fs::create_dir_all(self.workspace()).map_err(|_| "Could not create conversation workspace")?;
-    let connection = crate::codex_background::ensure_running(&self.binary, &self.root, &self.workspace()).await?;
+    let connection=if let Some(endpoint)=&self.native_endpoint {
+      crate::codex_background::connect(endpoint).await?.ok_or("OUTCOME_UNKNOWN: bound Codex owner is disconnected")?
+    } else {
+      std::fs::create_dir_all(self.workspace()).map_err(|_| "Could not create conversation workspace")?;
+      crate::codex_background::ensure_running(&self.binary, &self.root, &self.workspace()).await?
+    };
     let (writer, mut reader) = connection.split();
     let (events, _) = broadcast::channel(2048);
     let client = Arc::new(Client { connection: AsyncMutex::new(writer), reader: Mutex::new(None), pending: Mutex::new(HashMap::new()), next: AtomicU64::new(1), alive: AtomicBool::new(true), events, fresh: Mutex::new(HashSet::new()), answers: AsyncMutex::new(HashSet::new()) });

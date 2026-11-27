@@ -1,0 +1,22 @@
+{
+  "id": "org.example.board-denied",
+  "name": "Board Denied Acceptance",
+  "description": "A small place to keep a note.",
+  "version": "1.0.0",
+  "minPlatformVersion": "0.4.0",
+  "entrypoints": [
+    "page",
+    "job"
+  ],
+  "permissions": [],
+  "locales": {
+    "zh": {
+      "name": "无权限 Host 验证",
+      "description": "保存一段自己的记录。"
+    },
+    "en": {
+      "name": "Board Denied Acceptance",
+      "description": "A small place to keep a note."
+    }
+  }
+}

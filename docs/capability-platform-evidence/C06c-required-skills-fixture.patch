@@ -1,0 +1,7 @@
+--- a/codex-rs/core/tests/suite/remote_env_required_skills_tests.rs
++++ b/codex-rs/core/tests/suite/remote_env_required_skills_tests.rs
+@@ -88,0 +89,4 @@
++        .with_pre_build_hook(|home| {
++            std::fs::write(home.join("config.toml"), "[features]\nhooks = false\n")
++                .expect("write synthetic hooks-disabled configuration");
++        })

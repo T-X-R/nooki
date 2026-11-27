@@ -1,0 +1,10 @@
+{
+  "rawBytes": 32768,
+  "base64Bytes": 43692,
+  "exampleEnvelopeBytes": 291,
+  "exampleWireBytes": 43983,
+  "encodedEnvelopeBudget": 8192,
+  "worstComposedWireBytes": 51884,
+  "wireBudget": 65536,
+  "rejected64KiBRawBase64Bytes": 87384
+}

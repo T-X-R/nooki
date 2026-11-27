@@ -126,6 +126,11 @@ for line in connections():
         tid='session-'+str(len(threads)+1)
         threads[tid]={'id':tid,'cwd':p.get('cwd',os.getcwd()),'preview':'','source':'vscode','updatedAt':1,'status':{'type':'idle'},'turns':[]}
         reply({'thread':threads[tid],**sandbox_state(p)})
+    elif method=='thread/list' and Path('fake-list-pages.json').exists():
+        Path('fake-list-entered').write_text('entered')
+        while Path('fake-list-wait').exists():time.sleep(0.01)
+        pages=json.loads(Path('fake-list-pages.json').read_text())
+        reply(pages[p.get('cursor') or 'first'])
     elif method=='thread/list':reply({'data':[t for t in threads.values() if t['turns'] and bool(t.get('archived')) == bool(p.get('archived')) and (not p.get('cwd') or t['cwd'] in (p['cwd'] if isinstance(p['cwd'],list) else [p['cwd']])) and (not p.get('sourceKinds') or t['source'] in p['sourceKinds'])],'nextCursor':None})
     elif method in ('thread/archive','thread/unarchive','thread/delete'):
         t=threads.get(p['threadId'])

@@ -1,10 +1,11 @@
 use app_lib::developer_integration::{bundled_files, DeveloperIntegration, SKILL_NAME};
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, sync::atomic::{AtomicUsize, Ordering}};
 
 struct Fixture(PathBuf);
 impl Fixture {
   fn new() -> Self {
-    let root = std::env::temp_dir().join(format!("workbench-integration-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap()));
+    static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+    let root = std::env::temp_dir().join(format!("workbench-integration-{}-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap(), NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)));
     fs::create_dir(&root).unwrap(); Self(root)
   }
   fn integration(&self) -> DeveloperIntegration { DeveloperIntegration::new(self.0.clone(), bundled_files()) }

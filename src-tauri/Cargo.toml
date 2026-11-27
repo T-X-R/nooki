@@ -1,12 +1,17 @@
 [package]
 name = "app"
-version = "0.3.2"
+version = "0.18.0"
 description = "Nooki, a local-first space for ideas, documents, and capabilities"
 authors = ["you"]
 license = ""
 repository = "https://github.com/T-X-R/nooki"
 edition = "2021"
 rust-version = "1.90"
+
+[features]
+# Disposable probe only; normal application builds do not enable child-view APIs.
+runtime-probe-embedded = ["tauri/unstable"]
+runtime-probe-receive = ["runtime-probe-embedded"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,13 +35,26 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 rfd = "0.17.2"
 semver = "1"
 sha2 = "0.10"
+getrandom = "=0.3.4"
 tokio = { version = "1", features = ["process", "time", "macros", "io-util", "sync", "net"] }
 tokio-util = "0.7"
 futures-util = { version = "0.3", features = ["sink"] }
 tokio-tungstenite = { version = "=0.28.0", default-features = false, features = ["handshake"] }
+jsonschema = { version = "=0.63.2", default-features = false }
 
 [dev-dependencies]
 png = "0.17.16"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-plugin-updater = "2.14.1"
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# Existing transitive dependencies, exposed only to the disposable native runtime probe.
+objc2 = "=0.6.4"
+objc2-web-kit = { version = "=0.3.2", default-features = false, features = ["std", "WKPreferences", "WKWebViewConfiguration", "WKWebsiteDataStore", "WKURLSchemeHandler", "WKURLSchemeTask", "WKWebView", "WKUserContentController"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSObject", "NSString", "NSData", "NSDictionary", "NSURL", "NSURLRequest", "NSURLResponse", "NSStream"] }
+percent-encoding = "=2.3.2"
+
+# Capability component admission hashes a large native executable; keep debug UI/tests responsive.
+[profile.dev.package.sha2]
+opt-level = 3

@@ -1,0 +1,164 @@
+--- a/codex-rs/core/src/config/mod.rs
++++ b/codex-rs/core/src/config/mod.rs
+@@ -632,0 +633,9 @@
++// Disposable native policy errors must not enter app-server configuration repair.
++#[derive(Debug, thiserror::Error)]
++pub enum NookiPrototypePolicyRejection {
++    #[error("NOOKI_PROTOTYPE_MCP_DENIED")]
++    Mcp,
++    #[error("NOOKI_PROTOTYPE_HOOKS_DENIED")]
++    Hooks,
++}
++
+@@ -3345,0 +3355,8 @@
++        // Disposable Nooki experiment: MCP configuration only, not a complete execution policy.
++        // This fixed guard also covers callers that bypass ConfigBuilder::build_with_validation.
++        if cfg.mcp_servers.values().any(|server| server.enabled) {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::PermissionDenied,
++                NookiPrototypePolicyRejection::Mcp,
++            ));
++        }
+@@ -3563,0 +3581,12 @@
++        // Disposable fixed policy: refuse hooks and legacy notify after managed resolution.
++        // Ordinary thread configuration cannot opt this executable out of the check.
++        if features.enabled(Feature::CodexHooks)
++            || cfg.notify.as_ref().is_some_and(|argv| {
++                argv.first().is_some_and(|program| !program.is_empty())
++            })
++        {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::PermissionDenied,
++                NookiPrototypePolicyRejection::Hooks,
++            ));
++        }
+--- a/codex-rs/app-server/src/config_manager.rs
++++ b/codex-rs/app-server/src/config_manager.rs
+@@ -449,0 +450,3 @@
++                    || error.get_ref().is_some_and(|cause| {
++                        cause.is::<codex_core::config::NookiPrototypePolicyRejection>()
++                    })
+@@ -469,2 +472,2 @@
+-        loader_overrides.ignore_managed_requirements |=
+-            self.refresh_local_network_policy().await.is_err();
++        // Disposable policy: repair user configuration without discarding managed constraints.
++        let policy_load = self.refresh_application_network_policy().await?;
+@@ -476 +479 @@
+-            .cloud_config_bundle(CloudConfigBundleLoader::default())
++            .cloud_config_bundle(policy_load.cloud_config.clone())
+@@ -478,0 +482 @@
++        self.check_application_policy_load(&policy_load)?;
+--- a/codex-rs/core/src/session/session.rs
++++ b/codex-rs/core/src/session/session.rs
+@@ -605,0 +606,20 @@
++        // Disposable fixed scope: validate the complete proposed state before committing it.
++        // Profile names alone do not detect edited profile contents or changed environments.
++        if next_configuration.permission_profile_state.snapshot()
++            != self.permission_profile_state.snapshot()
++            || next_configuration.runtime_workspace_roots != self.runtime_workspace_roots
++            || next_configuration.legacy_fallback_cwd != self.legacy_fallback_cwd
++            || next_environments != current_environments
++            || next_configuration.step_settings.approval_policy.value()
++                != self.step_settings.approval_policy.value()
++            || next_configuration.step_settings.approvals_reviewer
++                != self.step_settings.approvals_reviewer
++            || next_configuration.windows_sandbox_level != self.windows_sandbox_level
++        {
++            return Err(ConstraintError::InvalidValue {
++                field_name: "permission_scope",
++                candidate: "NOOKI_PROTOTYPE_SCOPE_IMMUTABLE".to_string(),
++                allowed: "the original native session scope".to_string(),
++                requirement_source: codex_config::RequirementSource::Unknown,
++            });
++        }
+@@ -887,0 +908,14 @@
++        // Disposable fixed policy: request and persisted declarations are equally untrusted.
++        if !session_configuration.dynamic_tools.is_empty()
++            || initial_history
++                .get_dynamic_tools()
++                .is_some_and(|tools| !tools.is_empty())
++        {
++            return Err(CodexErr::InvalidRequest(
++                "NOOKI_PROTOTYPE_DYNAMIC_TOOLS_DENIED".to_string(),
++            )
++            .into());
++        }
++        // Disposable qualification binary: exclude MCP from every native thread,
++        // including resume and plugin-triggered refresh, using the native marker.
++        thread_extension_init.insert(crate::mcp::McpServersDisabled);
+--- a/codex-rs/app-server/src/message_processor.rs
++++ b/codex-rs/app-server/src/message_processor.rs
+@@ -1047,0 +1048,15 @@
++        // Disposable fixed policy: refuse connector administration before dispatch
++        // or event-stream reservation can discover or start a connection.
++        let method = codex_request.method_name();
++        let global_inventory = matches!(
++            &codex_request,
++            ClientRequest::McpServerStatusList { params, .. } if params.thread_id.is_none()
++        );
++        if global_inventory
++            || ["mcpServer/", "plugin/", "marketplace/", "app/", "skills/"]
++                .iter()
++                .any(|prefix| method.starts_with(prefix))
++        {
++            return Err(invalid_request("NOOKI_PROTOTYPE_CONTROL_PLANE_DENIED"));
++        }
++
+--- a/codex-rs/ext/skills/src/host_service.rs
++++ b/codex-rs/ext/skills/src/host_service.rs
+@@ -235,2 +235,5 @@
+-        // User and plugin roots retain host authority independently of the selected executor.
+-        let host = FileSystemEnvironmentAccessor::unrestricted(&LOCAL_FS);
++        // Disposable local Skill policy: use the selected environment's captured permissions.
++        // with_environment_id sets implicit_repository_skills only for the local environment.
++        let Some(host) = repository.filter(|_| input.implicit_repository_skills) else {
++            return HostSkillsSnapshot::new(Arc::new(SkillLoadOutcome::default()));
++        };
+@@ -242 +245 @@
+-                &host,
++                host,
+@@ -446 +449,2 @@
+-            input.plugin_skill_snapshots.as_ref(),
++            // Parsed plugin metadata does not carry the current filesystem grant.
++            None,
+--- a/codex-rs/ext/skills/src/host_outcome.rs
++++ b/codex-rs/ext/skills/src/host_outcome.rs
+@@ -10,2 +9,0 @@
+-use codex_exec_server::FileSystemEnvironmentAccessor;
+-use codex_exec_server::LOCAL_FS;
+@@ -13 +10,0 @@
+-use codex_protocol::protocol::SkillScope;
+@@ -156,18 +153,15 @@
+-        let host = FileSystemEnvironmentAccessor::unrestricted(&LOCAL_FS);
+-        let access: &dyn EnvironmentAccess = match skill.scope {
+-            SkillScope::Repo => self
+-                .file_system_for_skill(skill)
+-                .and_then(|source| {
+-                    accessors
+-                        .iter()
+-                        .copied()
+-                        .find(|access| source.same_file_system(&access.cache_key()))
+-                })
+-                .ok_or_else(|| {
+-                    io::Error::new(
+-                        io::ErrorKind::PermissionDenied,
+-                        "skill discovery filesystem is unavailable for this callback",
+-                    )
+-                })?,
+-            SkillScope::User | SkillScope::System | SkillScope::Admin => &host,
+-        };
++        // Discovery and cached metadata cannot grant an unsandboxed body read.
++        let access = self
++            .file_system_for_skill(skill)
++            .and_then(|source| {
++                accessors
++                    .iter()
++                    .copied()
++                    .find(|access| source.same_file_system(&access.cache_key()))
++            })
++            .ok_or_else(|| {
++                io::Error::new(
++                    io::ErrorKind::PermissionDenied,
++                    "skill discovery filesystem is unavailable for this callback",
++                )
++            })?;

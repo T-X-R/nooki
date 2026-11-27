@@ -1,0 +1,50 @@
+[
+  {
+    "caller": "probe-shell",
+    "elapsedMs": 44693,
+    "spoofedCaller": {
+      "error": "caller mismatch",
+      "fulfilled": false
+    },
+    "protectedHostCommand": {
+      "fulfilled": true,
+      "value": "synthetic-host-sentinel"
+    }
+  },
+  {
+    "caller": "probe-a",
+    "elapsedMs": 44698,
+    "spoofedCaller": {
+      "error": "caller mismatch",
+      "fulfilled": false
+    },
+    "protectedHostCommand": {
+      "error": "host-only operation",
+      "fulfilled": false
+    }
+  },
+  {
+    "caller": "probe-control",
+    "elapsedMs": 44701,
+    "spoofedCaller": {
+      "error": "caller mismatch",
+      "fulfilled": false
+    },
+    "protectedHostCommand": {
+      "error": "host-only operation",
+      "fulfilled": false
+    }
+  },
+  {
+    "caller": "probe-b",
+    "elapsedMs": 44705,
+    "spoofedCaller": {
+      "error": "caller mismatch",
+      "fulfilled": false
+    },
+    "protectedHostCommand": {
+      "error": "host-only operation",
+      "fulfilled": false
+    }
+  }
+]
