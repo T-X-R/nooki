@@ -1124,6 +1124,13 @@ configuration refusals and no unexpected model dispatch. Six plugin controls rep
 gap: plugin MCP starts after installation refresh of an idle loaded thread, before another turn.
 Both old and experimental executables exhibit it. The next enforcement point must cover the
 resolved MCP catalog and refresh error propagation; a base-config or feature-flag check is insufficient.
+The subsequent [native thread-MCP experiment](capability-platform-evidence/C06c-thread-mcp.md)
+reuses `McpServersDisabled` at common session initialization. Installed-plugin MCP is excluded from
+new threads, idle-thread refresh, continued turns and thread-scoped inventory; the prior candidate
+fails the same assertions. Startup, persisted-resume and hooks regressions pass. However, global
+inventory without a thread ID still starts the plugin canary, so the marker does not establish
+process-wide isolation. Threadless discovery/OAuth, managed connector requirements and the other
+effect paths remain open. This is a disposable qualification patch, not a production adapter change.
 
 **State:** implementation remains open. The 2026-11-26 native configuration checkpoint reproduced
 connector inheritance and reload gaps before any model turn. Empty MCP maps, enumerating current

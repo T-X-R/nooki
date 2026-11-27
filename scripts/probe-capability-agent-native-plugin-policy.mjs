@@ -1,4 +1,4 @@
-// Characterizes plugin MCP startup; passing observations are not policy confinement.
+// Characterizes plugin MCP startup, or asserts scoped thread MCP exclusion.
 // Codex owns model transport; the local fixture performs no inference.
 import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
@@ -12,8 +12,10 @@ import { createInterface } from 'node:readline'
 import { promisify } from 'node:util'
 import { createProfile, launchOptions } from './desktop-profile.mjs'
 
-assert(process.argv[2] && process.platform === 'darwin', 'Usage on macOS: node scripts/probe-capability-agent-native-plugin-policy.mjs <standalone-app-server> <true|false> <loaded|fresh>')
+assert(process.argv[2] && process.platform === 'darwin', 'Usage on macOS: node scripts/probe-capability-agent-native-plugin-policy.mjs <standalone-app-server> <true|false> <loaded|fresh> [observe|exclude]')
 assert(['true', 'false'].includes(process.argv[3]) && ['loaded', 'fresh'].includes(process.argv[4]), 'Explicit plugin feature and existing-thread mode required')
+const mode = process.argv[5] ?? 'observe'
+assert(['observe', 'exclude'].includes(mode), 'Unknown expectation mode')
 const pluginsEnabled = process.argv[3] === 'true', withLoadedThread = process.argv[4] === 'loaded'
 const binary = await realpath(resolve(process.argv[2]))
 const root = await createProfile(), options = await launchOptions(root)
@@ -24,7 +26,10 @@ assert.equal(version, 'codex-app-server 0.170.0')
 const hash = createHash('sha256')
 for await (const chunk of createReadStream(binary)) hash.update(chunk)
 const binarySha256 = hash.digest('hex')
-const requests = [], fixtureErrors = [], notifications = [], results = []
+const requests = [], fixtureErrors = [], notifications = [], results = [], mismatches = []
+const checkCanary = (name, actual, expected) => {
+  if (actual !== expected) mismatches.push({ name, actual, expected })
+}
 const responseText = 'NOOKI_SYNTHETIC_MODEL_RESPONSE'
 const server = createServer(async (request, response) => {
   try {
@@ -138,16 +143,21 @@ async function completeTurn(threadId, label) {
 try {
   await rpc('initialize', { clientInfo: { name: 'nooki-native-model-probe', version: '1' }, capabilities: { experimentalApi: true } })
   child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n')
+  let loadedThreadId = null
   if (withLoadedThread) {
-    const clean = await start()
-    await completeTurn(clean.thread.id, 'clean-plugin-positive-control')
+    loadedThreadId = (await start()).thread.id
+    await completeTurn(loadedThreadId, 'clean-plugin-positive-control')
   }
   assert.equal(await readFile(marker, 'utf8').catch(() => ''), '')
   const install = await rpc('plugin/install', { marketplacePath, pluginName: 'synthetic-plugin' })
   await new Promise(resolve => setTimeout(resolve, 1000))
   const canaryStartedAfterInstall = await readFile(marker, 'utf8').catch(() => '') === 'started'
   results.push({ name: 'synthetic-local-plugin-install', result: install, canaryStartedAfterInstall, modelRequestsAfterInstall: requests.length })
-  assert.equal(canaryStartedAfterInstall, pluginsEnabled && withLoadedThread)
+  checkCanary('idle-thread-install-refresh', canaryStartedAfterInstall, mode === 'observe' && pluginsEnabled && withLoadedThread)
+  if (mode === 'exclude' && loadedThreadId) {
+    await completeTurn(loadedThreadId, 'same-thread-after-plugin-refresh')
+    checkCanary('loaded-thread-remains-usable', await readFile(marker, 'utf8').catch(() => '') === 'started', false)
+  }
   const before = requests.length
   let refusal = null, accepted = null
   try { accepted = await start() } catch (error) { refusal = error.message }
@@ -156,14 +166,30 @@ try {
   const canaryStarted = await readFile(marker, 'utf8').catch(() => '') === 'started'
   results.push({ name: 'installed-plugin-mcp', refusal, canaryStarted, additionalModelRequests: requests.length - before })
   assert.equal(refusal, null)
-  assert.equal(canaryStarted, pluginsEnabled); assert.equal(requests.length, before + 1)
+  checkCanary('new-thread-with-installed-plugin', canaryStarted, mode === 'observe' && pluginsEnabled)
+  assert.equal(requests.length, before + 1)
   assert.equal(requests.length, syntheticModelTurns)
+  if (mode === 'exclude' && accepted) {
+    const scopedStatus = await rpc('mcpServerStatus/list', { threadId: accepted.thread.id })
+    results.push({ name: 'thread-scoped-inventory', serverNames: scopedStatus.data.map(server => server.name) })
+    if (scopedStatus.data.length !== 0) mismatches.push({ name: 'thread-scoped-inventory', actual: scopedStatus.data.length, expected: 0 })
+    checkCanary('thread-scoped-inventory-startup', await readFile(marker, 'utf8').catch(() => '') === 'started', false)
+  }
+  assert.deepEqual(mismatches, [], 'Plugin MCP startup did not meet the selected expectation')
+  if (mode === 'exclude') {
+    // Characterize the distinct global path only after scoped exclusion is verified.
+    // A global canary launch is recorded as a gap, never a confinement success.
+    const globalStatus = await rpc('mcpServerStatus/list', {})
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    results.push({ name: 'threadless-inventory-characterization', serverNames: globalStatus.data.map(server => server.name), canaryStarted: await readFile(marker, 'utf8').catch(() => '') === 'started' })
+    assert.equal(requests.length, syntheticModelTurns, 'Inventory must not dispatch a model turn')
+  }
   passed = true
 } finally {
   if (child.exitCode === null && child.signalCode === null) { child.kill('SIGTERM'); await once(child, 'exit') }
   lines.close(); rejectPending(new Error('Probe finished'))
   server.closeAllConnections(); await new Promise(resolve => server.close(resolve))
-  const receipt = { root, binary, version, binarySha256, pluginsEnabled, withLoadedThread, passed, results, requests, fixtureErrors, syntheticModelTurns, realModelCalls: 0, pluginConfinementCertified: false, productionPolicyCertified: false }
+  const receipt = { root, binary, version, binarySha256, pluginsEnabled, withLoadedThread, mode, passed, mismatches, results, requests, fixtureErrors, syntheticModelTurns, realModelCalls: 0, scopedThreadMcpExclusionVerified: mode === 'exclude' && passed, pluginConfinementCertified: false, productionPolicyCertified: false }
   await writeFile(join(root, 'plugin-probe.json'), JSON.stringify(receipt, null, 2) + '\n')
   await writeFile(join(root, 'stderr.log'), stderr)
   await writeFile(join(root, 'notifications.json'), JSON.stringify(notifications, null, 2) + '\n')

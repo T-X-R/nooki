@@ -74,6 +74,12 @@ persisted-thread resume refusals and recovery, but reproduces plugin MCP launch 
 thread is refreshed by plugin installation. Final catalog validation and typed-error propagation
 through refresh/fallback paths are therefore required; initial configuration checks alone remain
 insufficient. No complete gate-2 qualification is claimed.
+The [thread-MCP follow-up](../capability-platform-evidence/C06c-thread-mcp.md) reuses the native
+`McpServersDisabled` marker to exclude installed-plugin MCP from tested thread startup, refresh
+and inventory paths without changing the publication API. Plugin installation itself remains
+successful. Threadless inventory still starts that same canary, demonstrating that thread exclusion
+is only one part of the effect boundary. Global discovery/OAuth and explicit handling of incompatible
+managed requirements remain required; this experiment does not authorize a production component.
 
 The policy must:
 
